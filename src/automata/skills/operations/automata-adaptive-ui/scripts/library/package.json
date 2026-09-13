@@ -1,0 +1,13 @@
+{
+  "name": "automata-adaptive-ui",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@arrow-js/core": "1.0.6",
+    "@devcapsule/adapter": "npm:@jsr/devcapsule__adapter@4.0.0",
+    "edictor": "0.4.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.11"
+  }
+}

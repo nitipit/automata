@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "run_id": "example-run-id",
+  "created_at": "2026-01-01T00:00:00Z",
+  "subject": {
+    "kind": "skill",
+    "name": "automata-example",
+    "revision": "git:<commit-or-tree-id>",
+    "source": "installed"
+  },
+  "runtime": {
+    "harness": "pi",
+    "model": "<provider/model>",
+    "effort": "<effort-or-not-exposed>",
+    "cwd": "<disposable-workspace>",
+    "permissions": "<bounded-permissions>"
+  },
+  "evaluator": {
+    "kind": "agent",
+    "model": "<provider/model>",
+    "effort": "<effort-or-not-exposed>"
+  },
+  "rubric": {
+    "id": "example-rubric",
+    "version": 1,
+    "threshold_percent": 80
+  },
+  "scenario": {
+    "id": "example-scenario",
+    "version": 1,
+    "prompt": "<natural outcome-oriented prompt>"
+  },
+  "criteria": [
+    {
+      "id": "intended-outcome",
+      "dimension": "outcome",
+      "expectation": "<observable expected behavior>",
+      "status": "scored",
+      "score": 2,
+      "maximum": 2,
+      "minimum": null,
+      "evidence": [
+        "<bounded direct evidence>"
+      ]
+    }
+  ],
+  "critical_gates": [
+    {
+      "id": "required-boundary",
+      "expectation": "<required observable condition>",
+      "status": "PASS",
+      "evidence": [
+        "<bounded direct evidence>"
+      ]
+    }
+  ],
+  "score": {
+    "earned": 2,
+    "maximum": 2,
+    "percent": 100.0
+  },
+  "verdict": "PASS",
+  "failure_classification": null,
+  "limitations": []
+}

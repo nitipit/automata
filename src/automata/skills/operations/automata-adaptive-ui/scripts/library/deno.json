@@ -1,0 +1,19 @@
+{
+  "nodeModulesDir": "manual",
+  "unstable": ["sloppy-imports"],
+  "lint": {
+    "rules": {
+      "exclude": ["no-sloppy-imports"]
+    }
+  },
+  "compilerOptions": {
+    "lib": ["deno.ns", "dom", "dom.iterable", "esnext"]
+  },
+  "tasks": {
+    "build": "deno run --cached-only --node-modules-dir=auto --allow-read=. --allow-write=dist --allow-run=node build.ts",
+    "check": "deno test --cached-only --node-modules-dir=auto --no-run build.ts src/server.ts src/ui/adaptive-ui.ts src/ui/_components/*.ts src/ui/_tokens/primitives/*.ts",
+    "test": "deno test --cached-only --node-modules-dir=auto --allow-read --allow-write",
+    "fmt": "deno fmt build.ts src/",
+    "lint": "deno lint build.ts src/"
+  }
+}

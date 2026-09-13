@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reactive Adaptive UI</title>
+    <style>
+      body {
+        margin: 0;
+      }
+    </style>
+    <script type="module">
+      import {
+        Base,
+        Button,
+        Card,
+        component,
+        html,
+        reactive,
+      } from "/lib/adaptive-ui.js";
+
+      class ReactivePage extends Base {
+        #mounted = false;
+
+        static {
+          this.css = `
+            display: block;
+            width: min(36rem, 100%);
+
+            h1,
+            p {
+              margin: 0;
+            }
+
+            p {
+              color: #475569;
+            }
+          `;
+        }
+
+        connectedCallback() {
+          super.connectedCallback();
+          if (this.#mounted) return;
+          this.#mounted = true;
+
+          const state = reactive({ count: 0 });
+          const Counter = component(() =>
+            html`
+              <aui-card variant="surface" padding="lg">
+                <h1>Reactive Shadow DOM</h1>
+                <p aria-live="polite">Count: ${() => state.count}</p>
+                <aui-button
+                  label="${() => `Increment (${state.count})`}"
+                  tone="primary"
+                  type="button"
+                  @click="${() => state.count++}"
+                ></aui-button>
+              </aui-card>
+            `
+          );
+
+          html`
+            ${Counter()}
+          `(this);
+        }
+      }
+
+      class ReactiveShell extends Base {
+        static {
+          this.css = `
+            display: grid;
+            min-height: 100vh;
+            place-items: center;
+            box-sizing: border-box;
+            padding: 2rem;
+            background: #f8fafc;
+            color: #0f172a;
+            font-family: system-ui, sans-serif;
+            line-height: 1.5;
+          `;
+        }
+
+        constructor() {
+          super();
+          this.attachShadow({ mode: "open" }).innerHTML =
+            "<aui-reactive-page></aui-reactive-page>";
+        }
+      }
+
+      Card.define("aui-card");
+      Button.define("aui-button");
+      ReactivePage.define("aui-reactive-page");
+      ReactiveShell.define("aui-reactive-shell");
+    </script>
+  </head>
+
+  <body>
+    <aui-reactive-shell></aui-reactive-shell>
+  </body>
+</html>

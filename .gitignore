@@ -1,0 +1,13 @@
+.opencode/*
+!.opencode/agents/
+!.opencode/agents/*.md
+opencode.json
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+dist/
+*.egg-info/
+.agents/memory/chromadb/
+.agents/var/
+/AGENTS.md

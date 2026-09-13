@@ -1,0 +1,48 @@
+[project]
+name = "automata"
+version = "0.1.0"
+description = "Project-local agent guidance, personalization, reusable skills, and tools."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+dependencies = [
+    "chromadb>=1.5.9",
+    "cyclopts>=3.0.0",
+]
+
+[project.scripts]
+automata = "automata.cli:app"
+
+[dependency-groups]
+dev = [
+    "polars>=1.43.2",
+    "pytest>=8.3.0",
+    "pyyaml>=6.0.3",
+    "ruff>=0.8.0",
+    "ty>=0.0.1a6",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.0,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "automata"
+source-exclude = [
+    "src/automata/skills/operations/automata-adaptive-ui/scripts/library/dist",
+    "src/automata/skills/operations/automata-adaptive-ui/scripts/library/dist/**",
+    "src/automata/skills/operations/automata-adaptive-ui/scripts/library/node_modules",
+    "src/automata/skills/operations/automata-adaptive-ui/scripts/library/node_modules/**",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib"]

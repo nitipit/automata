@@ -1,0 +1,6 @@
+# Keep installed tool copies source-only; runtime records live under .agents/var.
+__pycache__
+*.pyc
+*.pyo
+*.log
+*.pid

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Adaptive UI Chat</title>
+    <style>
+      body {
+        display: grid;
+        min-height: 100dvh;
+        box-sizing: border-box;
+        place-items: center;
+        margin: 0;
+        padding: 1.5rem;
+        background: #f3f6fa;
+        color: #17263c;
+      }
+    </style>
+    <script type="module">
+      import { Button, Chat } from "/lib/adaptive-ui.js";
+      import { createAgentBrowserBridgeClient } from "/assets/client.js";
+
+      Button.define("aui-button");
+      Chat.define("aui-chat");
+
+      const chat = document.querySelector("aui-chat");
+      let client;
+
+      function showState(state) {
+        const pending = Boolean(state.pendingId ?? client?.getPendingId?.());
+        switch (state.status) {
+          case "connecting":
+            chat.setConnection(false, pending);
+            chat.setStatus("Connecting…");
+            break;
+          case "connected":
+            chat.setConnection(true, pending);
+            chat.setAgentBusy(state.agentBusy === true);
+            break;
+          case "sending":
+            chat.setStatus("Sending…");
+            break;
+          case "accepted":
+            chat.setStatus("Transport accepted · waiting for Pi admission…");
+            break;
+          case "admitted":
+            chat.setStatus("Pi admitted the message · thinking…");
+            break;
+          case "replied":
+            chat.setStatus("Reply received · updating conversation");
+            break;
+          case "rejected":
+            chat.reject(state.error?.message ?? "Message rejected");
+            break;
+          case "disconnected":
+            chat.setConnection(false, pending);
+            if (state.message) chat.setStatus(state.message);
+            break;
+          case "error":
+            if (state.uncertain || client?.getPendingId?.()) {
+              chat.setStatus("Delivery uncertain · no automatic resend");
+            } else {
+              chat.setStatus(state.error?.message ?? "Bridge error");
+            }
+            break;
+        }
+      }
+
+      client = createAgentBrowserBridgeClient({
+        onState: showState,
+        onMessage(message) {
+          if (message?.v !== 1 || message.kind !== "reply") {
+            chat.setStatus("Bridge returned an invalid reply envelope");
+            return;
+          }
+          chat.receiveMessage(message.payload);
+        },
+      });
+
+      document.addEventListener("agent-message", (event) => {
+        if (event.target !== chat) return;
+        try {
+          client.sendMessage(event.detail);
+          chat.markSent();
+        } catch (error) {
+          if (client.getPendingId()) {
+            chat.setStatus("Delivery uncertain · no automatic resend");
+          } else {
+            chat.reject(error instanceof Error ? error.message : String(error));
+          }
+        }
+      });
+
+      try {
+        client.connect();
+      } catch (error) {
+        chat.setConnection(false);
+        chat.setStatus(error instanceof Error ? error.message : String(error));
+      }
+    </script>
+  </head>
+  <body>
+    <aui-chat
+      id="chat-example"
+      title="Chat example"
+      agent-label="Assistant"
+      user-label="Visitor"
+    ></aui-chat>
+  </body>
+</html>
