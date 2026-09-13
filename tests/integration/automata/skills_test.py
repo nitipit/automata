@@ -648,13 +648,13 @@ def test_plan_owns_work_and_summarizes_team_design_without_dispatch() -> None:
 
     for term in (
         "owns work decomposition, dependencies, constraints, and acceptance criteria",
-        "team design owns the proposed arrangement",
-        "summarize its owners, dependencies, and integration",
-        "delegation owns concrete handoff readiness",
+        "team design owns responsibility distribution",
+        "delegation owns handoff readiness",
         "management owns active coordination",
-        "changes within it do not need per-worker approval",
+        "adapt within agreed scope without asking again",
         "seek approval before exceeding authority",
-        "not through a mandatory skill chain",
+        "rather than duplicating their procedures",
+        "planning does not require a team or a separate plan document",
     ):
         assert term in normalized, term
     assert "Ask before launching any agent" not in text
@@ -703,21 +703,22 @@ def test_plan_is_contextual_and_preserves_execution_boundaries() -> None:
     normalized = " ".join(text.casefold().split())
     for term in (
         "clear, bounded work does not need a formal plan",
-        "headings are optional",
         "work decomposition, dependencies, constraints, and acceptance criteria",
-        "discussion does not itself authorize implementation",
-        "do not ask again for steps already covered",
-        "initial delegation requires an approved envelope",
-        "coordinator-targeted watchdog",
-        "supported user-notification path with recovery and stop conditions",
-        "a timer log is not a user notification",
-        "bounded synchronous alternative before launch",
-        "not an automatic delegation trigger",
-        "not through a mandatory skill chain",
+        "discussion does not itself authorize implementation or delegation",
+        "working hypothesis, not a fixed script",
+        "keep later steps coarse until evidence makes detail useful",
+        "constraints come from goals, authorization, and real dependencies—not speculative steps",
+        "irreversible actions",
+        "reassess the affected decision when evidence changes",
+        "keep the working reasoning separate from the user-facing response",
+        "do not routinely present exhaustive steps, estimates, or team details",
+        "not a mandatory response format",
     ):
         assert term in normalized, term
     assert "every execution-plan heading is required" not in normalized
     assert "team: none" not in normalized
+    assert "watchdog" not in normalized
+    assert len(text.split()) < 350
 
 
 def test_install_skills_defaults_to_bundled_source(tmp_path: Path) -> None:
