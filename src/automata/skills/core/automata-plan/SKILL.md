@@ -36,7 +36,7 @@ This illustrates scope and a decision boundary, not a mandatory response format.
 ## Boundaries
 
 Planning owns work decomposition, dependencies, constraints, and acceptance criteria.
-Team design owns responsibility distribution; delegation owns handoff readiness;
+Work design owns responsibility distribution; delegation owns handoff readiness;
 management owns active coordination. Use those capabilities when needed rather
 than duplicating their procedures. Planning does not require a team or a separate
 plan document.

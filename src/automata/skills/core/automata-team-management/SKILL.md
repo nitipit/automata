@@ -70,7 +70,7 @@ discussion, progress interpretation, and course correction.
 ## Envelopes and team adaptation
 
 Recognize when changed scope, dependencies, context needs, availability, or weak
-integration evidence makes the arrangement worth revisiting. Team design owns the
+integration evidence makes the arrangement worth revisiting. Work design owns the
 proposed arrangement and transition; management supplies current evidence and enacts
 authorized changes. Preserve manager accountability and direct-parent boundaries.
 
@@ -130,7 +130,7 @@ transfer responsibilities, timers, models, transports, or ownership.
 
 This skill owns subtree aggregation, adaptive user/parent visibility, consolidated status,
 bounded direct-team adaptation, and manager-loss recovery. Planning owns goals,
-decomposition, constraints, and acceptance criteria; team design owns proposed
+decomposition, constraints, and acceptance criteria; work design owns proposed
 responsibilities, context ownership, integration, and transitions. Applicable `AGENTS.md` files
 own durable instructions; delegation owns each caller-to-worker handoff, return path, result
 review, acceptance, and cleanup; timer, model, and transport skills own their mechanisms. Do

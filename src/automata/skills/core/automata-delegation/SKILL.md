@@ -29,7 +29,7 @@ Resolve the smallest useful contract before sending work:
 Verify exact runtime identifiers when availability is uncertain. Confirm the launched
 model and supported thinking settings match the agreed assignment; report mismatches
 and obtain approval before substituting outside the agreed choices. Resolve missing
-choices before dispatch; team design owns selection judgment.
+choices before dispatch; work design owns selection judgment.
 
 Keep durable behavior and project policy in the applicable `AGENTS.md`. Put task-specific
 responsibility, permissions, constraints, and expected evidence in the delegation brief.
@@ -121,7 +121,7 @@ abandoned, or is relaunched so timer state stays aligned with the active expecta
 ## Boundaries
 
 This skill owns delegation semantics: handoff, evidence, waiting, recovery, and acceptance.
-Team design owns proposed responsibilities, context ownership, and transitions;
+Work design owns proposed responsibilities, context ownership, and transitions;
 planning owns work decomposition and acceptance criteria; management owns active
 coordination within the approved envelope. Applicable `AGENTS.md` files own durable
 instructions. Model, transport, terminal session, timer implementation, and message

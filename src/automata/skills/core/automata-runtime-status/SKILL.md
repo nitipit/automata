@@ -1,6 +1,6 @@
 ---
 name: automata-runtime-status
-description: Use when checking which provider, model, or thinking level the current agent is running, including verification for team design or delegation.
+description: Use when checking which provider, model, or thinking level the current agent is running, including verification for work design or delegation.
 ---
 
 # Automata Runtime Status

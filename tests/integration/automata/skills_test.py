@@ -10,7 +10,7 @@ TOOL_MAPPING_KEY = "automata-tools"
 CORE_SKILLS = {
     "automata-agents-md",
     "automata-agent-design",
-    "automata-team-design",
+    "automata-work-design",
     "automata-adaptive-ui",
     "automata-codex-imagegen",
     "automata-question",
@@ -313,7 +313,7 @@ def test_team_management_recognizes_redesign_and_enacts_authorized_transitions()
 
     for term in (
         "changed scope, dependencies, context needs, availability",
-        "team design owns the proposed arrangement and transition",
+        "work design owns the proposed arrangement and transition",
         "management supplies current evidence and enacts authorized changes",
         "launch, replacement, and rebalancing need no per-worker approval",
         "user or parent's visibility of material changes",
@@ -399,7 +399,7 @@ def test_delegation_skill_owns_handoff_and_no_polling_contract() -> None:
     for term in (
         "verify exact runtime identifiers when availability is uncertain",
         "model and supported thinking settings match the agreed assignment",
-        "team design owns selection judgment",
+        "work design owns selection judgment",
         "report mismatches and obtain approval before substituting outside the agreed choices",
     ):
         assert term in normalized, term
@@ -436,7 +436,7 @@ def test_delegation_skill_owns_handoff_and_no_polling_contract() -> None:
     assert "On notice, the coordinator" in text
     assert "Process or pane observation is bounded diagnosis" in text
     assert "when evidence is overdue or a concrete failure needs investigation" in normalized
-    assert "Team design owns proposed responsibilities, context ownership, and transitions" in text
+    assert "Work design owns proposed responsibilities, context ownership, and transitions" in text
     assert "planning owns work decomposition and acceptance criteria" in text
     assert "Applicable `AGENTS.md` files own" in text
     assert "`automata-" not in text
@@ -648,7 +648,7 @@ def test_plan_owns_work_and_summarizes_team_design_without_dispatch() -> None:
 
     for term in (
         "owns work decomposition, dependencies, constraints, and acceptance criteria",
-        "team design owns responsibility distribution",
+        "work design owns responsibility distribution",
         "delegation owns handoff readiness",
         "management owns active coordination",
         "adapt within agreed scope without asking again",

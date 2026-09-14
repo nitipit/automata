@@ -32,11 +32,12 @@ def test_agent_design_is_a_small_capability_placement_contract() -> None:
     assert len(text) < 2_000
 
 
-def test_team_design_owns_initial_arrangements_and_safe_redesign() -> None:
-    text = skill_text("automata-team-design")
+def test_work_design_owns_solo_team_arrangements_and_safe_redesign() -> None:
+    text = skill_text("automata-work-design")
     normalized = " ".join(text.casefold().split())
     for term in (
-        "designing an initial agent team or reconsidering its responsibilities",
+        "organizing solo or team work involves meaningful choices",
+        "not as a mandatory stage for every task",
         "one owner, fewer workers, or sequential work",
         "a full work plan is not required",
         "temporary responsibilities, not predefined roles",
@@ -57,11 +58,11 @@ def test_team_design_owns_initial_arrangements_and_safe_redesign() -> None:
         "not a mandatory skill chain",
     ):
         assert term in normalized, term
-    assert len(text) < 5_000
+    assert len(text) < 5_500
 
 
-def test_team_design_distinguishes_selected_supported_and_authorized_model_settings() -> None:
-    normalized = " ".join(skill_text("automata-team-design").casefold().split())
+def test_work_design_distinguishes_selected_supported_and_authorized_model_settings() -> None:
+    normalized = " ".join(skill_text("automata-work-design").casefold().split())
     for term in (
         "every agent in the team, including the coordinator",
         "use known current settings or explicitly label unknown settings",
@@ -77,7 +78,35 @@ def test_team_design_distinguishes_selected_supported_and_authorized_model_setti
         assert term in normalized, term
 
 
-@pytest.mark.parametrize("name", ["automata-agent-design", "automata-team-design"])
+def test_work_design_uses_delivery_tradeoffs_without_research_ceremony() -> None:
+    normalized = " ".join(skill_text("automata-work-design").casefold().split())
+    for term in (
+        "context ownership, total cost, completion time, and risk",
+        "keep tightly coupled knowledge together",
+        "briefing, duplicated context, review, retries, and integration in total cost",
+        "dependencies and waiting in end-to-end completion time",
+        "meet agreed acceptance criteria",
+        "stronger models or more agents do not guarantee quality",
+        "planning keeps the agreed acceptance criteria",
+        "do not silently lower the standard",
+        "use established user priorities",
+        "recommend an approach, explain its concrete consequence, and ask what matters most",
+        "not as a routine questionnaire",
+        "context distribution remains the agent's engineering decision",
+        "adapt within agreed priorities without repeatedly asking",
+        "let model choices and work distribution inform each other",
+        "reuse relevant research or task evidence",
+        "suggest focused research when missing or stale comparative evidence",
+        "missing research alone does not require investigation",
+        "separate vendor claims, observed results, and unknowns",
+        "diagrams are optional",
+        "not the full working analysis",
+    ):
+        assert term in normalized, term
+    assert "show two compact plain-text diagrams" not in normalized
+
+
+@pytest.mark.parametrize("name", ["automata-agent-design", "automata-work-design"])
 def test_design_skills_install_independently(tmp_path: Path, name: str) -> None:
     target = tmp_path / "skills"
     results = install_skills(target_root=target, skill_names=[name])
