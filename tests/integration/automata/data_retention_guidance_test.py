@@ -34,14 +34,14 @@ def test_skill_design_requires_retention_design_without_a_named_skill_chain() ->
     text = ROOT.joinpath("skill-ops", "automata-skill-design", "SKILL.md").read_text()
     normalized = " ".join(text.casefold().split())
     for term in (
-        "for skills that accumulate persistent data",
-        "define how growth is noticed, when retention is reviewed",
-        "who may authorize cleanup",
-        "data's value and cost, not universal quotas",
-        "a soft review threshold is not a hard storage bound",
-        "automatic eviction or deletion requires an agreed policy",
-        "without prescribing a named skill chain",
-        "growth/retention and cleanup authority for accumulating data",
+        "for accumulating data or runtime resources",
+        "establish growth/retention review, cleanup authority",
+        "distinguish disposable material from needed evidence",
+        "review thresholds from deletion permission",
+        "a terminal status alone does not prove inactivity",
+        "automatic deletion needs an agreed policy",
+        "avoid universal quotas or checks on every write",
+        "put concurrency and deletion safeguards in tools",
     ):
         assert term in normalized, term
     assert "automata-agent-data" not in text

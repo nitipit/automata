@@ -37,16 +37,14 @@ def test_compose_character_includes_selected_components() -> None:
     assert "# Base Language" in output
     assert "# Language: thai" in output
     assert "# Thai Language" in output
-    assert "ไม่ใช่คำลงท้ายที่ผู้ใช้เลือกใช้" in output
-    assert "ไม่ใช้ `ครับ` ในเสียงของตัวเอง" in output
-    assert "ไม่ใช้ `ค่ะ` หรือ `คะ` ในเสียงของตัวเอง" in output
-    assert "อย่าเลียนแบบหรือสลับไปใช้คำลงท้ายที่บ่งเพศของผู้ใช้" in output
-    assert "ห้ามผสมรูปภาษาของเพศหญิงและเพศชาย" in output
-    assert "ก่อนส่งคำตอบภาษาไทย" in output
-    assert "ไม่จำเป็นต้องเติมคำลงท้ายทุกประโยค" in output
-    assert "## Communication" in output
-    assert "Keep internal procedures and skill mechanics out of the response" in normalized
-    assert "Respect required output formats" in normalized
+    assert "ไม่เลียนแบบคำลงท้ายของผู้ใช้" in output
+    assert "ใช้ `ค่ะ`/`คะ` ไม่ใช้ `ครับ`" in output
+    assert "ใช้ `ครับ` ไม่ใช้ `ค่ะ`/`คะ`" in output
+    assert "ก่อนส่ง ตรวจคำลงท้ายให้สอดคล้องกัน" in output
+    assert "ไม่ต้องเติมทุกประโยค" in output
+    assert "ยกเว้นเมื่อยกคำพูดหรือกล่าวถึงภาษาของผู้อื่น" in output
+    assert "Explain procedures only when useful to the user" in normalized
+    assert "Respect requested formats" in normalized
     assert output.index("# Personality: automata") < output.index("# Language: base")
     assert output.index("# Language: base") < output.index("# Language: thai")
     assert output.index("# Language: thai") < output.index("# Behavior: base")
@@ -54,31 +52,36 @@ def test_compose_character_includes_selected_components() -> None:
     assert "# Base Behavior" in output
     assert "# Behavior: co-pilot" in output
     assert "# Co-Pilot Behavior" in output
-    assert "## Independent Judgment" in output
-    assert "engineering partner who helps the user think and implement—not an echo" in normalized
-    assert "Change recommendations when evidence or goals change" in normalized
-    assert "Choose solo work or coordination for its expected benefit" in normalized
-    assert "establish its authority before delegating" in normalized
-    assert "Make requests for input explicit and easy to answer" in normalized
-    assert "Use numbered choices when they help, not as a mandatory format" in normalized
-    assert "## Discussion and Execution" in output
-    assert "Do not treat casual observations or discussion as authorization to act" in normalized
-    assert "within that scope without repeatedly asking permission" in normalized
-    assert "Ask before destructive, consequential, or independently scoped actions" in normalized
-    assert "An action being useful does not itself authorize it" in normalized
+    for principle in (
+        "engineering partner, not an echo",
+        "Change recommendations with evidence or goals, not merely to agree",
+        "Choose solo work or coordination by expected benefit",
+        "Establish authority before delegating",
+        "Ask clear questions only when uncertainty affects the answer or action",
+        "use numbered choices when helpful",
+        "Discuss unresolved choices that materially affect scope, behavior, risk, "
+        "or user priorities",
+        "Discussion alone is not authorization",
+        "make ordinary engineering decisions and verify the result without repeated approval",
+        "ask before unapproved destructive, consequential, or independently scoped actions",
+        "Usefulness alone does not authorize action",
+    ):
+        assert principle in normalized
+    assert "Load applicable skills" not in output
+    assert "Check available skill descriptions" not in output
+    assert len(output) < 3_000  # Bounds generated text, not a token estimate.
 
 
 def test_resource_awareness_is_shared_across_working_styles() -> None:
     for behavior in ("co-pilot", "autonomous"):
         output = compose_character(behaviors=[behavior])
-        assert output.count("## Skills and Judgment") == 1
-        assert output.index("## Skills and Judgment") < output.index(f"# Behavior: {behavior}")
-        section = output.split("## Skills and Judgment\n", 1)[1].split("\n## ", 1)[0]
+        assert output.count("# Base Behavior") == 1
+        section = output.split("# Base Behavior\n", 1)[1].split("\n# Behavior:", 1)[0]
         normalized = " ".join(section.split())
-        assert "Keep resource awareness proportionate to the work" in normalized
+        assert "Keep resource awareness proportionate" in normalized
         assert "Distinguish estimates from observations" in normalized
-        assert "revise expectations when evidence changes" in normalized
-        assert "Refresh time context" in normalized
+        assert "revise expectations with evidence" in normalized
+        assert "Check time when a pause, deadline, or time-dependent claim" in normalized
         assert "automata-" not in section  # No fixed skill invocation chain in behavior.
 
 

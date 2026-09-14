@@ -672,12 +672,40 @@ def test_skill_design_supports_modularity_and_contextual_composition() -> None:
         "let the agent decide which capabilities to combine",
         "do not make one skill orchestrate its neighbors",
         "dependencies only where a concrete interface, handoff, or safety boundary needs them",
-        "is the skill independently useful within its scope?",
-        "can the agent recognize when to combine it with other capabilities?",
-        "can it change without forcing unrelated skills to change?",
-        "are required dependencies justified by concrete contracts?",
+        "keep one coherent scope",
+        "split independent responsibilities, not every subtopic",
     ):
         assert term in normalized, term
+
+
+def test_skill_design_shortens_wording_without_losing_meaning() -> None:
+    text = find_skill_file("automata-skill-design").read_text()
+    normalized = " ".join(text.casefold().split())
+    for term in (
+        "remove filler, repeated ideas, and unnecessary qualifiers",
+        "preserving conditions, exceptions, and authority boundaries",
+        "prefer clarity over the shortest text",
+        "avoid cryptic abbreviations",
+        "preserve intended decisions, not word count alone",
+        "moving always-read prose does not reduce context cost",
+    ):
+        assert term in normalized, term
+
+
+def test_skill_design_keeps_approved_execution_and_checks_proportionate() -> None:
+    text = find_skill_file("automata-skill-design").read_text()
+    normalized = " ".join(text.split())
+    for term in (
+        "approved changes and verification without repeated permission",
+        "Ask before exceeding scope",
+        "Discussion alone does not authorize mutation",
+        "check changeable prerequisites when evidence warrants it",
+        "wording tests alone do not establish agent behavior",
+        "Replace or remove overlapping guidance",
+    ):
+        assert term in normalized, term
+    assert "without discovery or preflight scans" not in text
+    assert len(text) < 6_000
 
 
 def test_skill_design_uses_ownership_before_location() -> None:
@@ -685,7 +713,7 @@ def test_skill_design_uses_ownership_before_location() -> None:
 
     assert "Identify ownership before location" in text
     assert "applicable owner-scoped data convention" in text
-    assert "generator\nimplements concrete discovery paths" in text
+    assert "generator implement concrete discovery paths" in " ".join(text.split())
 
 
 def test_skills_keep_internal_process_out_of_routine_presentation() -> None:

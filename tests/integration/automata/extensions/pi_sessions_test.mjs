@@ -56,7 +56,10 @@ async function fixture(hasUI = false) {
   const trash = (receipt, sessionId = "target", signal) => call(
     "pi_session_trash", { receipt, sessionId }, signal,
   );
-  return { cwd, ctx, sessions, commands, pi, list, trash };
+  const batch = (receipt, sessionIds, signal) => call(
+    "pi_session_trash", { receipt, sessionIds }, signal,
+  );
+  return { cwd, ctx, sessions, commands, pi, list, trash, batch, call };
 }
 
 for (const hasUI of [true, false]) {
@@ -178,7 +181,8 @@ test("gio fallback is recoverable and total failure preserves the file", async (
     await rename(args[1], `${args[1]}.trashed`);
     return { code: 0, stderr: "" };
   };
-  assert.equal((await f.trash(receipt)).details.method, "gio trash");
+  await assert.rejects(f.trash(receipt), /Unknown or superseded/);
+  assert.equal((await f.trash((await f.list()).receipt)).details.method, "gio trash");
 });
 
 test("false trash success is rejected", async () => {
@@ -187,6 +191,93 @@ test("false trash success is rejected", async () => {
   f.pi.exec = async () => ({ code: 0, stderr: "" });
   await assert.rejects(f.trash(receipt), /session file is still present/);
   await access(f.sessions[1].path);
+});
+
+test("batch uses one receipt and preserves single-call protection", async () => {
+  const f = await fixture();
+  const { receipt } = await f.list();
+  const result = await f.batch(receipt, ["target", "other"]);
+  assert.equal(result.details.status, "trashed");
+  assert.deepEqual(result.details.results.map((r) => [r.sessionId, r.status]),
+    [["target", "trashed"], ["other", "trashed"]]);
+  assert.equal(f.commands.length, 2);
+  await access(f.sessions[0].path);
+  await assert.rejects(f.batch(receipt, ["other"]), /Unknown or superseded/);
+});
+
+test("batch validates every target before moving anything", async () => {
+  for (const invalid of ["current", "missing", "other"]) {
+    const f = await fixture();
+    const { receipt } = await f.list();
+    if (invalid === "other") await appendFile(f.sessions[2].path, "changed");
+    await assert.rejects(f.batch(receipt, ["target", invalid]));
+    assert.equal(f.commands.length, 0);
+    await access(f.sessions[1].path);
+  }
+});
+
+test("batch rejects empty, duplicate, oversized and ambiguous input", async () => {
+  const f = await fixture();
+  const { receipt } = await f.list();
+  for (const sessionIds of [[], ["target", "target"], [""], Array(101).fill("x")]) {
+    await assert.rejects(f.batch(receipt, sessionIds), /unique full session IDs/);
+  }
+  await assert.rejects(f.call("pi_session_trash", { receipt }), /exactly one/);
+  await assert.rejects(f.call("pi_session_trash", {
+    receipt, sessionId: "target", sessionIds: ["other"],
+  }), /exactly one/);
+  assert.equal(f.commands.length, 0);
+});
+
+test("batch stops on failure and reports completed and unattempted IDs", async () => {
+  const f = await fixture();
+  const path = join(f.cwd, "last.jsonl");
+  await writeFile(path, "last");
+  f.sessions.push({ ...f.sessions[2], id: "last", path });
+  const { receipt } = await f.list();
+  const exec = f.pi.exec;
+  f.pi.exec = async (command, args) => {
+    if (args.at(-1) === f.sessions[2].path) return { code: 1, stderr: "unavailable" };
+    return exec(command, args);
+  };
+  const result = await f.batch(receipt, ["target", "other", "last"]);
+  assert.equal(result.isError, true);
+  assert.equal(result.details.status, "incomplete");
+  assert.deepEqual(result.details.results.map((r) => r.status),
+    ["trashed", "failed", "not_attempted"]);
+  await access(f.sessions[2].path);
+  await access(path);
+  await assert.rejects(f.trash(receipt, "other"), /Unknown or superseded/);
+});
+
+test("batch rechecks later targets and reports cancellation after a move", async () => {
+  for (const cancel of [false, true]) {
+    const f = await fixture();
+    const { receipt } = await f.list();
+    const controller = new AbortController();
+    const exec = f.pi.exec;
+    f.pi.exec = async (...args) => {
+      const result = await exec(...args);
+      if (cancel) controller.abort();
+      else await appendFile(f.sessions[2].path, "changed");
+      return result;
+    };
+    const result = await f.batch(receipt, ["target", "other"], controller.signal);
+    assert.equal(result.isError, true);
+    assert.deepEqual(result.details.results.map((r) => r.status), ["trashed", "failed"]);
+    assert.equal(f.commands.length, 1);
+    await access(f.sessions[2].path);
+  }
+});
+
+test("concurrent batch calls cannot claim the same receipt", async () => {
+  const f = await fixture();
+  const { receipt } = await f.list();
+  const results = await Promise.allSettled([
+    f.batch(receipt, ["target"]), f.batch(receipt, ["other"]),
+  ]);
+  assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+  assert.equal(f.commands.length, 1);
 });
 
 test("multiple selected IDs survive re-listing and reordered results", async () => {

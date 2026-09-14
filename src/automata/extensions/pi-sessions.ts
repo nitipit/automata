@@ -92,13 +92,14 @@ export default function (pi: ExtensionAPI) {
 
   pi.registerTool({
     name: "pi_session_trash",
-    label: "Trash Pi Session",
+    label: "Trash Pi Sessions",
     description:
-      "Move one non-current Pi session from the exact current working directory to the " +
-      "operating-system trash. Requires an exact session ID and a fresh pi_session_list receipt. " +
+      "Move selected non-current Pi sessions from the exact current working directory to the " +
+      "operating-system trash. Supply sessionIds (or legacy sessionId) and one fresh pi_session_list receipt. " +
+      "Validates all targets first; moves sequentially, stopping and reporting partial results on failure. " +
       "The agent establishes user authorization and inactivity from context; no tool-level confirmation dialog. " +
       "Never falls back to permanent deletion.",
-    promptSnippet: "Safely move one listed current-CWD Pi session to recoverable trash",
+    promptSnippet: "Safely move selected listed current-CWD Pi sessions to recoverable trash",
     promptGuidelines: [
       "Use pi_session_trash only after pi_session_list, within the user's authorized scope, and when ownership and inactivity are sufficiently established; the tool does not detect sessions open in other processes.",
       "For pi_session_trash, use context to decide whether clarification or permission is needed. A clear removal request or prior scoped authorization needs no repeated confirmation; otherwise present candidates, optionally as stable numbered choices mapped to full session IDs.",
@@ -106,10 +107,16 @@ export default function (pi: ExtensionAPI) {
     ],
     parameters: Type.Object(
       {
-        sessionId: Type.String({
+        sessionId: Type.Optional(Type.String({
           minLength: 1,
-          description: "Exact full session ID returned by pi_session_list.",
-        }),
+          description: "Legacy single full session ID; supply exactly one of sessionId or sessionIds.",
+        })),
+        sessionIds: Type.Optional(Type.Array(Type.String({ minLength: 1 }), {
+          minItems: 1,
+          maxItems: LISTING_LIMIT,
+          uniqueItems: true,
+          description: "Exact full session IDs from one listing; supply instead of sessionId.",
+        })),
         receipt: Type.String({
           minLength: 1,
           description: "Fresh receipt returned by pi_session_list in this runtime.",
@@ -119,22 +126,60 @@ export default function (pi: ExtensionAPI) {
     ),
     async execute(_toolCallId, params, signal, _onUpdate, ctx) {
       signal?.throwIfAborted();
-      const revalidated = await resolveReceiptCandidate(ctx, latestReceipt, params);
-      signal?.throwIfAborted();
-      const method = await moveToRecoverableTrash(pi, revalidated.path, signal);
-      if (await pathExists(revalidated.path)) {
-        throw new Error("Trash command reported success but the session file is still present.");
+      if ((params.sessionId === undefined) === (params.sessionIds === undefined)) {
+        throw new Error("Supply exactly one of sessionId or sessionIds.");
       }
-
+      const ids = params.sessionIds ?? [params.sessionId!];
+      if (!Array.isArray(ids) || ids.length === 0 || ids.length > LISTING_LIMIT ||
+          ids.some((id) => typeof id !== "string" || id.length === 0) ||
+          new Set(ids).size !== ids.length) {
+        throw new Error("Supply 1–100 unique full session IDs.");
+      }
+      const receipt = latestReceipt;
+      // Preflight every target before any side effect, then claim this receipt.
+      for (const sessionId of ids) {
+        await resolveReceiptCandidate(ctx, receipt, { sessionId, receipt: params.receipt });
+        signal?.throwIfAborted();
+      }
+      if (latestReceipt !== receipt) {
+        throw new Error("Listing receipt was consumed or superseded; run pi_session_list again.");
+      }
       latestReceipt = undefined;
-      const result = {
-        status: "trashed",
-        sessionId: revalidated.id,
-        name: revalidated.name,
-        cwd: normalizePath(ctx.cwd),
-        method,
-      };
+      const results: Array<{
+        sessionId: string;
+        status: "trashed" | "failed" | "not_attempted";
+        name?: string;
+        method?: "trash" | "gio trash";
+        error?: string;
+      }> = [];
+      for (const sessionId of ids) {
+        try {
+          signal?.throwIfAborted();
+          // Recheck after earlier moves: another process may have changed this target.
+          const candidate = await resolveReceiptCandidate(ctx, receipt, {
+            sessionId, receipt: params.receipt,
+          });
+          signal?.throwIfAborted();
+          const method = await moveToRecoverableTrash(pi, candidate.path, signal);
+          if (await pathExists(candidate.path)) {
+            throw new Error("Trash command reported success but the session file is still present.");
+          }
+          results.push({ sessionId, status: "trashed", name: candidate.name, method });
+        } catch (error) {
+          if (params.sessionIds === undefined) throw error;
+          results.push({ sessionId, status: "failed", error: String(error) });
+          for (const remaining of ids.slice(results.length)) {
+            results.push({ sessionId: remaining, status: "not_attempted" });
+          }
+          break;
+        }
+      }
+      const failed = results.some((result) => result.status !== "trashed");
+      const result = params.sessionIds === undefined
+        ? { ...results[0], cwd: normalizePath(ctx.cwd) }
+        : { status: failed ? "incomplete" : "trashed", cwd: normalizePath(ctx.cwd), results };
       return {
+        ...(failed ? { isError: true } : {}),
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         details: result,
       };

@@ -11,13 +11,12 @@ def skill(group: str, name: str) -> str:
 def test_skill_design_distinguishes_verified_setup_from_normal_use() -> None:
     text = skill("skill-ops", "automata-skill-design")
     for term in (
-        "distinguish establishing a working setup from normal use",
-        "separate files or phases are optional",
-        "verify the chosen approach before persisting environment-specific facts",
-        "lightweight checks of changeable prerequisites",
-        "recover only the affected setup within existing authority",
-        "Do not rediscover known mapped tool entries as ceremony",
-        "or require setup for judgment-only skills",
+        "distinguish setup from normal use",
+        "evidence of readiness before retaining setup facts",
+        "recheck changeable prerequisites",
+        "repair only within existing authority",
+        "Reuse known entries without redundant discovery",
+        "Judgment-only skills need no setup ceremony",
     ):
         assert term in text
 

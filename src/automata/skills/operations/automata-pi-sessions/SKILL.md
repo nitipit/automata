@@ -54,13 +54,18 @@ Pi process. If uncertainty matters, clarify or leave the session untouched.
 ## Safe Cleanup
 
 1. Obtain a fresh `pi_session_list` result.
-2. Resolve the authorized target to its exact full session ID in that result.
-3. Pass that ID and the matching receipt to `pi_session_trash`.
+2. Resolve authorized targets to their exact full session IDs in that result.
+3. Pass `sessionIds` and the matching `receipt` to `pi_session_trash`. Legacy
+   `sessionId` remains supported; supply exactly one of the two fields.
 
-For several authorized targets, trash one at a time and list again after each
-success because the receipt is invalidated. Preserve the user's selected IDs,
-not positions in a refreshed list. Listing returns at most 100 sessions; disclose
-omitted results rather than presenting it as a complete list.
+A batch accepts 1–100 unique IDs from one listing. All targets are validated before
+any move, then rechecked and moved sequentially. A failure stops the batch; inspect
+per-ID `trashed`, `failed`, and `not_attempted` results. Moves are not atomic and
+completed moves are not rolled back. A failed move may need verification before retry.
+Once execution begins, the receipt is consumed even on failure; list again before
+retrying unresolved targets. Preserve selected IDs, not positions in a refreshed list.
+Listing returns at most 100 sessions; disclose omitted results rather than presenting
+it as a complete list.
 
 If a receipt expires, refresh it without repeating permission for the same
 unchanged targets and scope. If a session changes, disappears, or cannot be
@@ -77,8 +82,8 @@ recoverable operating-system trash and does not fall back to permanent deletion.
   Pi session cleanup.
 - Do not remove by session name, partial ID, guessed ownership, or repository
   membership.
-- Do not remove the active session, sessions from another CWD, multiple sessions
-  in one tool call, or a session that may still be open elsewhere.
+- Do not remove the active session, sessions from another CWD, or a session that
+  may still be open elsewhere.
 - This skill owns exact-CWD discovery and safe trash decisions. Delegation and
   team-management guidance own session assignment, ownership, and completion.
 - If `pi_session_list` or `pi_session_trash` is unavailable, report the missing

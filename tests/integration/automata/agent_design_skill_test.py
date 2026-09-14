@@ -136,12 +136,12 @@ def test_delegation_transfers_work_without_treating_replacement_as_acceptance() 
 def test_fundamental_behavior_stays_short_and_question_activation_is_prospective() -> None:
     output = compose_character(behaviors=["co-pilot"])
     coordination = output.split("Choose solo work", 1)[1].split("\n\n", 1)[0]
-    interaction = output.split("## Communication\n", 1)[1].split("\n# ", 1)[0]
+    interaction = output.split("# Base Behavior\n", 1)[1].split("\n# Behavior:", 1)[0]
     assert len(coordination) < 400
     assert len(interaction) < 800
     normalized = " ".join(interaction.split())
-    assert "Make requests for input explicit and easy to answer" in normalized
-    assert "Do not append unnecessary questions" in normalized
+    assert "Ask clear questions only when uncertainty affects the answer or action" in normalized
+    assert "Do not add unnecessary questions" in normalized
     for mechanics in ("watchdog", "child_limit", "model", "envelope", "automata-"):
         assert mechanics not in coordination
         assert mechanics not in interaction
@@ -151,7 +151,5 @@ def test_fundamental_behavior_stays_short_and_question_activation_is_prospective
         "clarification, discussion, choices, feedback, confirmation, or permission to act."
     ) in question
     autonomous = compose_character(behaviors=["autonomous"])
-    assert "## Communication" in autonomous
-    assert "Use numbered choices when they help, not as a mandatory format" in " ".join(
-        autonomous.split()
-    )
+    assert "# Base Behavior" in autonomous
+    assert "use numbered choices when helpful" in " ".join(autonomous.split())
