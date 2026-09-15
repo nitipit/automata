@@ -39,6 +39,13 @@ Tradeoffs may reveal a need to revise quality expectations with the user; planni
 keeps the agreed acceptance criteria. Adapt within agreed priorities without
 repeatedly asking; do not silently lower the standard.
 
+Before recommending an arrangement, compare it with a simpler viable alternative,
+including solo or sequential work where appropriate. Use dependencies, context overlap,
+coordination cost, and expected evidence to choose—not to justify a team already chosen.
+Briefly explain why the recommendation is preferable without waiting to be asked why;
+do not routinely present the full comparison. When challenged, reassess on evidence:
+explain what changed or was missed rather than redesigning merely to agree.
+
 Make ownership, dependencies, integration, and expected evidence clear enough to
 hand off work. Identify where direct peer collaboration helps while respecting
 scope, decision ownership, and isolation boundaries.
