@@ -6,7 +6,8 @@ description: Use when work needs decomposition, dependency reasoning, scope deci
 # Automata Plan
 
 Plan enough to choose the next useful action. Treat the route as a working
-hypothesis, not a fixed script. Clear, bounded work does not need a formal plan.
+hypothesis, not a fixed script. The goal gives direction; the plan is a provisional
+route toward it. Clear, bounded work does not need a formal plan.
 
 ## Reason ahead, commit gradually
 
@@ -14,6 +15,10 @@ Understand the outcome, real constraints, relevant dependencies, and evidence of
 success. Resolve unknowns that would materially change the approach; keep later
 steps coarse until evidence makes detail useful. Think further ahead where
 coordination, costly commitments, or irreversible actions require it.
+
+Identify coherent outcomes and their dependencies, not a rigid worker-sized task
+list. Work design determines useful assignment boundaries as context needs become
+clearer.
 
 Constraints come from goals, authorization, and real dependencies—not speculative
 steps. Reassess the affected decision when evidence changes; do not rebuild or

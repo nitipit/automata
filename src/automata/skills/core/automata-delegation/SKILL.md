@@ -36,6 +36,13 @@ responsibility, permissions, constraints, and expected evidence in the delegatio
 Use the supplied instruction context; constrain additional discovery to authorized paths,
 not neighboring workspaces.
 
+Provide sufficient context, not the whole conversation: relevant decisions, constraints,
+interfaces, dependencies, and acceptance evidence. Include essential facts directly and
+point to supporting material for selective reading. Ensure pointers are accessible within
+the worker's authorized context; brevity must not hide information needed to act correctly.
+If the assignment requires reconstructing broad unrelated context, revisit its boundary
+with work design rather than merely shortening the brief.
+
 Resolve transport before handoff rather than leaving the return path abstract. Prefer tmux for
 delegated agent or persistent worker communication when the caller is inside tmux, caller and
 worker share the same tmux server, and exact owned panes can be verified. Before dispatch,

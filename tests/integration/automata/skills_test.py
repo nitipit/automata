@@ -726,6 +726,35 @@ def test_routing_and_align_are_not_bundled() -> None:
         assert not list(SKILLS_ROOT.rglob(f"{name}/SKILL.md"))
 
 
+def test_planning_assignment_sizing_and_handoff_context_have_distinct_owners() -> None:
+    contracts = {
+        "automata-plan": (
+            "the goal gives direction; the plan is a provisional route toward it",
+            "coherent outcomes and their dependencies, not a rigid worker-sized task list",
+        ),
+        "automata-work-design": (
+            "coherent, verifiable outcomes",
+            "manageable working context",
+            "not arbitrary task counts, file counts, or token limits",
+            "splitting would duplicate reasoning",
+            "context benefit outweighs briefing, handoff, and integration costs",
+            "smaller assignments are not automatically more efficient",
+        ),
+        "automata-delegation": (
+            "provide sufficient context, not the whole conversation",
+            "include essential facts directly",
+            "supporting material for selective reading",
+            "pointers are accessible within the worker's authorized context",
+            "brevity must not hide information needed to act correctly",
+            "revisit its boundary with work design rather than merely shortening the brief",
+        ),
+    }
+    for name, terms in contracts.items():
+        normalized = " ".join(find_skill_file(name).read_text().casefold().split())
+        for term in terms:
+            assert term in normalized, (name, term)
+
+
 def test_plan_is_contextual_and_preserves_execution_boundaries() -> None:
     text = find_skill_file("automata-plan").read_text()
     normalized = " ".join(text.casefold().split())

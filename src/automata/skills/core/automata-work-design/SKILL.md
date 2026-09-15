@@ -24,6 +24,13 @@ waiting in end-to-end completion time. Meet agreed acceptance criteria; stronger
 models or more agents do not guarantee quality. Explain what assurance the
 arrangement provides.
 
+Size assignments around coherent, verifiable outcomes that a worker can understand,
+complete, and check with manageable working context—not arbitrary task counts, file
+counts, or token limits. Keep tightly coupled implementation and verification together
+when splitting would duplicate reasoning. Split or stage accumulating unrelated concerns
+when the context benefit outweighs briefing, handoff, and integration costs. Smaller
+assignments are not automatically more efficient; revise boundaries with evidence.
+
 Use established user priorities. When a tradeoff would materially change the design,
 recommend an approach, explain its concrete consequence, and ask what matters most.
 Clarify deadlines, budget or quota, and acceptable quality or risk as needed—not as

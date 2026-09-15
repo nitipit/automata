@@ -58,7 +58,7 @@ def test_work_design_owns_solo_team_arrangements_and_safe_redesign() -> None:
         "not a mandatory skill chain",
     ):
         assert term in normalized, term
-    assert len(text) < 5_500
+    assert len(text) < 6_000
 
 
 def test_work_design_distinguishes_selected_supported_and_authorized_model_settings() -> None:
