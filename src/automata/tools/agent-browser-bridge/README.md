@@ -88,8 +88,11 @@ applies even to steer/followUp. Context can arrive while a user reply is pending
 
 - `buffered`: retained in the current Pi extension, not yet in conversation.
 - `queued`: submitted to Pi's custom-message API; not admission proof.
-- `attached`: its canonical custom message was observed in session message events.
-  This is **not** proof of an LLM request succeeding or the model acting on it.
+- `attached`: its canonical custom message was confirmed by a message event or
+  a record on the active session branch. Idle/deferred Pi appends bypass extension
+  message events, so the extension also reconciles those records after submission,
+  before model context preparation, and when the agent settles. This is **not**
+  proof of an LLM request succeeding or the model acting on it.
 - `replaced`, `cleared`, `rejected`, `inspected`: explicit buffer/control outcomes.
 - `uncertain`: transport/disconnection prevented confirmation; never auto-resend.
 

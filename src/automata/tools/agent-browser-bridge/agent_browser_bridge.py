@@ -662,6 +662,9 @@ class BridgeApp:
                 if role == "browser":
                     await self.broker.browser_packet(connection, packet)
                 elif not await self.broker.control_packet(connection, packet):
+                    # Returning without a close frame can drop the final result
+                    # and appears as abnormal termination to native WebSocket clients.
+                    await send({"type": "websocket.close", "code": 1000})
                     break
         except Exception as error:  # close after returning a bounded protocol error
             await self.broker.emit(

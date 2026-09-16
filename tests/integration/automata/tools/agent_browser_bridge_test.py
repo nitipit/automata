@@ -293,6 +293,44 @@ def test_agent_browser_bridge_cli_and_generic_json_round_trip(tmp_path: Path) ->
             if browser is not None:
                 browser.close()
             agent.close()
+
+        # Python WebSocket clients can hide this failure. Exercise the same native
+        # Node WebSocket implementation used by Pi: result must precede clean close.
+        node = shutil.which("node")
+        if node:
+            close_probe = subprocess.run(
+                [
+                    node,
+                    "-e",
+                    """
+const assert = require('node:assert/strict');
+const endpoint = JSON.parse(require('node:fs').readFileSync(process.argv[1]));
+const ws = new WebSocket(endpoint.wsUrl);
+const events = [];
+const timeout = setTimeout(() => { console.error('close timed out'); process.exit(1); }, 5000);
+ws.onopen = () => ws.send(JSON.stringify({type:'hello',role:'control',
+  token:endpoint.controlToken,sessionId:'native-close',deliveryOptions:1}));
+ws.onmessage = event => {
+  const value = JSON.parse(event.data);
+  if (value.type === 'hello_ack') {
+    ws.send(JSON.stringify({type:'control',action:'close',requestId:'close'}));
+  } else events.push(value);
+};
+ws.onerror = () => events.push({type:'error'});
+ws.onclose = event => {
+  clearTimeout(timeout);
+  assert.equal(event.code, 1000);
+  assert.deepEqual(events, [{type:'result',requestId:'close',status:'closed'}]);
+};
+""",
+                    str(endpoint),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            assert close_probe.returncode == 0, close_probe.stdout + close_probe.stderr
     finally:
         if process.poll() is None:
             process.send_signal(signal.SIGTERM)

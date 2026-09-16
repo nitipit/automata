@@ -245,6 +245,27 @@ export default function (pi: ExtensionAPI) {
     updateStatus();
     return entries.length;
   };
+  const confirmQueuedContext = (content: unknown) => {
+    for (const [id, entry] of queued) {
+      if (content === entry.canonical) {
+        queued.delete(id);
+        contextReceipt(id, "attached");
+      }
+    }
+  };
+  // Pi's idle/deferred custom-message append path notifies SDK subscribers, but
+  // bypasses extension message events. Confirm those admissions from the active
+  // canonical branch, never merely from sendMessage returning successfully.
+  const reconcileQueuedContext = () => {
+    if (!queued.size || !sessionContext || sessionContext.sessionManager.getSessionId() !== boundSessionId) return;
+    const branch = sessionContext.sessionManager.getBranch();
+    for (let index = branch.length - 1; index >= 0 && queued.size; index--) {
+      const entry = branch[index];
+      if (entry.type === "custom_message" && entry.customType === "browser-context") {
+        confirmQueuedContext(entry.content);
+      }
+    }
+  };
   const confirmContext = (message: unknown) => {
     if (!isRecord(message) || message.role !== "custom" || message.customType !== "browser-context") return;
     if (snapshot && message.content === snapshot.content) {
@@ -256,12 +277,7 @@ export default function (pi: ExtensionAPI) {
       snapshot = undefined;
       updateStatus();
     }
-    for (const [id, entry] of queued) {
-      if (message.content === entry.canonical) {
-        queued.delete(id);
-        contextReceipt(id, "attached");
-      }
-    }
+    confirmQueuedContext(message.content);
   };
   const handleContext = (message: BrowserEnvelope, source: ControlClient, ctx: ExtensionContext) => {
     if (message.kind === "context_control") {
@@ -297,6 +313,7 @@ export default function (pi: ExtensionAPI) {
           deliverAs: delivery.deliverAs === "immediate" ? "steer" : delivery.deliverAs,
           triggerTurn: delivery.triggerTurn,
         });
+        reconcileQueuedContext();
       }
     } catch (error) {
       queued.delete(message.id);
@@ -378,7 +395,9 @@ export default function (pi: ExtensionAPI) {
   pi.on("agent_start", () => {
     void client?.request("state", { payload: { busy: true } }).catch(() => undefined);
   });
+  pi.on("context", () => { reconcileQueuedContext(); });
   pi.on("agent_settled", () => {
+    reconcileQueuedContext();
     void client?.request("state", { payload: { busy: false } }).catch(() => undefined);
   });
 
@@ -415,6 +434,7 @@ export default function (pi: ExtensionAPI) {
           next = await ControlClient.connect(endpoint, sessionId, (message) => next && handleBrowserMessage(message, next, epoch));
           signal?.throwIfAborted();
           if (epoch !== generation || ctx.sessionManager.getSessionId() !== sessionId) throw new Error("Pi session changed while opening bridge");
+          await next.request("state", { payload: { busy: !ctx.isIdle() } });
           const opened = await next.request("open");
           if (epoch !== generation || ctx.sessionManager.getSessionId() !== sessionId) throw new Error("Pi session changed while opening bridge");
           client = next;

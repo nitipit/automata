@@ -212,14 +212,17 @@ test("agent_browser_bridge preserves generic JSON and confirms Pi admission from
   handlers.get("session_shutdown")({}, finalCtx);
 });
 
-async function contextHarness() {
-  const handlers = new Map(), tools = new Map(), users = [], contexts = [], statuses = [];
-  const ctx = { cwd: root, isIdle: () => true, hasPendingMessages: () => false,
-    sessionManager: { getSessionId: () => 'buffer-test' },
+async function contextHarness({idle = true, appendImmediately = false} = {}) {
+  const handlers = new Map(), tools = new Map(), users = [], contexts = [], statuses = [], branch = [];
+  const ctx = { cwd: root, isIdle: () => idle, hasPendingMessages: () => false,
+    sessionManager: { getSessionId: () => 'buffer-test', getBranch: () => branch },
     ui: { setStatus: (...args) => statuses.push(args) } };
   register({ on: (name, handler) => handlers.set(name, handler),
     registerTool: tool => tools.set(tool.name, tool), getActiveTools: () => [], setActiveTools() {},
-    sendUserMessage: (...args) => users.push(args), sendMessage: (...args) => contexts.push(args) });
+    sendUserMessage: (...args) => users.push(args), sendMessage: (...args) => {
+      contexts.push(args);
+      if (appendImmediately) branch.push({type:'custom_message', ...args[0]});
+    } });
   handlers.get('session_start')({}, ctx);
   const tool = tools.get('agent_browser_bridge');
   const execute = params => tool.execute('test', params, undefined, undefined, ctx);
@@ -228,7 +231,7 @@ async function contextHarness() {
   const send = (id, payload, delivery = {role:'context',deliverAs:'nextTurn'}) => socket.browserMessage({v:1,id,kind:'message',payload,delivery});
   const recorded = message => handlers.get('message_start')({message:{role:'custom',...message}});
   const receipts = () => socket.sent.filter(packet => packet.action === 'context_result');
-  return {handlers,ctx,execute,socket,send,recorded,receipts,users,contexts,statuses};
+  return {handlers,ctx,execute,socket,send,recorded,receipts,users,contexts,statuses,branch};
 }
 
 test('nextTurn queues and replaces without invoking Pi; consumes only the recorded snapshot', async () => {
@@ -286,6 +289,58 @@ test('delivery modes honor idle/busy rules and preserve canonical user admission
     h.send('idle-context',false,{role:'context',deliverAs:'immediate',triggerTurn:true});
     assert.equal(h.contexts.at(-1)[1].triggerTurn,true);
   } finally {h.handlers.get('session_shutdown')();}
+});
+
+test('binding publishes the current busy state before opening', async () => {
+  for (const idle of [true, false]) {
+    const h = await contextHarness({idle});
+    try {
+      const actions = h.socket.sent.filter(p => p.type === 'control');
+      assert.equal(actions[0].action, 'state');
+      assert.equal(actions[0].payload.busy, !idle);
+      assert.equal(actions[1].action, 'open');
+    } finally { h.handlers.get('session_shutdown')(); }
+  }
+});
+
+test('idle append without extension events confirms admission and releases capacity', async () => {
+  const h = await contextHarness({appendImmediately:true});
+  try {
+    // More than the retained-item limit: admitted entries must not accumulate.
+    for (let i = 0; i < 20; i++) {
+      const id = `idle-${i}`;
+      h.send(id, i, {role:'context',deliverAs:'immediate'});
+      assert.deepEqual(h.receipts().filter(r=>r.id===id).map(r=>r.status), ['queued','attached']);
+    }
+    assert.equal((await h.execute({action:'status'})).details.queuedContext, 0);
+    h.handlers.get('context')();
+    h.handlers.get('agent_settled')();
+    assert.equal(h.receipts().filter(r=>r.status==='attached').length, 20);
+  } finally { h.handlers.get('session_shutdown')(); }
+});
+
+test('deferred admission requires a canonical active-branch record, not a lifecycle guess', async () => {
+  const h = await contextHarness({idle:false});
+  try {
+    h.send('deferred', 1, {role:'context',deliverAs:'followUp',triggerTurn:false});
+    h.handlers.get('context')();
+    h.handlers.get('agent_settled')();
+    assert.deepEqual(h.receipts().map(r=>r.status), ['queued']);
+    const message = h.contexts[0][0];
+    h.branch.push({type:'custom_message', ...message, customType:'unrelated'});
+    h.handlers.get('context')();
+    assert.equal((await h.execute({action:'status'})).details.queuedContext, 1);
+    h.branch.push({type:'custom_message', ...message});
+    h.handlers.get('agent_settled')();
+    h.recorded(message);
+    assert.deepEqual(h.receipts().map(r=>r.status), ['queued','attached']);
+    assert.equal((await h.execute({action:'status'})).details.queuedContext, 0);
+    h.send('stale', 2, {role:'context',deliverAs:'steer'});
+    h.branch.push({type:'custom_message', ...h.contexts.at(-1)[0]});
+    h.ctx.sessionManager.getSessionId = () => 'different';
+    h.handlers.get('context')();
+    assert.equal(h.receipts().at(-1).status, 'queued');
+  } finally { h.handlers.get('session_shutdown')(); }
 });
 
 test('context controls, bounds and session changes stay isolated', async () => {

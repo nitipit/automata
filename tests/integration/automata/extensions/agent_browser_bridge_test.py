@@ -67,3 +67,21 @@ def test_agent_browser_bridge_extension_round_trip(tmp_path: Path) -> None:
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_agent_browser_bridge_native_pi_lifecycle(tmp_path: Path) -> None:
+    package = os.environ.get("AGENT_BROWSER_BRIDGE_NATIVE_PI_PACKAGE")
+    node = shutil.which("node")
+    if not package or not node:
+        pytest.skip("Set AGENT_BROWSER_BRIDGE_NATIVE_PI_PACKAGE to an installed Pi package")
+    source = Path(__file__).parents[4] / "src/automata/extensions/agent-browser-bridge.ts"
+    (tmp_path / "agent-browser-bridge.ts").write_text(source.read_text())
+    result = subprocess.run(
+        [node, "--test", str(Path(__file__).with_name("agent_browser_bridge_native_test.mjs"))],
+        env={**os.environ, "AGENT_BROWSER_BRIDGE_TEST_ROOT": str(tmp_path), "PI_OFFLINE": "1"},
+        capture_output=True,
+        text=True,
+        timeout=40,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
