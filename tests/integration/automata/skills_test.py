@@ -705,7 +705,8 @@ def test_skill_design_keeps_approved_execution_and_checks_proportionate() -> Non
     ):
         assert term in normalized, term
     assert "without discovery or preflight scans" not in text
-    assert len(text) < 6_000
+    # Review threshold for the expanded design contract, not a quality measure.
+    assert len(text) < 8_000
 
 
 def test_skill_design_uses_ownership_before_location() -> None:

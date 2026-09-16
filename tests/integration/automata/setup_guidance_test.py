@@ -12,9 +12,15 @@ def test_skill_design_distinguishes_verified_setup_from_normal_use() -> None:
     text = skill("skill-ops", "automata-skill-design")
     for term in (
         "distinguish setup from normal use",
-        "evidence of readiness before retaining setup facts",
-        "recheck changeable prerequisites",
-        "repair only within existing authority",
+        "verify a suitable approach before retaining useful setup knowledge",
+        "within existing storage authority",
+        "lightweight checks of changeable prerequisites",
+        "repair or rediscover only what is invalid within existing authority",
+        "Saved knowledge does not grant permission",
+        "Separate reusable setup knowledge from temporary runtime state",
+        "validity checks and invalidation conditions",
+        "persist runtime state only when continuity or recovery requires it",
+        "Do not mandate records or a universal schema",
         "Reuse known entries without redundant discovery",
         "Judgment-only skills need no setup ceremony",
     ):
