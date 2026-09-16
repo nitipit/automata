@@ -14,7 +14,10 @@ Reuse and reconnect to a matching session before creating another. Discover its
 website root from existing setup; for new roots, consult the build tool's defaults
 and any applicable agent-data convention. Revalidate browser/server identities
 before reuse. Keep credentials, profiles, build workspaces, and private operational
-state outside the public website root.
+state outside the public website root. When repeated use benefits, retain verified
+build/preview procedures and environment requirements in approved owner-scoped data,
+separate from live session handles. Recheck changed prerequisites rather than
+rediscovering the whole setup; the builder still owns defaults and build mechanics.
 
 The library, builder, and examples ship with this skill; no separate UI tool
 installation is needed. Treat installed source as read-only. Resolve the paths

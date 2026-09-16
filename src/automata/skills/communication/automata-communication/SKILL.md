@@ -1,6 +1,6 @@
 ---
 name: automata-communication
-description: "Use when communication quality matters: practicing good communication, clarifying meaning, shaping a message, repairing misunderstanding, aligning participants, or making shared context and the next move clearer."
+description: Use when repairing misunderstandings, aligning participants with different context, or shaping a consequential message or coordination signal.
 ---
 
 # Automata Communication
@@ -104,19 +104,6 @@ Respect explicit isolation restrictions; do not guess recipients or a missing re
 path. New delegation still requires applicable authority. For signal-driven persistence,
 route only accepted decisions or checkpoints through existing cue/session owners;
 do not persist every signal.
-
-## Practice
-
-Before sending or revising important communication:
-
-1. Check your intent and position.
-2. Consider the other side's context and needs.
-3. Add only the shared context needed for understanding.
-4. Name material uncertainty, limits, or risks.
-5. Make the useful next move clear.
-
-Stay adaptive. Sometimes the clearest communication is a short acknowledgement, a focused
-question, a concise summary, or a gentle repair after misunderstanding.
 
 ## Boundaries
 

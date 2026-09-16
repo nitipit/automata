@@ -10,7 +10,7 @@ TOOL_MAPPING_KEY = "automata-tools"
 CORE_SKILLS = {
     "automata-agents-md",
     "automata-agent-design",
-    "automata-work-design",
+    "automata-task-design",
     "automata-adaptive-ui",
     "automata-codex-imagegen",
     "automata-question",
@@ -203,7 +203,8 @@ def test_context_status_skill_covers_checkpoint_and_signal_modes() -> None:
     assert frontmatter["name"] == "automata-context-status"
     assert "# Automata Context Status" in text
     assert frontmatter["description"] == (
-        "Use when an agent begins implementation work or receives a runtime context signal."
+        "Use when interpreting runtime context signals or checking context pressure, "
+        "elapsed time, or model-token usage."
     )
     assert "silently creates a task checkpoint" in text
     assert "`context_status` remains an optional manual diagnostic" in text
@@ -313,7 +314,7 @@ def test_team_management_recognizes_redesign_and_enacts_authorized_transitions()
 
     for term in (
         "changed scope, dependencies, context needs, availability",
-        "work design owns the proposed arrangement and transition",
+        "task design owns the proposed arrangement and transition",
         "management supplies current evidence and enacts authorized changes",
         "launch, replacement, and rebalancing need no per-worker approval",
         "user or parent's visibility of material changes",
@@ -399,7 +400,7 @@ def test_delegation_skill_owns_handoff_and_no_polling_contract() -> None:
     for term in (
         "verify exact runtime identifiers when availability is uncertain",
         "model and supported thinking settings match the agreed assignment",
-        "work design owns selection judgment",
+        "task design owns selection judgment",
         "report mismatches and obtain approval before substituting outside the agreed choices",
     ):
         assert term in normalized, term
@@ -436,7 +437,7 @@ def test_delegation_skill_owns_handoff_and_no_polling_contract() -> None:
     assert "On notice, the coordinator" in text
     assert "Process or pane observation is bounded diagnosis" in text
     assert "when evidence is overdue or a concrete failure needs investigation" in normalized
-    assert "Work design owns proposed responsibilities, context ownership, and transitions" in text
+    assert "Task design owns proposed responsibilities, context ownership, and transitions" in text
     assert "planning owns work decomposition and acceptance criteria" in text
     assert "Applicable `AGENTS.md` files own" in text
     assert "`automata-" not in text
@@ -514,8 +515,8 @@ def test_question_skill_distinguishes_response_intent_and_authority() -> None:
     normalized = " ".join(text.casefold().split())
 
     for term in (
-        "preparing a response that asks the user for input",
-        "clarification, discussion, choices, feedback, confirmation, or permission to act",
+        "consequential or ambiguous question",
+        "clear choices, consent scope, or stable answer references",
         "clarification or open discovery",
         "selection, preference, priority, trade-off, or scope",
         "confirmation of shared understanding",
@@ -572,7 +573,8 @@ def test_software_development_skill_uses_modular_assurance() -> None:
     for level in ("Direct", "Focused", "Independent", "Full"):
         assert f"**{level}**" in text
     assert "full-suite run by default" in text
-    assert "must not repeat" in text
+    assert "scope, expected evidence, and non-goals clear" in text
+    assert "not as a routine presentation template" in text
 
 
 def test_bundled_skills_do_not_ship_provider_specific_metadata() -> None:
@@ -648,7 +650,7 @@ def test_plan_owns_work_and_summarizes_team_design_without_dispatch() -> None:
 
     for term in (
         "owns work decomposition, dependencies, constraints, and acceptance criteria",
-        "work design owns responsibility distribution",
+        "task design owns responsibility distribution",
         "delegation owns handoff readiness",
         "management owns active coordination",
         "adapt within agreed scope without asking again",
@@ -733,7 +735,7 @@ def test_planning_assignment_sizing_and_handoff_context_have_distinct_owners() -
             "the goal gives direction; the plan is a provisional route toward it",
             "coherent outcomes and their dependencies, not a rigid worker-sized task list",
         ),
-        "automata-work-design": (
+        "automata-task-design": (
             "coherent, verifiable outcomes",
             "manageable working context",
             "not arbitrary task counts, file counts, or token limits",
@@ -747,7 +749,7 @@ def test_planning_assignment_sizing_and_handoff_context_have_distinct_owners() -
             "supporting material for selective reading",
             "pointers are accessible within the worker's authorized context",
             "brevity must not hide information needed to act correctly",
-            "revisit its boundary with work design rather than merely shortening the brief",
+            "revisit its boundary with task design rather than merely shortening the brief",
         ),
     }
     for name, terms in contracts.items():

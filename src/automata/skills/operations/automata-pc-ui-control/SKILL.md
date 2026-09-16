@@ -1,20 +1,20 @@
 ---
 name: automata-pc-ui-control
-description: Use when controlling a desktop or PC UI, discovering or setting up a usable control path, selecting or focusing an application window, or recovering desktop input and feedback.
+description: Use when controlling desktop applications, setting up an input/feedback path, focusing a window, or recovering control.
 ---
 
 # PC UI Control
 
-Establish working control of the requested desktop target, then reuse it. Own discovery,
-setup, targeting, input, feedback and narrow recovery—not administration or browser
-implementation. Activate for natural control or setup requests.
+Establish and reuse working desktop control: targeting, input, feedback and narrow
+recovery—not administration or browser implementation.
 
 ## Establish working control
 
-Identify the action, target, authority and observable success. Discover relevant session,
-interface, targeting, input and feedback capabilities. Prefer a reliable
-higher-level UI-control or accessibility interface over global input. Choose from current capabilities,
-not a fixed host template or skill chain.
+Identify the action, target, authority and observable success. Consult relevant saved
+setup knowledge before discovering missing session, interface, targeting, input and
+feedback capabilities. Prefer a reliable higher-level UI-control or accessibility
+interface over global input. Choose from current capabilities, not a fixed host
+template or skill chain.
 
 A detected executable is a candidate, not a recommendation. Inspect the actual client endpoint,
 compositor protocol support, helper state and access needed by the chosen path. An inactive or
@@ -23,8 +23,7 @@ exclude a configured endpoint. Preserve these distinctions in the answer, not on
 
 Consult local or authoritative external documentation when needed. Try bounded alternatives
 within authority rather than stopping at the first missing prerequisite or repeating a failed
-probe without a changed hypothesis. Distinguish setup from
-normal use; formal phases are optional.
+probe without a changed hypothesis. Distinguish setup from normal use.
 
 Setup is verified only after target selection, input, and observed feedback work together in a
 safe authorized target. When input is prohibited, report
@@ -62,12 +61,13 @@ discovery or focus. Never stop another owner's helper for convenience.
 ## Setup knowledge and runtime state
 
 Use the applicable owner-scoped local data convention; ask if the durable location is unclear.
-Persist verified setup knowledge: environment scope, working method, prerequisites, proof and
-limitations, reconnect procedure, and invalidation conditions. Keep unverified proposals separate.
+When reuse helps, retain verified setup knowledge: environment scope, working method,
+prerequisites, proof and limitations, reconnect procedure, and invalidation conditions.
+Keep unverified proposals separate; saved knowledge does not grant permission.
 
-Track live runtime state separately: current owner, instance identity, endpoint, target, last
-check, and cleanup responsibility. Never persist focus, pane, window, process, or session
-identities as durable truth. They may be recorded as temporary handles, subject to revalidation.
+When continuity or recovery needs a live record, track runtime state separately:
+current owner, instance identity, endpoint, target, last check, and cleanup responsibility.
+Never persist focus, pane, window, process, or session identities as durable truth. They may be recorded as temporary handles, subject to revalidation.
 
 On reuse, check changeable prerequisites, target and feedback without rediscovering the whole
 setup. Recover only the affected setup within authority. Keep an owned helper available when

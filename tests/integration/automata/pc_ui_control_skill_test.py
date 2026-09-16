@@ -73,10 +73,10 @@ def test_pc_ui_bounds_helpers_without_redundant_permission_requests() -> None:
 def test_pc_ui_separates_durable_setup_from_volatile_runtime() -> None:
     text = normalized()
     for term in (
-        "persist verified setup knowledge",
+        "when reuse helps, retain verified setup knowledge",
         "proof and limitations",
         "invalidation conditions",
-        "track live runtime state separately",
+        "when continuity or recovery needs a live record, track runtime state separately",
         "never persist focus, pane, window, process, or session identities as durable truth",
         "temporary handles, subject to revalidation",
         "without rediscovering the whole setup",

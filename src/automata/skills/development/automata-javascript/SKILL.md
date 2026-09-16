@@ -16,6 +16,9 @@ Use the repository's existing JavaScript/TypeScript workflow when it is clear.
 Otherwise prefer `pnpm` for package and script execution, `pnpm dlx` for one-off
 tool execution, and fall back to `npm` / `npx` when `pnpm` is unavailable or
 unsuitable.
+Reuse verified workflow knowledge when useful, but treat current project configuration
+and lockfiles as authoritative. Recheck only affected assumptions after changes;
+do not create a setup record merely for using JavaScript or TypeScript.
 
 ## Implementation Behavior
 

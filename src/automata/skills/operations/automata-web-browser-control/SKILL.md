@@ -1,6 +1,6 @@
 ---
 name: automata-web-browser-control
-description: Use when setting up or controlling a real browser with Python Playwright, Chrome CDP, Firefox WebDriver BiDi via puppeteer-core, headless/headful automation, persistent browser sessions, or step-by-step interactive browsing.
+description: Use when automating a real browser, establishing a reusable control connection, or recovering browser interaction.
 ---
 
 # Automata Web Browser Control
@@ -12,8 +12,9 @@ control is requested and that is the better fit.
 
 ## Operating Style
 
-- Act as the browser operator: translate the user's request into one focused browser action,
-  run it, report the result, then wait.
+- Complete the requested browser outcome through bounded actions and observed results.
+  Pause for user-paced interaction, an unresolved consequential choice, or a blocker;
+  do not stop after each routine action in an already authorized multi-step task.
 - Treat browser and interaction tools as convenient paths, not capability limits. When a
   tool cannot support the intended action, choose another safe browser-control path or offer
   to improve the tool rather than constraining the task to its current interface.
@@ -27,7 +28,8 @@ control is requested and that is the better fit.
 
 ## Setup
 
-Diagnose only what is needed for the requested control path:
+Consult relevant saved setup knowledge first. If it is absent or invalid, diagnose
+only what is needed for the requested control path:
 
 - `uv` and ad-hoc Python Playwright availability for Chromium/Chrome
 - Node/package-manager and `puppeteer-core` availability for Firefox WebDriver BiDi
@@ -41,9 +43,11 @@ locations only when the user wants a reusable session. Do not add browser-contro
 dependencies to the repository unless the project itself needs them.
 
 Verify the chosen connection and intended browser/profile ownership before recording setup
-as working. Executable presence alone is not a successful connection. Report the working stack
-concisely: automation library, browser, protocol, profile/data-directory type,
-endpoint/session/process name, and how future actions can reconnect.
+as working. Executable presence alone is not a successful connection. When reuse will
+help, retain the verified stack, profile policy, reconnect procedure, limitations, and
+invalidation conditions in approved owner-scoped data. Keep live endpoints and process
+handles separate and temporary; saved knowledge does not authorize future actions.
+Report enough current connection information to reconnect or clean up owned resources.
 
 On reuse, check only changeable prerequisites: the endpoint still reaches the intended browser,
 profile and ownership still match, and the requested target is available. Treat recorded
@@ -90,7 +94,7 @@ Choose the simplest reliable path for the environment:
   interaction, locators, forms, downloads, screenshots, and repeated browser operation.
 - Use screenshots when needed to understand the page or finish the task.
 
-Typical action loop:
+Within the requested scope, a useful action loop is:
 
 1. connect to the browser/context/page,
 2. perform one focused action,

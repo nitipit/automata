@@ -12,7 +12,8 @@ connection without losing ownership or confusing transport state with outcomes.
 
 ## Connect or reuse
 
-Identify the intended endpoints and their owner. Reuse a suitable connection after
+Consult relevant saved setup knowledge, then identify the intended endpoints and
+their owner. Reuse a suitable connection after
 checking its current status and identity, not merely a listening port or old record.
 Use the mapped tool's `--help` for commands and its browser API documentation for
 integration; reuse the shipped client and server rather than regenerating them.
@@ -29,6 +30,9 @@ appropriate setup capability, within existing authority.
 Keep pairing credentials and endpoint records out of public assets and logs. Use
 loopback unless broader access is authorized. Retain enough endpoint and process
 identity for reconnection and owned cleanup; revalidate after session changes.
+When future reuse helps, retain the verified connection procedure and environment
+requirements in approved owner-scoped data, separate from live endpoint records.
+Do not retain pairing secrets as setup knowledge or treat saved setup as permission.
 
 ## Exchange
 

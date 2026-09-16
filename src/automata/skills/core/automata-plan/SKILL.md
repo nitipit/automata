@@ -17,7 +17,7 @@ steps coarse until evidence makes detail useful. Think further ahead where
 coordination, costly commitments, or irreversible actions require it.
 
 Identify coherent outcomes and their dependencies, not a rigid worker-sized task
-list. Work design determines useful assignment boundaries as context needs become
+list. Task design determines useful assignment boundaries as context needs become
 clearer.
 
 Constraints come from goals, authorization, and real dependencies—not speculative
@@ -41,7 +41,7 @@ This illustrates scope and a decision boundary, not a mandatory response format.
 ## Boundaries
 
 Planning owns work decomposition, dependencies, constraints, and acceptance criteria.
-Work design owns responsibility distribution; delegation owns handoff readiness;
+Task design owns responsibility distribution; delegation owns handoff readiness;
 management owns active coordination. Use those capabilities when needed rather
 than duplicating their procedures. Planning does not require a team or a separate
 plan document.

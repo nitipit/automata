@@ -1,6 +1,6 @@
 ---
 name: automata-context-status
-description: Use when an agent begins implementation work or receives a runtime context signal.
+description: Use when interpreting runtime context signals or checking context pressure, elapsed time, or model-token usage.
 ---
 
 # Automata Context Status

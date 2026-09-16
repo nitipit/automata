@@ -18,7 +18,8 @@ alone does not imply unrestricted delegation.
 
 Resolve the smallest useful contract before sending work:
 
-- goal, temporary responsibility, allowed scope, and expected result;
+- goal, temporary responsibility, allowed scope, and verifiable completion criteria;
+- authorized corrections, stopping boundaries, and required checks before returning;
 - responsible agent or owner and working context;
 - working directory and the applicable `AGENTS.md` instruction context;
 - communication transport, exact return path, and terminal-session lifecycle owner;
@@ -29,7 +30,7 @@ Resolve the smallest useful contract before sending work:
 Verify exact runtime identifiers when availability is uncertain. Confirm the launched
 model and supported thinking settings match the agreed assignment; report mismatches
 and obtain approval before substituting outside the agreed choices. Resolve missing
-choices before dispatch; work design owns selection judgment.
+choices before dispatch; task design owns selection judgment.
 
 Keep durable behavior and project policy in the applicable `AGENTS.md`. Put task-specific
 responsibility, permissions, constraints, and expected evidence in the delegation brief.
@@ -41,7 +42,7 @@ interfaces, dependencies, and acceptance evidence. Include essential facts direc
 point to supporting material for selective reading. Ensure pointers are accessible within
 the worker's authorized context; brevity must not hide information needed to act correctly.
 If the assignment requires reconstructing broad unrelated context, revisit its boundary
-with work design rather than merely shortening the brief.
+with task design rather than merely shortening the brief.
 
 Resolve transport before handoff rather than leaving the return path abstract. Prefer tmux for
 delegated agent or persistent worker communication when the caller is inside tmux, caller and
@@ -128,7 +129,7 @@ abandoned, or is relaunched so timer state stays aligned with the active expecta
 ## Boundaries
 
 This skill owns delegation semantics: handoff, evidence, waiting, recovery, and acceptance.
-Work design owns proposed responsibilities, context ownership, and transitions;
+Task design owns proposed responsibilities, context ownership, and transitions;
 planning owns work decomposition and acceptance criteria; management owns active
 coordination within the approved envelope. Applicable `AGENTS.md` files own durable
 instructions. Model, transport, terminal session, timer implementation, and message
