@@ -20,7 +20,7 @@ SKILL = (
     / "operations"
     / "automata-adaptive-ui"
 )
-SOURCE = SKILL / "scripts" / "library"
+SOURCE = SKILL / "lib"
 HAS_BUILD_RUNTIME = shutil.which("deno") and shutil.which("node")
 requires_build = pytest.mark.skipif(
     not HAS_BUILD_RUNTIME, reason="Runtime library build requires cached Deno and Node"
@@ -54,9 +54,12 @@ def installed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             target_root=tmp_path / "installed skills", skill_names=["automata-adaptive-ui"]
         )
     skill = tmp_path / "installed skills" / "automata-adaptive-ui"
-    assert not (skill / "scripts" / "library" / "browser").exists()
-    assert not (skill / "scripts" / "library" / "node_modules").exists()
-    assert not (skill / "scripts" / "library" / "dist").exists()
+    assert (skill / "lib" / "src" / "ui" / "_components" / "base.ts").is_file()
+    assert (skill / "lib" / "example" / "chat-with-agent.html").is_file()
+    assert not (skill / "scripts" / "library").exists()
+    assert not (skill / "lib" / "browser").exists()
+    assert not (skill / "lib" / "node_modules").exists()
+    assert not (skill / "lib" / "dist").exists()
     return skill
 
 

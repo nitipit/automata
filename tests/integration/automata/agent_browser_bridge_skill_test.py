@@ -28,7 +28,7 @@ def test_bridge_skill_maps_shipped_implementation_and_clean_start_guidance() -> 
     ):
         assert term in body
     for unrelated_detail in (
-        "Adaptive UI", "scripts/library/example/chat.html", "{text, context}",
+        "Adaptive UI", "lib/example/chat-with-agent.html", "{text, context}",
         ".agents/var/skills/automata-adaptive-ui",
     ):
         assert unrelated_detail not in body

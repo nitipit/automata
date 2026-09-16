@@ -24,7 +24,7 @@ def test_package_includes_self_documenting_python_tools() -> None:
 
 def adaptive_ui_source():
     return files("automata").joinpath(
-        "skills", "operations", "automata-adaptive-ui", "scripts", "library"
+        "skills", "operations", "automata-adaptive-ui", "lib"
     )
 
 
@@ -36,7 +36,10 @@ def test_adaptive_ui_skill_ships_source_without_generated_library() -> None:
     assert source.joinpath("src", "server.ts").is_file()
     assert source.joinpath("src", "ui", "adaptive-ui.ts").is_file()
     assert source.joinpath("package.json").is_file()
-    assert source.parent.joinpath("build.py").is_file()
+    assert source.parent.joinpath("scripts", "build.py").is_file()
+    assert source.joinpath("example", "chat-with-agent.html").is_file()
+    assert not source.parent.joinpath("scripts", "library").exists()
+    assert not source.joinpath("example", "chat.html").exists()
     assert not source.joinpath("browser").is_dir()
     assert not files("automata").joinpath("tools", "adaptive-ui").is_dir()
 
@@ -86,10 +89,10 @@ def test_package_excludes_adaptive_ui_generated_trees_from_sdists_and_wheels() -
     config = tomllib.loads((project_root / "pyproject.toml").read_text())
 
     assert config["tool"]["uv"]["build-backend"]["source-exclude"] == [
-        "src/automata/skills/operations/automata-adaptive-ui/scripts/library/dist",
-        "src/automata/skills/operations/automata-adaptive-ui/scripts/library/dist/**",
-        "src/automata/skills/operations/automata-adaptive-ui/scripts/library/node_modules",
-        "src/automata/skills/operations/automata-adaptive-ui/scripts/library/node_modules/**",
+        "src/automata/skills/operations/automata-adaptive-ui/lib/dist",
+        "src/automata/skills/operations/automata-adaptive-ui/lib/dist/**",
+        "src/automata/skills/operations/automata-adaptive-ui/lib/node_modules",
+        "src/automata/skills/operations/automata-adaptive-ui/lib/node_modules/**",
     ]
 
 

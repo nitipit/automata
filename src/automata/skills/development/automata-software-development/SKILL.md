@@ -54,7 +54,11 @@ when it matters; do not silently turn a prototype into a security architecture.
 - Update documentation when behavior, commands, APIs, configuration, or
   user-facing workflows change.
 - Prefer concise, useful comments and docs over boilerplate.
-- Do not add comments that merely restate obvious code.
+- Document contracts code alone does not reveal: extension points, lifecycle order,
+  invariants, side effects, and failure expectations. Keep guidance beside the owning
+  API using the language's documentation conventions; use examples for composition.
+- Do not restate signatures or obvious implementation, or duplicate API contracts in
+  examples and separate prose.
 - If documenting a confusing design requires vague explanation, consider whether
   names, structure, or responsibilities should be clarified instead.
 

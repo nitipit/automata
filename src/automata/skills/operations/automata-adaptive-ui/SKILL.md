@@ -28,10 +28,11 @@ below against the skill directory, not the shell's working directory.
 Inspect only relevant examples and component contracts, and adapt rather than copy
 blindly:
 
-- `scripts/library/example/index.html`: static composition.
-- `scripts/library/example/reactive-shadow.html`: reactive state and Shadow DOM.
-- `scripts/library/example/chat.html`: a single Chat connected to the bridge.
-- `scripts/library/src/ui/adaptive-ui.ts` and component modules: APIs and schemas.
+- `lib/example/index.html`: static composition.
+- `lib/example/reactive-shadow.html`: reactive state and Shadow DOM.
+- `lib/example/chat-with-agent.html`: Chat + bridge integration; the component
+  owns payload semantics, the page wires transport.
+- `lib/src/ui/adaptive-ui.ts` and component modules: APIs and schemas.
 
 Reuse available catalog components before creating new ones. Use `Base` for
 component boundaries, Adapter for component styles, and Arrow for instance-local

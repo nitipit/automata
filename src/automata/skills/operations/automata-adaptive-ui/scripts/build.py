@@ -53,7 +53,7 @@ Examples (replace <skill-directory>, <name>, and <port>):
   python <skill-directory>/scripts/build.py --runtime-root "$RUNTIME_ROOT"
   python <skill-directory>/scripts/build.py --runtime-root "$RUNTIME_ROOT" --check --validate
   deno run --no-config --no-lock --allow-net=127.0.0.1 --allow-read="$RUNTIME_ROOT" \
-    <skill-directory>/scripts/library/src/server.ts --root="$RUNTIME_ROOT" --port=<port>
+    <skill-directory>/lib/src/server.ts --root="$RUNTIME_ROOT" --port=<port>
   Visit http://127.0.0.1:<port>/sessions/<name>/.
 
   This builder does not start a server or browser. Establish process ownership
@@ -72,7 +72,7 @@ Examples (replace <skill-directory>, <name>, and <port>):
     parser.add_argument(
         "--source-root",
         type=Path,
-        default=Path(__file__).resolve().parent / "library",
+        default=Path(__file__).resolve().parents[1] / "lib",
         help="Frontend source directory; defaults to the library shipped with this skill.",
     )
     parser.add_argument(

@@ -208,7 +208,11 @@ export class Chat extends Base<ChatData> {
     this.#updateButton();
   }
 
-  /** Updates connection/admission state without attempting a resend. */
+  /**
+   * Reflect transport state without sending or retrying. A true pending flag
+   * latches the outstanding request; false does not clear it on reconnection.
+   * receiveMessage() or reject() clears the component's pending state.
+   */
   setConnection(connected: boolean, pending = false): void {
     this.#connected = connected;
     if (pending) this.#pending = true;
@@ -244,7 +248,11 @@ export class Chat extends Base<ChatData> {
     this.#updateButton();
   }
 
-  /** Commits the most recent outgoing text to the local presentation. */
+  /**
+   * Add the outgoing text to the local log and clear the composer after dispatch.
+   * This is not proof of remote receipt or admission. Call once per dispatch;
+   * repeated calls append duplicate log entries.
+   */
   markSent(): void {
     if (this.#outgoing === undefined) return;
     this.addMessage("user", this.#outgoing);
@@ -253,7 +261,10 @@ export class Chat extends Base<ChatData> {
     this.setStatus("Sent · awaiting reply…");
   }
 
-  /** Returns an unsuccessful send to the composer for deliberate retry. */
+  /**
+   * Clear pending state and restore outgoing text only if the composer is empty.
+   * Existing log entries remain; this neither retracts nor retries a remote send.
+   */
   reject(text: string): void {
     this.#pending = false;
     const textarea = this.querySelector("textarea") as HTMLTextAreaElement | null;
@@ -263,7 +274,11 @@ export class Chat extends Base<ChatData> {
     this.setStatus(text);
   }
 
-  /** Validates the component-owned reply payload before rendering its text field. */
+  /**
+   * Accept a component payload, not a bridge envelope. The caller owns routing and
+   * correlation. Valid and invalid payloads both end the local pending request;
+   * invalid payloads display an error without retrying or adding a message.
+   */
   receiveMessage(payload: unknown): void {
     if (!isChatReplyPayload(payload)) {
       this.#pending = false;
