@@ -12,7 +12,7 @@ def test_skill_design_distinguishes_verified_setup_from_normal_use() -> None:
     text = skill("skill-ops", "automata-skill-design")
     for term in (
         "distinguish setup from normal use",
-        "verify a suitable approach before retaining useful setup knowledge",
+        "save a verified recipe",
         "within existing storage authority",
         "lightweight checks of changeable prerequisites",
         "repair or rediscover only what is invalid within existing authority",
@@ -37,6 +37,23 @@ def test_browser_reuse_verifies_identity_and_limits_repair_scope() -> None:
         "Recover only the affected setup within existing authorization",
     ):
         assert term in text
+
+
+def test_browser_recipe_keeps_stable_safety_without_a_stack_tutorial() -> None:
+    text = skill("operations", "automata-web-browser-control")
+    for term in (
+        "bounded authorized action and observed result",
+        "Commands and environment-specific details belong there, not in this skill",
+        "Use isolated profiles for Chrome/Chromium",
+        "For Firefox, confirm default versus isolated profile use",
+        "Require authorization for package installation, file creation",
+        "stop only owned resources no longer needed",
+        "Ask before inspecting sensitive pages",
+        "successful command execution alone is insufficient",
+    ):
+        assert term in text, term
+    for detail in ("uv run --with playwright", "puppeteer-core", "no_viewport=True"):
+        assert detail not in text
 
 
 def test_setup_distinguishes_installation_discovery_and_selected_readiness() -> None:

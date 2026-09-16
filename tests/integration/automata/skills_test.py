@@ -104,7 +104,7 @@ def test_adaptive_ui_skill_owns_runtime_and_promotion_boundaries() -> None:
         "arrow and shadow dom are not security sandboxes",
     ):
         assert term in normalized, term
-    assert len(text) < 4000
+    assert len(text) < 4500  # Review guard, allowing environment-specific recipes.
     assert "build-and-preview.md" not in text
     assert ".agents/var/skills/automata-adaptive-ui/" not in text
     assert not (skill_file.parent / "references" / "build-and-preview.md").exists()

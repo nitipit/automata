@@ -127,6 +127,7 @@ def test_agent_browser_bridge_cli_and_generic_json_round_trip(tmp_path: Path) ->
                         "role": "control",
                         "token": record["controlToken"],
                         "sessionId": "pi-session-1",
+                        "deliveryOptions": 1,
                     }
                 )
             )
@@ -199,6 +200,89 @@ def test_agent_browser_bridge_cli_and_generic_json_round_trip(tmp_path: Path) ->
                 }
                 assert json.loads(agent.recv())["status"] == "accepted"
 
+            # Context is a separate lane: it is routed while Pi is busy and never
+            # occupies the single conversational reply slot.
+            agent.send(
+                json.dumps(
+                    {
+                        "type": "control",
+                        "action": "state",
+                        "requestId": "busy",
+                        "payload": {"busy": True},
+                    }
+                )
+            )
+            assert json.loads(browser.recv())["type"] == "agent_state"
+            assert json.loads(agent.recv())["busy"] is True
+            selection = {
+                "v": 1,
+                "id": "selection",
+                "kind": "message",
+                "payload": None,
+                "delivery": {"role": "context", "deliverAs": "nextTurn", "slot": "selected"},
+            }
+            browser.send(json.dumps(selection))
+            assert json.loads(agent.recv())["envelope"] == selection
+            for status in ("buffered", "attached"):
+                agent.send(
+                    json.dumps(
+                        {
+                            "type": "control",
+                            "action": "context_result",
+                            "requestId": status,
+                            "id": "selection",
+                            "status": status,
+                        }
+                    )
+                )
+                assert json.loads(browser.recv())["status"] == status
+                assert json.loads(agent.recv())["browserDelivered"] is True
+            browser.send(json.dumps(selection))
+            assert json.loads(browser.recv())["type"] == "duplicate"
+            control = {"v": 1, "id": "inspect", "kind": "context_control", "action": "inspect"}
+            browser.send(json.dumps(control))
+            assert json.loads(agent.recv())["envelope"] == control
+            agent.send(
+                json.dumps(
+                    {
+                        "type": "control",
+                        "action": "context_result",
+                        "requestId": "inspected",
+                        "id": "inspect",
+                        "status": "inspected",
+                        "details": {"entries": []},
+                    }
+                )
+            )
+            assert json.loads(browser.recv())["details"] == {"entries": []}
+            assert json.loads(agent.recv())["status"] == "accepted"
+            for mode in ("steer", "followUp"):
+                browser.send(
+                    json.dumps(
+                        {
+                            "v": 1,
+                            "id": mode,
+                            "kind": "message",
+                            "payload": mode,
+                            "delivery": {"role": "user", "deliverAs": mode},
+                        }
+                    )
+                )
+                assert json.loads(browser.recv())["type"] == "receipt"
+                assert json.loads(agent.recv())["envelope"]["delivery"]["deliverAs"] == mode
+                agent.send(
+                    json.dumps(
+                        {
+                            "type": "control",
+                            "action": "reject",
+                            "requestId": mode,
+                            "correlationId": mode,
+                        }
+                    )
+                )
+                assert json.loads(browser.recv())["type"] == "rejected"
+                assert json.loads(agent.recv())["status"] == "accepted"
+
             browser.send(
                 json.dumps(
                     {"v": 1, "id": "legacy", "kind": "chat.message", "payload": {"text": "old"}}
@@ -263,6 +347,18 @@ def test_json_validation_bounds_and_lossless_serialization() -> None:
         bridge.validate_message({"v": True, "id": "bad", "kind": "message", "payload": None})
     with pytest.raises(ValueError):
         bridge.validate_message({"v": 1, "id": "absent", "kind": "message"})
+    for delivery in (
+        {"role": "system", "deliverAs": "immediate"},
+        {"role": "user", "deliverAs": "nextTurn"},
+        {"role": "user", "deliverAs": "steer", "triggerTurn": False},
+        {"role": "context", "deliverAs": "nextTurn", "triggerTurn": True},
+        {"role": "context", "deliverAs": "steer", "slot": "bad"},
+        {"role": "context", "deliverAs": "nextTurn", "unknown": True},
+        {"role": None},
+    ):
+        with pytest.raises(ValueError):
+            bridge.validate_delivery(delivery)
+    assert bridge.validate_delivery({}) == {"role": "user", "deliverAs": "immediate"}
     assert bridge.validate_message({"v": 1, "id": "null", "kind": "message", "payload": None}) == (
         "null",
         None,

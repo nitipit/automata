@@ -38,7 +38,7 @@ class FakeWebSocket {
     if (message.action === "close") this.message({ type: "result", requestId: message.requestId, status: "closed" });
     if (message.action === "open") this.message({ type: "result", requestId: message.requestId, status: "open", pairingUrl: "/sessions/chat/#pair=pair" });
     if (message.action === "status") this.message({ type: "result", requestId: message.requestId, status: "open", pendingId: "message-1" });
-    if (message.action === "state" || message.action === "admit") this.message({ type: "result", requestId: message.requestId, status: "accepted" });
+    if (message.action === "state" || message.action === "admit" || message.action === "context_result") this.message({ type: "result", requestId: message.requestId, status: "accepted" });
     if (message.action === "send" || message.action === "reject") this.message({ type: "result", requestId: message.requestId, status: "accepted", browserDelivered: this.browserDelivered !== false });
   }
 
@@ -76,6 +76,7 @@ test("agent_browser_bridge preserves generic JSON and confirms Pi admission from
   };
   register(pi);
   const ctx = {
+    ui: { setStatus() {} },
     cwd: root,
     sessionManager: { getSessionId: () => "session-1" },
     isIdle: () => true,
@@ -209,4 +210,108 @@ test("agent_browser_bridge preserves generic JSON and confirms Pi admission from
   });
   await assert.rejects(tool.execute('no-retry', {action: 'reject', replyTo: 'uncertain-write'}, undefined, undefined, finalCtx), /claimed or uncertain/);
   handlers.get("session_shutdown")({}, finalCtx);
+});
+
+async function contextHarness() {
+  const handlers = new Map(), tools = new Map(), users = [], contexts = [], statuses = [];
+  const ctx = { cwd: root, isIdle: () => true, hasPendingMessages: () => false,
+    sessionManager: { getSessionId: () => 'buffer-test' },
+    ui: { setStatus: (...args) => statuses.push(args) } };
+  register({ on: (name, handler) => handlers.set(name, handler),
+    registerTool: tool => tools.set(tool.name, tool), getActiveTools: () => [], setActiveTools() {},
+    sendUserMessage: (...args) => users.push(args), sendMessage: (...args) => contexts.push(args) });
+  handlers.get('session_start')({}, ctx);
+  const tool = tools.get('agent_browser_bridge');
+  const execute = params => tool.execute('test', params, undefined, undefined, ctx);
+  await execute({action:'open'});
+  const socket = FakeWebSocket.instances.at(-1);
+  const send = (id, payload, delivery = {role:'context',deliverAs:'nextTurn'}) => socket.browserMessage({v:1,id,kind:'message',payload,delivery});
+  const recorded = message => handlers.get('message_start')({message:{role:'custom',...message}});
+  const receipts = () => socket.sent.filter(packet => packet.action === 'context_result');
+  return {handlers,ctx,execute,socket,send,recorded,receipts,users,contexts,statuses};
+}
+
+test('nextTurn queues and replaces without invoking Pi; consumes only the recorded snapshot', async () => {
+  const h = await contextHarness();
+  try {
+    h.ctx.isIdle = () => false;
+    h.send('first', {element:'old'}, {role:'context',deliverAs:'nextTurn',slot:'selection'});
+    h.send('latest', {element:'new'}, {role:'context',deliverAs:'nextTurn',slot:'selection'});
+    h.send('extra', [null, false]);
+    assert.equal(h.users.length,0); assert.equal(h.contexts.length,0);
+    assert.ok(h.receipts().some(r=>r.id==='first'&&r.status==='replaced'));
+    assert.equal((await h.execute({action:'inspect_context'})).details.entries.length,2);
+    const next = h.handlers.get('before_agent_start')({prompt:'explain selection'});
+    assert.match(next.message.content,/untrusted data/);
+    assert.match(next.message.content,/new/); assert.doesNotMatch(next.message.content,/old/);
+    assert.ok(next.message.content.indexOf('latest') < next.message.content.indexOf('extra'));
+    // No canonical message yet: cancelled/intercepted submission has not consumed data.
+    assert.equal((await h.execute({action:'inspect_context'})).details.entries.length,2);
+    h.send('newer', {element:'newer'}, {role:'context',deliverAs:'nextTurn',slot:'selection'});
+    h.recorded(next.message);
+    const entries=(await h.execute({action:'inspect_context'})).details.entries;
+    assert.deepEqual(entries.map(e=>e.id),['newer']);
+    const second=h.handlers.get('before_agent_start')({prompt:'again'});
+    h.recorded(second.message);
+    assert.equal((await h.execute({action:'inspect_context'})).details.entries.length,0);
+    assert.equal(h.handlers.get('before_agent_start')({prompt:'empty'}),undefined);
+    assert.equal(h.statuses.at(-1)[1],undefined);
+  } finally { h.handlers.get('session_shutdown')(); }
+});
+
+test('delivery modes honor idle/busy rules and preserve canonical user admission', async () => {
+  const h=await contextHarness();
+  try {
+    h.ctx.isIdle=()=>false;
+    h.send('immediate',null,{role:'context',deliverAs:'immediate'});
+    assert.equal(h.receipts().at(-1).status,'rejected');
+    for (const mode of ['steer','followUp']) {
+      h.send(mode, {mode}, {role:'context',deliverAs:mode});
+      assert.equal(h.contexts.at(-1)[1].deliverAs,mode);
+      assert.equal(h.receipts().at(-1).status,'queued');
+      h.recorded(h.contexts.at(-1)[0]);
+      assert.equal(h.receipts().at(-1).status,'attached');
+    }
+    h.send('user-steer','/danger',{role:'user',deliverAs:'steer'});
+    assert.equal(h.users.at(-1)[1].deliverAs,'steer');
+    assert.equal(h.users.at(-1)[1].expandPromptTemplates,false);
+    assert.equal(h.socket.sent.filter(p=>p.action==='admit').length,0);
+    h.handlers.get('message_start')({message:{role:'user',content:[{type:'text',text:h.users.at(-1)[0]}]}});
+    assert.equal(h.socket.sent.filter(p=>p.action==='admit').length,1);
+    await h.execute({action:'reject',replyTo:'user-steer'});
+    h.send('user-followup','hello',{role:'user',deliverAs:'followUp'});
+    assert.equal(h.users.at(-1)[1].deliverAs,'followUp');
+    await h.execute({action:'reject',replyTo:'user-followup'});
+    h.ctx.isIdle=()=>true;
+    h.send('idle-context',false,{role:'context',deliverAs:'immediate',triggerTurn:true});
+    assert.equal(h.contexts.at(-1)[1].triggerTurn,true);
+  } finally {h.handlers.get('session_shutdown')();}
+});
+
+test('context controls, bounds and session changes stay isolated', async () => {
+  const h=await contextHarness();
+  try {
+    h.send('a',0,{role:'context',deliverAs:'nextTurn',slot:'a'});
+    h.send('b',1,{role:'context',deliverAs:'nextTurn',slot:'b'});
+    h.socket.browserMessage({v:1,id:'inspect',kind:'context_control',action:'inspect',slot:'a'});
+    assert.deepEqual(h.receipts().at(-1).details.entries.map(e=>e.id),['a']);
+    h.socket.browserMessage({v:1,id:'clear',kind:'context_control',action:'clear',slot:'a'});
+    assert.equal(h.receipts().at(-1).details.cleared,1);
+    assert.deepEqual((await h.execute({action:'inspect_context'})).details.entries.map(e=>e.id),['b']);
+    await h.execute({action:'clear_context'});
+    for(let i=0;i<16;i++) h.send('bounded-'+i,i);
+    h.send('overflow',0);
+    assert.equal(h.receipts().at(-1).status,'rejected');
+    await h.execute({action:'clear_context'});
+    h.send('large','x'.repeat(20000));
+    h.send('large-overflow','x'.repeat(20000));
+    assert.equal(h.receipts().at(-1).status,'rejected');
+    const before=h.users.length;
+    h.socket.browserMessage({v:1,id:'bad',kind:'message',payload:null,delivery:{role:'user',deliverAs:'nextTurn'}});
+    assert.equal(h.users.length,before);
+    h.handlers.get('session_start')({}, {...h.ctx,sessionManager:{getSessionId:()=> 'different'}});
+    assert.equal(h.handlers.get('before_agent_start')({prompt:'new session'}),undefined);
+    h.send('stale',null);
+    assert.equal(h.handlers.get('before_agent_start')({prompt:'still empty'}),undefined);
+  } finally {h.handlers.get('session_shutdown')();}
 });

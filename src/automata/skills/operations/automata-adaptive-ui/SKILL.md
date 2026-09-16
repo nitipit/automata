@@ -14,10 +14,12 @@ Reuse and reconnect to a matching session before creating another. Discover its
 website root from existing setup; for new roots, consult the build tool's defaults
 and any applicable agent-data convention. Revalidate browser/server identities
 before reuse. Keep credentials, profiles, build workspaces, and private operational
-state outside the public website root. When repeated use benefits, retain verified
-build/preview procedures and environment requirements in approved owner-scoped data,
-separate from live session handles. Recheck changed prerequisites rather than
-rediscovering the whole setup; the builder still owns defaults and build mechanics.
+state outside the public website root.
+
+Consult saved recipes before rediscovery. When setup requires discovery, save verified
+build/preview commands with required paths, inputs, checks and cleanup in approved
+owner-scoped data, separate from live session handles. Report the location; recheck
+changed prerequisites and update after verification. Do not duplicate builder help.
 
 The library, builder, and examples ship with this skill; no separate UI tool
 installation is needed. Treat installed source as read-only. Resolve the paths
@@ -77,4 +79,4 @@ and tests—not by patching installed copies.
 
 This skill owns UI composition and session lifecycle, not general browser control,
 installation, image generation, or transport. Arrow and Shadow DOM are not security
-sandboxes. Leave build mechanics to the builder and exact APIs to their components.
+sandboxes. The builder owns defaults and build mechanics; components own exact APIs.

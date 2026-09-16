@@ -16,15 +16,18 @@ def test_bridge_skill_maps_shipped_implementation_and_clean_start_guidance() -> 
     assert frontmatter["metadata"]["automata-tools"] == (
         ".agents/tools/agent-browser-bridge/agent_browser_bridge.py"
     )
-    assert len(text) < 3500
+    assert len(text) < 4000  # Review guard, allowing the verified connection recipe.
     for term in (
-        "current status and identity", "`serve` starts the listener",
+        "status, intended endpoints and ownership", "`serve` starts the listener",
         "current intended", "server rather than regenerating",
         "Components own payload and reply semantics",
         "exact message ID as `replyTo`", "canonical message/tool-call records",
         "does not grant authority", "component handling",
         "Do not silently replay an uncertain", "stop only owned bridge services",
         "does not authorize deleting", "## Boundaries",
+        "`nextTurn` queues data for the next prompt",
+        "`inspect_context` or `clear_context`",
+        "buffered, queued, and attached receipts",
     ):
         assert term in body
     for unrelated_detail in (

@@ -50,7 +50,9 @@ def test_activation_describes_specialized_need(name, required, overbroad) -> Non
             "automata-pc-ui-control",
             (
                 "consult relevant saved setup knowledge",
-                "when reuse helps",
+                "after setup discovery succeeds, save a verified recipe",
+                "commands for target selection, input, feedback",
+                "update the recipe after verification",
                 "when continuity or recovery needs a live record",
                 "saved knowledge does not grant permission",
             ),
@@ -61,15 +63,21 @@ def test_activation_describes_specialized_need(name, required, overbroad) -> Non
                 "consult relevant saved setup knowledge",
                 "separate from live endpoint records",
                 "do not retain pairing secrets as setup knowledge",
+                "save verified startup, connection, status-check, and owned cleanup commands",
+                "consult relevant saved setup knowledge before reconstructing commands",
+                "exclude live session identifiers",
+                "update the recipe after verification",
             ),
         ),
         (
             "automata-adaptive-ui",
             (
-                "when repeated use benefits",
+                "when setup requires discovery, save verified",
+                "consult saved recipes before rediscovery",
+                "do not duplicate builder help",
                 "separate from live session handles",
                 "recheck changed prerequisites",
-                "the builder still owns defaults and build mechanics",
+                "the builder owns defaults and build mechanics",
             ),
         ),
     ],
@@ -77,6 +85,40 @@ def test_activation_describes_specialized_need(name, required, overbroad) -> Non
 def test_environment_skills_reuse_knowledge_without_trusting_live_handles(name, terms) -> None:
     body = normalized(name)
     for term in terms:
+        assert term in body, term
+
+
+def test_browser_setup_retains_a_verified_executable_recipe() -> None:
+    body = normalized("automata-web-browser-control")
+    for term in (
+        "reuse its verified recipe rather than reconstructing commands",
+        "after successful setup, save a reusable recipe",
+        "verified launch or attach commands",
+        "minimal control example",
+        "connection checks, cleanup procedure",
+        "working directories and variable inputs",
+        "exclude secrets and browser content",
+        "if absent, ask before saving",
+        "report the recipe's location",
+        "update the recipe after verifying a changed setup",
+    ):
+        assert term in body, term
+    assert "automata-agent-data" not in body
+
+
+def test_skill_design_keeps_recipes_conditional_and_separate_from_runtime_state() -> None:
+    body = normalized("automata-skill-design")
+    for term in (
+        "when setup requires discovery or experimentation",
+        "save a verified recipe in a suitable agent-data location",
+        "within existing storage authority",
+        "consult it before repeating discovery",
+        "update the recipe after verification",
+        "saved knowledge does not grant permission",
+        "separate reusable setup knowledge from temporary runtime state",
+        "do not mandate records or a universal schema",
+        "judgment-only skills need no setup ceremony",
+    ):
         assert term in body, term
 
 

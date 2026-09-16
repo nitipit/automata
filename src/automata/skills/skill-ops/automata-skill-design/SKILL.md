@@ -74,11 +74,14 @@ Avoid host-specific paths unless the capability owns that convention. Let the
 generator implement concrete discovery paths. Keep generated outputs separate from
 user inputs with different lifecycles.
 
-For environment-dependent skills, distinguish setup from normal use. On first use,
-inspect relevant options and verify a suitable approach before retaining useful setup
-knowledge within existing storage authority. Reuse it with lightweight checks of
+For environment-dependent skills, distinguish setup from normal use. When setup
+requires discovery or experimentation, save a verified recipe in a suitable agent-data
+location within existing storage authority: working commands, prerequisites, usage
+and cleanup procedures, and invalidation conditions. Make it findable on later use
+and consult it before repeating discovery. Reuse it with lightweight checks of
 changeable prerequisites; repair or rediscover only what is invalid within existing
-authority. Saved knowledge does not grant permission.
+authority, then update the recipe after verification. Saved knowledge does not grant
+permission.
 
 Separate reusable setup knowledge from temporary runtime state. Each capability owns
 its validity checks and invalidation conditions; persist runtime state only when
