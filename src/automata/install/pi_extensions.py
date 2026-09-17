@@ -1,4 +1,4 @@
-"""Install bundled or local Pi extension files into a Pi extension root."""
+"""Install standalone Pi files or native index.ts extension bundles."""
 
 from __future__ import annotations
 
@@ -42,10 +42,20 @@ def install_pi_extensions(
     for name in selected_names:
         validate_directory_name(name, kind="Pi extension")
 
+    # Resolve the complete selection before mutating any destination.
+    sources = {name: extension_source(source_path, name) for name in selected_names}
+    target_path = Path(target_root).expanduser()
+    for name, source in sources.items():
+        alternate = target_path / (f"{name}.ts" if source.is_dir() else name)
+        if alternate.exists() or alternate.is_symlink():
+            raise PiExtensionInstallError(
+                f"Conflicting Pi extension layout exists: {alternate}; review migration first"
+            )
+
     return tuple(
         install_pi_extension(
-            source=source_path / f"{name}.ts",
-            target=Path(target_root).expanduser() / f"{name}.ts",
+            source=sources[name],
+            target=target_path / sources[name].name,
             name=name,
             mode=mode,
         )
@@ -53,8 +63,27 @@ def install_pi_extensions(
     )
 
 
+def extension_source(source_root: Path, name: str) -> Path:
+    file = source_root / f"{name}.ts"
+    directory = source_root / name
+    is_bundle = directory.is_dir() and (directory / "index.ts").is_file()
+    if file.is_file() and is_bundle:
+        raise PiExtensionInstallError(f"Ambiguous Pi extension file and bundle: {name}")
+    if is_bundle:
+        return directory
+    if file.is_file():
+        return file
+    raise PiExtensionInstallError(f"Source Pi extension does not exist: {source_root / name}")
+
+
 def list_pi_extensions(source_root: Path) -> tuple[str, ...]:
-    return tuple(sorted(path.stem for path in source_root.glob("*.ts") if path.is_file()))
+    names = {path.stem for path in source_root.glob("*.ts") if path.is_file()}
+    names.update(
+        path.name
+        for path in source_root.iterdir()
+        if path.is_dir() and (path / "index.ts").is_file()
+    )
+    return tuple(sorted(names))
 
 
 def install_pi_extension(
@@ -64,8 +93,8 @@ def install_pi_extension(
     name: str,
     mode: InstallMode,
 ) -> PiExtensionInstallResult:
-    if not source.is_file():
-        raise PiExtensionInstallError(f"Source Pi extension file does not exist: {source}")
+    if not source.is_file() and not (source.is_dir() and (source / "index.ts").is_file()):
+        raise PiExtensionInstallError(f"Source Pi extension does not exist: {source}")
 
     if target.exists() or target.is_symlink():
         if mode != "replace":
@@ -75,6 +104,8 @@ def install_pi_extension(
     target.parent.mkdir(parents=True, exist_ok=True)
     if mode == "symlink":
         target.symlink_to(source.resolve())
+    elif source.is_dir():
+        shutil.copytree(source, target)
     else:
         shutil.copy2(source, target)
 

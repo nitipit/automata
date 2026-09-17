@@ -58,7 +58,7 @@ def test_activation_describes_specialized_need(name, required, overbroad) -> Non
             ),
         ),
         (
-            "automata-agent-browser-bridge",
+            "automata-agent-router",
             (
                 "consult relevant saved setup knowledge",
                 "separate from live endpoint records",

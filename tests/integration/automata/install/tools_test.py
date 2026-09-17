@@ -76,11 +76,19 @@ def test_legacy_tool_ignore_still_filters_copies_and_replacements(
 def test_install_tools_copies_bundled_agent_browser_bridge(tmp_path: Path) -> None:
     target_root = tmp_path / ".agents" / "tools"
 
-    results = install_tools(target_root=target_root, tool_names=["agent-browser-bridge"])
+    results = install_tools(target_root=target_root, tool_names=["agent-router"])
 
-    assert [result.name for result in results] == ["agent-browser-bridge"]
-    installed = target_root / "agent-browser-bridge"
-    for path in ("agent_browser_bridge.py", "README.md", "browser/client.js", "browser/page.js"):
+    assert [result.name for result in results] == ["agent-router"]
+    installed = target_root / "agent-router"
+    for path in (
+        "agent_router.py",
+        "agent_browser_bridge.py",
+        "README.md",
+        "browser/client.js",
+        "browser/pi-client.js",
+        "browser/page.js",
+        "automata_router/router.py",
+    ):
         assert (installed / path).is_file(), path
     assert not (installed / "__pycache__").exists()
     assert not (tmp_path / ".agents" / "var").exists()

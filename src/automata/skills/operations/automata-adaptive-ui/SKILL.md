@@ -48,7 +48,7 @@ pending states. Ownership is logical, not a requirement for separate files or
 permanent catalog components. Adapt single-component examples when composing
 multiple independent interactions.
 
-Keep local interactions local. Use the separate agent-browser-bridge capability
+Keep local interactions local. Use the separate agent-router capability
 when communication is intended; transport carries complete JSON independently of
 component semantics. Load only needed browser dependencies, with approval before
 fetching missing assets or installing runtimes.

@@ -1,26 +1,27 @@
-# agent-browser-bridge
+# Version-one bridge compatibility
 
-Reusable loopback browser-to-Pi generic JSON transport. The installed executable
-filename is `agent_browser_bridge.py`; the tool name is `agent-browser-bridge` and
-the Pi custom tool name is `agent_browser_bridge`.
+The single-pair protocol remains available through `agent_browser_bridge.py` in
+the **agent-router** tool, with the Pi `agent_browser_bridge` compatibility alias.
+This is not multiparty routing; new integrations should use [agent-router](README.md).
 
 ## Setup, status, serve
 
 From a project containing the installed tool:
 
 ```bash
-uv run --offline --no-project --script .agents/tools/agent-browser-bridge/agent_browser_bridge.py setup
-uv run --offline --no-project --script .agents/tools/agent-browser-bridge/agent_browser_bridge.py status
-uv run --offline --no-project --script .agents/tools/agent-browser-bridge/agent_browser_bridge.py serve \
-  --runtime-root .agents/var/skills/automata-adaptive-ui \
+uv run --offline --no-project --script .agents/tools/agent-router/agent_browser_bridge.py setup \
+  --runtime-root /path/to/legacy-ui
+uv run --offline --no-project --script .agents/tools/agent-router/agent_router.py status \
+  --endpoint-file .agents/var/tools/agent-browser-bridge/endpoint.json
+uv run --offline --no-project --script .agents/tools/agent-router/agent_browser_bridge.py serve \
+  --runtime-root /path/to/legacy-ui \
   --session-id chat \
   --port 8787
 ```
 
 `--session-id` names the public static `/sessions/chat/` route; the Pi control
-handshake separately binds the actual existing Pi session id. `setup` creates/checks
-`lib/` and `sessions/` below the selected runtime root; it never starts a server,
-Pi, or browser. `serve` is the only command that starts a listener. It publishes a
+handshake separately binds the actual existing Pi session id. Only an explicit legacy `--runtime-root` opts into `lib/` and `sessions/` layout.
+There is no implicit Adaptive UI root. `setup` never starts a server, Pi, or browser. `serve` is the only command that starts a listener. It publishes a
 private endpoint record at `.agents/var/tools/agent-browser-bridge/endpoint.json`
 by default and removes only its own record on shutdown.
 
