@@ -34,18 +34,26 @@ to copy into a new note.
 
 Read relevant cues when they help orientation. Before saving, check the intended
 file and revise a matching note rather than duplicating it; unchanged notes need
-no rewrite. Save on an explicit “remember this” request or approved automatic
-capture—not merely because a review or task finished.
+no rewrite.
 
-Follow an established destination or explicit data convention. Otherwise use:
+Save on a request to remember, a clearly lasting user instruction, or approved
+automatic capture. “Always,” “from now on,” and “make this our convention” count
+when context establishes a future rule—not merely when those words occur.
+Do not require the phrase “remember this.” Incidental remarks, one-off directions,
+and task completion alone do not authorize saving.
 
-- Global preferences: `~/.agents/var/skills/automata-cue/cues.md`.
+Choose scope before location. A repo discussion supports saving repo-specific
+conventions locally; use global scope only when cross-project intent is clear.
+Ask before writing if intent or scope is unclear. Follow an established destination
+or data convention for that scope; otherwise use:
+
 - Project-specific knowledge: `.agents/var/skills/automata-cue/cues.md` under the
   project root.
+- Global preferences: `~/.agents/var/skills/automata-cue/cues.md`.
 
 A save request authorizes creating the missing default file and parent directories;
-no separate file-creation approval is needed. Ask when intent, scope, conflicting
-notes, or sensitive content needs clarification—not for routine storage mechanics.
+no separate file-creation approval is needed. Clarify conflicting notes or sensitive
+content before saving—not routine storage mechanics.
 
 ## Boundaries
 

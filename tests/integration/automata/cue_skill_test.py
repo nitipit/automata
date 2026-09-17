@@ -23,7 +23,7 @@ def test_cues_keep_short_recall_notes_with_examples() -> None:
         "example timestamps are illustrative",
     ):
         assert term in normalized, term
-    assert len(text) < 3_000
+    assert len(text) < 3_400  # Includes durable-instruction recognition and scope selection.
 
 
 def test_cue_save_authority_includes_default_file_creation() -> None:
@@ -31,15 +31,36 @@ def test_cue_save_authority_includes_default_file_creation() -> None:
     for term in (
         "read relevant cues when they help orientation",
         "revise a matching note rather than duplicating it",
-        "explicit “remember this” request or approved automatic capture",
-        "not merely because a review or task finished",
-        "follow an established destination or explicit data convention",
+        "a request to remember, a clearly lasting user instruction, or approved automatic capture",
+        "follow an established destination or data convention for that scope",
         "global preferences: `~/.agents/var/skills/automata-cue/cues.md`",
         "project-specific knowledge: `.agents/var/skills/automata-cue/cues.md`",
         "authorizes creating the missing default file and parent directories",
         "no separate file-creation approval is needed",
-        "ask when intent, scope, conflicting notes, or sensitive content",
+        "clarify conflicting notes or sensitive content before saving",
         "preserve the surrounding file's structure",
+    ):
+        assert term in normalized, term
+
+
+def test_cue_recognizes_durable_intent_without_keyword_only_capture() -> None:
+    normalized = " ".join(SKILL.read_text().casefold().split())
+    for term in (
+        "“always,” “from now on,” and “make this our convention”",
+        "when context establishes a future rule—not merely when those words occur",
+        "do not require the phrase “remember this.”",
+        "incidental remarks, one-off directions, and task completion alone do not authorize saving",
+    ):
+        assert term in normalized, term
+
+
+def test_cue_selects_scope_before_destination() -> None:
+    normalized = " ".join(SKILL.read_text().casefold().split())
+    for term in (
+        "choose scope before location",
+        "a repo discussion supports saving repo-specific conventions locally",
+        "use global scope only when cross-project intent is clear",
+        "ask before writing if intent or scope is unclear",
     ):
         assert term in normalized, term
 
