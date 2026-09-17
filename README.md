@@ -279,6 +279,10 @@ with Deno, Node, and cached dependencies (no implicit fetching):
 uv run pytest
 ```
 
+These checks validate software and packaging, not agent judgment. See
+[the testing guide](tests/README.md) for the test layout, instruction review, and
+separate whole-agent behavioral evaluation.
+
 For an explicit developer build and frontend validation, choose a runtime root outside source:
 
 ```bash
