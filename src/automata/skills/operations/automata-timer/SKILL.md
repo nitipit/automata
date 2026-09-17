@@ -40,7 +40,12 @@ Choose the smallest schedule matching the request:
 
 - `after`: run once after a duration.
 - `at`: run once at an ISO datetime.
-- `every`: run repeatedly with `--max-runs` or `--until` by default.
+- `every`: run repeatedly; `--max-runs` is required unless explicit
+  `--forever` is used. `--until` is an optional cutoff, not a replacement for
+  the run bound. Its default mode is `after-completion`; use `--mode
+  fixed-rate` for a cadence anchored to the first scheduled run.
+- `cron`: run on a five-field APScheduler crontab in a required IANA timezone,
+  for example `--timezone Asia/Bangkok --max-runs 3`.
 
 Before creating a timer, make the timing, command, target, and expected effect
 clear. Ask when any of them is materially ambiguous. A timer executes with the
@@ -57,6 +62,22 @@ uv run .agents/tools/timer/timer.py after 20m \
 
 Do not use `--forever` without explicit approval and a cancellation and cleanup
 plan.
+
+### Recurrence and late runs
+
+Use `--grace 30s` (or another positive duration) when a run should expire after
+being late. A one-shot with a grace period is marked completed without running
+once it is past that period; omitting `--grace` preserves the legacy behavior
+of allowing a late one-shot to run. A recurring job with grace skips an
+occurrence that is too late, without increasing its run count, and advances to
+the next safe occurrence. Recurring schedules never replay a backlog.
+
+`after-completion` schedules the next `every` run after the command finishes.
+`fixed-rate` uses APScheduler's interval cadence from the first scheduled run;
+long commands and delayed workers skip missed ticks rather than overlapping.
+Cron schedules are calendar-cadenced and likewise skip missed occurrences.
+Cron weekday names such as `mon-fri` are recommended: APScheduler 3.x numbers
+Monday as 0, so numeric weekday fields do not use the usual Unix-cron meaning.
 
 ## Notifications and Responses
 

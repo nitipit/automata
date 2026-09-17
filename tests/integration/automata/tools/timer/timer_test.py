@@ -5,6 +5,7 @@ import subprocess
 import sys
 import threading
 import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import ModuleType
 
@@ -50,6 +51,241 @@ def test_timer_executes_due_job_and_records_log(tmp_path: Path) -> None:
     assert completed["worker_pid"] is None
     log_path = state_dir / completed["log_files"][-1]
     assert "timer-ok" in log_path.read_text()
+
+
+def test_cron_helper_uses_named_timezone_and_validates_it() -> None:
+    timer = load_timer_module()
+    now = datetime(2026, 9, 17, 1, 0, tzinfo=UTC)
+
+    assert timer.cron_first_fire("0 9 * * mon-fri", "Asia/Bangkok", now) == datetime(
+        2026, 9, 17, 2, 0, tzinfo=UTC
+    )
+    with pytest.raises(ValueError, match="unknown timezone"):
+        timer.cron_first_fire("0 9 * * mon-fri", "Not/A_Timezone", now)
+
+
+def test_fixed_rate_helper_skips_missed_ticks_without_backlog(tmp_path: Path) -> None:
+    timer = load_timer_module()
+    anchor = datetime(2026, 9, 17, 0, 0, 10, tzinfo=UTC)
+    job = timer.create_job(
+        state_dir=tmp_path,
+        command=[sys.executable, "-c", "pass"],
+        schedule_kind="every",
+        next_run_at=anchor,
+        name=None,
+        interval_seconds=60,
+        max_runs=2,
+        mode="fixed-rate",
+        schedule_anchor=anchor,
+    )
+
+    assert timer.next_scheduled_fire(job, datetime(2026, 9, 17, 0, 5, tzinfo=UTC)) == datetime(
+        2026, 9, 17, 0, 5, 10, tzinfo=UTC
+    )
+    assert timer.next_recurring_run(
+        {**job, "mode": "after-completion"}, datetime(2026, 9, 17, 0, 5, tzinfo=UTC)
+    ) == datetime(2026, 9, 17, 0, 6, tzinfo=UTC)
+
+
+def test_expired_one_shot_is_completed_without_running_command(tmp_path: Path) -> None:
+    timer = load_timer_module()
+    marker = tmp_path / "ran"
+    job = timer.create_job(
+        state_dir=tmp_path,
+        command=[sys.executable, "-c", f"from pathlib import Path; Path({str(marker)!r}).touch()"],
+        schedule_kind="at",
+        next_run_at=timer.utc_now() - timedelta(minutes=5),
+        name="expired",
+        grace_seconds=30,
+    )
+
+    assert not timer.execute_due_job(tmp_path, job["id"])
+
+    item = timer.load_job(tmp_path, job["id"])
+    assert item["status"] == "completed"
+    assert item["run_count"] == 0
+    assert item["skip_reason"] == "expired"
+    assert not marker.exists()
+
+
+def test_stale_fixed_rate_occurrence_advances_without_consuming_run(tmp_path: Path) -> None:
+    timer = load_timer_module()
+    anchor = timer.utc_now() - timedelta(minutes=5)
+    marker = tmp_path / "ran"
+    job = timer.create_job(
+        state_dir=tmp_path,
+        command=[sys.executable, "-c", f"from pathlib import Path; Path({str(marker)!r}).touch()"],
+        schedule_kind="every",
+        next_run_at=anchor,
+        name="stale",
+        interval_seconds=60,
+        max_runs=2,
+        mode="fixed-rate",
+        grace_seconds=30,
+        schedule_anchor=anchor,
+    )
+
+    assert not timer.execute_due_job(tmp_path, job["id"])
+
+    item = timer.load_job(tmp_path, job["id"])
+    assert item["status"] == "pending"
+    assert item["run_count"] == 0
+    assert item["skip_reason"] == "stale-occurrence"
+    assert timer.parse_instant(item["next_run_at"]) > timer.utc_now()
+    assert not marker.exists()
+
+
+def test_every_cli_persists_mode_and_grace(tmp_path: Path) -> None:
+    timer = load_timer_module()
+
+    timer.every(
+        "1m",
+        [sys.executable, "-c", "pass"],
+        name="fixed",
+        mode="fixed-rate",
+        grace="5s",
+        max_runs=2,
+        start=False,
+        state_dir=tmp_path,
+    )
+
+    item = timer.list_jobs(tmp_path)[0]
+    assert item["mode"] == "fixed-rate"
+    assert item["grace_seconds"] == 5
+    assert item["schedule_anchor"] == item["next_run_at"]
+
+
+def test_cron_cli_persists_explicit_timezone(tmp_path: Path) -> None:
+    timer = load_timer_module()
+
+    timer.cron(
+        "0 9 * * mon-fri",
+        [sys.executable, "-c", "pass"],
+        timezone="Asia/Bangkok",
+        name="weekday",
+        max_runs=1,
+        start=False,
+        state_dir=tmp_path,
+    )
+
+    item = timer.list_jobs(tmp_path)[0]
+    assert item["schedule_kind"] == "cron"
+    assert item["timezone"] == "Asia/Bangkok"
+    assert item["cron_expression"] == "0 9 * * mon-fri"
+
+
+def test_stale_cron_occurrence_advances_without_backlog(tmp_path: Path) -> None:
+    timer = load_timer_module()
+    due = timer.utc_now() - timedelta(minutes=5)
+    marker = tmp_path / "ran"
+    job = timer.create_job(
+        state_dir=tmp_path,
+        command=[sys.executable, "-c", f"from pathlib import Path; Path({str(marker)!r}).touch()"],
+        schedule_kind="cron",
+        next_run_at=due,
+        name="stale-cron",
+        max_runs=2,
+        grace_seconds=30,
+        timezone="UTC",
+        cron_expression="* * * * *",
+        schedule_anchor=due,
+        mode="fixed-rate",
+    )
+
+    assert not timer.execute_due_job(tmp_path, job["id"])
+
+    item = timer.load_job(tmp_path, job["id"])
+    assert item["status"] == "pending"
+    assert item["run_count"] == 0
+    assert timer.parse_instant(item["next_run_at"]) > timer.utc_now()
+    assert not marker.exists()
+
+
+def test_invalid_cron_and_recurrence_mode_are_rejected(tmp_path: Path) -> None:
+    timer = load_timer_module()
+    with pytest.raises(ValueError, match="mode must be"):
+        timer.every(
+            "1m",
+            [sys.executable, "-c", "pass"],
+            name="invalid-mode",
+            mode="burst",
+            max_runs=1,
+            start=False,
+            state_dir=tmp_path,
+        )
+    with pytest.raises(ValueError):
+        timer.cron(
+            "not a cron",
+            [sys.executable, "-c", "pass"],
+            timezone="UTC",
+            name="invalid-cron",
+            max_runs=1,
+            start=False,
+            state_dir=tmp_path,
+        )
+
+
+def test_fixed_rate_execution_honors_max_runs(tmp_path: Path) -> None:
+    timer = load_timer_module()
+    anchor = timer.utc_now() - timedelta(seconds=1)
+    job = timer.create_job(
+        state_dir=tmp_path,
+        command=[sys.executable, "-c", "pass"],
+        schedule_kind="every",
+        next_run_at=anchor,
+        name="fixed-execution",
+        interval_seconds=60,
+        max_runs=2,
+        mode="fixed-rate",
+        schedule_anchor=anchor,
+    )
+
+    assert timer.execute_due_job(tmp_path, job["id"])
+    pending = timer.load_job(tmp_path, job["id"])
+    assert pending["status"] == "pending"
+    assert pending["run_count"] == 1
+    assert timer.parse_instant(pending["next_run_at"]) > timer.utc_now()
+
+    pending["next_run_at"] = timer.utc_now().isoformat()
+    timer.save_job(tmp_path, pending)
+    assert timer.execute_due_job(tmp_path, job["id"])
+    completed = timer.load_job(tmp_path, job["id"])
+    assert completed["status"] == "completed"
+    assert completed["run_count"] == 2
+    assert completed["next_run_at"] is None
+
+
+def test_cron_execution_advances_and_honors_until_cutoff(tmp_path: Path) -> None:
+    timer = load_timer_module()
+    due = timer.utc_now() - timedelta(seconds=1)
+    job = timer.create_job(
+        state_dir=tmp_path,
+        command=[sys.executable, "-c", "pass"],
+        schedule_kind="cron",
+        next_run_at=due,
+        name="cron-execution",
+        max_runs=3,
+        until=timer.utc_now() + timedelta(minutes=2),
+        timezone="UTC",
+        cron_expression="* * * * *",
+        schedule_anchor=due,
+        mode="fixed-rate",
+    )
+
+    assert timer.execute_due_job(tmp_path, job["id"])
+    pending = timer.load_job(tmp_path, job["id"])
+    assert pending["status"] == "pending"
+    assert pending["run_count"] == 1
+    assert timer.parse_instant(pending["next_run_at"]) > timer.utc_now()
+
+    pending["next_run_at"] = timer.utc_now().isoformat()
+    pending["until"] = (timer.utc_now() + timedelta(seconds=1)).isoformat()
+    timer.save_job(tmp_path, pending)
+    assert timer.execute_due_job(tmp_path, job["id"])
+    completed = timer.load_job(tmp_path, job["id"])
+    assert completed["status"] == "completed"
+    assert completed["run_count"] == 2
+    assert completed["next_run_at"] is None
 
 
 def test_timer_recurring_job_returns_to_pending(tmp_path: Path) -> None:
