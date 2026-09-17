@@ -116,8 +116,8 @@ def test_agent_data_skill_defines_owned_storage_default() -> None:
 
     assert ".agents/var/skills/<skill-name>/" in text
     assert ".agents/var/tools/<tool-name>/" in text
-    assert "This skill governs data used by agent capabilities" in text
-    assert "not application, source, project,\nor user data" in text
+    assert "agent operational data and disposable task work" in text
+    assert "not maintained\nproject source or user-owned data" in text
     assert "Follow an explicit agent-data convention" in text
     assert "Outside a repository context, ask" in text
 

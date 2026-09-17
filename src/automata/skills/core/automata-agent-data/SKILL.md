@@ -5,8 +5,8 @@ description: Use when an agent, skill, or tool needs to create, read, organize, 
 
 # Automata Agent Data
 
-This skill governs data used by agent capabilities, not application, source, project,
-or user data. When an Automata repository has no explicit agent-data convention,
+This skill governs agent operational data and disposable task work, not maintained
+project source or user-owned data. When an Automata repository has no explicit agent-data convention,
 store capability-owned agent data under `.agents/var/`:
 
 ```text
@@ -23,6 +23,20 @@ future use is possible.
 1. Follow an explicit agent-data convention when one exists.
 2. Otherwise use the Automata default above when a repository context is known.
 3. Outside a repository context, ask before choosing durable storage.
+
+## Task Workspaces
+
+When no suitable task location is established, use
+`.agents/var/workspace/<task-name>/` for disposable experiments, scratch files,
+temporary dependencies, and results. Choose layout from the task and context;
+this is a fallback, not a mandatory directory template. Keep capability-owned
+state in its own namespace rather than duplicating it in each workspace.
+
+Promote work into maintained source only within approved scope. Removing a
+workspace may lose temporary work, but fresh repository operation must not depend
+on it. Stop its owned processes before cleanup. Choose UI output and serving roots
+as needed; serve only public-safe files, keeping credentials and private state
+outside the served root. The entire workspace is not implicitly a public website.
 
 ## Setup Knowledge and Live State
 
