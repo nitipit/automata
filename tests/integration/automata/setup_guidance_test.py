@@ -28,7 +28,7 @@ def test_skill_design_distinguishes_verified_setup_from_normal_use() -> None:
 
 
 def test_browser_reuse_verifies_identity_and_limits_repair_scope() -> None:
-    text = skill("operations", "automata-web-browser-control")
+    text = skill("operations", "automata-browser-use")
     for term in (
         "Verify the chosen connection and intended browser/profile ownership",
         "Executable presence alone is not a successful connection",
@@ -40,7 +40,7 @@ def test_browser_reuse_verifies_identity_and_limits_repair_scope() -> None:
 
 
 def test_browser_recipe_keeps_stable_safety_without_a_stack_tutorial() -> None:
-    text = skill("operations", "automata-web-browser-control")
+    text = skill("operations", "automata-browser-use")
     for term in (
         "bounded authorized action and observed result",
         "Commands and environment-specific details belong there, not in this skill",

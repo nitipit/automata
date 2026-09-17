@@ -1,9 +1,9 @@
 ---
-name: automata-web-browser-control
+name: automata-browser-use
 description: Use when automating a real browser, establishing a reusable control connection, or recovering browser interaction.
 ---
 
-# Automata Web Browser Control
+# Automata Browser Use
 
 Control the intended browser through a verified setup recipe, discovering a new
 method only when needed. This skill owns browser interaction, not application,

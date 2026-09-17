@@ -37,7 +37,7 @@ def test_activation_describes_specialized_need(name, required, overbroad) -> Non
     ("name", "terms"),
     [
         (
-            "automata-web-browser-control",
+            "automata-browser-use",
             (
                 "consult relevant saved setup knowledge first",
                 "approved owner-scoped data",
@@ -89,7 +89,7 @@ def test_environment_skills_reuse_knowledge_without_trusting_live_handles(name, 
 
 
 def test_browser_setup_retains_a_verified_executable_recipe() -> None:
-    body = normalized("automata-web-browser-control")
+    body = normalized("automata-browser-use")
     for term in (
         "reuse its verified recipe rather than reconstructing commands",
         "after successful setup, save a reusable recipe",
