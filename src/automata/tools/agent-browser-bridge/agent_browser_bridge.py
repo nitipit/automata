@@ -144,6 +144,31 @@ def validate_message(value: JsonObject) -> tuple[str, Any]:
     return identity, payload
 
 
+def validate_delivery(value: Any) -> JsonObject:
+    """Delivery policy is transport metadata, never inferred from component payloads."""
+    if not isinstance(value, dict) or set(value) - {"role", "deliverAs", "slot", "triggerTurn"}:
+        raise ValueError("Invalid delivery options")
+    role, mode = value.get("role", "user"), value.get("deliverAs", "immediate")
+    if role not in ("user", "context") or mode not in (
+        "immediate",
+        "steer",
+        "followUp",
+        "nextTurn",
+    ):
+        raise ValueError("Invalid role or deliverAs")
+    if role == "user" and (mode == "nextTurn" or "triggerTurn" in value):
+        raise ValueError("User messages always trigger a turn and cannot use nextTurn")
+    if "triggerTurn" in value and not isinstance(value["triggerTurn"], bool):
+        raise ValueError("triggerTurn must be boolean")
+    if mode == "nextTurn" and value.get("triggerTurn"):
+        raise ValueError("nextTurn cannot trigger a turn")
+    if "slot" in value:
+        require_string(value["slot"], "context slot")
+        if role != "context" or mode != "nextTurn":
+            raise ValueError("Slots require context nextTurn delivery")
+    return {"role": role, "deliverAs": mode, **value}
+
+
 def validate_reply(value: Any, pending_id: str) -> Any:
     if not isinstance(value, dict):
         raise ValueError("reply envelope must be an object")
@@ -180,7 +205,9 @@ class Broker:
         self.control_session_id: str | None = None
         self.browser: Connection | None = None
         self.pending_id: str | None = None
+        self.context_ids: set[str] = set()
         self.agent_busy = False
+        self.delivery_options = False
         self.seen: dict[str, str] = {}
         self.closed = False
 
@@ -221,6 +248,9 @@ class Broker:
             if not isinstance(control_session_id, str) or not control_session_id:
                 raise ValueError("A Pi session id is required")
             self.control_session_id = control_session_id
+            self.delivery_options = (
+                type(hello.get("deliveryOptions")) is int and hello["deliveryOptions"] == 1
+            )
             self.control = connection
             await self.emit(connection, {"type": "hello_ack", "role": "control"})
             return "control"
@@ -242,6 +272,7 @@ class Broker:
                     "channelId": self.channel_id,
                     "agentBusy": self.agent_busy,
                     "pendingId": self.pending_id,
+                    "deliveryOptions": 1 if self.delivery_options else 0,
                 },
             )
             return "browser"
@@ -273,6 +304,36 @@ class Broker:
             self.agent_busy = payload["busy"]
             await self.emit(self.browser, {"type": "agent_state", "busy": self.agent_busy})
             result["busy"] = self.agent_busy
+        elif action == "context_result":
+            identity = require_string(packet.get("id"), "context id")
+            if identity not in self.context_ids:
+                raise ValueError("Unknown context request")
+            status = packet.get("status")
+            if status not in {
+                "buffered",
+                "queued",
+                "attached",
+                "replaced",
+                "cleared",
+                "rejected",
+                "inspected",
+            }:
+                raise ValueError("Invalid context status")
+            details = packet.get("details", {})
+            validate_payload(details)
+            delivered = await self.emit(
+                self.browser,
+                {
+                    "type": "context_result",
+                    "id": identity,
+                    "status": status,
+                    "details": details,
+                },
+            )
+            if status not in {"buffered", "queued"}:
+                self.context_ids.discard(identity)
+                self.remember(identity, status)
+            result.update(status="accepted", browserDelivered=delivered)
         elif action == "admit":
             identity = require_string(packet.get("id"), "message id")
             if identity != self.pending_id:
@@ -325,13 +386,71 @@ class Broker:
         return True
 
     async def browser_packet(self, connection: Connection, packet: JsonObject) -> None:
-        identity, payload = validate_message(packet)
-        if identity in self.seen:
+        context_control = packet.get("kind") == "context_control"
+        if (context_control or "delivery" in packet) and not self.delivery_options:
+            raise ValueError("Connected Pi extension does not support delivery options")
+        if context_control:
+            identity = require_string(packet.get("id"), "context request id")
+            if packet.get("v") != 1 or isinstance(packet.get("v"), bool):
+                raise ValueError("Expected version 1 context control")
+            if set(packet) - {"v", "id", "kind", "action", "slot"}:
+                raise ValueError("Unexpected context control fields")
+            if packet.get("action") not in {"inspect", "clear"}:
+                raise ValueError("Invalid context control action")
+            if "slot" in packet:
+                require_string(packet["slot"], "context slot")
+            payload = None
+            delivery = {"role": "context"}
+        else:
+            identity, payload = validate_message(packet)
+            delivery = validate_delivery(packet["delivery"]) if "delivery" in packet else {}
+        if identity in self.seen or identity in self.context_ids:
             await self.emit(
-                connection, {"type": "duplicate", "id": identity, "status": self.seen[identity]}
+                connection,
+                {"type": "duplicate", "id": identity, "status": self.seen.get(identity, "pending")},
             )
             return
-        if self.pending_id is not None or self.agent_busy or self.control is None:
+        if delivery.get("role") == "context":
+            if self.control is None or len(self.context_ids) >= 32:
+                await self.emit(
+                    connection,
+                    {
+                        "type": "context_result",
+                        "id": identity,
+                        "status": "rejected",
+                        "details": {"reason": "Control unavailable or context capacity reached"},
+                    },
+                )
+                self.remember(identity, "rejected")
+                return
+            self.context_ids.add(identity)
+            self.remember(identity, "pending")
+            envelope = (
+                packet
+                if context_control
+                else {
+                    "v": 1,
+                    "id": identity,
+                    "kind": "message",
+                    "payload": payload,
+                    "delivery": delivery,
+                }
+            )
+            if not await self.emit(self.control, {"type": "event", "envelope": envelope}):
+                await self.emit(
+                    connection,
+                    {
+                        "type": "context_result",
+                        "id": identity,
+                        "status": "uncertain",
+                        "details": {
+                            "reason": "Control delivery uncertain; do not retry automatically"
+                        },
+                    },
+                )
+            return
+        busy_blocked = self.agent_busy and delivery.get("deliverAs", "immediate") == "immediate"
+        if self.pending_id is not None or busy_blocked or self.control is None:
             await self.emit(
                 connection,
                 {
@@ -351,6 +470,8 @@ class Broker:
             "type": "event",
             "envelope": {"v": 1, "id": identity, "kind": "message", "payload": payload},
         }
+        if delivery:
+            event["envelope"]["delivery"] = delivery
         if await self.emit(self.control, event):
             await self.emit(connection, {"type": "receipt", "id": identity, "status": "accepted"})
         else:
@@ -371,6 +492,19 @@ class Broker:
         if self.control is connection:
             self.control = None
             self.control_session_id = None
+            self.delivery_options = False
+            disconnected_ids = tuple(self.context_ids)
+            self.context_ids.clear()
+            for identity in disconnected_ids:
+                await self.emit(
+                    self.browser,
+                    {
+                        "type": "context_result",
+                        "id": identity,
+                        "status": "uncertain",
+                        "details": {"reason": "Pi disconnected; buffer state lost or unknown"},
+                    },
+                )
             await self.emit(
                 self.browser,
                 {
@@ -528,6 +662,9 @@ class BridgeApp:
                 if role == "browser":
                     await self.broker.browser_packet(connection, packet)
                 elif not await self.broker.control_packet(connection, packet):
+                    # Returning without a close frame can drop the final result
+                    # and appears as abnormal termination to native WebSocket clients.
+                    await send({"type": "websocket.close", "code": 1000})
                     break
         except Exception as error:  # close after returning a bounded protocol error
             await self.broker.emit(

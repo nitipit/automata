@@ -14,6 +14,9 @@ If the repo does not make them clear, use the defaults below.
 
 Use the repository's existing Python workflow when it is clear. Otherwise prefer
 the `uv` / `uvx` stack for Python runtime, dependency, and tool execution.
+Reuse verified workflow knowledge when useful, but treat current project configuration
+and lockfiles as authoritative. Recheck only affected assumptions after changes;
+do not create a setup record merely for using Python.
 
 ## Documentation Style
 

@@ -32,11 +32,11 @@ def test_agent_design_is_a_small_capability_placement_contract() -> None:
     assert len(text) < 2_000
 
 
-def test_work_design_owns_solo_team_arrangements_and_safe_redesign() -> None:
-    text = skill_text("automata-work-design")
+def test_task_design_owns_solo_team_arrangements_and_safe_redesign() -> None:
+    text = skill_text("automata-task-design")
     normalized = " ".join(text.casefold().split())
     for term in (
-        "organizing solo or team work involves meaningful choices",
+        "choosing assignment boundaries, context ownership, models, or solo/team arrangements",
         "not as a mandatory stage for every task",
         "one owner, fewer workers, or sequential work",
         "a full work plan is not required",
@@ -58,11 +58,12 @@ def test_work_design_owns_solo_team_arrangements_and_safe_redesign() -> None:
         "not a mandatory skill chain",
     ):
         assert term in normalized, term
-    assert len(text) < 6_000
+    # Includes assignment sizing and alternatives; review length, not a token quota.
+    assert len(text) < 8_000
 
 
-def test_work_design_distinguishes_selected_supported_and_authorized_model_settings() -> None:
-    normalized = " ".join(skill_text("automata-work-design").casefold().split())
+def test_task_design_distinguishes_selected_supported_and_authorized_model_settings() -> None:
+    normalized = " ".join(skill_text("automata-task-design").casefold().split())
     for term in (
         "every agent in the team, including the coordinator",
         "use known current settings or explicitly label unknown settings",
@@ -78,8 +79,8 @@ def test_work_design_distinguishes_selected_supported_and_authorized_model_setti
         assert term in normalized, term
 
 
-def test_work_design_uses_delivery_tradeoffs_without_research_ceremony() -> None:
-    normalized = " ".join(skill_text("automata-work-design").casefold().split())
+def test_task_design_uses_delivery_tradeoffs_without_research_ceremony() -> None:
+    normalized = " ".join(skill_text("automata-task-design").casefold().split())
     for term in (
         "context ownership, total cost, completion time, and risk",
         "keep tightly coupled knowledge together",
@@ -106,7 +107,7 @@ def test_work_design_uses_delivery_tradeoffs_without_research_ceremony() -> None
     assert "show two compact plain-text diagrams" not in normalized
 
 
-@pytest.mark.parametrize("name", ["automata-agent-design", "automata-work-design"])
+@pytest.mark.parametrize("name", ["automata-agent-design", "automata-task-design"])
 def test_design_skills_install_independently(tmp_path: Path, name: str) -> None:
     target = tmp_path / "skills"
     results = install_skills(target_root=target, skill_names=[name])
@@ -147,8 +148,8 @@ def test_fundamental_behavior_stays_short_and_question_activation_is_prospective
         assert mechanics not in interaction
     question = skill_text("automata-question")
     assert (
-        "description: Use when preparing a response that asks the user for input, including "
-        "clarification, discussion, choices, feedback, confirmation, or permission to act."
+        "description: Use when a consequential or ambiguous question needs clear choices, "
+        "consent scope, or stable answer references."
     ) in question
     autonomous = compose_character(behaviors=["autonomous"])
     assert "# Base Behavior" in autonomous

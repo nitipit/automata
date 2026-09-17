@@ -53,6 +53,55 @@ Deno.test("Base.create validates data and appends children", () => {
   assert(element.events.join(",") === "data,children");
 });
 
+Deno.test("Base.create passes omitted data to the validation hook", () => {
+  let received: unknown = "not called";
+  class DefaultComponent extends TestComponent {
+    static override validateData(data: unknown): TestData {
+      received = data;
+      return { label: "default" };
+    }
+  }
+
+  const element = create.call(DefaultComponent);
+  assert(received === undefined);
+  assert(element.data?.label === "default");
+});
+
+Deno.test("Base.create propagates validation failure after construction", () => {
+  const events: string[] = [];
+  const failure = new Error("invalid input");
+  class RejectingComponent extends TestComponent {
+    constructor() {
+      super();
+      events.push("constructed");
+    }
+
+    static override validateData(_data: unknown): TestData {
+      events.push("validated");
+      throw failure;
+    }
+
+    override applyData(data: TestData): void {
+      events.push("applied");
+      super.applyData(data);
+    }
+
+    override append(...children: Array<Node | string>): void {
+      events.push("appended");
+      super.append(...children);
+    }
+  }
+
+  let caught: unknown;
+  try {
+    create.call(RejectingComponent, { children: ["child"] });
+  } catch (error) {
+    caught = error;
+  }
+  assert(caught === failure);
+  assert(events.join(",") === "constructed,validated");
+});
+
 class TestComponent {
   static tagName: string | undefined = "test-component";
   data?: TestData;

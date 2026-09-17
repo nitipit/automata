@@ -82,6 +82,10 @@ export class Form extends Base<FormData> {
     if (data) this.applyData(data);
   }
 
+  /**
+   * Rebuild the form from validated data. Existing input values are discarded;
+   * callers needing draft preservation must capture and restore them separately.
+   */
   override applyData(data: FormData): void {
     const form = this.ensureForm();
     form.replaceChildren();

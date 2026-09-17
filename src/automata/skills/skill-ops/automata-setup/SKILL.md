@@ -13,8 +13,9 @@ another orchestration command.
 
 ## Scope
 
-Ask whether assets belong in the global agent environment or the current repository. Use
-these default roots unless the user chooses custom paths:
+Resolve whether assets belong in the global agent environment or the current repository.
+Reuse explicit scope and replacement approval; ask only for missing choices. Use these
+default roots unless the user chooses custom paths:
 
 | scope | skills | tools | Pi extensions |
 | --- | --- | --- | --- |
@@ -117,9 +118,8 @@ Install or update all bundled Pi extensions:
 uv run automata pi-extension install --target-root <extensions-root> --mode <mode>
 ```
 
-Run only the commands for confirmed resource types. The installers do not merge into
-existing assets: use `replace` only after the user confirms it. A symlinked asset reflects
-changes in its source, so do not replace it merely to refresh content.
+Run only commands for confirmed resource types. A symlinked asset reflects source
+changes, so do not replace it merely to refresh content.
 
 ## Boundaries
 

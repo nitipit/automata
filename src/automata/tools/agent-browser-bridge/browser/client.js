@@ -10,11 +10,14 @@ export function createAgentBrowserBridgeClient({
   location = globalThis.location,
   onMessage = () => {},
   onState = () => {},
+  onDelivery = () => {},
 } = {}) {
   let socket;
   let generation = 0;
   let connected = false;
   let pendingId;
+  let deliveryOptions = false;
+  const contextRequests = new Set();
   const sessionId = sessionFromLocation(location);
   const pairToken = pairFromLocation(location);
 
@@ -26,6 +29,7 @@ export function createAgentBrowserBridgeClient({
     const localSocket = new WebSocketImpl(endpoint);
     socket = localSocket;
     connected = false;
+    deliveryOptions = false;
     onState({ status: "connecting", sessionId });
     const current = () => socket === localSocket && generation === localGeneration;
     localSocket.onmessage = (event) => {
@@ -34,6 +38,7 @@ export function createAgentBrowserBridgeClient({
         const value = parseFrame(event.data);
         if (value.type === "hello_ack") {
           connected = true;
+          deliveryOptions = value.deliveryOptions === 1;
           pendingId = typeof value.pendingId === "string" ? value.pendingId : undefined;
           onState({
             status: "connected",
@@ -42,6 +47,12 @@ export function createAgentBrowserBridgeClient({
             agentBusy: value.agentBusy === true,
             pendingId,
           });
+          return;
+        }
+        if (value.type === "context_result") {
+          if (!contextRequests.has(value.id)) return;
+          if (!["buffered", "queued", "uncertain"].includes(value.status)) contextRequests.delete(value.id);
+          onDelivery({ id: value.id, status: value.status, details: value.details });
           return;
         }
         if (value.type === "receipt") {
@@ -88,6 +99,10 @@ export function createAgentBrowserBridgeClient({
           return;
         }
         if (value.type === "duplicate") {
+          if (contextRequests.has(value.id)) {
+            onDelivery({ id: value.id, status: "uncertain", details: { reason: "Duplicate context request; not replayed" } });
+            return;
+          }
           if (value.id !== pendingId) return;
           onState({
             status: "error",
@@ -126,7 +141,13 @@ export function createAgentBrowserBridgeClient({
     return localSocket;
   }
 
-  function sendMessage(payload) {
+  function sendMessage(payload, options) {
+    const delivery = options === undefined ? undefined : validateDelivery(options);
+    if (delivery && !deliveryOptions) throw new Error("Server does not advertise delivery options");
+    if (delivery?.role === "context") {
+      serializePayload(payload);
+      return sendContext({ kind: "message", payload, delivery });
+    }
     if (pendingId) throw new Error(`A browser message is already pending: ${pendingId}`);
     if (!connected || !socket || socket.readyState !== 1) throw new Error("Bridge is disconnected");
     const encodedPayload = serializePayload(payload);
@@ -135,6 +156,7 @@ export function createAgentBrowserBridgeClient({
       id: crypto.randomUUID(),
       kind: "message",
       payload,
+      ...(delivery ? { delivery } : {}),
     };
     const encoded = JSON.stringify(message);
     if (encoded === undefined || new TextEncoder().encode(encoded).byteLength > MAX_FRAME_BYTES) {
@@ -160,12 +182,36 @@ export function createAgentBrowserBridgeClient({
     return { id: message.id, message };
   }
 
+  // Context acknowledgments are separate from the single outstanding Chat reply.
+  function sendContext(fields) {
+    if (!deliveryOptions) throw new Error("Server does not advertise delivery options");
+    if (!connected || !socket || socket.readyState !== 1) throw new Error("Bridge is disconnected");
+    if (contextRequests.size >= 32) throw new Error("Context request capacity reached; inspect/clear or reconnect explicitly");
+    const message = { v: 1, id: crypto.randomUUID(), ...fields };
+    const encoded = JSON.stringify(message);
+    if (new TextEncoder().encode(encoded).byteLength > MAX_FRAME_BYTES) throw new Error("Message exceeds 64 KiB");
+    contextRequests.add(message.id);
+    try { socket.send(encoded); }
+    catch (error) {
+      onDelivery({ id: message.id, status: "uncertain", details: { reason: "Transport failure; do not retry automatically" } });
+      throw error;
+    }
+    return { id: message.id, message };
+  }
+
+  function contextControl(action, slot) {
+    if (slot !== undefined) requireId(slot, "context slot");
+    return sendContext({ kind: "context_control", action, ...(slot === undefined ? {} : { slot }) });
+  }
+
   function close() {
     generation++;
     const localSocket = socket;
     socket = undefined;
     connected = false;
     pendingId = undefined;
+    contextRequests.clear();
+    deliveryOptions = false;
     localSocket?.close?.();
     onState({ status: "disconnected" });
   }
@@ -173,11 +219,28 @@ export function createAgentBrowserBridgeClient({
   return {
     connect,
     sendMessage,
+    inspectContext: (slot) => contextControl("inspect", slot),
+    clearContext: (slot) => contextControl("clear", slot),
     close,
     isConnected: () => connected,
     getPendingId: () => pendingId,
     getSessionId: () => sessionId,
   };
+}
+
+export function validateDelivery(value) {
+  if (!isRecord(value) || Object.keys(value).some(key => !["role", "deliverAs", "slot", "triggerTurn"].includes(key))) throw new Error("Invalid delivery options");
+  const role = Object.hasOwn(value, "role") ? value.role : "user";
+  const deliverAs = Object.hasOwn(value, "deliverAs") ? value.deliverAs : "immediate";
+  if (!["user", "context"].includes(role) || !["immediate", "steer", "followUp", "nextTurn"].includes(deliverAs)) throw new Error("Invalid role or deliverAs");
+  if (role === "user" && (deliverAs === "nextTurn" || Object.hasOwn(value, "triggerTurn"))) throw new Error("User messages always trigger a turn and cannot use nextTurn");
+  if (Object.hasOwn(value, "triggerTurn") && typeof value.triggerTurn !== "boolean") throw new Error("triggerTurn must be boolean");
+  if (deliverAs === "nextTurn" && value.triggerTurn) throw new Error("nextTurn cannot trigger a turn");
+  if (Object.hasOwn(value, "slot")) {
+    requireId(value.slot, "context slot");
+    if (role !== "context" || deliverAs !== "nextTurn") throw new Error("Slots require context nextTurn delivery");
+  }
+  return { ...value, role, deliverAs };
 }
 
 export function serializePayload(value) {

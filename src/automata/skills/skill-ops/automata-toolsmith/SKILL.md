@@ -9,18 +9,9 @@ Turn repeated mechanical friction into small, inspectable, easy-to-run tools.
 Prefer tools that help both agents and humans work with less context, fewer
 manual steps, and clearer validation.
 
-## Use When
-
-Use this skill when:
-
-- the same manual action repeats enough to justify automation
-- command output needs reliable filtering, summarizing, polling, or waiting
-- a workflow has clear inputs, outputs, and verification steps
-- a local CLI would reduce token usage, tool calls, or operational risk
-- the user asks to create, adapt, or review a tool
-
-Do not use it just because a tool could exist. One-off actions are often better
-left as direct commands.
+Create a tool only when repeated mechanics, clear input/output contracts, or reduced
+operational risk justify maintenance. One-off actions are often better as direct
+commands; do not automate unclear judgment merely because a tool could exist.
 
 ## Creation Permission
 
@@ -128,6 +119,10 @@ Distinguish three concerns, not three mandatory directories:
   applicable owner-scoped data convention, separate from maintained source and
   installed code.
 
+When reusable setup knowledge helps, separate it from live process handles and
+provide inspectable checks for changed prerequisites. Do not treat a saved endpoint
+as current identity or repeat discovery that verified configuration already resolves.
+
 Stateless tools need no state directory; project-only tools may run directly from
 source without an installed copy. Use an approved disposable location for temporary
 helpers. Confirm unclear locations before writing; do not move existing files or
@@ -171,20 +166,6 @@ and add small automated tests when they reduce future risk.
 
 Do not overbuild test suites for one-off helpers. Prefer smoke checks and
 real-task validation unless the tool is becoming durable project infrastructure.
-
-## Workflow
-
-1. Identify the repeated friction or risk.
-2. Decide whether a tool is justified.
-3. Identify purpose, ownership, source, and any needed installation or state location.
-   For an agent-facing tool, identify its entry point and any applicable skill mapping.
-4. Confirm the management approach unless already covered by the user's autonomous tool
-   contract.
-5. Choose the smallest useful CLI interface.
-6. Build locally and inspectably.
-7. Smoke-test before use.
-8. Document usage and cleanup proportional to durability.
-9. Use the tool, then refine only when real friction remains.
 
 ## Boundaries
 

@@ -16,6 +16,11 @@ and any applicable agent-data convention. Revalidate browser/server identities
 before reuse. Keep credentials, profiles, build workspaces, and private operational
 state outside the public website root.
 
+Consult saved recipes before rediscovery. When setup requires discovery, save verified
+build/preview commands with required paths, inputs, checks and cleanup in approved
+owner-scoped data, separate from live session handles. Report the location; recheck
+changed prerequisites and update after verification. Do not duplicate builder help.
+
 The library, builder, and examples ship with this skill; no separate UI tool
 installation is needed. Treat installed source as read-only. Resolve the paths
 below against the skill directory, not the shell's working directory.
@@ -25,10 +30,11 @@ below against the skill directory, not the shell's working directory.
 Inspect only relevant examples and component contracts, and adapt rather than copy
 blindly:
 
-- `scripts/library/example/index.html`: static composition.
-- `scripts/library/example/reactive-shadow.html`: reactive state and Shadow DOM.
-- `scripts/library/example/chat.html`: a single Chat connected to the bridge.
-- `scripts/library/src/ui/adaptive-ui.ts` and component modules: APIs and schemas.
+- `lib/example/index.html`: static composition.
+- `lib/example/reactive-shadow.html`: reactive state and Shadow DOM.
+- `lib/example/chat-with-agent.html`: Chat + bridge integration; the component
+  owns payload semantics, the page wires transport.
+- `lib/src/ui/adaptive-ui.ts` and component modules: APIs and schemas.
 
 Reuse available catalog components before creating new ones. Use `Base` for
 component boundaries, Adapter for component styles, and Arrow for instance-local
@@ -73,4 +79,4 @@ and tests—not by patching installed copies.
 
 This skill owns UI composition and session lifecycle, not general browser control,
 installation, image generation, or transport. Arrow and Shadow DOM are not security
-sandboxes. Leave build mechanics to the builder and exact APIs to their components.
+sandboxes. The builder owns defaults and build mechanics; components own exact APIs.

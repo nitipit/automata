@@ -24,6 +24,14 @@ future use is possible.
 2. Otherwise use the Automata default above when a repository context is known.
 3. Outside a repository context, ask before choosing durable storage.
 
+## Setup Knowledge and Live State
+
+Keep reusable setup knowledge separate from temporary runtime handles when their
+lifetimes differ; separate files are optional. The capability owner defines validity
+checks and recovery, not a central readiness registry. Save only knowledge worth
+reusing within approved storage scope; do not copy secrets, authoritative project
+configuration, or transient handles into a permanent source of truth.
+
 ## Growth and Retention
 
 Treat retention as an ownership decision, not just a size check. Distinguish

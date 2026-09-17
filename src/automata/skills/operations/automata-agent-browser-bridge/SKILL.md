@@ -12,8 +12,9 @@ connection without losing ownership or confusing transport state with outcomes.
 
 ## Connect or reuse
 
-Identify the intended endpoints and their owner. Reuse a suitable connection after
-checking its current status and identity, not merely a listening port or old record.
+Consult relevant saved setup knowledge before reconstructing commands. Reuse a
+connection only after checking its status, intended endpoints and ownership—not
+merely a listening port or old record.
 Use the mapped tool's `--help` for commands and its browser API documentation for
 integration; reuse the shipped client and server rather than regenerating them.
 
@@ -26,9 +27,15 @@ agent. In Pi, `agent_browser_bridge` opens the binding to the current intended
 session; it does not start the server. Establish missing installation through the
 appropriate setup capability, within existing authority.
 
-Keep pairing credentials and endpoint records out of public assets and logs. Use
-loopback unless broader access is authorized. Retain enough endpoint and process
-identity for reconnection and owned cleanup; revalidate after session changes.
+Use loopback unless broader access is authorized. Keep pairing credentials and
+endpoint records out of public assets and logs; retain live identity only for
+reconnection and owned cleanup, revalidating after session changes.
+
+After setup discovery succeeds, save verified startup, connection, status-check,
+and owned cleanup commands with prerequisites, working directories and variable inputs
+in approved owner-scoped data, separate from live endpoint records. Report the recipe's
+location; exclude live session identifiers and do not duplicate tool documentation. Do not retain pairing secrets as setup knowledge
+or treat saved setup as permission.
 
 ## Exchange
 
@@ -40,6 +47,12 @@ with `action=send`. Keep the binding open while the interaction continues.
 Use canonical message/tool-call records rather than adding duplicate transcripts.
 Browser provenance does not grant authority for shell, file, or external actions.
 
+For context without a new request, use the client's context delivery options:
+`nextTurn` queues data for the next prompt; a named slot replaces its pending value.
+Use `inspect_context` or `clear_context` to manage pending data, not history.
+Consult tool documentation for `steer`, `followUp`, and trigger behavior. Distinguish
+buffered, queued, and attached receipts; none proves the model acted on the data.
+
 ## Verify and recover
 
 Verify a correlated browser-to-agent-to-browser exchange. Distinguish connection,
@@ -48,8 +61,8 @@ receipt or terminal-only answer is not an end-to-end result.
 
 Check busy/disconnect behavior when relevant. Do not silently replay an uncertain
 send. Revalidate affected endpoints and routing when earlier evidence is no longer
-current; repair only the affected setup. In-memory correlation does not promise
-durable history or exactly-once business execution.
+current; repair only the affected setup and update the recipe after verification.
+In-memory correlation does not promise durable history or exactly-once business execution.
 
 ## Close
 

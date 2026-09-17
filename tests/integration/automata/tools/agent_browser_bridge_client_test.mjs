@@ -146,3 +146,54 @@ test("generic JSON bounds reject absent, unsafe, cyclic, sparse, instance, and o
   assert.throws(() => client.sendMessage(nested), /nesting/);
   assert.throws(() => client.sendMessage("x".repeat(33 * 1024)), /32 KiB/);
 });
+
+test('explicit delivery options and context controls do not interfere with Chat', async () => {
+  const deliveries=[], states=[];
+  const client=createAgentBrowserBridgeClient({WebSocketImpl:FakeWebSocket,location,
+    onDelivery:value=>deliveries.push(value),onState:value=>states.push(value)});
+  client.connect(); await new Promise(resolve=>setImmediate(resolve));
+  const socket=FakeWebSocket.instances.at(-1);
+  socket.message({type:'hello_ack',role:'browser'});
+  assert.throws(()=>client.sendMessage(null,{role:'context',deliverAs:'nextTurn'}),/does not advertise/);
+  socket.message({type:'hello_ack',role:'browser',deliveryOptions:1});
+  const chat=client.sendMessage('hello');
+  const context=client.sendMessage({selection:'button'},{role:'context',deliverAs:'nextTurn',slot:'selection'});
+  assert.equal(client.getPendingId(),chat.id);
+  assert.deepEqual(context.message.delivery,{role:'context',deliverAs:'nextTurn',slot:'selection'});
+  const statesBefore=states.length;
+  socket.message({type:'context_result',id:context.id,status:'buffered',details:{}});
+  assert.equal(deliveries.at(-1).status,'buffered');
+  socket.message({type:'context_result',id:'stale',status:'attached'});
+  assert.equal(deliveries.length,1);
+  socket.message({type:'context_result',id:context.id,status:'attached',details:{}});
+  assert.equal(deliveries.at(-1).status,'attached');
+  assert.equal(states.length,statesBefore);
+  assert.equal(client.getPendingId(),chat.id);
+  const inspect=client.inspectContext('selection');
+  assert.equal(inspect.message.action,'inspect');
+  const clear=client.clearContext();
+  assert.equal(clear.message.kind,'context_control');
+  assert.equal(Object.hasOwn(clear.message,'slot'),false);
+  for(const options of [
+    {role:'user',deliverAs:'nextTurn'}, {role:'system'}, {role:null},
+    {role:'context',deliverAs:'nextTurn',triggerTurn:true},
+    {role:'context',deliverAs:'steer',slot:'bad'}, {unknown:true},
+  ]) assert.throws(()=>client.sendMessage(null,options));
+  socket.message({type:'rejected',id:chat.id});
+  assert.equal(client.sendMessage('steer',{role:'user',deliverAs:'steer'}).message.delivery.deliverAs,'steer');
+  client.close();
+});
+
+test('context reconnect never replays updates and remains bounded', async () => {
+ const client=createAgentBrowserBridgeClient({WebSocketImpl:FakeWebSocket,location});
+ client.connect(); await new Promise(resolve=>setImmediate(resolve));
+ const old=FakeWebSocket.instances.at(-1);
+ old.message({type:'hello_ack',role:'browser',deliveryOptions:1});
+ for(let i=0;i<32;i++)client.sendMessage(i,{role:'context',deliverAs:'nextTurn'});
+ assert.throws(()=>client.sendMessage(null,{role:'context',deliverAs:'nextTurn'}),/capacity/);
+ client.connect();await new Promise(resolve=>setImmediate(resolve));
+ const next=FakeWebSocket.instances.at(-1);
+ next.message({type:'hello_ack',role:'browser',deliveryOptions:1});
+ assert.equal(next.sent.length,1); // Only authentication; no replay.
+ client.close();
+});

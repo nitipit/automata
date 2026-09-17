@@ -1,6 +1,6 @@
 ---
 name: automata-question
-description: Use when preparing a response that asks the user for input, including clarification, discussion, choices, feedback, confirmation, or permission to act.
+description: Use when a consequential or ambiguous question needs clear choices, consent scope, or stable answer references.
 ---
 
 # Automata Question

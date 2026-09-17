@@ -27,6 +27,19 @@ def test_development_resolves_uncertainty_with_representative_evidence() -> None
         assert term in normalized, term
 
 
+def test_documentation_explains_hidden_contracts_beside_the_owner() -> None:
+    normalized = " ".join(skill_text().casefold().split())
+    for term in (
+        "contracts code alone does not reveal",
+        "extension points, lifecycle order, invariants, side effects, and failure expectations",
+        "beside the owning api",
+        "language's documentation conventions",
+        "use examples for composition",
+        "do not restate signatures or obvious implementation",
+    ):
+        assert term in normalized, term
+
+
 def test_architecture_scopes_implementation_through_logical_composition() -> None:
     normalized = " ".join(skill_text().casefold().split())
     for term in (

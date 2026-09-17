@@ -1,9 +1,9 @@
 ---
-name: automata-work-design
-description: Use when organizing solo or team work involves meaningful choices about context, models, cost, completion time, or quality, or when new evidence calls for reconsidering the arrangement.
+name: automata-task-design
+description: Use when choosing assignment boundaries, context ownership, models, or solo/team arrangements, or revising them as evidence changes.
 ---
 
-# Automata Work Design
+# Automata Task Design
 
 Choose how to organize work and context, whether solo or with a team. One owner,
 fewer workers, or sequential work may be better than a larger team. A full work
@@ -98,7 +98,7 @@ Keep the proposal proportionate; no separate document is required.
 
 ## Boundaries
 
-Planning owns work decomposition and acceptance criteria. Work design owns proposed
+Planning owns work decomposition and acceptance criteria. Task design owns proposed
 responsibilities, context ownership, model choices, and transitions. Delegation owns
 executable handoffs and verifies launched settings; management recognizes redesign
 needs, enacts authorized changes, and remains accountable for active work and recovery.

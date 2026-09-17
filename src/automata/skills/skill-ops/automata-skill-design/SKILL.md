@@ -16,8 +16,11 @@ concrete post-activation purpose too.
 
 Keep one coherent scope. Split independent responsibilities, not every subtopic.
 Write frontmatter `description` for recognition: user intent, task state, or runtime
-signals. Put detailed behavior in the body. Use minimal frontmatter (`name` and
-`description`); add metadata only when needed.
+signals that need this skill's specialized guidance, not broad everyday activities.
+Keep descriptions short and distinguish nearby capabilities. Review a situation
+where the skill should activate, a nearby one where it should not, and overlap
+with another skill. This need not become a formal evaluation campaign. Put detailed
+behavior in the body. Use minimal frontmatter (`name` and `description`).
 
 Choose a lowercase, single-hyphen-separated runtime name matching the installed
 directory. Check likely collisions with existing skills and runtime commands.
@@ -27,6 +30,9 @@ directory. Check likely collisions with existing skills and runtime commands.
 For judgment, establish orientation, useful decisions, and authority boundaries;
 let the agent adapt. Require fixed procedures only for concrete mechanical,
 interoperability, or safety needs. Every instruction should affect behavior.
+For action-oriented skills, define success, proportionate verification, authorized
+corrections, and when to stop or escalate. Preserve authority boundaries across
+models; do not assume a model's claimed judgment makes them unnecessary.
 
 Use direct wording. Remove filler, repeated ideas, and unnecessary qualifiers.
 Combine overlapping instructions while preserving conditions, exceptions, and authority
@@ -50,6 +56,8 @@ Only `SKILL.md` is required. Keep its core contract and shipped defaults togethe
 Use references for on-demand knowledge, examples for clearer demonstrations,
 templates for reusable formats, and scripts for repeated mechanics. Do not create
 assets for appearance. Moving always-read prose does not reduce context cost.
+Separate optional workflows with clear cues for selective reading; keep short,
+coherent contracts together rather than forcing every skill into a router.
 Examples should teach general behavior, not encode one session's policy.
 
 When using an Automata tool, map its installed `.agents/tools/...` entry path in
@@ -66,10 +74,20 @@ Avoid host-specific paths unless the capability owns that convention. Let the
 generator implement concrete discovery paths. Keep generated outputs separate from
 user inputs with different lifecycles.
 
-For environment-dependent skills, distinguish setup from normal use. Define evidence
-of readiness before retaining setup facts; recheck changeable prerequisites and
-repair only within existing authority. Judgment-only skills need no setup ceremony.
-Installation mechanics belong to `automata-setup`.
+For environment-dependent skills, distinguish setup from normal use. When setup
+requires discovery or experimentation, save a verified recipe in a suitable agent-data
+location within existing storage authority: working commands, prerequisites, usage
+and cleanup procedures, and invalidation conditions. Make it findable on later use
+and consult it before repeating discovery. Reuse it with lightweight checks of
+changeable prerequisites; repair or rediscover only what is invalid within existing
+authority, then update the recipe after verification. Saved knowledge does not grant
+permission.
+
+Separate reusable setup knowledge from temporary runtime state. Each capability owns
+its validity checks and invalidation conditions; persist runtime state only when
+continuity or recovery requires it. Do not mandate records or a universal schema:
+retain knowledge only when it avoids useful work being repeated. Judgment-only skills
+need no setup ceremony. Installation mechanics belong to `automata-setup`.
 
 For accumulating data or runtime resources, establish growth/retention review,
 cleanup authority, and when use has ended. Distinguish disposable material from
@@ -84,6 +102,11 @@ Review the whole skill before editing. Resolve material ambiguity, then carry ou
 approved changes and verification without repeated permission. Ask before exceeding
 scope or adding unapproved storage, configuration, or integration changes.
 Discussion alone does not authorize mutation.
+
+When revising after poor agent behavior, distinguish missing guidance from failed
+application. Check whether the instruction was discoverable, loaded, understood,
+or contradicted elsewhere in the instruction stack. Fix the cause at its owner;
+more prose does not necessarily improve behavior.
 
 Replace or remove overlapping guidance rather than appending each new request.
 Check scope, activation, composition, and authority together. If an addition belongs

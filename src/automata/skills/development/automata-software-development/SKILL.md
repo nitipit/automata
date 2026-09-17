@@ -1,6 +1,6 @@
 ---
 name: automata-software-development
-description: Use for coding, refactoring, debugging, or code review tasks that need minimal, clear implementation, ambiguity handling, pragmatic tradeoffs, or concise suggestions without expanding scope.
+description: Use when implementing, debugging, refactoring, or reviewing code requires scope, architecture, or verification judgment.
 ---
 
 # Automata Software Development
@@ -35,19 +35,6 @@ Keep only the minimum protection needed to avoid an unintended capability,
 destructive action, or privacy exposure. Record deferred hardening explicitly
 when it matters; do not silently turn a prototype into a security architecture.
 
-## Avoid By Default
-
-Unless explicitly required, avoid:
-
-- Excessive try/except
-- Heavy validation
-- Large abstractions
-- Extra configuration systems
-- Logging scaffolding
-- Defensive edge-case handling
-- Premature optimization
-- Broad refactors
-
 ## Coding Style
 
 - Prefer readable code over clever code.
@@ -67,7 +54,11 @@ Unless explicitly required, avoid:
 - Update documentation when behavior, commands, APIs, configuration, or
   user-facing workflows change.
 - Prefer concise, useful comments and docs over boilerplate.
-- Do not add comments that merely restate obvious code.
+- Document contracts code alone does not reveal: extension points, lifecycle order,
+  invariants, side effects, and failure expectations. Keep guidance beside the owning
+  API using the language's documentation conventions; use examples for composition.
+- Do not restate signatures or obvious implementation, or duplicate API contracts in
+  examples and separate prose.
 - If documenting a confusing design requires vague explanation, consider whether
   names, structure, or responsibilities should be clarified instead.
 
@@ -99,6 +90,12 @@ Use stable constraints with adaptive execution. Choose order, granularity, concu
 the lowest sufficient assurance from dependencies, uncertainty, and risk, not a universal
 sequence. Make routine internal decisions within approved scope without repeated confirmation.
 
+Carry the approved outcome through the chosen verification and fix failures caused by
+this change within scope. A first implementation is not completion when integration
+or validation is part of the request. Stop when the outcome is verified, a blocker
+needs input, or the next action exceeds authority; do not repair unrelated defects
+or continue polishing beyond the agreed result.
+
 Inspect relevant code and keep planning proportional to the work. Interleave coherent changes
 with the selected checks rather than leaving integration until every module is finished.
 Reassess affected decisions when relevant, credible new information changes assumptions,
@@ -125,7 +122,8 @@ Choose the lowest sufficient level:
 - **Full**: release readiness, high-blast-radius changes, or an explicit request. Combine
   independent review with the relevant suite, build, integration, or acceptance checks.
 
-For every selected activity, state its scope, expected evidence, and what it must not repeat.
+Keep each selected activity's scope, expected evidence, and non-goals clear; make them
+explicit for handoffs or consequential choices, not as a routine presentation template.
 Review critiques correctness and risk; verification executes agreed checks; neither silently
 expands into the other's work. Use the shortest checks that can detect the relevant regression.
 

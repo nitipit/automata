@@ -15,7 +15,7 @@ SOURCE = (
     / "operations"
     / "automata-adaptive-ui"
 )
-LIBRARY = SOURCE / "scripts" / "library"
+LIBRARY = SOURCE / "lib"
 requires_runtime = pytest.mark.skipif(
     shutil.which("deno") is None or shutil.which("node") is None,
     reason="cached Deno and Node are required",
@@ -58,7 +58,7 @@ def test_chat_library_build_and_catalog_example(tmp_path: Path) -> None:
 
 
 def test_chat_example_uses_only_public_bridge_callbacks() -> None:
-    example = (LIBRARY / "example" / "chat.html").read_text()
+    example = (LIBRARY / "example" / "chat-with-agent.html").read_text()
     assert 'from "/lib/adaptive-ui.js"' in example
     assert 'from "/assets/client.js"' in example
     assert "createAgentBrowserBridgeClient" in example

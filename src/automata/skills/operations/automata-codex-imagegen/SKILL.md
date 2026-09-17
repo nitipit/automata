@@ -19,12 +19,11 @@ user needs deterministic vector or code-native output.
 
 1. Clarify the subject, intended use, composition, style, exact text, and
    constraints when a missing detail would materially change the result.
-2. Call `codex_imagegen` with one complete image prompt. Include exact text
+2. Establish authorization for one image: a clear current-turn generation request
+   suffices; ambiguous wording or an agent-inferred image requires confirmation.
+   Never invent authorization or reinterpret a declined confirmation.
+3. Call `codex_imagegen` with one complete image prompt. Include exact text
    verbatim and state important things to avoid.
-3. Treat a clear current-turn user request to generate/create an image as
-   authorization for one call. For ambiguous wording or an agent-inferred
-   image, let the tool ask for confirmation; never invent authorization or
-   reinterpret a declined confirmation.
 4. Use the returned workspace path as the source of truth. Inspect or integrate
    the selected image before reporting the work complete.
 5. Report the saved path and any meaningful limitation or failed iteration.
