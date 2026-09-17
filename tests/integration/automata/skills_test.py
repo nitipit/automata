@@ -19,6 +19,7 @@ REQUIRED_SKILLS = {
     "automata-task-design",
     "automata-adaptive-ui",
     "automata-browser-use",
+    "automata-line-use",
     "automata-agent-router",
     "automata-codex-imagegen",
     "automata-question",
@@ -98,6 +99,7 @@ def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
     expected = {
         "automata-agent-router": ".agents/tools/agent-router/agent_router.py",
         "automata-timer": ".agents/tools/timer/timer.py",
+        "automata-line-use": ".agents/tools/line/line.py",
         "automata-tmux-communication": ".agents/tools/tmux-message/tmux_message.py",
     }
     for path in SKILL_FILES:

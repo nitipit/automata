@@ -94,6 +94,25 @@ uv run automata tools install \
   --mode copy
 ```
 
+Install the LINE Chrome skill and its companion tool:
+
+```bash
+uv run automata skills install --target-root .agents/skills --skill automata-line-use --mode copy
+uv run automata tools install --target-root .agents/tools --tool line --mode copy
+uv run --script .agents/tools/line/line.py --help
+```
+
+LINE use currently supports Linux with an explicitly isolated Chrome profile and the user's
+own LINE login. It provides structured reads, per-consumer reading checkpoints, recoverable
+local collection, and separately authorized draft/send commands. No browser profile, login,
+chat transcript, runtime state or timer is installed. Paths resolve from the calling workspace;
+`AUTOMATA_LINE_PROFILE` and `AUTOMATA_LINE_TIMEZONE` select an isolated profile and timezone
+(default UTC). The CLI declares its optional Playwright, Cyclopts and Dictify dependencies;
+these are not added to Automata's core dependencies. Use `uv run --offline --with playwright
+--with dictify pytest tests/unit/automata/tools/line_reading_test.py
+tests/integration/automata/tools/line` for the fixture and installed-CLI tests with cached
+optional dependencies. No real messages are sent by those tests.
+
 Adaptive UI is a self-contained skill with maintained TypeScript, schemas, build inputs,
 and examples. Install it without a prebuilt browser bundle, then build its shared runtime library:
 
