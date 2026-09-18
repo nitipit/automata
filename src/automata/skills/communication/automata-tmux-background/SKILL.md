@@ -5,154 +5,121 @@ description: Use when an agent needs to start, inspect, reuse, or stop a persist
 
 # Automata Tmux Background
 
-Use tmux to keep an authorized command running in the background. Operate tmux
-non-interactively through explicit owned targets; never move the user or agent into another
-session, window, or pane.
+Manage the lifecycle of an authorized persistent command without changing the
+active terminal view. Use a direct shell command for short-lived checks; tmux is
+for work that must survive the invoking shell call or remain inspectable later.
 
-## Scope
+## Authority and targets
 
-This skill owns the background lifecycle of persistent commands:
+Command-start approval includes a dedicated background session. Ask only when
+the command, installation or material consequences lack authorization.
 
-- detecting tmux and relevant existing sessions;
-- creating a dedicated detached session;
-- verifying startup, command, working directory, and initial output;
-- inspecting or reusing an explicitly owned background target; and
-- stopping and cleaning up that owned session when authorized.
+Consult any saved setup recipe before discovery. On first setup, confirm tmux
+availability and the intended server; use that server consistently, including any
+explicit socket option. Session/pane identifiers are server-local. Use listings
+only to resolve collisions or owned reusable sessions, not to inspect unrelated work.
 
-It does not own the command's application behavior, inter-agent communication, task
-acceptance, terminal layout, configuration, or interactive viewing.
+Ownership requires workflow creation or explicit assignment, not a familiar name.
+Use task-specific names. Reuse only within the same owned lifecycle; resolve or
+report collisions rather than silently renaming or replacing work.
 
-Use a direct shell command for short-lived checks. Use this skill when the process should
-continue independently of the invoking shell command or needs later status and output
-inspection.
+## Save and reuse verified setup
 
-## Authorization and Selection
+When setup required discovery, retain the verified launch method, prerequisites,
+startup evidence, shutdown procedure and invalidation conditions under
+`.agents/var/skills/automata-tmux-background/setup.md`, within storage authority.
+Save only knowledge that avoids rediscovery, not copies of standard commands.
+Current session/pane IDs, process identities and lifecycle owners belong in the
+active task's runtime state, not the durable recipe.
 
-Authorization to start the underlying persistent command includes permission to place that
-command in a dedicated background session. Do not request separate ceremonial confirmation
-for tmux. Still ask when the process itself was not authorized, installation is required, or
-starting it has a material unresolved consequence.
+Reuse a successful recipe with lightweight checks of changeable prerequisites.
+Do not repeat discovery for each launch. Server restarts, changed launch settings,
+failed startup or identity mismatches require repairing only the affected part;
+update the recipe after verification. Saved knowledge grants no authority to start,
+reuse or stop processes. Reference another owner's setup rather than copying it.
 
-Confirm tmux is available; do not install it or change terminal configuration without user
-approval:
+## Preserve the active view
+
+Use one dedicated detached session per independently managed process by default.
+Never create panes/windows in user-facing or unrelated sessions, even with detached
+flags: layout and status changes can still affect attached clients.
+
+Do not run bare `tmux`, `attach-session`, `switch-client`, `select-window` or
+`select-pane`. Do not change server configuration, layout, plugins or keybindings,
+or install tmux without approval. Never switch clients to recover from failure.
+
+When invoked inside tmux, record the caller's pane for return-path identity:
 
 ```bash
-command -v tmux
-tmux list-sessions
+CALLER_TARGET=$(tmux display-message -p -t "$TMUX_PANE" \
+  '#{session_name}:#{window_index}.#{pane_index}')
 ```
 
-Session listing may be used to avoid name collisions and find an explicitly owned reusable
-session. Do not inspect pane content or processes in unrelated sessions.
+Keep that identity with the task's live return path. It does not establish an
+attached client's visible state: the client can switch while the pane remains.
+Use detached-only operations; claim an unchanged view only with before/after
+evidence from an authorized client. Do not inspect other clients or navigate one
+to repair a discrepancy.
 
-Choose a clear task-specific session name. A session is owned only when the current workflow
-created it or the user explicitly assigned it. Do not infer ownership from a familiar name.
+## Start and verify
 
-## Background-Only Invariant
-
-Create and manage processes without changing any active client view.
-
-Never execute interactive or client-navigation commands as part of this workflow, including:
-
-```bash
-tmux
-tmux attach-session
-tmux switch-client
-tmux select-window
-tmux select-pane
-```
-
-Do not create windows or panes inside a user-facing or otherwise unrelated session, even with
-a detached flag. Layout and status changes can still disturb an attached client. Use one
-dedicated detached session per independently managed process by default.
-
-Reuse is allowed only when the destination is an explicitly owned background session and the
-new command belongs to the same managed lifecycle.
-
-When running inside tmux, record the invoking pane before creation and verify it remains the
-same afterward:
+Use the chosen name, explicit working directory and authorized command. These
+examples assume the intended tmux server is selected consistently:
 
 ```bash
-CALLER_TARGET=$(tmux display-message -p '#{session_name}:#{window_index}.#{pane_index}')
-```
-
-Do not use client switching as a recovery mechanism. If detached creation or targeted
-inspection fails, report the failure and preserve the current terminal view.
-
-## Start a Background Process
-
-Before creation, confirm that the chosen session name does not already exist. Then create the
-session detached with an explicit working directory and command:
-
-```bash
-if tmux has-session -t "$SESSION" 2>/dev/null; then
+if tmux has-session -t "=$SESSION" 2>/dev/null; then
   echo "session already exists: $SESSION" >&2
   exit 1
 fi
 
-tmux new-session -d \
-  -s "$SESSION" \
-  -c "$WORKING_DIRECTORY" \
-  "$COMMAND"
+TARGET=$(tmux new-session -d -P \
+  -F '#{session_name}:#{window_index}.#{pane_index}' \
+  -s "$SESSION" -c "$WORKING_DIRECTORY" "$COMMAND") || exit 1
 ```
 
-Resolve and retain the exact target rather than relying on implicit current-window behavior:
+Retain the returned target and resolve its server-local pane ID instead of assuming
+window/pane indices or implicit selection. Verify startup without attaching:
 
 ```bash
-TARGET="${SESSION}:0.0"
 tmux display-message -p -t "$TARGET" \
-  'target=#{session_name}:#{window_index}.#{pane_index} pane=#{pane_id} command=#{pane_current_command} cwd=#{pane_current_path}'
+  'target=#{session_name}:#{window_index}.#{pane_index} pane=#{pane_id} command=#{pane_current_command} cwd=#{pane_current_path} dead=#{pane_dead}'
+tmux capture-pane -p -t "$TARGET" -S 0 -E 39
 ```
 
-Check startup without attaching:
+Inspect only relevant startup output. A vanished session may have completed or
+failed; report evidence, not assumed readiness, and do not silently relaunch.
+Report server/session, target, command, CWD and startup evidence. Do not offer
+interactive attachment instructions.
+
+## Inspect and stop
+
+Use the task's current target, not an old recipe's session name. Match inspection
+metadata to its recorded identity; re-establish ownership after server restarts or
+identity changes, and verify the exact owned session before shutdown. Stop on
+mismatches or failed lookups rather than following nearby matches.
+Reuse bounded metadata/output commands for diagnosis; consult tmux-observation when
+useful, not as a mandatory step. Output may be evidence of activity, but is not by
+itself readiness, a delivered reply or accepted completion. Do not sleep/poll for
+delegated results.
+
+Stop only an owned session whose lifecycle authorizes shutdown. Idleness alone is
+not permission. Use application-specific graceful shutdown when required, then
+remove the exact session and verify that it is gone:
 
 ```bash
-tmux has-session -t "$SESSION"
-tmux capture-pane -p -t "$TARGET" -S -100
+tmux kill-session -t "=$SESSION"
+# Then check the same exact target and inspect any diagnostic:
+tmux has-session -t "=$SESSION"
 ```
 
-A session that disappears immediately may indicate that the command exited or failed before
-inspection. Report what can be observed without silently relaunching it. Use application-level
-health evidence when process presence alone is insufficient.
-
-If the caller was already inside tmux, compare its current pane target with `CALLER_TARGET`
-after creation. A mismatch is a workflow failure; do not continue managing the new process
-until the unexpected client change is understood.
-
-Report the session name, exact target, command, working directory, and observed startup state.
-This skill does not execute or provide interactive attachment instructions.
-
-## Inspect and Stop
-
-Inspect only through exact targets and non-interactive commands:
-
-```bash
-tmux has-session -t "$SESSION"
-tmux display-message -p -t "$TARGET" \
-  'pane=#{pane_id} command=#{pane_current_command} cwd=#{pane_current_path} dead=#{pane_dead}'
-tmux capture-pane -p -t "$TARGET" -S -100
-```
-
-Capture output to establish startup or diagnose a failure, not as a substitute for
-application-level results or an agreed communication path. Do not turn this inspection into a
-`sleep`-and-poll loop for delegated work completion.
-
-Stop only an explicitly owned session after the process lifecycle authorizes shutdown. Use an
-exact target and verify removal:
-
-```bash
-tmux kill-session -t "$SESSION"
-! tmux has-session -t "$SESSION" 2>/dev/null
-```
-
-Do not kill a whole session merely because one command appears idle. Preserve it when its
-continued background lifecycle is still intended.
+Successful removal plus expected absence supports closure. A failed lookup alone
+may mean a wrong socket, unavailable server or permission failure; report uncertainty.
+Session removal does not prove detached children stopped. Verify application-owned
+resources separately and preserve sessions still needed.
 
 ## Boundaries
 
-- Keep all creation and management detached, non-interactive, and explicitly targeted.
-- Never attach, switch clients, navigate visible panes, or alter the active terminal view.
-- Do not add panes or windows to user-facing or unrelated sessions.
-- Do not inspect, signal, stop, or clean up sessions not owned by the current workflow.
-- Do not install tmux or modify its server, configuration, layout, plugins, or keybindings.
-- Do not silently choose a new session name after a collision; inspect ownership or report it.
-- Do not duplicate communication, watchdog, task-acceptance, or application-specific policy.
+This skill owns background process/session lifecycle, not application behavior,
+message transport, watchdogs or result acceptance. Communication and management
+retain those decisions. Inspect, signal and stop only explicitly owned resources;
+never manage unrelated sessions to make the current task easier.

@@ -1,115 +1,70 @@
 ---
 name: automata-communication
-description: Use when repairing misunderstandings, aligning participants with different context, or shaping a consequential message or coordination signal.
+description: Use when choosing whom and how to communicate with across humans or agents, aligning different contexts, or repairing a consequential misunderstanding.
 ---
 
 # Automata Communication
 
-Communication creates shared understanding between participants. It is a foundation for
-cooperation, whether the participants are humans, agents, roles, teams, or future selves.
+Design an interaction that creates shared understanding. Choose the intended
+receiver and outcome before the channel or message format. Use the following
+lenses where they affect the result, not as a checklist for every conversation.
 
-Core idea:
+## Sender, receiver and channel
 
-```text
-Know yourself. Know others. Make shared context clear.
-```
+- **Sender:** identify whom you represent, your purpose, relevant knowledge and
+  uncertainty, and the limits of your authority. Distinguish your recommendation
+  from another party's decision; do not imply permission or commitments you lack.
+- **Receiver:** identify who needs the information or can provide the needed
+  response. Consider their role, context, authority, availability and communication
+  preferences—not just whether they are human or AI. A reachable party is not
+  necessarily the intended or authorized recipient. Clarify material ambiguity;
+  do not guess identities or broadcast to compensate for uncertainty.
+- **Medium/channel:** choose an authorized path suited to the receiver and outcome.
+  Consider privacy, audience, urgency, synchronous/asynchronous use, persistence,
+  message limits and ability to reply. A human-readable channel may suit agents;
+  a structured channel may suit human workflows. Neither format guarantees shared
+  understanding. Saved addresses and successful connections do not prove current
+  identity, readiness or permission to disclose information.
 
-## Concept Anchors
+Respect assigned reporting and isolation boundaries. If no suitable authorized
+path exists, explain the gap and agree on an alternative rather than contacting
+unrelated parties or silently changing channels.
 
-### Know Yourself, Know Others
+## Carry meaningful context
 
-Before communicating, understand enough about both sides.
+Adapt the message to what this receiver needs, not everything the sender knows.
+Humans may need concise implications, tradeoffs and a clear choice; agents may need
+scope, identifiers, evidence and a return path. These are contextual needs, not
+fixed human/agent templates. Do not assume shared conversation history, memory,
+file access or terminology. Use accessible references, and include essential facts
+inline when the receiver cannot follow them. Minimize private or irrelevant data.
 
-Know yourself:
+Make the purpose clear: information, acknowledgement, clarification, proposal,
+decision, request or warning. Include who, what, when, where, why and how only where
+they remove ambiguity. Separate observations, assumptions and unknowns. For a
+material change, state the evidence, its impact and any useful next move; do not
+turn every update into a request or repeat unchanged status.
 
-- What role, position, or context am I speaking from?
-- What am I trying to express or achieve?
-- What do I know, assume, feel, need, or intend?
-- What are my limits, responsibilities, or uncertainties?
+## Response and repair
 
-Know others:
+Decide whether the interaction needs understanding, acknowledgement, a decision,
+action or a returned result. When a response matters, make its recipient, usable
+return path and relevant timing clear. Avoid unnecessary acknowledgement loops.
+Sending, delivery, acknowledgement, understanding and completed action are distinct;
+claim only what the available evidence supports. Transport owners handle receipts
+and delivery failures; do not invent a retry or polling loop here.
 
-- Who am I communicating with?
-- What do they likely know, need, value, or misunderstand?
-- What burden, risk, or ambiguity might my message create for them?
-- What response or next move would be easy and useful for them?
-
-### 5W1H
-
-Use 5W1H as a lightweight clarity lens, not a rigid form:
-
-- **Who** is speaking, affected, responsible, or expected to respond?
-- **What** is being said, asked, decided, changed, or unclear?
-- **When** does it matter, and what timing or order affects it?
-- **Where** does the context, work, evidence, or decision live?
-- **Why** is this communication happening, and what purpose does it serve?
-- **How** should the receiver think, act, respond, verify, or continue?
-
-Use only the parts that reduce misunderstanding.
-
-### Shared Context First
-
-Communication fails when context is assumed but not shared. State the minimum context needed
-for the other side to understand the message, without flooding them.
-
-### Intent Before Content
-
-Know why you are communicating before shaping the message. Acknowledgement, clarification,
-decision, request, explanation, warning, and reflection need different shapes.
-
-### Right Amount, Right Time
-
-Too little context confuses. Too much context burdens. Choose the amount of detail that fits
-the receiver, moment, risk, and next move.
-
-### Name Uncertainty
-
-Separate what is known, assumed, inferred, felt, or unknown when that distinction matters.
-Clear uncertainty builds trust and prevents false confidence.
-
-### Make the Next Move Clear
-
-Good communication helps the receiver know what to do next. The next move may be to answer,
-decide, wait, inspect, act, ask back, or simply understand.
-
-## Context Signals
-
-Use a context signal when a material observation, uncertainty, pressure, dependency, checkpoint,
-or proposed next move may change shared understanding. Keep it human-readable and include only
-the fields that help:
-
-```text
-sender: <role or session>
-recipient/return path: <assigned receiver or exact return path>
-kind: <descriptive signal kind>
-evidence: <observed fact, source, or uncertainty>
-impact: <what may change or be at risk>
-request: <useful next move, if any>
-context facts: <minimal facts needed for reassessment>
-```
-
-These fields are optional; omit unknown or irrelevant values rather than inventing them. `kind`
-is descriptive, not a fixed enum or workflow. A signal is evidence for reassessment, not a
-command, approval, state transition, or durable record. It may report runtime or agent-assessed
-context pressure, but the receiver chooses the response. Prefer one concise signal for a material
-change over repeated turn-by-turn status.
-
-Workers send assignment reports and escalations through their assigned return path.
-Peers within an authorized team may discuss, challenge proposals, and resolve shared
-questions directly within their scope and access boundaries. Share enough context to
-reason together, distinguish proposals from decisions, and surface consequential
-conclusions or unresolved disagreements to the responsible manager. Discussion does
-not authorize assigning work, changing ownership, or accepting another agent's results.
-Respect explicit isolation restrictions; do not guess recipients or a missing return
-path. New delegation still requires applicable authority. For signal-driven persistence,
-route only accepted decisions or checkpoints through existing cue/session owners;
-do not persist every signal.
+When meaning diverges, identify the specific context or assumption mismatch without
+blame, state the correction and explain its consequence. Ask for confirmation only
+if unresolved understanding materially affects the next action. Check the relevant
+context and channel constraints before repeating the same message more forcefully.
 
 ## Boundaries
 
-- Do not force every message into a template.
-- Do not over-explain when a short acknowledgement or question is enough.
-- Do not hide uncertainty when it materially affects understanding.
-- Do not optimize only for the sender's convenience; consider the receiver's context too.
-- Do not treat communication as manipulation. Aim for shared understanding and useful next
-  movement.
+This skill owns who needs what, channel suitability, shared context and the intended
+response—not permission to contact someone or execute an action. Discussion and
+acknowledgement do not grant authority. Questions own answer structure; delegation
+owns assignments and return contracts; management owns reporting obligations;
+transport skills own actual delivery. Do not bypass those owners or force a fixed
+skill chain. Retain only accepted decisions or needed evidence through existing
+state owners, not every message. Aim for understanding, not manipulation.
