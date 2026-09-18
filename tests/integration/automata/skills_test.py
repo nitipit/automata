@@ -38,10 +38,8 @@ REQUIRED_SKILLS = {
     "automata-agent-evaluation",
     "automata-communication",
     "automata-goal",
-    "automata-javascript",
     "automata-pc-ui-control",
     "automata-plain-text-writing",
-    "automata-python",
     "automata-runtime-status",
     "automata-software-development",
     "automata-stateful-workflow",
@@ -52,6 +50,8 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-javascript",
+    "automata-python",
     "automata-worklog",
     "automata-roles",
     "automata-next-improvement",

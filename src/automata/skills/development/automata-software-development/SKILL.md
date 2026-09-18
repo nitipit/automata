@@ -1,148 +1,119 @@
 ---
 name: automata-software-development
-description: Use when implementing, debugging, refactoring, or reviewing code requires scope, architecture, or verification judgment.
+description: Use for software implementation, debugging, refactoring, code review, or project build/test/environment work that needs engineering judgment.
 ---
 
 # Automata Software Development
 
-## Principles
+Carry an approved outcome through implementation and proportionate verification.
+Prefer simple, readable solutions with cohesive responsibilities, not the smallest
+diff at the expense of understandable boundaries or future context cost.
 
-- Implement only explicitly requested behavior.
-- Prefer simple and direct solutions.
-- Keep code changes minimal and easy to review, but do not optimize diff size at the
-  expense of clear module boundaries or future context cost.
-- Minimize context coupling: organize code and tests into cohesive units that can be
-  understood, changed, and verified without loading unrelated implementation.
-- Avoid overengineering, premature abstraction, and unnecessary fragmentation.
-- Ask for clarification when requirements, scope, or risk are ambiguous.
-- Suggest better approaches briefly, but do not implement them without approval.
-- Use language-specific skills for stack/tool conventions when applicable.
+## Scope and design
 
-## Development Phase
+Clarify uncertainty that materially affects requirements, scope or risk. Recommend
+better approaches without implementing unapproved behavior. Make routine internal
+decisions within approved scope; ask before exceeding it or introducing unresolved
+material consequences, especially for APIs, data, security, dependencies or build
+architecture. Approval for one change does not authorize unrelated repairs.
 
-Before building on an uncertain assumption, use the smallest executable check in a
-representative, authorized environment. Exercise the boundary whose behavior matters:
-browser-dependent assumptions need real browser evidence, while pure logic may need only a
-direct test. Mocks isolate concerns but do not establish behavior of the boundaries they
-replace. A small implementation slice may be the proof; do not require a separate prototype
-for every change.
+Inspect relevant code and execution/dependency contracts before building on them;
+distinguish facts from assumptions. Reason through responsibilities and dependencies,
+not just files. Define shared inputs/outputs, state ownership and invariants for
+independent work, leaving internals flexible. Do not require a design document,
+fixed hierarchy or every function specified upfront. Use diagrams or new patterns
+only when they resolve a concrete problem.
 
-Prove a minimal integrated path early, then extend it. Do not add generalized guardrails,
-hardening, or defensive abstraction before a concrete threat, boundary, or acceptance
-requirement justifies it.
+Keep code and tests understandable without loading unrelated implementation.
+Extend the right responsibility owner, not a convenient nearby module. Keep naming
+clear and functions focused. File size signals context cost, not arbitrary splitting
+or tiny pass-through files. Parallelize independent responsibilities, not simply
+different files. Align affected owners and verify compatibility when shared contracts
+change; do not change another owner's module for convenience.
 
-Keep only the minimum protection needed to avoid an unintended capability,
-destructive action, or privacy exposure. Record deferred hardening explicitly
-when it matters; do not silently turn a prototype into a security architecture.
+## Project setup and verified recipes
 
-## Coding Style
+Current project instructions, configuration, manifests, lockfiles and scripts
+establish constraints. Consult relevant recipes before rediscovering setup:
 
-- Prefer readable code over clever code.
-- Prefer modifying existing code when it remains the right responsibility owner; do not
-  append new behavior to an unrelated module merely to avoid creating a file.
-- Keep functions focused and small.
-- Keep production and test files cohesive. Place tests by behavior or responsibility
-  instead of accumulating unrelated cases in one broad test file.
-- Prefer files that stay easy to scan, roughly 500-1000 lines when practical. Treat size as
-  a signal, not the design rule. Extract cohesive responsibilities before a file becomes a
-  context-heavy monolith; avoid arbitrary line-count splitting and tiny pass-through files.
-- Maintain existing project conventions.
-- Use clear naming.
+- Project: `.agents/var/skills/automata-software-development/`
+- Approved user defaults: `~/.agents/var/skills/automata-software-development/`
 
-## Documentation
+Locate recipes by project area or purpose; no fixed filenames, index or schema are
+required. They hold choices that vary by project/user: runtime, environment, package
+manager, dependency workflow, and test/lint/type-check/build commands. Do not impose
+a universal stack or bundle basic language tutorials. Use language knowledge with
+project conventions; retain special guidance only for actual constraints or
+confirmed recurring mistakes.
 
-- Update documentation when behavior, commands, APIs, configuration, or
-  user-facing workflows change.
-- Prefer concise, useful comments and docs over boilerplate.
-- Document contracts code alone does not reveal: extension points, lifecycle order,
-  invariants, side effects, and failure expectations. Keep guidance beside the owning
-  API using the language's documentation conventions; use examples for composition.
-- Do not restate signatures or obvious implementation, or duplicate API contracts in
-  examples and separate prose.
-- If documenting a confusing design requires vague explanation, consider whether
-  names, structure, or responsibilities should be clarified instead.
+Reuse a relevant recipe with lightweight checks of assumptions affecting this
+operation. Changed configuration, runtime, project area or command failures may
+invalidate part of it; repair that part, not the whole setup. Without a recipe,
+establish the smallest working path from project evidence. User defaults apply only
+where compatible. Resolve consequential conflicts rather than treating saved
+commands as authority.
 
-## Architecture
+After useful discovery succeeds, retain verified commands, applicability,
+prerequisites, evidence, limitations and invalidation/recovery conditions within
+storage authority. Update existing knowledge where appropriate; do not fabricate
+verification, duplicate project configuration, record secrets or create a recipe
+for every command. Former bundled defaults are not approved user preferences.
+Keep transient handles/logs separate. Recipes do not authorize downloads, account
+changes or shared-environment disruption. Inspect synchronization/cleanup effects
+before commands that could remove another task's packages or state; isolate when
+needed.
 
-The plan aligns intent and constraints; it is not a file-editing checklist. For larger
-changes, reason through logical composition: systems, subsystems, modules, and functions.
-Understand each part through its responsibility, local logic, and dependency contracts;
-decompose or inspect deeper only where needed. This model need not mirror directories,
-assign each component to one parent, or prescribe fixed module counts.
+## Implement and document
 
-Let interfaces, signatures, and focused comments carry the useful structure. Do not require
-another design document or specify every internal function upfront. Define shared inputs,
-outputs, state ownership, and important invariants sufficiently for independent work;
-leave internal implementation flexible.
+Check uncertain assumptions with the smallest executable test in a representative,
+authorized environment. Exercise the relevant boundary: browser behavior needs
+browser evidence; pure logic may need only a direct test. Mocks do not prove behavior
+of what they replace. If a real boundary is unavailable or unauthorized, report the
+limit. The first implementation slice can be the proof; no separate prototype is
+required.
 
-Implement coherent responsibilities, even across files. Parallelize where boundaries permit
-independence, not merely because files differ. When a shared contract changes, align affected
-owners and verify compatibility before building further on it; do not silently diverge or
-change another owner's module for convenience.
+Prove a minimal integrated path early and interleave changes with checks. Avoid
+premature abstractions, generic hardening or logging/configuration scaffolds without
+a concrete threat, boundary or acceptance need. Keep protections against unintended
+capabilities, destructive actions and privacy exposure; disclose material deferred
+hardening without silently expanding a prototype's scope.
 
-Do not build on unclear or broken foundations. For risky changes, inspect the relevant
-dependency and execution flow, distinguishing confirmed relationships from assumptions.
-Use diagrams or new patterns only when they resolve a concrete problem.
+Follow project conventions. Update docs when behavior, APIs, commands, configuration
+or workflows change. Document non-obvious contracts beside their owner: lifecycle,
+invariants, extension points, effects and failure expectations. Use language-appropriate
+documentation and examples for composition, not boilerplate, repeated signatures or
+duplicated contracts. If a module's purpose needs vague prose, reconsider its name
+or responsibilities instead.
 
-## Workflow
+## Select assurance
 
-Use stable constraints with adaptive execution. Choose order, granularity, concurrency, and
-the lowest sufficient assurance from dependencies, uncertainty, and risk, not a universal
-sequence. Make routine internal decisions within approved scope without repeated confirmation.
+Implementation, review and verification are composable, not a mandatory team pipeline.
+Choose the lowest sufficient assurance for risk and agreed acceptance criteria:
 
-Carry the approved outcome through the chosen verification and fix failures caused by
-this change within scope. A first implementation is not completion when integration
-or validation is part of the request. Stop when the outcome is verified, a blocker
-needs input, or the next action exceeds authority; do not repair unrelated defects
-or continue polishing beyond the agreed result.
+- **Direct:** prose, formatting or an isolated edit; a relevant quick check.
+- **Focused:** ordinary code changes; targeted tests/checks without automatically
+  requiring another reviewer or a full suite.
+- **Independent:** consequential interfaces, state, security, concurrency or meaningful
+  uncertainty; a separately scoped review and relevant verification. A fresh review
+  pass is not an independent reviewer. Use another owner when independent judgment
+  materially helps and delegation is authorized.
+- **Full:** release readiness, broad impact or explicit request; appropriate review
+  plus relevant suite, build, integration or acceptance checks.
 
-Inspect relevant code and keep planning proportional to the work. Interleave coherent changes
-with the selected checks rather than leaving integration until every module is finished.
-Reassess affected decisions when relevant, credible new information changes assumptions,
-constraints, or available approaches. Adapt the implementation model or plan where useful,
-preserving valid work rather than restarting by default. Explain material decisions when
-useful or asked; summarize outcomes, verification scope, and remaining limitations without
-narrating every internal step.
+Use the shortest checks that detect relevant regressions. Make scope, evidence and
+non-goals explicit for handoffs or consequential choices, not a routine template.
+Review critiques correctness/risk; verification executes checks. Do not silently
+expand either assignment or claim independent review where none occurred.
 
-## Modular Assurance
+Keep tests cohesive by behavior/boundary and follow repository placement conventions:
+module/API behavior in unit tests, command invocation in CLI tests, package resources,
+external processes and runtime tools in integration tests.
 
-Treat implementation, review, and verification as composable activities rather than a fixed
-team pipeline. One owner may perform more than one activity for low-risk work; use separate
-owners only when independent judgment materially improves confidence.
+## Finish and report
 
-Choose the lowest sufficient level:
-
-- **Direct**: documentation, formatting, or a small isolated change. Implement and run a
-  relevant quick check when one exists.
-- **Focused**: a normal code change. Implement and run targeted tests or checks; do not add a
-  separate review or full-suite run by default.
-- **Independent**: public interfaces, cross-module boundaries, security, data, concurrency,
-  build configuration, or meaningful uncertainty. Add an independently scoped review and
-  focused verification.
-- **Full**: release readiness, high-blast-radius changes, or an explicit request. Combine
-  independent review with the relevant suite, build, integration, or acceptance checks.
-
-Keep each selected activity's scope, expected evidence, and non-goals clear; make them
-explicit for handoffs or consequential choices, not as a routine presentation template.
-Review critiques correctness and risk; verification executes agreed checks; neither silently
-expands into the other's work. Use the shortest checks that can detect the relevant regression.
-
-## Test Boundaries
-
-- Put direct module or API behavior in unit tests organized to mirror the
-  production module structure.
-- Put command-line invocation behavior in dedicated CLI tests.
-- Put package-resource checks, external-process checks, and runtime-tool
-  behavior in integration tests.
-- Split mixed tests by boundary rather than leaving direct API assertions in
-  CLI test files.
-- Follow the repository's established test directories and filename patterns
-  for exact placement.
-
-## Boundaries
-
-- Do not expand product scope or add extra features without approval.
-- Do not introduce abstractions, configuration systems, logging scaffolding, or defensive edge-case handling unless they are required.
-- Ask before changing public APIs, data models, persistence, security behavior,
-  dependencies, build systems, generated files, or broad architecture.
-- Do not skip practical repository validation without saying so.
+Adapt execution to dependencies, uncertainty and credible new evidence; preserve
+valid work rather than restarting by default. Fix regressions caused by the change
+within scope and complete agreed integration/validation, not just implementation.
+Stop when verified, blocked on input or facing an unauthorized next action; do not
+polish indefinitely or repair unrelated defects. Report outcomes, verification scope
+and limitations, including skipped practical checks, without narrating every step.
