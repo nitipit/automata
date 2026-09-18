@@ -24,12 +24,26 @@ independent work, leaving internals flexible. Do not require a design document,
 fixed hierarchy or every function specified upfront. Use diagrams or new patterns
 only when they resolve a concrete problem.
 
-Keep code and tests understandable without loading unrelated implementation.
-Extend the right responsibility owner, not a convenient nearby module. Keep naming
-clear and functions focused. File size signals context cost, not arbitrary splitting
-or tiny pass-through files. Parallelize independent responsibilities, not simply
-different files. Align affected owners and verify compatibility when shared contracts
-change; do not change another owner's module for convenience.
+Design modules for selective understanding: a typical change should require loading
+only a small, coherent part of the system. Give each module a discoverable purpose
+and clear contract so callers need not understand its internals. Keep related behavior
+together, names clear and functions focused. Extend the right responsibility owner,
+not a convenient nearby module; avoid tightly coupled fragments or pass-through files.
+
+For hand-written source files, prefer up to 300 lines; 301–500 is acceptable for one
+cohesive responsibility. Above 500, review boundaries before adding behavior and
+prefer extracting an independent responsibility. Above 800, strongly favor splitting;
+keeping the file intact needs a concrete justification. Count total physical lines,
+including comments and blanks; do not compress formatting or remove useful docs to
+meet thresholds. Exclude generated code, lockfiles and large data fixtures. Review
+large tests by behavior too. These are design defaults, not model comprehension limits.
+Cohesion takes priority over arbitrary splitting; do not refactor an existing large
+file for an unrelated small fix. Judge how much code must be understood together,
+not file size alone.
+
+Parallelize independent responsibilities, not simply different files. Align affected
+owners and verify compatibility when shared contracts change; do not change another
+owner's module for convenience.
 
 ## Project setup and verified recipes
 
