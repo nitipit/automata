@@ -5,134 +5,96 @@ description: Use when a manager coordinates one or more delegated children, cons
 
 # Automata Team Management
 
-Manage a delegated team or subtree across one or more direct children: consolidate
-progress, adapt the team within its authority, and preserve management continuity.
-This is not the single caller-to-worker handoff contract.
+Manage a team's aggregate progress, adaptation and continuity. This skill owns
+subtree coordination, not individual handoff or transport mechanics.
 
-## Manager and scope
+## Ownership and reporting
 
-Every managed subtree has a named manager accountable for aggregate state. Only the
-root manager sends consolidated status to the user. A non-root manager aggregates
-direct-child evidence and reports to its direct parent; it does not bypass that
-parent. The manager chain never leaves delegated work silently unowned. Handoff,
-instruction-context, timer, model, and transport evidence remain owned by natural
-skills.
+Each subtree has a named accountable manager. Manage only direct children; use
+their rollups for deeper descendants. Do not command, reassign or escalate around
+a parent to reach grandchildren. A non-root manager reports to its direct parent;
+only the root sends consolidated status to the user. Never leave work silently
+unowned or treat a status report as acceptance or new authority.
 
-This is direct-parent management only: manage direct children, not arbitrary
-descendants. Use a child's rollup for deeper descendants, but do not command,
-reassign, or escalate around a direct parent to reach a grandchild. Escalate
-parent-by-parent and let the direct parent resolve or forward issues.
+Build estimates from child evidence, elapsed work, remaining scope, dependencies
+and uncertainty. Distinguish observations from inferences and active work from
+waiting; avoid unsupported percentages. Revise estimates when evidence changes.
+Report meaningful transitions or agreed deadlines, not every activity. Include
+verified progress, material risks, the next useful move and relevant estimate
+changes, using the recipient's requested format.
 
-## Aggregate progress
+Persistent reports timestamp both the aggregate checkpoint and the child evidence.
+Label stale evidence, missing coverage and unknowns; a fresh report is not proof of
+fresh progress. Token totals identify their source, measurement window, as-of time
+and coverage; do not invent a separate telemetry system.
 
-Build estimates from direct-child evidence, elapsed work, remaining scope, dependency
-latency, and uncertainty. Distinguish active work from waiting when useful. Revise the
-range when evidence changes, and state confidence or the main uncertainty.
+A blocked report names the input, decision or dependency needed from the reporting
+node's parent, or from the user at the root. Do not label ordinary waiting or one
+blocked branch as a globally blocked subtree when other work can continue.
 
-Report at meaningful transitions or an agreed reporting deadline, not every activity.
-Convey aggregate state, supporting evidence, material risks, and the next useful move;
-include an updated estimate when relevant. Use the recipient's required format when
-one exists; otherwise keep presentation natural and concise. A status report
-is not acceptance. Persistent reports timestamp the aggregate checkpoint and child
-evidence as-of; distinguish a newly assembled report from stale child evidence and
-label missing coverage and unknowns.
-Persistent token totals identify their source, window, as-of time, and coverage; this
-is not a new telemetry mechanism.
+## Visibility without interruption
 
-A blocked report is relative to the reporting node's current scope: at a non-root node,
-it means that interaction with its direct parent is required; at the root, it means
-interaction with the user is required. Name the dependency,
-decision, or input needed. Do not call ordinary waiting or a blocked child a
-globally blocked subtree when another branch can continue; aggregate the relative
-cause and its effect instead.
+Keep reporting commitments separate from worker-evidence deadlines. For each
+asynchronous child, maintain the next meaningful evidence and coordinator-targeted
+watchdog through the delegation contract. Synchronous work needs no watchdog.
+Do not leave users or parents responsible for watching workers.
 
-## Adaptive visibility
+Use callbacks as the normal evidence path. When evidence is overdue or a concrete
+failure needs diagnosis, make one bounded passive observation of the owned child:
+prefer relevant messages/artifacts, then pane/process metadata, and capture output
+once if needed. Do not poll, infer completion from activity, or replace the agreed
+callback and watchdog with inspection.
 
-Agree on user/parent visibility appropriate to duration, risk, milestones, and recipient
-needs. Keep reporting commitments distinct from worker-evidence deadlines; neither
-requires polling.
+During user/parent alignment, queue ordinary child evidence until a stable boundary.
+Interrupt only for urgent safety, time-sensitive consequences, invalidated active
+scope or a blocker needing immediate input. Remain available for clarification and
+course correction without turning progress checks into worker interruptions.
 
-Next meaningful evidence drives asynchronous work. Synchronous work needs no watchdog;
-user/parent reports are separate. While active, keep each direct child's next evidence
-and watchdog current; users/parents do not watch workers.
+## Delegation envelopes
 
-When expected evidence is overdue or a concrete failure needs diagnosis, a manager may
-make one bounded passive observation of an explicitly owned direct child. Prefer the
-relevant artifact or message, then pane/process metadata; capture diagnostic output once
-if needed. Observation is diagnosis, not a way to wait for completion. Preserve the agreed
-callback and watchdog; activity or output is not completion or acceptance.
+The user approves the root manager's envelope; a parent grants a child manager an
+envelope within its own authority. Initial delegation requires this approval.
 
-During active user or parent alignment, preserve and queue ordinary child evidence until a stable
-boundary. Interrupt only for urgent safety, time-sensitive consequences, invalidated active scope,
-or a blocker needing immediate input. Manager availability supports clarification, design
-discussion, progress interpretation, and course correction.
+- Missing `depth` means `0`; missing `child_limit` means no children.
+- `depth` counts remaining descendant levels. Delegating consumes one level;
+  further delegation requires remaining depth.
+- A child's `depth` cannot exceed the parent's remaining depth minus one, and
+  its `child_limit` cannot exceed the parent's limit. Descendant scope must stay
+  equal or narrower; omitted limits or spare capacity never grant permission.
 
-## Envelopes and team adaptation
+Within the envelope, launch, replacement and rebalancing need no per-worker approval.
+Exceeding it requires explicit user/parent approval and a newly issued envelope.
+Keep material changes visible; do not silently expand scope or strand active work.
 
-Recognize when changed scope, dependencies, context needs, availability, or weak
-integration evidence makes the arrangement worth revisiting. Task design owns the
-proposed arrangement and transition; management supplies current evidence and enacts
-authorized changes. Preserve manager accountability and direct-parent boundaries.
+## Adapt the team
 
-The user approves the root manager's delegation envelope; a parent supplies a child
-manager's envelope within its own authority. Initial delegation requires approval.
-Treat missing `depth` = `0`
-and missing `child_limit` = **no children**. `depth` is the remaining number of
-descendant management levels: a manager can delegate further only when it has
-remaining depth, and each descendant consumes one level. When issuing a child
-envelope, set `depth` no greater than the parent's remaining depth minus one and
-`child_limit` no greater than the parent's limit. Every descendant envelope is
-therefore equal-or-narrower; omitted limits never gain authority. Exceeding an
-envelope requires explicit user or parent approval and a newly issued envelope; do not
-infer permission from available capacity.
+Reconsider the arrangement when scope, dependencies, context needs, availability
+or integration evidence changes. Work design proposes the arrangement; management
+supplies current evidence and enacts authorized changes. Preserve direct-parent
+accountability, bounded assignments and verified ownership transfers. Delegation
+owns handoff mechanics; keep active work and cleanup accounted for.
 
-Within the approved envelope, launch, replacement, and rebalancing need no per-worker
-approval. Adapt the direct team to evidence, preserving scope and the user or parent's
-visibility of material changes. Ask before exceeding the envelope, not each time a
-worker changes. Do not silently expand authority or strand in-flight work.
+Authorized peers may discuss work within scope and isolation boundaries without
+separate approval. Collaboration does not transfer ownership, acceptance rights or
+management authority. Peers cannot assign each other work or expand scope. Surface
+material decisions and unresolved disagreements to the manager; do not contact
+unrelated agents.
 
-Apply redesign through bounded assignments and verified ownership transfers.
-Delegation owns the transfer mechanics; keep active work and cleanup accounted for.
+## Manager unavailable
 
-Peers within an authorized team may collaborate directly within scope and access
-boundaries, without separate approval for ordinary discussion. Collaboration never
-transfers management authority, acceptance rights, or ownership. Peers cannot assign
-each other work or expand scope. Surface material decisions and unresolved disagreements
-to the manager. Respect isolation restrictions; do not contact unrelated agents.
+Manager loss is not a missing worker callback. Pause new work in the affected
+subtree unless safe, bounded continuation was explicitly authorized. Preserve
+partial results and report through the direct-parent chain, or to the user at the
+root. No descendant may assume the missing manager's authority.
 
-Use direct-child evidence, not unsupported percentages. Distinguish observations
-from inferences and identify the next event that would change the aggregate report.
-
-## Manager loss and recovery
-
-Manager loss is distinct from missing worker evidence: handle a child's missing callback
-through that caller-to-worker delegation contract. If the manager is lost or unavailable,
-pause new work in the affected subtree unless safe, bounded continuation was explicitly
-authorized. Preserve completed and partial evidence, current state, envelopes,
-dependencies, estimates, risks, correlation, and pending decisions; do not discard,
-duplicate, or silently accept work. Report loss and paused work to the direct parent;
-at the root, report it to the user. Manager-loss reporting climbs parent-by-parent, and
-non-root nodes do not bypass their direct parent to report to the user.
-
-Recovery is a formal parent-owned decision. Record one of:
-
-- **Replacement:** appoint a new manager and reissue the applicable envelope.
-- **Reparent:** move a direct child to an explicitly named parent with a compatible
-  envelope and notify affected participants.
-- **Closure:** stop the subtree with final evidence, unresolved risks, reason,
-  acceptance state, and named cleanup owner.
-
-Until replacement, reparenting, or closure is explicit, no descendant may assume
-authority. Recovery preserves evidence and visibility; it does not silently
-transfer responsibilities, timers, models, transports, or ownership.
+When manager availability is lost or recovery is needed, read
+[Manager recovery](references/manager-recovery.md) before changing ownership or
+resuming work. Recovery requires an explicit parent-owned decision.
 
 ## Boundaries
 
-This skill owns subtree aggregation, adaptive user/parent visibility, consolidated status,
-bounded direct-team adaptation, and manager-loss recovery. Planning owns
-decomposition, constraints, and acceptance criteria; task design owns proposed
-responsibilities, context ownership, integration, and transitions. Applicable `AGENTS.md` files
-own durable instructions; delegation owns each caller-to-worker handoff, return path, result
-review, acceptance, and cleanup; timer, model, and transport skills own their mechanisms. Do
-not replace those contracts, bypass a direct parent, or turn a status report into authority
-change.
+This skill owns aggregate status, adaptive visibility, direct-team adaptation and
+manager-loss recovery. Planning owns acceptance criteria; work design owns proposed
+arrangements; delegation owns individual handoff, review, acceptance and cleanup.
+Applicable `AGENTS.md` files own durable instructions. Timer, model and transport
+skills own their mechanisms. Compose these contracts; do not replace them.

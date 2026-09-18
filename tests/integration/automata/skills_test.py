@@ -16,7 +16,7 @@ SKILL_FILES = sorted(SKILLS_ROOT.rglob("SKILL.md"))
 REQUIRED_SKILLS = {
     "automata-agents-md",
     "automata-agent-design",
-    "automata-task-design",
+    "automata-work-design",
     "automata-adaptive-ui",
     "automata-browser-use",
     "automata-line-use",
@@ -60,7 +60,7 @@ RETIRED_SKILLS = {
     "automata-skill-install",
     "automata-action-routing",
     "automata-align",
-    "automata-work-design",
+    "automata-task-design",
     "automata-contract-diffusion",
     "automata-agent-browser-bridge",
     "automata-ui-channel-setup",

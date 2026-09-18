@@ -5,107 +5,84 @@ description: Use when an agent or user is considering intentional Pi context com
 
 # Automata Context Compaction
 
-Choose when to compact, preserve continuation state, and request deferred native
-summarization through `context_compact`. Pi owns automatic compaction; leave its
-settings unchanged unless the user approves a change.
+Choose when to compact, preserve continuity and request deferred native summarization
+through `context_compact`. Pi owns automatic compaction; do not change its settings
+without approval or make compaction a task-completion requirement.
 
-## Timing and defaults
+## When to compact
 
-Use a default trigger above 75% measured context usage and an urgent threshold
-of 90%; substitute approved preferences when present. Do not initiate a setup
-questionnaire.
+Default to a trigger above 75% measured usage and an urgent threshold of 90%, unless
+approved preferences override them. Pressure is an observation, not a command.
 
-- Above the trigger, when meaningful work remains, finish the current coherent
-  unit and compact at the next stable boundary before substantial new work.
+- Above the trigger with meaningful work remaining, finish the coherent unit and
+  compact at the next stable boundary before substantial new work.
 - At or above the urgent threshold, preserve the minimum safe checkpoint and
   compact at the earliest safe boundary.
-- If usage is unknown or compaction just succeeded, obtain a fresh measurement
-  above the trigger before requesting another compaction. Time, long output, or
-  a new work phase alone is not enough.
+- Unless the user explicitly requests compaction, unknown usage or a just-completed
+  compaction requires a fresh measurement above the trigger. Time, long output or
+  a new phase alone is insufficient.
 
 A stable boundary leaves edits coherent, decisions settled, and ownership and
-pending evidence recorded. Briefly announce compaction without asking for per-use
-confirmation; pressure alone is not a command to compact.
+pending evidence recorded. Briefly announce the action; no per-use approval or
+setup questionnaire is needed within these rules.
 
-## Model and preferences
+## Select model and thinking
 
-Choose the summarization model from the explicit selection for this request,
-then an approved compaction preference, otherwise the current working model.
-Pass a selected preference as `provider/model`; omit `model` to capture the
-current model at queue time without interrupting work to ask. Explicitly choosing
-the current model is also allowed. Never silently replace an invalid preference.
+Apply explicit current instructions, then project preferences, global preferences,
+and finally session defaults. Consult existing preferences at:
 
-Pass `thinking` when the user selects a compaction-specific level: `off`, `minimal`,
-`low`, `medium`, `high`, `xhigh`, or `max`. Omit it to inherit the session's thinking
-level when compaction executes. An explicit level stays attached to the queued
-request even if the working session's level changes. Provider/model reasoning
-support still applies; do not promise unsupported effort levels.
+- Project: `.agents/var/skills/automata-context-compaction/preferences.md`
+- Global: `~/.agents/var/skills/automata-context-compaction/preferences.md`
+
+Pass a selected `model` as `provider/model`. Omission captures the current model
+when queued. Pass an explicit `thinking` level when selected: `off`, `minimal`,
+`low`, `medium`, `high`, `xhigh` or `max`. Omission inherits the session level at
+execution; an explicit level remains attached to the request. Provider/model
+support still applies. Neither argument changes working-session settings.
 
 For example, `model: "openai-codex/gpt-5.6-luna", thinking: "medium"` selects
-Luna/medium for summarization without switching the working session.
+Luna/medium for the summary only. Do not silently replace an invalid preference.
+The tool checks model availability/authentication; selection or summary failure
+never triggers fallback. Initially defaulting to the current model is not fallback.
+Context-budget preflight is heuristic, not a guarantee against provider overflow.
 
-The tool validates runtime model availability and authentication without changing
-the working model or thinking setting. Its context-budget preflight is a heuristic,
-not a fit guarantee: provider overflow remains possible. Selection or summary
-failure stops the operation; it does not fall back to another model. Defaulting
-to the current model initially is not fallback.
+For customization of models, thresholds or saved defaults, read
+[Compaction preferences](references/preferences.md). One-off choices need no
+preference file. Saved preferences guide explicit tool arguments, not Pi automatic
+compaction or the tool's omitted-argument behavior.
 
-When the user requests customization, verify provider/model/thinking using
-`automata-runtime-status`, then inspect runtime-advertised context limits of both
-models and effective Pi compaction settings. Discuss cost, summary quality,
-input/output headroom, and whether a smaller summarizer needs earlier compaction.
-Validate thresholds as percentages with 0 < trigger < urgent < 100. Resolve invalid
-or conflicting choices rather than silently replacing them.
+## Preserve continuity
 
-Persist preferences only with approval for future use, in a suitable skill-owned
-data location following `automata-agent-data` and the approved project/global
-scope. Consult `.agents/var/skills/automata-context-compaction/preferences.md`
-for project preferences and
-`~/.agents/var/skills/automata-context-compaction/preferences.md` for global
-preferences when present. These guide explicit tool arguments; they do not change
-Pi's automatic compaction or the tool's omitted-argument defaults.
-Read existing preferences before defaults; precedence is explicit current
-instructions, project preferences, global preferences, then defaults. One-off
-choices need no preference file. Do not invent a Pi compaction-model setting.
-Recheck changing runtime facts rather than storing them as permanent preferences;
-revisit approved choices only when their suitability materially changes.
-
-## Preserve and guide
-
-Bring existing authorized task state current: goal, constraints, decisions,
+Update existing authorized task state with missing goal, constraints, decisions,
 validation, ownership, pending evidence, cleanup obligations, blockers, relevant
-worktree changes, and next action. Record missing continuation details, not
-transcripts, raw traces, or secrets. Do not create records solely for compaction
-or broaden persistence without approval.
+worktree changes and next action. Avoid transcripts, raw traces or secrets; do not
+create records solely for compaction or broaden persistence without approval.
 
-Supply brief `customInstructions` highlighting what must survive. The working
-model provides this handoff; the selected model generates the summary. Do not
-write a full replacement summary or use guidance instead of necessary durable
-state. The tool applies guidance to every native summary request, including
-split-turn summaries, without an extra summary call.
+Supply brief `customInstructions` identifying what must survive, not a replacement
+summary or substitute for durable state. The working model provides guidance;
+the selected model summarizes. Guidance reaches every native summary request,
+including split-turn summaries, without an extra summary call.
 
-## Continue and finish
+## Request and continue
 
-When authorized work remains, pass a brief `resumeMessage` describing the next
-action. It guides continuation, not summarization. Do not arrange another wakeup
-path. Omit it when no work remains; empty or whitespace-only text also means
-compact-only behavior. Nonblank text is preserved verbatim.
+When authorized work remains, pass a brief `resumeMessage` for the next action.
+It guides continuation, not summarization; do not create another wakeup path.
+Omit it when no work remains. Whitespace-only text also means compact-only;
+nonblank text is preserved verbatim.
 
-After successful compaction, the tool can dispatch one wakeup for the unchanged
-session. If other work intervenes or the session is busy, it instead retains the
-guidance as non-triggering `nextTurn` context; this does not itself resume work.
-Failure, cancellation, or session changes do not trigger continuation. Messaging
-is fire-and-forget, so dispatch is not proof of delivery or resumed work.
+After success, the tool may dispatch one wakeup for the unchanged session. If other
+work intervenes or the session is busy, guidance becomes non-triggering `nextTurn`
+context instead. Failure, cancellation or session changes do not trigger
+continuation. Fire-and-forget dispatch does not prove delivery or resumed work.
 
 Once preservation is complete and the turn can end, call `context_compact` as the
-sole final tool action when practical. It runs after the agent settles; leave
-queueing, duplicate protection, and notifications to the tool.
+sole final tool action when practical. It runs after the agent settles; the tool
+owns queueing, duplicate protection and notifications. If another compaction
+satisfies the request, do not repeat it.
 
-After failure or cancellation, preserve the checkpoint and reassess on the next
-turn. Do not retry automatically; retry only when useful and the cause is
-understood. If another compaction satisfies the request, do not repeat it.
-
-Compaction does not complete, accept, cancel, or transfer active work. Resume only
-the existing authorized assignment. Do not route `/compact` through tmux or inject
-it as a user message; humans can use it directly. This skill does not measure
-context, change Pi settings, or make compaction a completion requirement.
+After failure or cancellation, keep the checkpoint and reassess on the next turn.
+Do not retry automatically; retry only when useful and the cause is understood.
+Compaction does not complete, accept, cancel or transfer work. Resume only the
+existing authorized assignment. Never inject `/compact` through tmux or as a user
+message; humans may use it directly. This skill does not measure context or change
+Pi settings.
