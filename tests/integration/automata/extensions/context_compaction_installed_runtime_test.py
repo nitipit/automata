@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-
 PI_LINK_ROOT = Path.home() / ".local/share/pnpm/store/v11/links/@earendil-works/pi-coding-agent"
 
 

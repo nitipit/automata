@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["cyclopts>=3.0.0"]
+# dependencies = ["cyclopts>=4.11.1"]
 # ///
 """Deliver a bounded literal message to an explicitly owned tmux agent pane."""
 

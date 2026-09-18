@@ -7,9 +7,9 @@ import unittest
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import sync_playwright
 
-pytest.importorskip("playwright")
+sync_playwright = pytest.importorskip("playwright.sync_api").sync_playwright
+pytest.importorskip("dictify")
 TOOL_PATH = Path(__file__).parents[5] / "src/automata/tools/line/line.py"
 spec = importlib.util.spec_from_file_location("line_tool", TOOL_PATH)
 line = importlib.util.module_from_spec(spec)

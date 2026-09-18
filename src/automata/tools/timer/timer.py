@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["cyclopts>=3.0.0", "apscheduler>=3.11,<4"]
+# dependencies = ["cyclopts>=4.11.1", "apscheduler>=3.11,<4"]
 # ///
 """Repo-local command timer for agent-friendly delayed and recurring ticks."""
 

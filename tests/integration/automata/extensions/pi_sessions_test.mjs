@@ -16,12 +16,14 @@ const { SessionManager } = await import(pathToFileURL(
 async function fixture(hasUI = false) {
   const cwd = await mkdtemp(join(root, "case-"));
   const sessions = [];
+  // Equal fixed timestamps exercise the ID tie-breaker, independent of I/O timing.
+  const timestamp = new Date("2026-01-01T00:00:00.000Z");
   for (const id of ["current", "target", "other"]) {
     const path = join(cwd, `${id}.jsonl`);
     await writeFile(path, JSON.stringify({ type: "session", id, cwd, version: 3 }) + "\n" +
       JSON.stringify({ type: "custom", id: `${id}-entry`, customType: "fixture", data: { path: "/old/path" } }) + "\n");
     sessions.push({
-      id, path, cwd, name: id, created: new Date(), modified: new Date(), messageCount: 1,
+      id, path, cwd, name: id, created: timestamp, modified: timestamp, messageCount: 1,
     });
   }
   const ctx = {
