@@ -193,6 +193,45 @@ test("uses the native compaction result only after settling and preserves settin
   assert.deepEqual(f.sent, []);
 });
 
+test("explicit thinking applies to every split summary without changing session settings", async () => {
+  const f = fixture();
+  const result = await f.request({ model: "cheap/compact", thinking: "medium" });
+  assert.equal(result.details.thinking, "medium");
+  assert.ok(f.tool.parameters.properties.thinking.enum.includes("medium"));
+  const duplicate = await f.request({ thinking: "low" });
+  assert.equal(duplicate.details.status, "already_queued");
+  f.ctx.thinkingLevel = "low";
+  const settled = f.emit("agent_settled");
+  await completeNative(f, { preparation: splitPreparation() });
+  await settled;
+  assert.equal(globalThis.__nativeCompactions.at(-1).thinkingLevel, "medium");
+  assert.equal(f.ctx.thinkingLevel, "low");
+  assert.strictEqual(f.ctx.model, activeModel);
+});
+
+test("omitted thinking inherits at execution and explicit off is preserved", async () => {
+  for (const thinking of [undefined, "off"]) {
+    const f = fixture();
+    await f.request(thinking === undefined ? {} : { thinking });
+    f.ctx.thinkingLevel = "medium";
+    const settled = f.emit("agent_settled");
+    await completeNative(f);
+    await settled;
+    assert.equal(globalThis.__nativeCompactions.at(-1).thinkingLevel, thinking ?? "medium");
+    assert.equal(f.ctx.thinkingLevel, "medium");
+  }
+});
+
+test("invalid thinking is rejected without queuing a request", async () => {
+  const f = fixture();
+  for (const thinking of ["turbo", "", "Medium", null, 4]) {
+    assert.equal((await f.request({ thinking })).details.status, "invalid_thinking");
+  }
+  await f.emit("agent_settled");
+  assert.equal(f.calls.length, 0);
+  assert.equal((await f.request({ thinking: "medium" })).details.status, "queued");
+});
+
 test("keeps the first queued request and prevents concurrent compaction", async () => {
   const f = fixture();
   const first = await f.request({ model: "cheap/compact", customInstructions: "first" });

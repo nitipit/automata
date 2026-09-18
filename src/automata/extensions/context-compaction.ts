@@ -17,6 +17,7 @@ interface PendingCompaction {
   customInstructions?: string;
   resumeMessage?: string;
   model: string;
+  thinking?: ExtensionContext["thinkingLevel"];
   sessionId: string;
   generation: number;
 }
@@ -461,7 +462,7 @@ export default function (pi: ExtensionAPI) {
         mergeRuntimeHeaders(auth.headers),
         undefined,
         event.signal,
-        ctx.thinkingLevel,
+        request.request.thinking ?? ctx.thinkingLevel,
         streamFn,
         auth.env,
       );
@@ -601,6 +602,7 @@ export default function (pi: ExtensionAPI) {
       "Treat context signals as observations, not automatic compaction commands. Call context_compact only when compaction is materially useful at a stable boundary.",
       "Preserve durable decisions, constraints, ownership, validation state, and next steps before calling. Use context_compact as the only final tool action when practical.",
       "Pass an approved provider/model preference when present; otherwise omit model to use the current model without asking. A selected model failure never triggers fallback.",
+      "Pass thinking when a compaction-specific thinking level is requested; omit it to inherit the session level. This does not change the working session's settings.",
       "Use resumeMessage only for brief post-compaction continuation guidance; empty or whitespace-only values are omitted and nonblank text is preserved verbatim.",
       "Do not call immediately after a successful compaction or merely because usage is unknown unless the user explicitly requests it.",
     ],
@@ -615,6 +617,11 @@ export default function (pi: ExtensionAPI) {
         model: Type.Optional(Type.String({
           description:
             "Optional provider/model. When omitted, captures the current model at queue time. Explicitly selecting the current model is allowed; unavailable selections never fall back.",
+        })),
+        thinking: Type.Optional(Type.String({
+          enum: ["off", "minimal", "low", "medium", "high", "xhigh", "max"],
+          description:
+            "Optional compaction-only thinking level: off, minimal, low, medium, high, xhigh, or max. Omitted inherits the session level at execution. Does not change working settings; provider/model reasoning support still applies.",
         })),
         resumeMessage: Type.Optional(Type.String({
           description:
@@ -649,6 +656,15 @@ export default function (pi: ExtensionAPI) {
         };
       }
 
+      const thinkingLevels = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
+      if (params.thinking !== undefined && !thinkingLevels.includes(params.thinking)) {
+        return {
+          content: [{ type: "text", text: "Invalid compaction thinking level; no request was queued." }],
+          details: { status: "invalid_thinking", thinking: params.thinking },
+          terminate: true,
+        };
+      }
+
       let model: ReturnType<typeof parseModelChoice>;
       try {
         const choice = params.model ?? (ctx.model ? describeModel(ctx.model) : undefined);
@@ -673,6 +689,7 @@ export default function (pi: ExtensionAPI) {
         customInstructions: params.customInstructions,
         resumeMessage: optionalText(params.resumeMessage),
         model: `${model.provider}/${model.id}`,
+        thinking: params.thinking as PendingCompaction["thinking"],
         sessionId: ctx.sessionManager.getSessionId(),
         generation: lifecycleGeneration,
       };
@@ -682,7 +699,8 @@ export default function (pi: ExtensionAPI) {
         content: [
           {
             type: "text",
-            text: `Queued context compaction request ${pending.id} using ${pending.model}. ` +
+            text: `Queued context compaction request ${pending.id} using ${pending.model} ` +
+              `(thinking: ${pending.thinking ?? "inherited"}). ` +
               "It will run after the agent fully settles.",
           },
         ],
@@ -690,6 +708,7 @@ export default function (pi: ExtensionAPI) {
           status: "queued",
           requestId: pending.id,
           model: pending.model,
+          thinking: pending.thinking ?? "inherited",
         },
         terminate: true,
       };

@@ -35,6 +35,15 @@ Pass a selected preference as `provider/model`; omit `model` to capture the
 current model at queue time without interrupting work to ask. Explicitly choosing
 the current model is also allowed. Never silently replace an invalid preference.
 
+Pass `thinking` when the user selects a compaction-specific level: `off`, `minimal`,
+`low`, `medium`, `high`, `xhigh`, or `max`. Omit it to inherit the session's thinking
+level when compaction executes. An explicit level stays attached to the queued
+request even if the working session's level changes. Provider/model reasoning
+support still applies; do not promise unsupported effort levels.
+
+For example, `model: "openai-codex/gpt-5.6-luna", thinking: "medium"` selects
+Luna/medium for summarization without switching the working session.
+
 The tool validates runtime model availability and authentication without changing
 the working model or thinking setting. Its context-budget preflight is a heuristic,
 not a fit guarantee: provider overflow remains possible. Selection or summary
@@ -50,7 +59,12 @@ or conflicting choices rather than silently replacing them.
 
 Persist preferences only with approval for future use, in a suitable skill-owned
 data location following `automata-agent-data` and the approved project/global
-scope. Read existing preferences before defaults; precedence is explicit current
+scope. Consult `.agents/var/skills/automata-context-compaction/preferences.md`
+for project preferences and
+`~/.agents/var/skills/automata-context-compaction/preferences.md` for global
+preferences when present. These guide explicit tool arguments; they do not change
+Pi's automatic compaction or the tool's omitted-argument defaults.
+Read existing preferences before defaults; precedence is explicit current
 instructions, project preferences, global preferences, then defaults. One-off
 choices need no preference file. Do not invent a Pi compaction-model setting.
 Recheck changing runtime facts rather than storing them as permanent preferences;
