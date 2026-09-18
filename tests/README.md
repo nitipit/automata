@@ -43,6 +43,13 @@ set `AGENT_BROWSER_BRIDGE_NATIVE_PI_PACKAGE` to the installed Pi package directo
 Those tests use a local model stub, not a real model. The legacy environment-variable
 name is retained by that test harness.
 
+For native session-management coverage, set `PI_SESSIONS_NATIVE_SDK` to the
+installed Pi package's `dist/index.js`. This exercises production fork/list/listAll/
+open APIs, global pagination and missing-directory recovery in an isolated temporary
+agent directory, without a model or any real user sessions. Trash is a controlled
+rename adapter, not a real OS-trash operation. Ordinary session-tool tests use fake
+SDK/trash adapters for fault injection, stale receipts and inaccessible directories.
+
 Skill-package checks validate parsable metadata, catalog identity, actual declared
 assets/tool paths, and installation contents. They deliberately do not assert
 specific prose, exact activation descriptions, section names, size limits, or a

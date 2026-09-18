@@ -174,7 +174,9 @@ def test_pi_sessions_extension_keeps_destructive_boundaries() -> None:
     for term in (
         'name: "pi_session_list"',
         'name: "pi_session_trash"',
-        "SessionManager.list(ctx.cwd, ctx.sessionManager.getSessionDir())",
+        'name: "pi_session_copy"',
+        "SessionManager.list(",
+        "cwd === normalizePath(ctx.cwd) ? ctx.sessionManager.getSessionDir() : undefined",
         'session.cwd !== ""',
         "latestReceipt",
         "sameIdentity",
@@ -184,7 +186,6 @@ def test_pi_sessions_extension_keeps_destructive_boundaries() -> None:
     ):
         assert term in extension
 
-    assert "SessionManager.listAll" not in extension
     assert "unlink(" not in extension
     assert "ctx.ui.confirm" not in extension
     assert "ctx.hasUI" not in extension

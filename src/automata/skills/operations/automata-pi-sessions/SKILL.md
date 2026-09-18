@@ -1,90 +1,107 @@
 ---
 name: automata-pi-sessions
-description: Use when discovering or removing Pi sessions where exact current-working-directory attribution and safe cleanup matter.
+description: Use when discovering, copying or recoverably trashing Pi sessions for the current directory, another exact directory, or the default global store, including missing-directory review.
 ---
 
 # Automata Pi Sessions
 
-Use Pi's session tools instead of scanning, parsing, or deleting files under the
-session store. Treat the exact Pi runtime current working directory (CWD) as the
-session boundary.
+Use Pi's session tools, not raw session-store scans or manual file deletion.
+This skill owns scope, selection, consent and recovery judgment; tools enforce
+receipt binding and file-identity checks. Delegation records own worker assignment
+and completion, not a session's name or age.
 
-## Session Identity
+## Choose discovery scope
 
-A recorded session ID is the primary identity for a delegated or otherwise owned
-agent session. Record it when the session is created. Use `pi_session_list` for
-discovery or recovery when that identity is missing or needs verification.
+- `pi_session_list()` lists the exact runtime CWD using its active session store.
+- `pi_session_list(cwd="/project")` lists another exact CWD, including a deleted
+  directory, in Pi's default store. Relative paths resolve against the runtime CWD.
+- `pi_session_list(scope="global")` searches across projects in the default global
+  store. Ask for or reuse explicit global-discovery authority; do not broaden a
+  project-scoped request merely for convenience.
 
-The same repository, a nested directory, another worktree, and a symlinked path
-may have different CWD identities. Do not broaden exact-CWD results to a Git
-repository or inferred path relationship.
+Global scope cannot be combined with `cwd`. Exact matching is lexical, not recursive
+or symlink-expanded; nested directories and worktrees may have separate identities.
+Other-directory/global discovery does not load project settings or search custom
+stores. Report this limitation; an empty listing is not proof that no history exists
+elsewhere. The current-directory default continues to support its active custom store.
 
-A same-CWD listing does not prove that a session is owned, finished, or closed in
-another Pi process. Establish those facts from the applicable delegation record,
-return path, or user confirmation before cleanup.
+Results contain IDs, optional names, recorded CWD, timestamps, message counts and
+current-session/directory status, not session-file paths or conversation contents.
+Prefer recorded full session IDs over rediscovery by name. Duplicate IDs within
+a search are non-selectable; narrow to an exact CWD and investigate ambiguity rather
+than choosing an arbitrary file.
 
-## Discovery
+## Pages and missing-directory review
 
-Call `pi_session_list` without supplying a path. It obtains the CWD and session
-storage location from trusted runtime context, omits unattributable sessions,
-and returns full session IDs plus a short-lived listing receipt. It does not
-return session paths or conversation content.
+Use `limit` (1–100) for smaller pages. Follow `nextCursor` by supplying `cursor`
+alone. Pages share a short-lived snapshot; changed or inaccessible session files are
+omitted with `unavailableCount`. Restart discovery to see new/changed sessions.
+A cursor expires, is superseded by new discovery, or becomes invalid if runtime CWD
+changes. Do not present a page as the whole inventory when more remain.
 
-Do not substitute `SessionManager.listAll()`, filesystem searches, encoded
-session-directory names, session names, or partial IDs for current-CWD identity.
+Filter with `directoryStatus` when relevant:
 
-## Intent and Permission
+- `exists`: the recorded path is currently a directory.
+- `missing`: lookup reports no such path/directory.
+- `unknown`: permission/access errors or a non-directory at that path.
 
-The agent establishes user intent and permission from context; the tool does not
-show a confirmation dialog. A clear removal request or prior scoped authorization
-is sufficient without asking again. A request to list or inspect sessions, or
-agreement about the cleanup design, does not itself authorize removal.
+A missing directory may have moved or be on an unmounted volume. Unknown does not
+mean deleted. Neither condition, age, nor a successful copy authorizes cleanup.
+Offer keeping history, copying to an existing destination, or explicitly selected
+trash. Do not infer inactivity from unchanged timestamps or absent project files.
 
-When targets or scope are unclear, present relevant candidates with enough
-metadata to distinguish them and ask what to move to recoverable trash. Stable
-numbered choices can reduce effort: bind each number to an exact full session ID
-from the displayed list, and keep that mapping during follow-up. A selection
-authorizes removal only when the question clearly named that action.
+Each page issues separate `copyReceipt` and trash `receipt` values covering only
+that page. The next page supersedes previous receipts. Review across pages if needed,
+then re-list the page containing the confirmed full IDs before acting. Do not rely
+on row numbers from a reordered listing. Receipts are evidence of selection, not
+user permission.
 
-Stay within the authorized scope. Establish ownership and inactivity from
-applicable records or user clarification; names, age, and an unchanged file do
-not prove a session is closed. The tool does not detect sessions open in another
-Pi process. If uncertainty matters, clarify or leave the session untouched.
+## Copy selected sessions
 
-## Safe Cleanup
+Use `pi_session_copy` with exact `sessionIds`, a fresh `copyReceipt` and an existing
+`targetCwd`. Establish authorization for the selected history and destination;
+confirm sources are inactive. The current runtime session is rejected, but the tool
+cannot detect all other Pi processes. Ensure the destination can receive the private
+conversation content.
 
-1. Obtain a fresh `pi_session_list` result.
-2. Resolve authorized targets to their exact full session IDs in that result.
-3. Pass `sessionIds` and the matching `receipt` to `pi_session_trash`. Legacy
-   `sessionId` remains supported; supply exactly one of the two fields.
+Copies use Pi's fork API on a private snapshot: new IDs, destination CWD, original
+source provenance and preserved history. Originals remain untouched, even if the
+SDK would repair a missing final newline. Malformed history is rejected, not silently
+dropped. Project files, external assets, operational state and historical paths are
+not migrated or rewritten.
 
-A batch accepts 1–100 unique IDs from one listing. All targets are validated before
-any move, then rechecked and moved sequentially. A failure stops the batch; inspect
-per-ID `trashed`, `failed`, and `not_attempted` results. Moves are not atomic and
-completed moves are not rolled back. A failed move may need verification before retry.
-Once execution begins, the receipt is consumed even on failure; list again before
-retrying unresolved targets. Preserve selected IDs, not positions in a refreshed list.
-Listing returns at most 100 sessions; disclose omitted results rather than presenting
-it as a complete list.
+Destination storage is Pi's default store, not target project custom configuration.
+Report that limitation. Verify discovery of the copied IDs in the destination.
+Copy does not authorize moving, rebinding in place or trashing the originals.
 
-If a receipt expires, refresh it without repeating permission for the same
-unchanged targets and scope. If a session changes, disappears, or cannot be
-identified unambiguously, reassess before proceeding; a new receipt alone does
-not resolve uncertainty about intent or inactivity.
+## Trash selected sessions
 
-The trash tool rechecks the trusted CWD, receipt, session ID, file identity,
-modification time, and current-session protection. It moves the session only to
-recoverable operating-system trash and does not fall back to permanent deletion.
+Use `pi_session_trash` with confirmed full `sessionIds` (or legacy `sessionId`) and
+one fresh trash `receipt`. Source directories and file identities come from the
+listing, including exact-directory/global listings; no separate trash `cwd` is needed.
+This supports sessions from known deleted directories without changing runtime CWD.
 
-## Boundaries
+Before calling, establish authorization and inactivity from context. A clear scoped
+removal request needs no repeated permission; otherwise present candidates with
+reasons and ask for explicit selection. Same-project membership, a completed task,
+or old timestamps do not establish ownership or inactivity. Keep uncertain sessions.
 
-- Do not use raw paths, `rm`, `unlink`, shell globs, or direct JSONL deletion for
-  Pi session cleanup.
-- Do not remove by session name, partial ID, guessed ownership, or repository
-  membership.
-- Do not remove the active session, sessions from another CWD, or a session that
-  may still be open elsewhere.
-- This skill owns exact-CWD discovery and safe trash decisions. Delegation and
-  team-management guidance own session assignment, ownership, and completion.
-- If `pi_session_list` or `pi_session_trash` is unavailable, report the missing
-  Pi extension instead of bypassing its safety checks.
+The tool rejects the runtime's active session, rechecks every selected identity and
+directory status, and uses recoverable OS trash only. If trash fails, report the
+failure; never fall back to permanent deletion or raw file operations. A receipt for
+one operation cannot authorize the other, and listing alone authorizes neither.
+
+## Failure and recovery
+
+Both mutations validate all selected identities before starting and recheck between
+operations. After claiming a receipt, it is consumed even on partial failure. Results
+identify successes, failures and unattempted IDs; preserve them before deciding next
+steps. A failed copy may leave a destination file under its reported new ID. Do not
+automatically retry or delete it. Reconcile the outcome with the user and re-list
+before authorized recovery.
+
+If a session or its directory status changes, reassess rather than refreshing blindly.
+Expiration alone can be handled by re-listing the same approved scope without asking
+again. No move, permanent-delete, automatic-retention cleanup or custom-store discovery
+is provided. If required tools are unavailable, report the missing/reload-needed
+extension instead of bypassing its safeguards.

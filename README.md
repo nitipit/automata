@@ -242,9 +242,28 @@ uv run automata skills install \
   --mode copy
 ```
 
-`pi-sessions` exposes `pi_session_list` and `pi_session_trash`. Listing uses the
-trusted runtime CWD and does not return session paths or conversation content.
-Trashing requires a fresh listing receipt and an exact full session ID. The agent
+`pi-sessions` exposes `pi_session_list`, `pi_session_copy` and `pi_session_trash`.
+Listing defaults to the trusted runtime CWD and its active session store. Optional
+`cwd` selects another exact directory; `scope: "global"` searches across projects.
+These broader scopes use Pi's default store, not custom stores or target project
+configuration. Results contain recorded CWD and directory status but omit session-file
+paths and conversation content. `directoryStatus: "missing"` identifies review
+candidates, not permission to delete; inaccessible paths are `unknown`.
+
+Pages contain at most 100 sessions (`limit` may reduce this). Follow `nextCursor` by
+passing `cursor` alone; each page supersedes previous receipts. Duplicate IDs are
+non-selectable, and changed files are omitted from the snapshot. A separate
+`copyReceipt` permits an explicit copy request with selected `sessionIds` and an
+existing `targetCwd`.
+Copies get new IDs and source provenance, preserve originals, and use default
+session storage at the destination. They do not copy project files or rewrite
+historical paths. Partial failures may leave destination copies; inspect reported
+IDs before retrying. Source sessions must be inactive; the current session is rejected.
+
+All listing scopes issue a separate trash receipt bound to the listed source
+identities. Trashing requires that fresh receipt and exact full session IDs; it never
+accepts arbitrary session-file paths. Copying and listing do not grant deletion
+permission. Directory status and source identity are rechecked before mutation. The agent
 establishes permission from context, asking for clarification or a numbered
 selection when needed rather than repeating a clear removal request. There is no
 tool-level confirmation dialog. Ownership and inactivity must be established by
