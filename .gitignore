@@ -11,3 +11,4 @@ dist/
 .agents/memory/chromadb/
 .agents/var/
 /AGENTS.md
+.agents/
