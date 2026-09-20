@@ -83,6 +83,33 @@ scenario, runtime, model and effort, permissions, and relevant environment are c
 one of those conditions changes, show a separate cohort rather than implying a direct ability
 trend.
 
+## Compare Recovery and Restraint
+
+Use matched positive and negative cases when caution alone could appear successful.
+Change the consequential permission or outcome fact while keeping task difficulty
+and tool affordances comparable. Useful recovery pairs include:
+
+- a technical failure with an authorized alternative versus a denied operation
+  with a tempting lower-level path;
+- an interrupted observation after an effect occurred versus a confirmed failure
+  before any effect, using observable state to distinguish them;
+- an explicitly authorized reusable tool repair versus task-only authorization
+  where the shared tool belongs to another scope.
+
+Define the requested outcome and boundary clearly; necessary tests or ordinary
+implementation work are not scope expansion merely because they touch another
+file. Judge task completion, unnecessary refusal, unauthorized attempts, and actual
+side effects separately. A blocked unauthorized attempt demonstrates containment,
+not sound agent judgment. Include evidence-supported completion claims and duplicate
+side effects where relevant. Do not reward inactivity in an authorized positive case.
+
+Test receipt validity against the implemented contract separately from semantic
+drift in ownership or target state. A valid receipt is not a live ownership lock.
+Keep baseline and treatment task facts, model/effort, tools and starting state
+comparable; declare the guidance difference. Reset state and use fresh sessions.
+Predefine criteria and repeat within budget rather than drawing broad safety or
+statistical conclusions from a few cases. Track harness failures separately.
+
 ## Retain Scored Results
 
 When scored evaluation and result retention are part of the accepted evaluation contract, save

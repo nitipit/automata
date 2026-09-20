@@ -5,133 +5,98 @@ description: Use when assigning work across an agent, process, working context, 
 
 # Automata Delegation
 
-Use this skill for the semantic handoff of work between owners or contexts. Keep the
-assignment bounded, the return path explicit, and completion evidence observable.
+Hand off bounded work with explicit ownership, a usable return path and observable
+completion evidence. Task approval alone does not authorize unrestricted delegation.
 
-## Before dispatch
+## Establish the handoff
 
-Check that the assignment fits the approved scope and delegation envelope. Initial
-delegation requires explicit user or assigned parent approval; within that envelope,
-launch, replacement, and rebalancing need no per-worker approval. If authority is
-missing or the assignment exceeds it, obtain approval before dispatch. Task approval
-alone does not imply unrestricted delegation.
+Initial delegation requires an approved user/parent envelope. Within it, launch,
+replacement and rebalancing need no per-worker approval; missing authority or work
+outside the envelope requires approval before dispatch.
 
-Resolve the smallest useful contract before sending work:
+Define the smallest sufficient contract:
 
-- goal, temporary responsibility, allowed scope, and verifiable completion criteria;
-- authorized corrections, stopping boundaries, and required checks before returning;
-- responsible agent or owner and working context;
-- working directory and the applicable `AGENTS.md` instruction context;
-- communication transport, exact return path, and terminal-session lifecycle owner;
-- the next meaningful evidence and a reasonable deadline;
-- intermediate meaningful evidence before final completion for longer delegated work;
-- recovery, escalation, cancellation, and cleanup conditions.
+- Goal, temporary responsibility, scope and verifiable completion criteria.
+- Allowed corrections, required checks and stopping boundaries.
+- Owner, working context/directory and applicable `AGENTS.md` instructions.
+- Transport, exact return path and terminal-session lifecycle owner.
+- Next meaningful evidence and deadline; intermediate milestones for longer work.
+- Recovery, escalation, cancellation and cleanup conditions.
 
-Verify exact runtime identifiers when availability is uncertain. Confirm the launched
-model and supported thinking settings match the agreed assignment; report mismatches
-and obtain approval before substituting outside the agreed choices. Resolve missing
-choices before dispatch; task design owns selection judgment.
+Resolve model choices before dispatch and verify exact runtime identifiers when
+availability is uncertain. Confirm the launched model and supported thinking level
+match the assignment. Report mismatches; do not substitute outside agreed choices
+without approval.
 
-Keep durable behavior and project policy in the applicable `AGENTS.md`. Put task-specific
-responsibility, permissions, constraints, and expected evidence in the delegation brief.
-Use the supplied instruction context; constrain additional discovery to authorized paths,
-not neighboring workspaces.
+Put task-specific decisions, interfaces, dependencies and expected evidence in the
+brief, not the entire conversation. Keep durable policy in `AGENTS.md`. Include
+essential facts directly and accessible pointers for selective reading. Constrain
+discovery to authorized paths, not neighboring workspaces. If useful work requires
+reconstructing broad unrelated context, revisit the assignment boundary rather than
+merely shortening the brief.
 
-Provide sufficient context, not the whole conversation: relevant decisions, constraints,
-interfaces, dependencies, and acceptance evidence. Include essential facts directly and
-point to supporting material for selective reading. Ensure pointers are accessible within
-the worker's authorized context; brevity must not hide information needed to act correctly.
-If the assignment requires reconstructing broad unrelated context, revisit its boundary
-with task design rather than merely shortening the brief.
+## Establish the return path
 
-Resolve transport before handoff rather than leaving the return path abstract. Prefer tmux for
-delegated agent or persistent worker communication when the caller is inside tmux, caller and
-worker share the same tmux server, and exact owned panes can be verified. Before dispatch,
-apply the applicable tmux communication and background-session contracts, establish or reuse
-an explicitly owned detached worker session when persistence is needed, and record the exact
-worker target and return pane in the delegation brief. When tmux callback preconditions are
-unavailable, use an agreed return-capable transport or bounded synchronous execution.
+Prefer tmux when the caller and worker share a tmux server and exact owned panes
+can be verified. Follow the tmux communication/background contracts: verify a safe
+receiver, use an explicitly owned detached session when persistence is needed, and
+record exact worker and return targets. Otherwise agree on a return-capable
+transport or bounded synchronous execution.
 
-If ownership or the return path is missing, stale, ambiguous, or unreachable, pause the
-handoff. Preserve the task locally and surface the boundary so the caller can provide a
-verified path or agree on another channel.
+If ownership or the return path is missing, stale, ambiguous or unreachable, pause
+the handoff. Preserve the task and ask for a verified path or agreed alternative;
+do not send work with an abstract or guessed return destination.
 
-## Assignment revisions
+## Dispatch, yield and assess
 
-Accepted decisions made during ongoing alignment with a user or parent may be relayed as
-explicit bounded assignment updates with the same correlation. State changed scope, evidence,
-and ETA. For asynchronous delegated work, re-arm the watchdog for the revised next meaningful
-evidence. Avoid concurrent manager edits to worker-owned files.
-
-When applying a redesigned assignment, establish the ownership transfer at the agreed
-handoff point. Preserve partial results and pending decisions, confirm the receiving
-owner has the needed context and return path, and resolve outstanding writes or side
-effects before releasing the old owner. Keep callback correlation, watchdog coverage,
-and cleanup responsibility aligned; a replacement launch alone is not a completed
-handoff.
-
-## Normal completion
-
-For asynchronous delegated work, use an event-driven sequence:
+For asynchronous work:
 
 ```text
-dispatch + coordinator-targeted watchdog notice → yield → callback or notice → assess
+dispatch + coordinator-targeted watchdog → yield → callback or notice → assess
 ```
 
-Pair each asynchronous dispatch with one bounded watchdog for the next meaningful
-evidence. Address its notice to the coordinator's wakeable input, not to the worker:
-a scheduled worker status request does not wake the coordinator if the worker is stuck.
-Send the work once, then end the current agent turn when no independent work remains.
+Pair each dispatch with one bounded watchdog for the next meaningful evidence.
+Address its notice to the coordinator's wakeable input, identifying expected
+evidence and task correlation. A scheduled request to a stuck worker cannot wake
+the coordinator. Send work once, then end the turn when no independent work remains.
 
-In an interactive session, ending the turn leaves the session available for callbacks;
-it does not abandon the assignment or close the terminal. Do not keep the turn open
-with sleep calls or repeated artifact, process, or pane checks. Let a callback or
-watchdog notice begin the next coordination turn. A callback may queue during active
-dialogue; arrival, not process presence or pane output, is the normal completion trigger.
+Ending an interactive turn leaves the session available for callbacks; it does not
+abandon the assignment or close the terminal. Do not wait through sleeps or repeated
+artifact, process or pane checks. A callback may queue during dialogue; its arrival,
+not process presence or pane activity, is the normal completion trigger.
 
-Bounded synchronous delegated execution returns directly and does not require a communication
-watchdog. A hard process or time limit may still be useful as a separate safety backstop; it is
-not a watchdog or callback.
+Bounded synchronous work returns directly and needs no communication watchdog.
+A process/time limit is a separate safety backstop, not a callback.
 
-A worker's result is evidence to inspect, not automatic acceptance. When stale or concurrent
-callbacks could be confused, carry the same task or correlation identity in the assignment,
-initial result, and any resend. Keep completed evidence available until acceptance or
-abandonment so a valid status request can prompt a resend through the original return path.
-Process or pane observation is bounded diagnosis when evidence is overdue or a concrete
-failure needs investigation, not a way to wait for completion.
+Choose intermediate milestones and deadlines from duration, risk and dependencies.
+Workers report meaningful changes through the agreed path, not periodic activity
+for its own sake. Keep the expectation and watchdog current: cancel or re-arm when
+evidence arrives or work completes, blocks, fails, is abandoned or relaunched.
 
-## Adaptive visibility
+Review a worker's result before acceptance. Preserve task correlation in the brief,
+results and resends when callbacks could be confused. Keep completed evidence until
+acceptance or abandonment so a valid status request can prompt a resend through the
+original return path.
 
-Set intermediate evidence and deadlines from duration, risk, dependencies, and useful
-milestones. Workers report meaningful changes through the agreed return path; revise
-expectations when the work changes. Do not substitute periodic activity reports for
-useful evidence or turn visibility into polling.
+## Revisions and recovery
 
-## Missing evidence
+Relay accepted user/parent decisions as bounded updates under the same correlation,
+including changed scope, evidence and ETA. Do not edit worker-owned files concurrently.
+For a transfer, preserve partial results and pending decisions, confirm the receiving
+owner's context and return path, and resolve outstanding writes/effects before
+releasing the old owner. Align callbacks, watchdogs and cleanup responsibility;
+a replacement launch alone does not complete the handoff.
 
-A bounded watchdog delivers an overdue notice to the responsible coordinator's wakeable input
-path. The notice identifies the expected evidence and correlation, starting a new coordinator
-turn while leaving the recovery decision to that coordinator.
-
-If a still-needed asynchronous watchdog transport becomes unsafe or unavailable, establish
-an agreed replacement before removing coverage. Canceling stale delivery must not silently
-leave active work unwatched.
-
-On notice, the coordinator:
-
-1. checks once whether the expected evidence already arrived;
-2. sends a context-appropriate status request through the agreed path, if useful;
-3. chooses diagnosis, escalation, cancellation, or stopping from the current contract.
-
-Cancel or re-arm the watchdog when evidence arrives, the work completes, blocks, fails, is
-abandoned, or is relaunched so timer state stays aligned with the active expectation.
+When evidence is overdue or a concrete delivery failure needs diagnosis, read
+[Missing evidence](references/missing-evidence.md). Inspect only owned resources;
+observation is bounded diagnosis, not a way to wait for completion. If a still-needed
+watchdog path becomes unsafe or unavailable, establish an agreed replacement before
+removing coverage. Never silently leave active work unwatched.
 
 ## Boundaries
 
-This skill owns delegation semantics: handoff, evidence, waiting, recovery, and acceptance.
-Task design owns proposed responsibilities, context ownership, and transitions;
-planning owns work decomposition and acceptance criteria; management owns active
-coordination within the approved envelope. Applicable `AGENTS.md` files own durable
-instructions. Model, transport, terminal session, timer implementation, and message
-vocabulary remain contextual choices made by their natural owners. Keep evidence timing
-contextual and the contract neutral to coordinator, topology, and response sequence.
+Delegation owns handoff, evidence, waiting, recovery and acceptance. Work design
+proposes responsibilities and context boundaries; planning owns decomposition and
+acceptance criteria; management coordinates within the approved envelope.
+`AGENTS.md` owns durable policy. Model, transport, terminal lifecycle and timer
+skills own their mechanisms; keep participant topology and evidence timing contextual.

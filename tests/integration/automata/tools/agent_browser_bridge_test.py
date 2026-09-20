@@ -26,7 +26,7 @@ def test_agent_browser_bridge_uv_script_declares_websocket_backend() -> None:
         / "src"
         / "automata"
         / "tools"
-        / "agent-browser-bridge"
+        / "agent-router"
         / "agent_browser_bridge.py"
     )
     result = subprocess.run(
@@ -49,7 +49,7 @@ def test_agent_browser_bridge_cli_and_generic_json_round_trip(tmp_path: Path) ->
     except ImportError:
         pytest.skip("cached websocket-client is required")
 
-    source = Path(__file__).parents[4] / "src" / "automata" / "tools" / "agent-browser-bridge"
+    source = Path(__file__).parents[4] / "src" / "automata" / "tools" / "agent-router"
     runtime = tmp_path / "runtime"
     (runtime / "lib").mkdir(parents=True)
     (runtime / "lib" / "adaptive-ui.js").write_text("export const Chat = {};", encoding="utf-8")
@@ -340,9 +340,7 @@ ws.onclose = event => {
 
 def test_json_validation_bounds_and_lossless_serialization() -> None:
     source = (
-        Path(__file__).parents[4]
-        / "src/automata/tools/agent-browser-bridge"
-        / "agent_browser_bridge.py"
+        Path(__file__).parents[4] / "src/automata/tools/agent-router" / "agent_browser_bridge.py"
     )
     spec = importlib.util.spec_from_file_location("bridge_json_validation", source)
     assert spec and spec.loader

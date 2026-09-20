@@ -5,22 +5,20 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import signal
+import socket
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
 
 
-def test_agent_browser_bridge_extension_round_trip(tmp_path: Path) -> None:
-    node = shutil.which("node")
-    if node is None:
-        pytest.skip("Node.js with TypeScript stripping is required")
-
+def prepare_runtime(tmp_path: Path) -> None:
     source_root = Path(__file__).parents[4]
     extension = tmp_path / "agent-browser-bridge.ts"
-    extension.write_text(
-        (source_root / "src" / "automata" / "extensions" / "agent-browser-bridge.ts").read_text()
-    )
+    shutil.copytree(source_root / "src/automata/extensions/agent-router", tmp_path / "agent-router")
+    extension.write_text('export {default} from "./agent-router/index.ts";\n')
     for relative in ("agent_browser_bridge.py", "browser/client.js", "browser/page.js"):
         destination = tmp_path / ".agents" / "tools" / "agent-browser-bridge" / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -58,6 +56,12 @@ def test_agent_browser_bridge_extension_round_trip(tmp_path: Path) -> None:
         "export class Text { constructor(text) { this.text = text; } }\n"
     )
 
+
+def test_agent_browser_bridge_extension_round_trip(tmp_path: Path) -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js with TypeScript stripping is required")
+    prepare_runtime(tmp_path)
     result = subprocess.run(
         [node, "--test", str(Path(__file__).with_suffix(".mjs"))],
         env={**os.environ, "AGENT_BROWSER_BRIDGE_TEST_ROOT": str(tmp_path)},
@@ -74,8 +78,11 @@ def test_agent_browser_bridge_native_pi_lifecycle(tmp_path: Path) -> None:
     node = shutil.which("node")
     if not package or not node:
         pytest.skip("Set AGENT_BROWSER_BRIDGE_NATIVE_PI_PACKAGE to an installed Pi package")
-    source = Path(__file__).parents[4] / "src/automata/extensions/agent-browser-bridge.ts"
-    (tmp_path / "agent-browser-bridge.ts").write_text(source.read_text())
+    source = Path(__file__).parents[4] / "src/automata/extensions/agent-router"
+    shutil.copytree(source, tmp_path / "agent-router")
+    (tmp_path / "agent-browser-bridge.ts").write_text(
+        'export {default} from "./agent-router/index.ts";\n'
+    )
     result = subprocess.run(
         [node, "--test", str(Path(__file__).with_name("agent_browser_bridge_native_test.mjs"))],
         env={**os.environ, "AGENT_BROWSER_BRIDGE_TEST_ROOT": str(tmp_path), "PI_OFFLINE": "1"},
@@ -85,3 +92,89 @@ def test_agent_browser_bridge_native_pi_lifecycle(tmp_path: Path) -> None:
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_two_pi_adapters_over_real_router_transport(tmp_path: Path) -> None:
+    """Actual extension + socket boundary with deterministic Pi API stubs, not live agents."""
+    node, uv = shutil.which("node"), shutil.which("uv")
+    if not node or not uv:
+        pytest.skip("Node and uv are required")
+    prepare_runtime(tmp_path)
+    tool = Path(__file__).parents[4] / "src/automata/tools/agent-router"
+    cli = [uv, "run", "--offline", "--no-project", "--script", str(tool / "agent_router.py")]
+    private = tmp_path / "router-state"
+    config, endpoints = private / "config.json", private / "endpoints"
+    setup = subprocess.run(
+        [
+            *cli,
+            "setup",
+            "--config-file",
+            str(config),
+            "--agent",
+            "agent",
+            "--agent",
+            "peer",
+            "--page",
+            "a",
+            "--page",
+            "b",
+            "--allow",
+            "a:agent",
+            "--allow",
+            "b:agent",
+            "--allow",
+            "agent:peer",
+            "--allow",
+            "peer:agent",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert setup.returncode == 0, setup.stdout + setup.stderr
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    with (tmp_path / "router.log").open("w+") as log:
+        process = subprocess.Popen(
+            [
+                *cli,
+                "serve",
+                "--config-file",
+                str(config),
+                "--endpoint-dir",
+                str(endpoints),
+                "--port",
+                str(port),
+            ],
+            stdout=log,
+            stderr=log,
+        )
+        try:
+            deadline = time.monotonic() + 10
+            while not (endpoints / "participants/peer.json").exists():
+                if process.poll() is not None or time.monotonic() > deadline:
+                    log.seek(0)
+                    raise AssertionError(log.read())
+                time.sleep(0.02)
+            checked = subprocess.run(
+                [
+                    node,
+                    str(Path(__file__).with_name("agent_router_transport_test.mjs")),
+                ],
+                env={
+                    **os.environ,
+                    "AGENT_BROWSER_BRIDGE_TEST_ROOT": str(tmp_path),
+                    "AGENT_ROUTER_ENDPOINTS": str(endpoints),
+                    "AGENT_ROUTER_BROWSER": str(tool / "browser"),
+                },
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            assert checked.returncode == 0, checked.stdout + checked.stderr
+        finally:
+            process.send_signal(signal.SIGTERM)
+            process.wait(timeout=10)
+        log.seek(0)
+        assert "Traceback" not in log.read()

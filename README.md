@@ -94,6 +94,25 @@ uv run automata tools install \
   --mode copy
 ```
 
+Install the LINE Chrome skill and its companion tool:
+
+```bash
+uv run automata skills install --target-root .agents/skills --skill automata-line-use --mode copy
+uv run automata tools install --target-root .agents/tools --tool line --mode copy
+uv run --script .agents/tools/line/line.py --help
+```
+
+LINE use currently supports Linux with an explicitly isolated Chrome profile and the user's
+own LINE login. It provides structured reads, per-consumer reading checkpoints, recoverable
+local collection, and separately authorized draft/send commands. No browser profile, login,
+chat transcript, runtime state or timer is installed. Paths resolve from the calling workspace;
+`AUTOMATA_LINE_PROFILE` and `AUTOMATA_LINE_TIMEZONE` select an isolated profile and timezone
+(default UTC). The CLI declares its optional Playwright, Cyclopts and Dictify dependencies;
+these are not added to Automata's core dependencies. Use `uv run --offline --with playwright
+--with dictify pytest tests/unit/automata/tools/line_reading_test.py
+tests/integration/automata/tools/line` for the fixture and installed-CLI tests with cached
+optional dependencies. No real messages are sent by those tests.
+
 Adaptive UI is a self-contained skill with maintained TypeScript, schemas, build inputs,
 and examples. Install it without a prebuilt browser bundle, then build its shared runtime library:
 
@@ -223,14 +242,37 @@ uv run automata skills install \
   --mode copy
 ```
 
-`pi-sessions` exposes `pi_session_list` and `pi_session_trash`. Listing uses the
-trusted runtime CWD and does not return session paths or conversation content.
-Trashing requires a fresh listing receipt and an exact full session ID. The agent
+`pi-sessions` exposes `pi_session_list`, `pi_session_copy` and `pi_session_trash`.
+Listing defaults to the trusted runtime CWD and its active session store. Optional
+`cwd` selects another exact directory; `scope: "global"` searches across projects.
+These broader scopes use Pi's default store, not custom stores or target project
+configuration. Results contain recorded CWD and directory status but omit session-file
+paths and conversation content. `directoryStatus: "missing"` identifies review
+candidates, not permission to delete; inaccessible paths are `unknown`.
+
+Pages contain at most 100 sessions (`limit` may reduce this). Follow `nextCursor` by
+passing `cursor` alone; each page supersedes previous receipts. Duplicate IDs are
+non-selectable, and changed files are omitted from the snapshot. A separate
+`copyReceipt` permits an explicit copy request with selected `sessionIds` and an
+existing `targetCwd`.
+Copies get new IDs and source provenance, preserve originals, and use default
+session storage at the destination. They do not copy project files or rewrite
+historical paths. Partial failures may leave destination copies; inspect reported
+IDs before retrying. Source sessions must be inactive; the current session is rejected.
+
+All listing scopes issue a separate trash receipt bound to the listed source
+identities. Trashing requires that fresh receipt and exact full session IDs; it never
+accepts arbitrary session-file paths. Copying and listing do not grant deletion
+permission. Directory status and source identity are rechecked before mutation. The agent
 establishes permission from context, asking for clarification or a numbered
 selection when needed rather than repeating a clear removal request. There is no
 tool-level confirmation dialog. Ownership and inactivity must be established by
 the agent; the tool does not detect sessions open in another process. Cleanup
 uses recoverable trash only and never falls back to permanent deletion.
+
+For authorized page-to-page, page-to-agent, and agent-to-agent JSON messaging,
+see [agent-router](src/automata/tools/agent-router/README.md). Its Pi extension uses
+a native `index.ts` bundle; existing single-file extensions remain supported.
 
 Use `--source-root <path>` to install skills, tools, or Pi extensions from a different
 local source root.
@@ -274,6 +316,10 @@ with Deno, Node, and cached dependencies (no implicit fetching):
 ```bash
 uv run pytest
 ```
+
+These checks validate software and packaging, not agent judgment. See
+[the testing guide](tests/README.md) for the test layout, instruction review, and
+separate whole-agent behavioral evaluation.
 
 For an explicit developer build and frontend validation, choose a runtime root outside source:
 

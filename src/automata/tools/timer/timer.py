@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["cyclopts>=3.0.0"]
+# dependencies = ["cyclopts>=4.11.1", "apscheduler>=3.11,<4"]
 # ///
 """Repo-local command timer for agent-friendly delayed and recurring ticks."""
 
@@ -22,6 +22,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from cyclopts import App, Parameter
 
@@ -59,6 +60,10 @@ NameOption = Annotated[
     str | None,
     Parameter(help="Optional unique human-readable job name."),
 ]
+GraceOption = Annotated[
+    str | None,
+    Parameter(help="Optional lateness grace, such as 30s or 5m; omitted means no expiry."),
+]
 
 
 def utc_now() -> datetime:
@@ -90,6 +95,85 @@ def parse_duration(value: str) -> int:
         raise ValueError("duration must be positive")
     multipliers = {"s": 1, "m": 60, "h": 3600, "d": 86400}
     return amount * multipliers[match.group("unit")]
+
+
+def parse_timezone(value: str) -> str:
+    """Validate and retain an explicit IANA timezone name."""
+    try:
+        ZoneInfo(value)
+    except ZoneInfoNotFoundError as error:
+        raise ValueError(f"unknown timezone: {value}") from error
+    return value
+
+
+def schedule_trigger(job: dict[str, Any]) -> Any:
+    """Build an APScheduler 3.x trigger without starting a scheduler service."""
+    try:
+        if job.get("schedule_kind") == "cron":
+            from apscheduler.triggers.cron import CronTrigger
+
+            return CronTrigger.from_crontab(
+                str(job["cron_expression"]), timezone=ZoneInfo(str(job["timezone"]))
+            )
+        if job.get("schedule_kind") == "every" and job.get("mode") == "fixed-rate":
+            from apscheduler.triggers.interval import IntervalTrigger
+
+            return IntervalTrigger(
+                seconds=int(job["interval_seconds"]),
+                start_date=parse_instant(str(job["schedule_anchor"])),
+                timezone=UTC,
+            )
+    except ModuleNotFoundError as error:
+        raise ValueError("APScheduler 3.x is required for cron and fixed-rate schedules") from error
+    raise ValueError(f"job has no APScheduler trigger: {job.get('schedule_kind')}")
+
+
+def next_scheduled_fire(job: dict[str, Any], now: datetime) -> datetime | None:
+    """Return the next fire strictly after now, skipping all missed occurrences."""
+    trigger = schedule_trigger(job)
+    if job.get("schedule_kind") == "every":
+        anchor = parse_instant(str(job["schedule_anchor"]))
+        if now < anchor:
+            fire_time = trigger.get_next_fire_time(None, now)
+        else:
+            interval = int(job["interval_seconds"])
+            elapsed_intervals = int((now - anchor).total_seconds() // interval) + 1
+            previous = anchor + timedelta(seconds=(elapsed_intervals - 1) * interval)
+            fire_time = trigger.get_next_fire_time(previous, now)
+    else:
+        # Passing now as the previous occurrence advances directly past all
+        # overdue calendar occurrences instead of replaying them one by one.
+        fire_time = trigger.get_next_fire_time(now, now)
+    return fire_time.astimezone(UTC) if fire_time is not None else None
+
+
+def cron_first_fire(expression: str, timezone: str, now: datetime) -> datetime:
+    trigger = schedule_trigger(
+        {
+            "schedule_kind": "cron",
+            "cron_expression": expression,
+            "timezone": parse_timezone(timezone),
+        }
+    )
+    fire_time = trigger.get_next_fire_time(None, now)
+    if fire_time is None:
+        raise ValueError("cron expression has no future run")
+    return fire_time.astimezone(UTC)
+
+
+def is_late(job: dict[str, Any], now: datetime) -> bool:
+    grace_seconds = job.get("grace_seconds")
+    if grace_seconds is None:
+        return False
+    due = parse_instant(str(job["next_run_at"]))
+    return now > due + timedelta(seconds=int(grace_seconds))
+
+
+def next_recurring_run(job: dict[str, Any], now: datetime) -> datetime | None:
+    if job.get("schedule_kind") == "cron" or job.get("mode", "after-completion") == "fixed-rate":
+        return next_scheduled_fire(job, now)
+    interval_seconds = int(job.get("interval_seconds") or 0)
+    return now + timedelta(seconds=interval_seconds)
 
 
 def ensure_state_dirs(state_dir: Path) -> None:
@@ -215,8 +299,26 @@ def create_job(
     max_runs: int = 1,
     forever: bool = False,
     until: datetime | None = None,
+    mode: str = "after-completion",
+    grace_seconds: int | None = None,
+    timezone: str | None = None,
+    cron_expression: str | None = None,
+    schedule_anchor: datetime | None = None,
 ) -> dict[str, Any]:
     validate_command(command)
+    recurring_schedule = schedule_kind in {"every", "cron"}
+    if recurring_schedule and mode not in {"fixed-rate", "after-completion"}:
+        raise ValueError("mode must be fixed-rate or after-completion")
+    if not recurring_schedule and mode != "after-completion":
+        raise ValueError("mode only applies to recurring schedules")
+    if grace_seconds is not None and grace_seconds < 0:
+        raise ValueError("grace duration must not be negative")
+    if schedule_kind == "cron":
+        if not cron_expression:
+            raise ValueError("cron expression is required")
+        if not timezone:
+            raise ValueError("cron timezone is required")
+        timezone = parse_timezone(timezone)
     ensure_state_dirs(state_dir)
     job_id = f"{utc_now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:8]}"
     job = {
@@ -229,6 +331,11 @@ def create_job(
         "updated_at": iso_now(),
         "next_run_at": next_run_at.isoformat(),
         "interval_seconds": interval_seconds,
+        "mode": mode,
+        "grace_seconds": grace_seconds,
+        "timezone": timezone,
+        "cron_expression": cron_expression,
+        "schedule_anchor": (schedule_anchor or next_run_at).isoformat(),
         "run_count": 0,
         "max_runs": max_runs,
         "forever": forever,
@@ -317,16 +424,44 @@ def _execute_due_job(state_dir: Path, job_id: str) -> bool:
     with locked_job(state_dir, job_id) as job:
         if not is_due(job):
             return False
+        now = utc_now()
         until_value = job.get("until")
-        if until_value and utc_now() > parse_instant(until_value):
+        if until_value and now > parse_instant(until_value):
             job["status"] = "completed"
             job["worker_pid"] = None
+            job["next_run_at"] = None
             job["finished_at"] = iso_now()
+            job["skip_reason"] = "past-until"
+            save_job(state_dir, job)
+            return False
+
+        recurring = job.get("schedule_kind") in {"every", "cron"}
+        if is_late(job, now):
+            if not recurring:
+                job["status"] = "completed"
+                job["worker_pid"] = None
+                job["next_run_at"] = None
+                job["finished_at"] = iso_now()
+                job["skip_reason"] = "expired"
+                save_job(state_dir, job)
+                return False
+            next_run_at = next_recurring_run(job, now)
+            if next_run_at is None or (until_value and next_run_at > parse_instant(until_value)):
+                job["status"] = "completed"
+                job["worker_pid"] = None
+                job["next_run_at"] = None
+                job["finished_at"] = iso_now()
+                job["skip_reason"] = "stale-occurrence"
+            else:
+                job["status"] = "pending"
+                job["next_run_at"] = next_run_at.isoformat()
+                job["skip_reason"] = "stale-occurrence"
             save_job(state_dir, job)
             return False
 
         run_number = int(job.get("run_count", 0)) + 1
         log_path = run_log_path(state_dir, job_id, run_number)
+        job.pop("skip_reason", None)
         job["status"] = "running"
         job["last_run_at"] = iso_now()
         job["command_pid"] = None
@@ -388,23 +523,23 @@ def _execute_due_job(state_dir: Path, job_id: str) -> bool:
         # Retain a surviving command group so cleanup cannot discard its evidence.
         if not process_group_alive(job.get("command_pid")):
             job["command_pid"] = None
-        interval_seconds = job.get("interval_seconds")
         max_runs = int(job.get("max_runs") or 0)
         forever = bool(job.get("forever"))
         until_value = job.get("until")
-        has_more_runs = forever or run_number < max_runs
-        if interval_seconds and has_more_runs and process_group_alive(job.get("command_pid")):
+        recurring = job.get("schedule_kind") in {"every", "cron"}
+        has_more_runs = recurring and (forever or run_number < max_runs)
+        if recurring and has_more_runs and process_group_alive(job.get("command_pid")):
             # Never overwrite the identity of an outstanding process group on a rerun.
             job["status"] = "failed"
             job["next_run_at"] = None
             job["finished_at"] = iso_now()
             save_job(state_dir, job)
             return True
-        if interval_seconds and has_more_runs:
-            next_run_at = utc_now() + timedelta(seconds=int(interval_seconds))
-            if until_value and next_run_at > parse_instant(until_value):
-                has_more_runs = False
-            else:
+        if recurring and has_more_runs:
+            next_run_at = next_recurring_run(job, utc_now())
+            if next_run_at is not None and not (
+                until_value and next_run_at > parse_instant(until_value)
+            ):
                 job["status"] = "pending"
                 job["next_run_at"] = next_run_at.isoformat()
                 save_job(state_dir, job)
@@ -432,6 +567,7 @@ def after(
     delay: Annotated[str, Parameter(help="Delay before first run, such as 10s, 5m, or 2h.")],
     command: CommandArg,
     name: NameOption = None,
+    grace: GraceOption = None,
     start: Annotated[
         bool,
         Parameter(help="Start a detached worker for this job immediately."),
@@ -446,6 +582,7 @@ def after(
         schedule_kind="after",
         next_run_at=utc_now() + timedelta(seconds=seconds),
         name=name,
+        grace_seconds=parse_duration(grace) if grace else None,
     )
     maybe_start_worker(state_dir, job["id"], start)
     print_scheduled(load_job(state_dir, job["id"]), started=start)
@@ -459,6 +596,7 @@ def at(
     ],
     command: CommandArg,
     name: NameOption = None,
+    grace: GraceOption = None,
     start: Annotated[
         bool,
         Parameter(help="Start a detached worker for this job immediately."),
@@ -472,6 +610,7 @@ def at(
         schedule_kind="at",
         next_run_at=parse_instant(when),
         name=name,
+        grace_seconds=parse_duration(grace) if grace else None,
     )
     maybe_start_worker(state_dir, job["id"], start)
     print_scheduled(load_job(state_dir, job["id"]), started=start)
@@ -482,6 +621,11 @@ def every(
     interval: Annotated[str, Parameter(help="Interval between runs, such as 10s, 5m, or 2h.")],
     command: CommandArg,
     name: NameOption = None,
+    mode: Annotated[
+        str,
+        Parameter(help="Recurrence mode: fixed-rate or after-completion (default)."),
+    ] = "after-completion",
+    grace: GraceOption = None,
     max_runs: Annotated[
         int | None,
         Parameter(help="Maximum runs; required unless --forever is used."),
@@ -507,16 +651,78 @@ def every(
     if max_runs is not None and max_runs <= 0:
         raise ValueError("--max-runs must be positive")
     until_dt = parse_instant(until) if until else None
+    first_run = utc_now() + timedelta(seconds=seconds)
     job = create_job(
         state_dir=state_dir,
         command=command,
         schedule_kind="every",
-        next_run_at=utc_now() + timedelta(seconds=seconds),
+        next_run_at=first_run,
         name=name,
         interval_seconds=seconds,
         max_runs=max_runs or 0,
         forever=forever,
         until=until_dt,
+        mode=mode,
+        grace_seconds=parse_duration(grace) if grace else None,
+        schedule_anchor=first_run,
+    )
+    maybe_start_worker(state_dir, job["id"], start)
+    print_scheduled(load_job(state_dir, job["id"]), started=start)
+
+
+@app.command(name="cron")
+def cron(
+    expression: Annotated[
+        str,
+        Parameter(help="Five-field APScheduler crontab expression."),
+    ],
+    command: CommandArg,
+    timezone: Annotated[
+        str,
+        Parameter(name="--timezone", help="Required IANA timezone, such as Asia/Bangkok."),
+    ],
+    name: NameOption = None,
+    grace: GraceOption = None,
+    max_runs: Annotated[
+        int | None,
+        Parameter(help="Maximum runs; required unless --forever is used."),
+    ] = None,
+    forever: Annotated[
+        bool,
+        Parameter(help="Allow an unbounded recurring job explicitly."),
+    ] = False,
+    until: Annotated[
+        str | None,
+        Parameter(help="Optional datetime after which no next run is scheduled."),
+    ] = None,
+    start: Annotated[
+        bool,
+        Parameter(help="Start a detached worker for this job immediately."),
+    ] = True,
+    state_dir: StateDirOption = DEFAULT_STATE_DIR,
+) -> None:
+    """Schedule a calendar-recurring command in an explicit IANA timezone."""
+    if not forever and max_runs is None:
+        raise ValueError("cron requires --max-runs unless --forever is explicit")
+    if max_runs is not None and max_runs <= 0:
+        raise ValueError("--max-runs must be positive")
+    timezone = parse_timezone(timezone)
+    first_run = cron_first_fire(expression, timezone, utc_now())
+    until_dt = parse_instant(until) if until else None
+    job = create_job(
+        state_dir=state_dir,
+        command=command,
+        schedule_kind="cron",
+        next_run_at=first_run,
+        name=name,
+        max_runs=max_runs or 0,
+        forever=forever,
+        until=until_dt,
+        mode="fixed-rate",
+        grace_seconds=parse_duration(grace) if grace else None,
+        timezone=timezone,
+        cron_expression=expression,
+        schedule_anchor=first_run,
     )
     maybe_start_worker(state_dir, job["id"], start)
     print_scheduled(load_job(state_dir, job["id"]), started=start)

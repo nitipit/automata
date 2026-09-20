@@ -9,23 +9,34 @@ Gather bounded evidence from an explicitly owned or assigned tmux pane. The call
 chooses the question and interprets the evidence; this skill does not manage the
 process or decide what its output means for the surrounding workflow.
 
-## Choose the Observation
+## Establish and reuse observation setup
 
-Establish the intended server, exact `session:window.pane` target, permission to
-inspect it, and the question the observation should answer. Pane identities are
-server-local and may be stale. A familiar name or a recorded target does not prove
-current identity or ownership. If the target or authority is unclear, clarify
-rather than inspecting nearby sessions.
+Consult `.agents/var/skills/automata-tmux-observation/setup.md` when present before
+rediscovering commands. If setup required experimentation, save useful verified
+server selection, metadata/capture methods, output bounds, interpretation limits
+and invalidation conditions there within storage authority. Do not create a record
+merely to repeat standard commands; reference another capability's setup instead
+of duplicating it. Keep live pane identities and captures separate from recipes.
 
-Start with pane/process metadata. Capture output only when it is needed and within
-the authorized scope. Do not read unrelated panes or collect sensitive content for
-convenience. Prefer a small relevant excerpt over a full scrollback dump.
+For each observation, choose the question and authorized target. Ownership means
+this workflow created the resource or was assigned it, not that its name is familiar.
+Use the known method with lightweight checks of changeable prerequisites, not a
+fresh setup sequence. Match returned metadata to the intended server and recorded
+pane identity. Names/addresses can be reused, and IDs do not survive server restarts
+as durable identities. Restart, mismatch, lookup failure or changed output format
+requires resolving only the affected assumptions and updating verified knowledge.
+Saved setup grants no inspection permission; never follow nearby matches.
+
+Start with relevant metadata; capture output only if the question requires it.
+Prefer a small excerpt over scrollback dumps. Do not inspect unrelated panes or
+collect sensitive content for convenience.
 
 ## Read-Only CLI
 
 Use tmux's read-only commands and consult their help when needed. Apply the intended
 server consistently, for example with `-S` when using an explicitly known socket.
-These examples assume that server is already selected and `TARGET` is verified:
+These examples assume that server is selected and `TARGET` is the verified pane ID
+or exact address; metadata must resolve to the intended pane:
 
 ```bash
 tmux display-message -p -t "$TARGET" \
@@ -50,10 +61,12 @@ facts and uncertainty. Include only the output needed to support the caller's
 question, excluding secrets and irrelevant content. Do not persist captures by
 default; retained evidence needs an approved owner and location.
 
-Activity, silence, or visible text alone is not proof of readiness, message receipt,
-or work completion. A captured reply is an observation of output, not delivery of
-that reply to its intended recipient. Let the caller decide whether more evidence
-or another action is warranted.
+Activity, silence or visible text alone is not proof of readiness, message receipt,
+or work completion. A captured reply is output evidence, not delivery to its intended
+recipient through the agreed return path. A pane's identity or existence also does
+not establish what an attached client is viewing. Inspect an explicitly authorized
+client only when that separate question matters. Let the caller interpret evidence
+and choose the next action; observation grants no permission to send or stop work.
 
 ## Boundaries
 

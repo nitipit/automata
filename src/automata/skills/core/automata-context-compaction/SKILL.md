@@ -5,52 +5,84 @@ description: Use when an agent or user is considering intentional Pi context com
 
 # Automata Context Compaction
 
-Choose when to compact and preserve continuation state. Pi owns summarization
-and automatic compaction; `context_compact` handles deferred execution.
+Choose when to compact, preserve continuity and request deferred native summarization
+through `context_compact`. Pi owns automatic compaction; do not change its settings
+without approval or make compaction a task-completion requirement.
 
 ## When to compact
 
-Request intentional compaction only when measured context usage exceeds 75%.
-If usage is unknown or compaction just succeeded, obtain a fresh measurement
-showing usage above 75%. Time, long output, or a new work phase alone is not enough.
+Default to a trigger above 75% measured usage and an urgent threshold of 90%, unless
+approved preferences override them. Pressure is an observation, not a command.
 
-Pressure sets urgency and task boundaries determine timing:
+- Above the trigger with meaningful work remaining, finish the coherent unit and
+  compact at the next stable boundary before substantial new work.
+- At or above the urgent threshold, preserve the minimum safe checkpoint and
+  compact at the earliest safe boundary.
+- Unless the user explicitly requests compaction, unknown usage or a just-completed
+  compaction requires a fresh measurement above the trigger. Time, long output or
+  a new phase alone is insufficient.
 
-- Above 75%, when meaningful work remains, finish the current coherent unit and
-  compact automatically at the next stable boundary, before substantial new work.
-- At ≥90%, preserve the minimum safe checkpoint and compact at the earliest safe
-  boundary rather than waiting for a perfect milestone.
+A stable boundary leaves edits coherent, decisions settled, and ownership and
+pending evidence recorded. Briefly announce the action; no per-use approval or
+setup questionnaire is needed within these rules.
 
-A stable boundary leaves decisions settled, edits coherent, and ownership and
-pending evidence recorded. Briefly announce the intent without asking for per-use
-confirmation; a pressure signal alone is not a command to compact.
+## Select model and thinking
 
-## Preserve continuation
+Apply explicit current instructions, then project preferences, global preferences,
+and finally session defaults. Consult existing preferences at:
 
-Bring existing, authorized task state current: goal, constraints, decisions,
+- Project: `.agents/var/skills/automata-context-compaction/preferences.md`
+- Global: `~/.agents/var/skills/automata-context-compaction/preferences.md`
+
+Pass a selected `model` as `provider/model`. Omission captures the current model
+when queued. Pass an explicit `thinking` level when selected: `off`, `minimal`,
+`low`, `medium`, `high`, `xhigh` or `max`. Omission inherits the session level at
+execution; an explicit level remains attached to the request. Provider/model
+support still applies. Neither argument changes working-session settings.
+
+For example, `model: "openai-codex/gpt-5.6-luna", thinking: "medium"` selects
+Luna/medium for the summary only. Do not silently replace an invalid preference.
+The tool checks model availability/authentication; selection or summary failure
+never triggers fallback. Initially defaulting to the current model is not fallback.
+Context-budget preflight is heuristic, not a guarantee against provider overflow.
+
+For customization of models, thresholds or saved defaults, read
+[Compaction preferences](references/preferences.md). One-off choices need no
+preference file. Saved preferences guide explicit tool arguments, not Pi automatic
+compaction or the tool's omitted-argument behavior.
+
+## Preserve continuity
+
+Update existing authorized task state with missing goal, constraints, decisions,
 validation, ownership, pending evidence, cleanup obligations, blockers, relevant
-worktree changes, and the next action. Record only missing continuation details,
-not transcripts, raw traces, or secrets.
+worktree changes and next action. Avoid transcripts, raw traces or secrets; do not
+create records solely for compaction or broaden persistence without approval.
 
-Do not create records solely for compaction or broaden persistence without
-approval. Do not mark unfinished work complete: compaction does not finish,
-accept, cancel, or transfer active work.
+Supply brief `customInstructions` identifying what must survive, not a replacement
+summary or substitute for durable state. The working model provides guidance;
+the selected model summarizes. Guidance reaches every native summary request,
+including split-turn summaries, without an extra summary call.
 
-## Request and finish
+## Request and continue
+
+When authorized work remains, pass a brief `resumeMessage` for the next action.
+It guides continuation, not summarization; do not create another wakeup path.
+Omit it when no work remains. Whitespace-only text also means compact-only;
+nonblank text is preserved verbatim.
+
+After success, the tool may dispatch one wakeup for the unchanged session. If other
+work intervenes or the session is busy, guidance becomes non-triggering `nextTurn`
+context instead. Failure, cancellation or session changes do not trigger
+continuation. Fire-and-forget dispatch does not prove delivery or resumed work.
 
 Once preservation is complete and the turn can end, call `context_compact` as the
-sole final tool action when practical. It invokes native compaction only after
-`agent_settled`; leave queueing, duplicate protection, and notifications to the tool.
+sole final tool action when practical. It runs after the agent settles; the tool
+owns queueing, duplicate protection and notifications. If another compaction
+satisfies the request, do not repeat it.
 
-Keep optional `customInstructions` to brief focus notes, not a hand-written
-summary or a substitute for durable state. Pi generates the summary.
-
-After failure or cancellation, do not retry automatically. Preserve the checkpoint
-and reassess on the next turn; retry only when still useful and the cause is
-understood. If another compaction satisfies the request, do not repeat it.
-
-## Boundaries
-
-Do not route `/compact` through tmux or inject it as a user message. Humans can
-use `/compact` directly. This skill does not change Pi settings, measure context,
-or make compaction a completion requirement.
+After failure or cancellation, keep the checkpoint and reassess on the next turn.
+Do not retry automatically; retry only when useful and the cause is understood.
+Compaction does not complete, accept, cancel or transfer work. Resume only the
+existing authorized assignment. Never inject `/compact` through tmux or as a user
+message; humans may use it directly. This skill does not measure context or change
+Pi settings.

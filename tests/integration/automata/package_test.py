@@ -14,6 +14,7 @@ def test_package_includes_self_documenting_python_tools() -> None:
     scripts = (
         package_root.joinpath("timer", "timer.py"),
         package_root.joinpath("tmux-message", "tmux_message.py"),
+        package_root.joinpath("line", "line.py"),
     )
 
     for script in scripts:
@@ -23,9 +24,7 @@ def test_package_includes_self_documenting_python_tools() -> None:
 
 
 def adaptive_ui_source():
-    return files("automata").joinpath(
-        "skills", "operations", "automata-adaptive-ui", "lib"
-    )
+    return files("automata").joinpath("skills", "operations", "automata-adaptive-ui", "lib")
 
 
 def test_adaptive_ui_skill_ships_source_without_generated_library() -> None:
@@ -98,13 +97,23 @@ def test_package_excludes_adaptive_ui_generated_trees_from_sdists_and_wheels() -
 
 def test_package_includes_agent_browser_bridge_and_chat() -> None:
     package_root = files("automata")
-    assert package_root.joinpath("extensions", "agent-browser-bridge.ts").is_file()
-    tool = package_root.joinpath("tools", "agent-browser-bridge")
-    for path in ("agent_browser_bridge.py", "README.md", "browser/client.js", "browser/page.js"):
+    for name in ("index.ts", "transport.ts", "protocol.ts"):
+        assert package_root.joinpath("extensions", "agent-router", name).is_file()
+    assert not package_root.joinpath("extensions", "agent-browser-bridge.ts").exists()
+    tool = package_root.joinpath("tools", "agent-router")
+    for path in (
+        "agent_router.py",
+        "agent_browser_bridge.py",
+        "README.md",
+        "LEGACY.md",
+        "browser/client.js",
+        "browser/pi-client.js",
+        "browser/page.js",
+        "automata_router/router.py",
+        "automata_router/server.py",
+    ):
         assert tool.joinpath(path).is_file(), path
-    skill = package_root.joinpath(
-        "skills", "operations", "automata-agent-browser-bridge", "SKILL.md"
-    )
+    skill = package_root.joinpath("skills", "operations", "automata-agent-router", "SKILL.md")
     assert skill.is_file()
     components = adaptive_ui_source().joinpath("src", "ui", "_components")
     for path in ("chat.ts", "chat.schema.ts"):
@@ -129,9 +138,7 @@ def test_package_includes_bundled_context_status_pi_extension() -> None:
 def test_package_includes_context_compaction_extension_and_skill() -> None:
     package_root = files("automata")
     extension = package_root.joinpath("extensions", "context-compaction.ts")
-    skill = package_root.joinpath(
-        "skills", "core", "automata-context-compaction", "SKILL.md"
-    )
+    skill = package_root.joinpath("skills", "core", "automata-context-compaction", "SKILL.md")
 
     assert extension.is_file()
     assert skill.is_file()
@@ -167,7 +174,9 @@ def test_pi_sessions_extension_keeps_destructive_boundaries() -> None:
     for term in (
         'name: "pi_session_list"',
         'name: "pi_session_trash"',
-        "SessionManager.list(ctx.cwd, ctx.sessionManager.getSessionDir())",
+        'name: "pi_session_copy"',
+        "SessionManager.list(",
+        "cwd === normalizePath(ctx.cwd) ? ctx.sessionManager.getSessionDir() : undefined",
         'session.cwd !== ""',
         "latestReceipt",
         "sameIdentity",
@@ -177,7 +186,6 @@ def test_pi_sessions_extension_keeps_destructive_boundaries() -> None:
     ):
         assert term in extension
 
-    assert "SessionManager.listAll" not in extension
     assert "unlink(" not in extension
     assert "ctx.ui.confirm" not in extension
     assert "ctx.hasUI" not in extension

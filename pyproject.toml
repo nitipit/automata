@@ -7,8 +7,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
-    "chromadb>=1.5.9",
-    "cyclopts>=3.0.0",
+    "cyclopts>=4.11.1",
 ]
 
 [project.scripts]
@@ -16,11 +15,15 @@ automata = "automata.cli:app"
 
 [dependency-groups]
 dev = [
-    "polars>=1.43.2",
+    "apscheduler>=3.11,<4",
+    "dictify>=5.0.2",
+    "playwright>=1.63.0",
     "pytest>=8.3.0",
     "pyyaml>=6.0.3",
     "ruff>=0.8.0",
     "ty>=0.0.1a6",
+    "uvicorn>=0.30.0",
+    "websocket-client>=1.9.0",
 ]
 
 [build-system]

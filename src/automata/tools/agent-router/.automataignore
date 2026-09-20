@@ -1,0 +1,6 @@
+# Runtime records and build/test caches are not installed source.
+__pycache__
+*.pyc
+*.pyo
+*.log
+*.pid
