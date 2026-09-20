@@ -5,176 +5,100 @@ description: Use when creating, improving, reviewing, or maintaining small repo-
 
 # Automata Toolsmith
 
-Turn repeated mechanical friction into small, inspectable, easy-to-run tools.
-Prefer tools that help both agents and humans work with less context, fewer
-manual steps, and clearer validation.
+Turn repeated mechanical friction into small, inspectable tools that agents and
+humans can operate with less context. Create a tool only when repeated work, clear
+input/output contracts, or reduced operational risk justify its maintenance.
+Prefer direct commands for one-off work; do not automate unclear judgment or build
+a framework where a small composable command is sufficient.
 
-Create a tool only when repeated mechanics, clear input/output contracts, or reduced
-operational risk justify maintenance. One-off actions are often better as direct
-commands; do not automate unclear judgment merely because a tool could exist.
+## Authority and repair
 
-## Creation Permission
+Propose creation or modification before acting unless already approved. Autonomous
+work permits small local tools without per-tool confirmation only within a confirmed
+management contract covering stack, location, dependencies, generated artifacts,
+cleanup, and forbidden actions. Ordinary implementation choices within an approved
+repair need no repeated proposal.
 
-By default, propose tools before creating or modifying them. Tool creation can
-add files, dependencies, maintenance burden, and system state, so confirm the
-management approach first.
+Ask before global installs, system changes, heavy dependencies, long compilation,
+unmanaged background processes, writes outside approved locations, or risky external
+effects. Do not add dependencies, lockfiles, processes, or artifacts without need and
+applicable authority.
 
-When the user explicitly requests autonomous work, the agent may create small
-local tools without per-tool confirmation only after the user has confirmed a
-tool-management contract covering stack, location, dependencies, generated
-artifacts, cleanup, and forbidden actions.
+A tool failure is evidence to investigate, not permission to modify it. Distinguish
+a defect from incorrect invocation or missing setup. Separate an authorized task
+workaround from a reusable repair: repair maintained source only within scope,
+preserve permission checks, and do not silently deploy the fix elsewhere. A working
+alternative does not mean the original tool is repaired; disclose what remains broken.
 
-Even in autonomous mode, ask before global installs, system package changes,
-heavy dependencies, long compilation, unmanaged background processes, writing
-outside approved locations, or automating risky external side effects.
+## Interface and documentation
 
-## Tool Shape
+Prefer CLI-first, composable commands; library modules may support them. Accept
+explicit inputs and output paths, return meaningful exit codes, and provide useful
+stdout/stderr. Use readable output by default and JSON when useful. Report results,
+observable state, actionable errors, and provenance or correlation identifiers needed
+for safe interpretation—not redundant labels or repeated behavioral instructions.
+Do not hide important state when direct inspection is safer.
 
-Prefer CLI-first tools. A good tool should be easy for agents and humans to run,
-accept explicit arguments, print useful stdout/stderr, return meaningful exit
-codes, and write outputs to predictable locations.
+Keep operation discoverable without reading implementation:
 
-Keep tool output focused on results, observable state, provenance, and actionable
-errors. Avoid redundant labels and repeated behavioral instructions. Put stable
-usage guidance in help, tool descriptions, or the relevant skill. Preserve
-information needed to interpret results safely, including source and correlation
-identifiers.
+- Tiny one-off helpers need `--help` or a short top comment.
+- Durable CLIs need root/subcommand help explaining purpose, non-obvious options,
+  expected values, defaults, effects, state/artifact paths, safety limits, and cleanup.
+- Use executable discovery for schemas or contracts too large for clear help text.
+- Tools managing state or processes need a clear `status`, `stop`, and cleanup story.
+- Keep usage in CLI help, tool descriptions, or the owning skill. Do not duplicate
+  it in a tool-level README; separate docs may cover licenses, provenance, or
+  substantial non-CLI architecture.
 
-Prefer small composable commands over large frameworks or hidden agent-only
-interfaces. Library modules are fine underneath, but the public interface should
-usually be a CLI.
+## Implementation choices
 
-Good CLI traits:
+Follow project conventions first. Prefer quick-running local tools, predictable
+cache/temp/log/artifact locations, and controlled writes. Avoid hidden processes
+and unmanaged leftovers. Use compiled stacks only when performance, portability,
+or distribution justify their build cost. Keep shell to tiny glue; use a real
+language when parsing, state, or retries become non-trivial.
 
-- clear command name and `--help`
-- explicit inputs and output paths
-- useful exit codes
-- readable default output, with JSON only when useful
-- predictable cache, temp, log, and artifact locations
-- `status`, `stop`, or `cleanup` when the tool manages state
+When choosing a stack without established conventions, consult
+[Stack defaults](references/stacks.md). These are defaults, not permission to
+install runtimes or fetch dependencies. Use schema validation for structured,
+persisted, safety-sensitive, or externally exposed inputs; ordinary scalar CLI
+flags usually need only parser validation and explicit checks.
 
-## Operability
+## Ownership and placement
 
-Prefer tools that run quickly, install locally, and leave no unmanaged garbage.
-Avoid long compilation, global installation, hidden background processes, or
-uncontrolled writes for routine agent tools.
+Place tools by purpose, intended owner, and project conventions. Toolsmith develops
+tools; it does not automatically own them. Separate these concerns without imposing
+three mandatory directories:
 
-Good defaults:
+- **Source:** maintained project code; a skill-specific helper may live in its
+  `scripts/` directory. Make repairs here, then deploy only with authority.
+- **Installed copy:** an optional distribution surface, not the repair source.
+- **Runtime state:** mutable logs, caches, and operational data in the applicable
+  owner-scoped location, separate from source and installed code.
 
-- Python: `uv`, project-local `.venv`, `uv run ...`
-- JavaScript/TypeScript: `pnpm`, project-local dependencies, `pnpm exec ...`
-- Deno: single-file tools with explicit permissions when that is simpler
-- Shell: tiny glue only; switch to a real language when parsing, state, or
-  retries become non-trivial
+Stateless tools need no state directory; project tools may run directly from source.
+Use approved disposable locations for temporary helpers. Resolve unclear placement
+before writing; do not move files or create unused directories to fit this model.
 
-Use compiled stacks only when performance, portability, or distribution clearly
-justifies the build cost.
+Retain useful verified setup knowledge separately from transient process handles.
+Check changed prerequisites and live identity before reuse; a saved endpoint is not
+ownership evidence. Reuse valid knowledge rather than repeating discovery.
 
-## Default Stacks
+For packaged Automata tools, default to `src/automata/tools/<name>/` for source,
+`.agents/tools/<name>/` for installed copies, and `.agents/var/tools/<name>/` for
+needed runtime state unless an explicit convention overrides it. These paths are
+Automata conventions, not universal requirements.
 
-Follow the repository's existing tool conventions first. If none are clear, use
-these defaults.
+A skill owning usage judgment maps its installed `.agents/tools/...` entry in
+`metadata.automata-tools` and documents usage and missing-tool recovery. Runtime
+instructions use installed entries, not package source paths. A standalone tool
+may instead supply sufficient CLI documentation; do not invent a wrapper skill
+solely to assign ownership.
 
-For Python CLI tools:
+## Verification
 
-- prefer `uv` for runtime and dependency management
-- use `cyclopts` for command definitions and self-documenting help unless a confirmed runtime
-  constraint prohibits dependencies
-- use `dictify` when structured results, config, or state serialization benefits
-  from it
-- keep tiny tools on the standard library when extra dependencies do not reduce
-  complexity
-
-For JavaScript/TypeScript CLI tools:
-
-- prefer `pnpm` for package and script execution
-- prefer `tsx` for no-build TypeScript execution
-- use `node:util.parseArgs` for tiny scripts
-- use `commander` for normal local CLIs
-- use `zod` only when runtime validation materially improves safety
-
-For Deno CLI tools:
-
-- prefer a pinned Cliffy release for durable, self-documenting CLIs
-- use manual `Deno.args` parsing only for tiny dependency-free or bootstrap scripts
-- keep dependency fetching explicit with `deno cache`, then use `deno run --cached-only`
-- document recovery when Deno is missing or required dependencies are not cached
-- do not install Deno or fetch dependencies silently
-
-Use schema validation for structured, persisted, safety-sensitive, or externally
-exposed inputs. For simple scalar CLI flags, rely on the CLI parser and explicit
-checks.
-
-## Tool Location
-
-Choose placement from the tool's purpose, intended owner, and project conventions.
-Toolsmith develops tools; it does not automatically own the tools it creates.
-Distinguish three concerns, not three mandatory directories:
-
-- **Source:** maintained code in the project's source or development-tool layout.
-  A helper shipped with one skill may live in that skill's `scripts/`.
-- **Installed copy:** the executable distribution surface, when needed. Change
-  maintained source and reinstall rather than patching installed copies.
-- **Runtime state:** mutable logs, caches, and other operational data under the
-  applicable owner-scoped data convention, separate from maintained source and
-  installed code.
-
-When reusable setup knowledge helps, separate it from live process handles and
-provide inspectable checks for changed prerequisites. Do not treat a saved endpoint
-as current identity or repeat discovery that verified configuration already resolves.
-
-Stateless tools need no state directory; project-only tools may run directly from
-source without an installed copy. Use an approved disposable location for temporary
-helpers. Confirm unclear locations before writing; do not move existing files or
-create unused directories merely to match this separation.
-
-## Agent-Facing Automata Tools
-
-For packaged Automata tools, `src/automata/tools/<name>/` holds maintained source,
-`.agents/tools/<name>/` holds installed copies, and `.agents/var/tools/<name>/`
-holds runtime state when needed, unless an explicit data convention overrides it.
-These are Automata conventions, not a required layout for other projects.
-
-When a skill owns usage judgment, it maps the installed `.agents/tools/...` entry
-in `metadata.automata-tools` and documents usage and missing-tool recovery. Runtime
-skill instructions use installed entries, not package source paths. A stand-alone
-tool may instead provide sufficient direct CLI documentation; do not invent a
-wrapper skill merely to give the tool an owner.
-
-## Documentation
-
-Document enough for the next human or agent to run and remove the tool.
-
-- Tiny one-off tools need `--help` or a short top comment.
-- Every subcommand and non-obvious option should have meaningful help describing its purpose,
-  expected value, important defaults, and effects. Root and command `--help` should let an
-  agent operate the tool correctly without reading its implementation.
-- Durable CLIs should make root and command `--help` sufficient for operation, including
-  important defaults, state and artifact paths, effects, safety boundaries, and cleanup.
-- Prefer executable discovery commands for schemas or machine-readable contracts that do not
-  fit clearly in help text.
-- Do not add a tool-level usage README when CLI help owns the same information. Keep separate
-  files only for concerns such as licenses, provenance, or substantial non-CLI architecture.
-- Tools that manage background processes or persistent state need a clear
-  `status`, `stop`, and cleanup story in their CLI help.
-
-## Validation
-
-Validate new tools before relying on them. At minimum, run `--help` and one
-representative command. For durable or risky tools, also test failure behavior
-and add small automated tests when they reduce future risk.
-
-Do not overbuild test suites for one-off helpers. Prefer smoke checks and
-real-task validation unless the tool is becoming durable project infrastructure.
-
-## Boundaries
-
-- Do not create tools for unclear judgment problems.
-- Do not add dependencies, lockfiles, background processes, or generated
-  artifacts without need or confirmation.
-- Do not prefer framework-building over small purpose-built commands.
-- Do not hide important state behind automation when visible inspection is safer.
-- Do not make global or system-level changes unless the user explicitly approves
-  them.
-- Keep agent-facing tools discoverable through an applicable skill mapping or sufficient
-  direct CLI documentation; tool creation does not transfer ownership to Toolsmith.
+Before relying on a new tool, run `--help` and a representative command. For repairs,
+verify the failure regression and a normal successful path. Durable or risky tools
+also need failure-path checks and focused automated tests where they reduce risk.
+Prefer smoke checks and real-task validation for one-off helpers; do not build a
+large test suite unless the tool is becoming maintained infrastructure.
