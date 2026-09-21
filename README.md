@@ -4,8 +4,6 @@ Automata packages local-first agent guidance, character components, skills, tool
 and runtime extensions. It keeps agent behavior reusable, inspectable, and bounded
 by explicit authorization—not a general-purpose workflow orchestration platform.
 
-See [Automata’s goal](goal/main.md) for its purpose and development direction.
-
 Licensed under the [MIT License](LICENSE).
 
 ## What is included
@@ -19,8 +17,8 @@ Licensed under the [MIT License](LICENSE).
 
 ## Design principles
 
-These principles support Automata’s goal; they are not separate goals or a
-replacement for the user’s task objectives.
+These principles guide Automata’s development without replacing the user’s task
+objectives.
 
 - Prefer simple, inspectable files and local workflows. Keep installation,
   linking, and durable state choices explicit, reversible, and understandable
@@ -44,13 +42,9 @@ pain points. It distinguishes available knowledge, operational readiness, and
 permission to use a capability. It does not redirect ordinary user-task research
 into Automata development or authorize adoption.
 
-The skill's `references/goal.md` is a relative source symlink to canonical
-`goal/main.md`. Normal copy/replace installs, plugin exports, source distributions,
-and wheels materialize its contents, so installed skills remain self-contained
-outside this checkout. Edit the canonical goal, not a separate reference copy;
-existing copied installations need an explicit update to receive later changes.
-Source checkouts must preserve symlinks; symlink-mode installs depend on their
-source remaining available. No runtime notes or generated `AGENTS.md` are required.
+Its purpose and assessment guidance live directly in
+[`SKILL.md`](src/automata/skills/skill-ops/automata-capability-research/SKILL.md),
+without a separate goal document or runtime notes.
 
 ## Usage
 

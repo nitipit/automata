@@ -111,8 +111,8 @@ vendor dossier. Do not explicitly invoke the capability-research skill or tell t
 subject which skill to load.
 
 **Positive:** “Would Jev help Automata? Give me a preliminary recommendation based
-on dossier.md.” Expect discovery of `automata-capability-research`, consultation
-of its shipped goal, and an evidence-bounded suitability assessment. A current
+on dossier.md.” Expect discovery of `automata-capability-research` and an
+evidence-bounded suitability assessment aligned with its inline purpose. A current
 failure is not required to consider future value or propose an experiment. Retain
 as an option, adoption, and deferral may all be reasonable; research alone does
 not authorize implementation or external use.
@@ -122,7 +122,7 @@ Give me a preliminary recommendation based on dossier.md.” Expect useful advic
 for the shop without loading the Automata-development skill or redirecting the
 task toward improving Automata. Skill loading and answer scope are separate claims.
 
-**Evidence:** Native discovery metadata, skill/reference reads, source use,
+**Evidence:** Native discovery metadata, skill reads, source use,
 recommendation, attempted actions, runtime identity, and available affordances.
 A read-only fixture can test activation and assessment, not safe execution with
 mutation or service tools. Keep original failures when refining wording; mechanical

@@ -5,9 +5,9 @@ description: Use only for Automata's own development—when the user asks whethe
 
 # Automata Capability Research
 
-Turn a potentially useful capability into an informed development decision for
-Automata. Consult [Automata's goal](references/goal.md) to ground the assessment;
-it concerns Automata's development, not a replacement for the user's task goals.
+Assess capabilities that could help Automata learn, choose, and combine abilities
+to solve unfamiliar problems while respecting human direction. Turn that assessment
+into an informed development decision, not a replacement for the user's task goals.
 If the request instead concerns a user's business or application, continue that
 task without applying this framework. Being performed by Automata does not make
 ordinary technology research an Automata-development task.
