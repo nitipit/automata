@@ -4,7 +4,7 @@ Automata packages local-first agent guidance, character components, skills, tool
 and runtime extensions. It keeps agent behavior reusable, inspectable, and bounded
 by explicit authorization—not a general-purpose workflow orchestration platform.
 
-See [project goals](goal/main.md) for durable product direction.
+See [Automata’s goal](goal/main.md) for its purpose and development direction.
 
 Licensed under the [MIT License](LICENSE).
 
@@ -16,6 +16,41 @@ Licensed under the [MIT License](LICENSE).
 - Bundled Pi extensions under `src/automata/extensions/`
 - Skill, tool, and Pi extension installers exposed through the `automata` CLI
 - Copy, replace, or symlink installation modes
+
+## Design principles
+
+These principles support Automata’s goal; they are not separate goals or a
+replacement for the user’s task objectives.
+
+- Prefer simple, inspectable files and local workflows. Keep installation,
+  linking, and durable state choices explicit, reversible, and understandable
+  from the workspace.
+- Keep guidance focused and easy to use at startup and handoff, with clear
+  activation, boundaries, and enough direction for a useful first action.
+  Generalize reusable behavior rather than encoding one-off session details;
+  see [skill design](src/automata/skills/skill-ops/automata-skill-design/SKILL.md).
+- Make consequential actions controllable across digital and physical
+  environments. Expose permissions, confirmation boundaries, observable outcomes,
+  and practical recovery paths proportionate to the impact.
+- When using web interfaces for human-agent collaboration, support both
+  session-based and browser-first work. Preserve continuity, make outcomes
+  visible, and keep human direction and authorization explicit.
+
+## Capability research
+
+`automata-capability-research` guides assessments of capabilities that could improve
+Automata, including readiness for unfamiliar problems—not only fixes for existing
+pain points. It distinguishes available knowledge, operational readiness, and
+permission to use a capability. It does not redirect ordinary user-task research
+into Automata development or authorize adoption.
+
+The skill's `references/goal.md` is a relative source symlink to canonical
+`goal/main.md`. Normal copy/replace installs, plugin exports, source distributions,
+and wheels materialize its contents, so installed skills remain self-contained
+outside this checkout. Edit the canonical goal, not a separate reference copy;
+existing copied installations need an explicit update to receive later changes.
+Source checkouts must preserve symlinks; symlink-mode installs depend on their
+source remaining available. No runtime notes or generated `AGENTS.md` are required.
 
 ## Usage
 
