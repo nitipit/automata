@@ -123,6 +123,24 @@ uv run automata tools install \
   --mode copy
 ```
 
+Install the optional Jev typed-judgment skill and tool:
+
+```bash
+uv run automata skills install --target-root .agents/skills --skill automata-jev --mode copy
+uv run automata tools install --target-root .agents/tools --tool jev --mode copy
+uv run --offline --script .agents/tools/jev/jev.py --help
+uv run --offline --script .agents/tools/jev/jev.py schema
+```
+
+Jev is optional, not an always-on router. The client initially supports Choice with
+`jev-1.13.0`; `judge request.json` validates offline. Execution requires explicit
+`--execute` and `--max-cost-usd`, plus a credential file or `TYPESAFE_API_KEY`.
+It makes one request without retries, redirects or fallback providers, reports usage
+and estimated cost, and never executes the decision. Data-export permission is
+separate from browser/tool access. No credentials or runtime state are installed.
+See the [usage skill](src/automata/skills/operations/automata-jev/SKILL.md) for
+selection, privacy and composition boundaries; CLI help/schema own the wire contract.
+
 Install the LINE Chrome skill and its companion tool:
 
 ```bash
@@ -312,9 +330,10 @@ Modes:
 - `replace`: remove existing destination directories first, then copy.
 - `symlink`: destination directories must not exist; create symlinks to the source.
 
-Copy and replace installs honor optional per-tool `.automataignore` declarations so generated
-working trees are not installed. Symlink mode intentionally remains a transparent development
-view of the source, including any ignored local output present there.
+Tool copy and replace installs exclude Python bytecode artifacts (`__pycache__/`,
+`*.pyc`, `*.pyo`) by default; no per-tool ignore file is needed. `.gitignore`
+controls Git tracking, not installer file selection. Symlink mode intentionally
+remains a transparent development view of the source, including local output.
 
 Tools may alternatively declare entry and file selection through `deno.json` `exports` and
 `publish.include`; the config itself is always included. Legacy `.automataignore` handling

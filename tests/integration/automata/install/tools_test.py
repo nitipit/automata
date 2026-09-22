@@ -73,6 +73,63 @@ def test_legacy_tool_ignore_still_filters_copies_and_replacements(
     assert (linked / "node_modules" / "leaked.js").is_file()
 
 
+@pytest.mark.parametrize("declaration", ["none", "legacy", "deno"])
+def test_tool_bytecode_exclusions_are_defaults(tmp_path: Path, declaration: str) -> None:
+    source_root = tmp_path / "source"
+    source = source_root / "example"
+    (source / "nested").mkdir(parents=True)
+    retained = ["main.ts", "nested/helper.py", "data.pyc.txt", "pyproject.toml"]
+    excluded = [
+        "__pycache__/main.cpython-312.pyc",
+        "nested/__pycache__/helper.cpython-312.pyc",
+        "main.pyc",
+        "nested/helper.pyc",
+        "main.pyo",
+        "nested/helper.pyo",
+    ]
+    for name in retained + excluded:
+        path = source / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("fixture\n")
+    if declaration == "legacy":
+        (source / ".automataignore").write_text("# No bytecode rules needed\nother-output\n")
+        (source / "other-output").write_text("generated\n")
+    elif declaration == "deno":
+        (source / "deno.json").write_text('{"exports":"./main.ts","publish":{"include":["."]}}\n')
+        # Deno selection still takes precedence over legacy ignore declarations.
+        (source / ".automataignore").write_text("nested\n")
+
+    target_root = tmp_path / "copies"
+    installed = target_root / "example"
+    for mode in ("copy", "replace"):
+        if mode == "replace":
+            (installed / "stale.pyc").write_text("stale\n")
+        install_tools(
+            source_root=source_root,
+            target_root=target_root,
+            tool_names=["example"],
+            mode=mode,
+        )
+        for name in retained:
+            assert (installed / name).is_file(), name
+        for name in excluded + ["__pycache__", "nested/__pycache__", "stale.pyc"]:
+            assert not (installed / name).exists(), name
+        if declaration == "legacy":
+            assert not (installed / "other-output").exists()
+
+    install_tools(
+        source_root=source_root,
+        target_root=tmp_path / "links",
+        tool_names=["example"],
+        mode="symlink",
+    )
+    linked = tmp_path / "links/example"
+    assert linked.is_symlink()
+    for name in retained + excluded:
+        assert (linked / name).is_file(), name
+        assert (source / name).is_file(), name
+
+
 def test_install_tools_copies_bundled_agent_browser_bridge(tmp_path: Path) -> None:
     target_root = tmp_path / ".agents" / "tools"
 
