@@ -36,7 +36,7 @@ REQUIRED_SKILLS = {
     "automata-skill-design",
     "automata-setup",
     "automata-timer",
-    "automata-agent-data",
+    "automata-storage",
     "automata-agent-evaluation",
     "automata-communication",
     "automata-goal",
@@ -52,6 +52,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-agent-data",
     "automata-javascript",
     "automata-python",
     "automata-worklog",

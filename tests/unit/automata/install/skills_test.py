@@ -60,15 +60,14 @@ def test_list_skill_dirs_rejects_duplicate_names(tmp_path: Path) -> None:
         list_skill_dirs(source_root)
 
 
-def test_install_skills_copies_bundled_agent_data_skill(tmp_path: Path) -> None:
-    from automata.install.skills import install_skills
-
+def test_install_skills_copies_bundled_storage_skill(tmp_path: Path) -> None:
     target_root = tmp_path / "dest"
 
-    results = install_skills(target_root=target_root, skill_names=["automata-agent-data"])
+    results = install_skills(target_root=target_root, skill_names=["automata-storage"])
 
-    assert [result.name for result in results] == ["automata-agent-data"]
-    assert (target_root / "automata-agent-data" / "SKILL.md").is_file()
+    assert [result.name for result in results] == ["automata-storage"]
+    assert (target_root / "automata-storage" / "SKILL.md").is_file()
+    assert not (target_root / "automata-agent-data").exists()
 
 
 def test_install_skills_copies_bundled_agent_evaluation_support(tmp_path: Path) -> None:

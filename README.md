@@ -46,6 +46,18 @@ Its purpose and assessment guidance live directly in
 [`SKILL.md`](src/automata/skills/skill-ops/automata-capability-research/SKILL.md),
 without a separate goal document or runtime notes.
 
+## Storage
+
+[`automata-storage`](src/automata/skills/core/automata-storage/SKILL.md) guides
+placement, ownership, retention, and cleanup of capability-owned operational data
+and work-owned artifacts. It retains `.agents/var/skills/`, `.agents/var/tools/`,
+and the `.agents/var/workspace/<task-name>/` fallback; no separate workspace skill
+or data migration is required.
+
+This replaces the `automata-agent-data` skill name. Installers do not automatically
+remove old installed names; retire the old skill package during an authorized sync,
+without removing its operational data.
+
 ## Usage
 
 List packaged character components:
