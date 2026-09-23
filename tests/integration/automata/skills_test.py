@@ -41,7 +41,7 @@ REQUIRED_SKILLS = {
     "automata-goal",
     "automata-pc-ui-control",
     "automata-plain-text-writing",
-    "automata-runtime-status",
+    "automata-runtime-environment",
     "automata-software-development",
     "automata-stateful-workflow",
     "automata-tmux-background",
@@ -51,6 +51,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-runtime-status",
     "automata-jev",
     "automata-agent-data",
     "automata-javascript",

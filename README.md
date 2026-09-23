@@ -46,6 +46,20 @@ Its purpose and assessment guidance live directly in
 [`SKILL.md`](src/automata/skills/skill-ops/automata-capability-research/SKILL.md),
 without a separate goal document or runtime notes.
 
+## Runtime environment discovery
+
+[`automata-runtime-environment`](src/automata/skills/core/automata-runtime-environment/SKILL.md)
+helps an agent discover only the runtime and execution-environment facts needed
+for its task. It supports unfamiliar harnesses through targeted evidence and
+retains useful verified inspection recipes outside the package, revalidating
+changeable assumptions on later use. Active observations, configured defaults,
+and user preferences remain distinct; inspection does not authorize changes.
+
+This replaces `automata-runtime-status` and retains active provider/model/thinking
+verification within the broader scope. Installers do not automatically remove old
+installed names; retire the old skill package during an authorized sync without
+removing operational data. Existing installations are not migrated automatically.
+
 ## Storage
 
 [`automata-storage`](src/automata/skills/core/automata-storage/SKILL.md) guides

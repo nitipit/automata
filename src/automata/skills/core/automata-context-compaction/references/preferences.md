@@ -5,8 +5,8 @@ every compaction call. Use the preference paths and precedence in `SKILL.md`.
 
 ## Evaluate the choice
 
-Verify current provider/model/thinking through runtime-status. Inspect both models'
-runtime-advertised limits and effective Pi compaction settings. Discuss cost,
+Verify the active provider, model, and thinking level from current runtime evidence.
+Inspect both models' runtime-advertised limits and effective Pi compaction settings. Discuss cost,
 summary quality and input/output headroom; a smaller summarizer may need earlier
 compaction. Lower price does not prove fit, and budget preflight is heuristic.
 
