@@ -12,6 +12,17 @@ def test_install_pi_extensions_copies_bundled_codex_bridge(tmp_path: Path) -> No
     assert (target_root / "codex-bridge.ts").is_file()
 
 
+def test_install_pi_extensions_copies_bundled_skill_activity(tmp_path: Path) -> None:
+    target_root = tmp_path / ".pi/extensions"
+    results = install_pi_extensions(target_root=target_root, extension_names=["skill-activity"])
+
+    assert [result.name for result in results] == ["skill-activity"]
+    for name in ("index.ts", "store.py", "README.md"):
+        installed = target_root / "skill-activity" / name
+        assert installed.read_bytes() == (Path(results[0].source) / name).read_bytes()
+    assert not (tmp_path / ".agents").exists()
+
+
 def test_install_pi_extensions_copies_bundled_context_status(tmp_path: Path) -> None:
     target_root = tmp_path / ".pi" / "extensions"
 

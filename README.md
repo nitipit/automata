@@ -253,6 +253,26 @@ raster-image generation to the native Codex image-generation capability and
 copies the saved image into the workspace. It does not expose a general-purpose
 Codex task runner.
 
+Install the skill-load recorder globally, with its skill in repository and global catalogs:
+
+```bash
+uv run automata pi-extension install \
+  --target-root ~/.pi/agent/extensions --extension skill-activity --mode copy
+uv run automata skills install \
+  --target-root .agents/skills --skill automata-skill-activity --mode copy
+uv run automata skills install \
+  --target-root ~/.agents/skills --skill automata-skill-activity --mode copy
+uv run --no-project --script ~/.pi/agent/extensions/skill-activity/store.py --help
+```
+
+After `/reload` or a fresh session, `skill-activity` observes complete `SKILL.md`
+reads and records metadata in local ShelfDB storage, validated by Dictify.
+The bundled CLI provides only `record` and `list`; it is not a general database API.
+No instruction bodies or conversations are stored. Dependency preparation may
+need downloads; the observer itself runs offline. See the
+[skill-activity skill](src/automata/skills/skill-ops/automata-skill-activity/SKILL.md)
+for discoverable query guidance, the data contract, and coverage limits.
+
 Install the context-status runtime extension:
 
 ```bash

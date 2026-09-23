@@ -27,6 +27,7 @@ REQUIRED_SKILLS = {
     "automata-context-status",
     "automata-context-compaction",
     "automata-pi-sessions",
+    "automata-skill-activity",
     "automata-delegation",
     "automata-cue",
     "automata-time-awareness",
