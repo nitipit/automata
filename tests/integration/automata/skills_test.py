@@ -17,7 +17,6 @@ REQUIRED_SKILLS = {
     "automata-agents-md",
     "automata-agent-design",
     "automata-capability-research",
-    "automata-jev",
     "automata-work-design",
     "automata-adaptive-ui",
     "automata-browser-use",
@@ -52,6 +51,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-jev",
     "automata-agent-data",
     "automata-javascript",
     "automata-python",
@@ -103,7 +103,6 @@ def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
         "automata-agent-router": ".agents/tools/agent-router/agent_router.py",
         "automata-timer": ".agents/tools/timer/timer.py",
         "automata-line-use": ".agents/tools/line/line.py",
-        "automata-jev": ".agents/tools/jev/jev.py",
         "automata-tmux-communication": ".agents/tools/tmux-message/tmux_message.py",
     }
     for path in SKILL_FILES:

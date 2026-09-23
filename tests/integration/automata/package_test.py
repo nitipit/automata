@@ -15,13 +15,18 @@ def test_package_includes_self_documenting_python_tools() -> None:
         package_root.joinpath("timer", "timer.py"),
         package_root.joinpath("tmux-message", "tmux_message.py"),
         package_root.joinpath("line", "line.py"),
-        package_root.joinpath("jev", "jev.py"),
     )
 
     for script in scripts:
         assert script.is_file()
         assert "from cyclopts import" in script.read_text()
         assert not script.parent.joinpath("README.md").is_file()
+
+
+def test_package_excludes_removed_jev_capability() -> None:
+    package_root = files("automata")
+    assert not package_root.joinpath("tools", "jev").exists()
+    assert not package_root.joinpath("skills", "operations", "automata-jev").exists()
 
 
 def adaptive_ui_source():
