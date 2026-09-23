@@ -54,8 +54,8 @@ compaction or the tool's omitted-argument behavior.
 ## Preserve continuity
 
 Update existing authorized task state with missing goal, constraints, decisions,
-validation, ownership, pending evidence, cleanup obligations, blockers, relevant
-worktree changes and next action. Avoid transcripts, raw traces or secrets; do not
+validation, ownership, pending evidence, cleanup obligations, blockers,
+unfinished work and next action. Avoid transcripts, raw traces or secrets; do not
 create records solely for compaction or broaden persistence without approval.
 
 Supply brief `customInstructions` identifying what must survive, not a replacement

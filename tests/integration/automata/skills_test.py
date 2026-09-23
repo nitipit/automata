@@ -39,6 +39,7 @@ REQUIRED_SKILLS = {
     "automata-agent-evaluation",
     "automata-communication",
     "automata-goal",
+    "automata-git-worktree",
     "automata-pc-ui-control",
     "automata-plain-text-writing",
     "automata-runtime-environment",

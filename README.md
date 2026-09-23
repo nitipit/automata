@@ -60,6 +60,16 @@ verification within the broader scope. Installers do not automatically remove ol
 installed names; retire the old skill package during an authorized sync without
 removing operational data. Existing installations are not migrated automatically.
 
+## Git worktrees
+
+[`automata-git-worktree`](src/automata/skills/development/automata-git-worktree/SKILL.md)
+guides task-owned checkout isolation, placement, reuse, integration and safe
+retirement. It follows established location conventions, checks whether a nested
+task workspace is safe, and retains useful setup recipes outside the package.
+Worktrees share Git state and are not security sandboxes. Creation does not grant
+permission to publish changes or delete work; cleanup accounts for active users,
+ignored files and unpreserved commits. Ordinary coding needs no worktree ceremony.
+
 ## Storage
 
 [`automata-storage`](src/automata/skills/core/automata-storage/SKILL.md) guides
