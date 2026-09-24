@@ -305,8 +305,11 @@ uv run automata pi-extension install \
 
 `context-status` exposes `/context-status` and the agent-callable
 `context_status` tool. It reports runtime context usage, model window, pressure,
-elapsed time, the input anchor, and provider-reported model usage. It emits
-factual hidden agent signals when meaningful time or pressure observations change.
+elapsed time, the input anchor, and provider-reported model usage. Temporary
+pressure reminders reach the next model request at 75%, 80%, 85%, 90%, and 95%,
+with a moderate observation at 50%. They are deduplicated across user inputs and
+rearmed after successful compaction or context identity changes. Elapsed-time
+observations remain queued after the run settles. Signals do not run compaction.
 
 Install intentional context-compaction guidance and its native Pi extension:
 

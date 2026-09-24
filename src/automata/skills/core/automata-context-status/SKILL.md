@@ -23,8 +23,17 @@ would inform the next step; do not call it merely to acknowledge a new run or si
 - Assistant messages contribute provider-reported input, output, cache, and total usage after
   the latest input anchor. Tool results, hidden signals, summaries, and other non-input entries
   do not reset the anchor.
-- The runtime evaluates ten-minute time thresholds and the 50%, 75%, and 90% pressure bands at
-  safe runtime boundaries, without polling or mid-stream injection.
+- Before each model request, the runtime checks pressure and injects a temporary reminder
+  at 75%, 80%, 85%, 90%, and 95%; the 50% moderate-pressure observation is also retained.
+  A jump produces one current reminder, not a backlog of crossed thresholds. The first
+  request after loading can report pressure already above a threshold.
+- Pressure reminders are deduplicated across user inputs. Successful compaction, session
+  changes, reload, or a changed effective model/window rearm them; ordinary fluctuations,
+  unknown readings and failed/cancelled compaction do not. Unknown usage produces no reminder.
+  These request-local messages do not accumulate in session history or start agent turns.
+- Ten-minute elapsed-time observations still coalesce at safe runtime boundaries and are
+  queued after the run settles for a subsequent turn. Neither signal path polls or injects
+  into a streaming response.
 - `context_status` reports the same context, pressure, elapsed-time, input-anchor, and model-
   usage fields that appear in runtime signals.
 
@@ -38,9 +47,11 @@ would inform the next step; do not call it merely to acknowledge a new run or si
 
 ## Signal received
 
-A hidden context signal provides factual status and the change that triggered it. It is not a
-request, command, or ownership change. Use the included status and evidence to understand the
-current runtime context; decide any next action from the task and other applicable guidance.
+A hidden context signal provides factual status and the threshold that triggered it.
+High-pressure reminders call attention to a stable compaction boundary; at 90%+ they express
+stronger urgency. They do not run compaction or replace its applicable policy and preferences.
+Decide the next safe action from the task and that guidance, without interrupting unfinished
+operations or treating an observation as new authority.
 
 Signals do not automatically delegate, stop, or change ownership. Delegation still requires
 the assigned caller or owner's approval and return path.
