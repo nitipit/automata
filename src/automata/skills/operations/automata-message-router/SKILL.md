@@ -1,11 +1,11 @@
 ---
-name: automata-agent-router
+name: automata-message-router
 description: Use when establishing or recovering authorized JSON messaging between browser pages and agent sessions, including targeted page-to-page and agent-to-agent routes.
 metadata:
-  automata-tools: .agents/tools/agent-router/agent_router.py
+  automata-tools: .agents/tools/message-router/message_router.py
 ---
 
-# Automata Agent Router
+# Automata Message Router
 
 Connect the intended participants, verify targeted delivery, and recover or close
 connections without confusing transport state with application outcomes.
@@ -19,11 +19,11 @@ Use the mapped tool's `--help` for commands and its browser API documentation fo
 integration; reuse the shipped client and server rather than regenerating them.
 
 ```bash
-uv run --offline --no-project --script .agents/tools/agent-router/agent_router.py --help
+uv run --offline --no-project --script .agents/tools/message-router/message_router.py --help
 ```
 
 `setup` provisions private participant credentials and directed grants; `serve`
-starts the listener. Neither launches an agent. In Pi, `agent_router` opens the
+starts the listener. Neither launches an agent. In Pi, `message_router` opens the
 intended agent credential with the current session. Use explicit participant IDs
 and destinations, not page directories or whichever agent happens to be online.
 Static hosting is optional and independent of Adaptive UI; serve only public-safe

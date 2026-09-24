@@ -22,7 +22,7 @@ REQUIRED_SKILLS = {
     "automata-adaptive-ui",
     "automata-browser-use",
     "automata-line-use",
-    "automata-agent-router",
+    "automata-message-router",
     "automata-codex-imagegen",
     "automata-question",
     "automata-context-status",
@@ -55,6 +55,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-agent-router",
     "automata-runtime-status",
     "automata-jev",
     "automata-agent-data",
@@ -105,7 +106,7 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
 
 def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
     expected = {
-        "automata-agent-router": ".agents/tools/agent-router/agent_router.py",
+        "automata-message-router": ".agents/tools/message-router/message_router.py",
         "automata-timer": ".agents/tools/timer/timer.py",
         "automata-line-use": ".agents/tools/line/line.py",
         "automata-tmux-communication": ".agents/tools/tmux-message/tmux_message.py",

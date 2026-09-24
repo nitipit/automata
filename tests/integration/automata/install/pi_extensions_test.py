@@ -42,14 +42,15 @@ def test_install_pi_extensions_copies_bundled_context_compaction(tmp_path: Path)
     assert (target_root / "context-compaction.ts").is_file()
 
 
-def test_install_pi_extensions_copies_bundled_agent_browser_bridge(tmp_path: Path) -> None:
+def test_install_pi_extensions_copies_bundled_message_router(tmp_path: Path) -> None:
     target_root = tmp_path / ".pi" / "extensions"
 
-    results = install_pi_extensions(target_root=target_root, extension_names=["agent-router"])
+    results = install_pi_extensions(target_root=target_root, extension_names=["message-router"])
 
-    assert [result.name for result in results] == ["agent-router"]
+    assert [result.name for result in results] == ["message-router"]
     for file in ("index.ts", "transport.ts", "protocol.ts"):
-        assert (target_root / "agent-router" / file).is_file()
+        assert (target_root / "message-router" / file).is_file()
+    assert not (target_root / "agent-router").exists()
     assert not (target_root / "agent-browser-bridge.ts").exists()
     assert not (tmp_path / ".agents" / "var").exists()
 

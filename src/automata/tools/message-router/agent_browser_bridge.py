@@ -3,7 +3,7 @@
 # requires-python = ">=3.12"
 # dependencies = ["cyclopts>=4.11.1", "uvicorn>=0.30.0", "websockets>=12.0"]
 # ///
-"""Version-one CLI compatibility entry; install it as part of agent-router."""
+"""Version-one CLI compatibility entry; install it as part of message-router."""
 
 import sys
 from pathlib import Path
@@ -34,7 +34,8 @@ def setup(
 
 
 app = App(
-    name="agent-browser-bridge", help="Explicit v1 single-pair compatibility; prefer agent-router."
+    name="agent-browser-bridge",
+    help="Explicit v1 single-pair compatibility; prefer message-router.",
 )
 app.command(setup)
 app.command(legacy_serve, name="serve")

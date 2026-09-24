@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import signal
 import socket
@@ -31,7 +32,7 @@ def test_browser_client_contracts():
         [
             node,
             "--test",
-            str(Path(__file__).with_name("agent_router_client_test.mjs")),
+            str(Path(__file__).with_name("message_router_client_test.mjs")),
             str(Path(__file__).with_name("agent_browser_bridge_client_test.mjs")),
         ],
         capture_output=True,
@@ -41,14 +42,65 @@ def test_browser_client_contracts():
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+@pytest.mark.parametrize("selection", ["default", "old-env", "new-env", "both"])
+def test_renamed_cli_preserves_state_and_environment_precedence(tmp_path, selection):
+    uv = shutil.which("uv")
+    if not uv:
+        pytest.skip("uv is required")
+    tool_root = tmp_path / "tools"
+    install_tools(target_root=tool_root, tool_names=["message-router"])
+    cli = [uv, "run", "--offline", "--no-project", "--script",
+           str(tool_root / "message-router/message_router.py")]
+    env = {key: value for key, value in os.environ.items() if key not in {
+        "AUTOMATA_MESSAGE_ROUTER_STATE", "AUTOMATA_AGENT_ROUTER_STATE",
+    }}
+    expected = tmp_path / ".agents/var/tools/agent-router"
+    if selection in {"old-env", "both"}:
+        expected = tmp_path / "old-state"
+        env["AUTOMATA_AGENT_ROUTER_STATE"] = str(expected)
+    if selection in {"new-env", "both"}:
+        expected = tmp_path / "new-state"
+        env["AUTOMATA_MESSAGE_ROUTER_STATE"] = str(expected)
+
+    def run(*arguments):
+        return subprocess.run(
+            [*cli, *arguments], cwd=tmp_path, env=env,
+            capture_output=True, text=True, timeout=30,
+        )
+
+    help_result = run("--help")
+    assert help_result.returncode == 0, help_result.stderr
+    assert "message-router" in help_result.stdout
+    setup = run("setup")
+    assert setup.returncode == 0, setup.stdout + setup.stderr
+    config = expected / "config.json"
+    original = config.read_bytes()
+    assert config.stat().st_mode & 0o777 == 0o600
+    again = run("setup")
+    assert again.returncode != 0
+    assert config.read_bytes() == original  # No second identity or credential rotation.
+    assert not (tmp_path / ".agents/var/tools/message-router").exists()
+    if selection == "both":
+        assert not (tmp_path / "old-state").exists()
+    status = run("status")
+    assert status.returncode == 0, status.stderr
+    record = json.loads(status.stdout)
+    assert record["status"] == "stopped"
+    assert (tmp_path / record["endpoint"]).resolve() == expected / "endpoints/server.json"
+    explicit = tmp_path / "explicit-config.json"
+    assert run("setup", "--config-file", str(explicit)).returncode == 0
+    assert explicit.is_file()
+    assert config.read_bytes() == original
+
+
 def test_installed_router_without_ui_and_private_static_boundaries(tmp_path):
     websocket = pytest.importorskip("websocket")
     uv = shutil.which("uv")
     if not uv:
         pytest.skip("uv is required")
     tool_root = tmp_path / "tools"
-    install_tools(target_root=tool_root, tool_names=["agent-router"])
-    entry = tool_root / "agent-router/agent_router.py"
+    install_tools(target_root=tool_root, tool_names=["message-router"])
+    entry = tool_root / "message-router/message_router.py"
     cli = [uv, "run", "--offline", "--no-project", "--script", str(entry)]
     private = tmp_path / "private"
     config = private / "config.json"
@@ -214,8 +266,8 @@ def test_installed_router_without_ui_and_private_static_boundaries(tmp_path):
                 result = subprocess.run(
                     [
                         node,
-                        str(Path(__file__).with_name("agent_router_native_client.mjs")),
-                        str(tool_root / "agent-router/browser/client.js"),
+                        str(Path(__file__).with_name("message_router_native_client.mjs")),
+                        str(tool_root / "message-router/browser/client.js"),
                         str(endpoints),
                     ],
                     capture_output=True,

@@ -2,15 +2,18 @@
  * Credentials identify this page; `to` explicitly selects one authorized Pi participant.
  * The legacy callback/sendMessage API is retained, but v2 request IDs and Pi route IDs differ.
  */
-import {createAgentRouterClient} from './client.js';
+import {createMessageRouterClient} from './client.js';
 import {validateDelivery, requireId} from './protocol.js';
 
-export function createAgentRouterChatClient({to, onMessage = () => {}, onState = () => {},
+/** @deprecated Use createMessageRouterChatClient; retained for existing page integrations. */
+export {createMessageRouterChatClient as createAgentRouterChatClient};
+
+export function createMessageRouterChatClient({to, onMessage = () => {}, onState = () => {},
                                             onDelivery = () => {}, WebSocketImpl} = {}) {
   requireId(to, 'Pi destination');
   let pendingId;
   const contexts = new Set();
-  const router = createAgentRouterClient({WebSocketImpl,onState});
+  const router = createMessageRouterClient({WebSocketImpl,onState});
 
   function submit(payload, metadata, context) {
     if (context && contexts.size >= 32) throw new Error('Context request capacity reached');

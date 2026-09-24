@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {createAgentRouterClient} from '../../../../src/automata/tools/agent-router/browser/client.js';
+import {createMessageRouterClient, createAgentRouterClient} from '../../../../src/automata/tools/message-router/browser/client.js';
+import {createMessageRouterChatClient, createAgentRouterChatClient} from '../../../../src/automata/tools/message-router/browser/pi-client.js';
+
+test('old browser exports are aliases of the canonical message-router factories', () => {
+  assert.equal(createAgentRouterClient, createMessageRouterClient);
+  assert.equal(createAgentRouterChatClient, createMessageRouterChatClient);
+});
 
 class Socket {
   static all = [];
@@ -23,7 +29,7 @@ function acknowledge(socket, packet, fields = {}) {
 
 test('response before route acknowledgment, final claim, and no replay across reconnect', async () => {
   const responses = [], messages = [];
-  const client = createAgentRouterClient({WebSocketImpl:Socket,onResponse:p=>responses.push(p),onMessage:p=>messages.push(p)});
+  const client = createMessageRouterClient({WebSocketImpl:Socket,onResponse:p=>responses.push(p),onMessage:p=>messages.push(p)});
   await client.connect(credentials);
   const socket = Socket.all.at(-1);
   socket.handle = packet => {
@@ -54,7 +60,7 @@ test('response before route acknowledgment, final claim, and no replay across re
 
 test('uncertain transport and forged sender/correlation close without resending', async () => {
   const responses = [];
-  const client = createAgentRouterClient({WebSocketImpl:Socket,onResponse:p=>responses.push(p)});
+  const client = createMessageRouterClient({WebSocketImpl:Socket,onResponse:p=>responses.push(p)});
   await client.connect(credentials);
   const socket = Socket.all.at(-1);
   socket.handle = packet => acknowledge(socket, packet, {routeId:'pending'});
@@ -69,7 +75,7 @@ test('uncertain transport and forged sender/correlation close without resending'
 
 test('intermediate application receipts and cancellation release bounded correlation', async () => {
   const responses = [];
-  const client = createAgentRouterClient({WebSocketImpl:Socket,onResponse:p=>responses.push(p)});
+  const client = createMessageRouterClient({WebSocketImpl:Socket,onResponse:p=>responses.push(p)});
   await client.connect(credentials);
   const socket = Socket.all.at(-1);
   socket.handle = packet => acknowledge(socket, packet, {routeId:packet.requestId});

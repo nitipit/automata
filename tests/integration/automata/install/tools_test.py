@@ -130,15 +130,16 @@ def test_tool_bytecode_exclusions_are_defaults(tmp_path: Path, declaration: str)
         assert (source / name).is_file(), name
 
 
-def test_install_tools_copies_bundled_agent_browser_bridge(tmp_path: Path) -> None:
+def test_install_tools_copies_bundled_message_router(tmp_path: Path) -> None:
     target_root = tmp_path / ".agents" / "tools"
 
-    results = install_tools(target_root=target_root, tool_names=["agent-router"])
+    results = install_tools(target_root=target_root, tool_names=["message-router"])
 
-    assert [result.name for result in results] == ["agent-router"]
-    installed = target_root / "agent-router"
+    assert [result.name for result in results] == ["message-router"]
+    assert not (target_root / "agent-router").exists()
+    installed = target_root / "message-router"
     for path in (
-        "agent_router.py",
+        "message_router.py",
         "agent_browser_bridge.py",
         "README.md",
         "browser/client.js",

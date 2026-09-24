@@ -26,8 +26,12 @@ from .protocol import (
 from .router import Router, validate_config
 from .server import RouterApp
 
+# Preserve the historical default: renaming the capability does not migrate credentials.
 DEFAULT_STATE_ROOT = Path(
-    os.environ.get("AUTOMATA_AGENT_ROUTER_STATE", ".agents/var/tools/agent-router")
+    os.environ.get(
+        "AUTOMATA_MESSAGE_ROUTER_STATE",
+        os.environ.get("AUTOMATA_AGENT_ROUTER_STATE", ".agents/var/tools/agent-router"),
+    )
 ).expanduser()
 
 
@@ -226,7 +230,7 @@ def legacy_serve(
     )
 
 
-app = App(name="agent-router", help="Route bounded JSON between authorized pages and agents.")
+app = App(name="message-router", help="Route bounded JSON between authorized pages and agents.")
 app.command(setup)
 app.command(serve)
 app.command(status)

@@ -4,13 +4,13 @@ import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 const [modulePath, endpoints] = process.argv.slice(2);
-const {createAgentRouterClient} = await import(pathToFileURL(modulePath));
+const {createMessageRouterClient} = await import(pathToFileURL(modulePath));
 const clients = [];
 try {
   for (const identity of ['a','b','agent']) {
     const credential = JSON.parse(readFileSync(join(endpoints,'participants',`${identity}.json`)));
     let client;
-    client = createAgentRouterClient({onMessage: async packet => {
+    client = createMessageRouterClient({onMessage: async packet => {
       await client.respond(packet.id,{handledBy:identity,echo:packet.payload});
     }});
     clients.push(client);

@@ -7,7 +7,10 @@ import {parseFrame, serializePayload, serializeMetadata, requireId, isRecord} fr
 export {createAgentBrowserBridgeClient} from './legacy-client.js';
 export {serializePayload, validateDelivery} from './protocol.js';
 
-export function createAgentRouterClient({
+/** @deprecated Use createMessageRouterClient; retained for existing page integrations. */
+export {createMessageRouterClient as createAgentRouterClient};
+
+export function createMessageRouterClient({
   WebSocketImpl = globalThis.WebSocket,
   onMessage = () => {}, onResponse = () => {}, onState = () => {},
 } = {}) {

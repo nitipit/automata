@@ -78,7 +78,7 @@ export class ControlClient {
   }
 
   request(action: string, fields: JsonRecord = {}): Promise<JsonRecord> {
-    if (this.closed) return Promise.reject(new Error("Agent router is disconnected; delivery uncertain"));
+    if (this.closed) return Promise.reject(new Error("Message router is disconnected; delivery uncertain"));
     if (this.endpoint.v !== 2) return this.rpc({type:"control",action,...fields});
     if (action === "state") return Promise.resolve({busy:isRecord(fields.payload) && fields.payload.busy});
     if (action === "open") return Promise.resolve({status:"open",participant:this.endpoint.participant});
@@ -150,7 +150,7 @@ export class ControlClient {
   close(): void {
     if (this.closed) return;
     this.closed = true;
-    this.failAll(new Error("Agent router closed; pending delivery uncertain"));
+    this.failAll(new Error("Message router closed; pending delivery uncertain"));
     for (const entry of this.outbound.values()) {
       if (!entry.final) { entry.status = "uncertain"; entry.final = true; }
     }
@@ -160,7 +160,7 @@ export class ControlClient {
   }
 
   private rpc(fields: JsonRecord, requestId = crypto.randomUUID()): Promise<JsonRecord> {
-    if (this.closed) throw new Error("Agent router is disconnected; delivery uncertain");
+    if (this.closed) throw new Error("Message router is disconnected; delivery uncertain");
     if (this.pending.size >= 64) throw new Error("Transport request capacity reached");
     const encoded = JSON.stringify({...(this.endpoint.v === 2 ? {v:2} : {}),...fields,requestId});
     if (new TextEncoder().encode(encoded).byteLength > MAX_FRAME_BYTES) throw new Error("Control frame exceeds 64 KiB");
@@ -259,18 +259,20 @@ export class ControlClient {
 
 export async function assertInstalledTool(cwd: string): Promise<void> {
   // Only the v1 compatibility path uses this historical preflight.
-  for (const root of [".agents/tools/agent-router", ".agents/tools/agent-browser-bridge"]) {
+  for (const root of [".agents/tools/message-router", ".agents/tools/agent-router", ".agents/tools/agent-browser-bridge"]) {
     try {
       for (const file of ["agent_browser_bridge.py","browser/client.js","browser/page.js"])
         if (!(await stat(resolve(cwd,root,file))).isFile()) throw new Error("Missing artifact");
       return;
     } catch { /* Check the explicitly supported legacy installation next. */ }
   }
-  throw new Error("Installed agent router/bridge artifacts are missing; install before opening a legacy binding");
+  throw new Error("Installed message router/bridge artifacts are missing; install before opening a legacy binding");
 }
 
 export async function readEndpoint(cwd: string, configuredPath?: string, legacy = false): Promise<Endpoint> {
-  const configured = configuredPath ?? (legacy ? process.env.AUTOMATA_AGENT_BROWSER_BRIDGE_ENDPOINT : process.env.AUTOMATA_AGENT_ROUTER_ENDPOINT);
+  const configured = configuredPath ?? (legacy ? process.env.AUTOMATA_AGENT_BROWSER_BRIDGE_ENDPOINT
+    : process.env.AUTOMATA_MESSAGE_ROUTER_ENDPOINT ?? process.env.AUTOMATA_AGENT_ROUTER_ENDPOINT);
+  // A public-name change must not silently switch credential/state ownership.
   const relative = legacy ? ".agents/var/tools/agent-browser-bridge/endpoint.json" : ".agents/var/tools/agent-router/endpoints/participants/agent.json";
   const path = configured ? (isAbsolute(configured) ? configured : resolve(cwd,configured)) : resolve(cwd,relative);
   try {
@@ -288,6 +290,6 @@ export async function readEndpoint(cwd: string, configuredPath?: string, legacy 
     if (typeof value.controlToken !== "string") throw new Error("Missing legacy credential");
     return {wsUrl:value.wsUrl,publicUrl:value.publicUrl.replace(/\/$/,""),controlToken:value.controlToken};
   } catch {
-    throw new Error(`Agent router endpoint unavailable at ${path}; start the intended server explicitly`);
+    throw new Error(`Message router endpoint unavailable at ${path}; start the intended server explicitly`);
   }
 }

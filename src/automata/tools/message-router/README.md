@@ -1,4 +1,4 @@
-# agent-router
+# message-router
 
 Loopback WebSocket routing between authorized pages and agents. The router owns
 identity, directed permissions and connection-bound correlation—not Chat, model
@@ -8,21 +8,21 @@ agent. No automatic reconnect, replay, durable queue or implicit destination.
 ## Setup and serve
 
 ```sh
-uv run --offline --no-project --script .agents/tools/agent-router/agent_router.py setup
-uv run --offline --no-project --script .agents/tools/agent-router/agent_router.py serve
-uv run --offline --no-project --script .agents/tools/agent-router/agent_router.py status
+uv run --offline --no-project --script .agents/tools/message-router/message_router.py setup
+uv run --offline --no-project --script .agents/tools/message-router/message_router.py serve
+uv run --offline --no-project --script .agents/tools/message-router/message_router.py status
 ```
 
 Default setup creates `page` and `agent`, with one directed `page:agent` grant.
 Custom topologies require explicit grants:
 
 ```sh
-uv run --offline --no-project --script .agents/tools/agent-router/agent_router.py setup \
+uv run --offline --no-project --script .agents/tools/message-router/message_router.py setup \
   --config-file /private/router.json \
   --page dashboard --page inspector --agent primary --agent reviewer \
   --allow dashboard:inspector --allow dashboard:primary \
   --allow primary:reviewer --allow reviewer:primary
-uv run --offline --no-project --script .agents/tools/agent-router/agent_router.py serve \
+uv run --offline --no-project --script .agents/tools/message-router/message_router.py serve \
   --config-file /private/router.json --endpoint-dir /private/endpoints --port 8787
 ```
 
@@ -38,10 +38,13 @@ Serve publishes mode-0600 records **after binding**:
 - `<endpoint-dir>/server.json`: listener/owner metadata, without participant tokens.
 - `<endpoint-dir>/participants/<id>.json`: that participant's credential and URL.
 
-Defaults are under `.agents/var/tools/agent-router/`, with configuration in
-`config.json` and endpoint records in `endpoints/`. Each shutdown removes only its
-own records, not configuration. Stale records require ownership inspection before
-removal. A fresh setup does not depend on retained operational data.
+The historical state default remains `.agents/var/tools/agent-router/`, with
+configuration in `config.json` and endpoint records in `endpoints/`; the rename
+neither migrates data nor creates a second configuration. `AUTOMATA_MESSAGE_ROUTER_STATE`
+selects another default root; `AUTOMATA_AGENT_ROUTER_STATE` remains a fallback.
+Explicit CLI paths override either. Each shutdown removes only its own records,
+not configuration. Stale records require ownership inspection before removal.
+A fresh setup does not depend on retained operational data.
 
 Static hosting is optional: `--public-root /path/to/public-safe-files` mounts that
 directory at `/`. There is no required directory name or Adaptive UI dependency.
@@ -57,13 +60,13 @@ but still require credentials. The listener binds only `127.0.0.1`.
 
 ## Browser / Node client
 
-Import `createAgentRouterClient` from `browser/client.js` (or `/assets/client.js`
+Import `createMessageRouterClient` from `browser/client.js` (or `/assets/client.js`
 when served here). Provide the intended participant's credential out of band;
 never embed credentials in public assets or fetch private endpoint files through
 the static server. Do not give a page an agent's credential or the master config.
 
 ```js
-const client = createAgentRouterClient({
+const client = createMessageRouterClient({
   onMessage: async message => {
     render(message.payload); // component-owned handling, not routing policy
     if (message.expectReply) await client.respond(message.id, {handled: true});
@@ -99,11 +102,15 @@ silently discards next-prompt context; inspect/cancel/close bounded pending work
 
 ## Pi adapter and Chat
 
-Install the `agent-router` Pi extension bundle. `agent_router` is the primary tool;
-`agent_browser_bridge` remains a compatibility alias sharing the same state.
+Install the `message-router` Pi extension bundle. `message_router` is the primary
+tool; `agent_router` and `agent_browser_bridge` remain compatibility aliases sharing
+one adapter and binding. Only the primary name is exposed by default; explicitly
+selected compatibility-only tool sets remain supported.
 
 - `open`: optional `endpoint` selects a private **agent** credential file. Defaults
-  to `AUTOMATA_AGENT_ROUTER_ENDPOINT`, then the default `agent.json` endpoint.
+  to `AUTOMATA_MESSAGE_ROUTER_ENDPOINT`, then `AUTOMATA_AGENT_ROUTER_ENDPOINT`, then
+  the historical `.agents/var/tools/agent-router/endpoints/participants/agent.json`.
+  A failed explicit selection never falls back to another credential.
   It binds the current Pi session; it never starts a server or another agent.
 - `route`: explicit `to`, complete `payload`, optional Pi `delivery` options. Returns
   an outgoing id after transport acknowledgment, not a model/peer answer.
@@ -117,7 +124,7 @@ Install the `agent-router` Pi extension bundle. `agent_router` is the primary to
   and lifecycle. Session switch, fork, tree navigation, reload or exit invalidates
   the binding and ephemeral context; late replies cannot bind to replacements.
 
-`browser/pi-client.js` exports `createAgentRouterChatClient({to,onMessage,onState,
+`browser/pi-client.js` exports `createMessageRouterChatClient({to,onMessage,onState,
 onDelivery})`. Connect with the **page** credential. It retains `sendMessage`,
 `inspectContext`, `clearContext`, reply callbacks and Pi delivery options from the
 [existing Chat contract](LEGACY.md#delivery-options-and-buffered-context). Initial
@@ -135,12 +142,19 @@ recreate invalidated reply channels or retract already admitted historical data.
 
 ## Migration and implementation boundaries
 
-- Canonical tool/skill/extension names are `agent-router`, `automata-agent-router`,
-  and `agent-router/` respectively. The installer supports Pi's native `index.ts`
-  bundles as well as existing single-file extensions.
-- Do not load the old `agent-browser-bridge.ts` alongside the new extension: both
-  would register the compatibility tool name. Inspect local changes and remove
-  the old installation only within an approved migration. No automatic uninstall.
+- Canonical tool/skill/extension names are `message-router`, `automata-message-router`,
+  and `message-router/` respectively; CLI entry is `message_router.py`. The installer
+  supports Pi's native `index.ts` bundles as well as existing single-file extensions.
+- Do not load `agent-router/` or the older `agent-browser-bridge.ts` alongside the
+  new extension: they register overlapping tool names. During an authorized sync,
+  inspect local changes, retire old installed packages, install the renamed ones,
+  then reload Pi or start a fresh session. Installers do not uninstall old names.
+  Reload discards in-memory bindings and pending context; do not replay messages.
+- Existing browser imports `createAgentRouterClient` and `createAgentRouterChatClient`
+  remain aliases of the renamed exports. Wire protocols, grants, endpoint formats,
+  and state locations are unchanged. No credential rotation or automatic migration.
+  Saved recipes may still live under the old owner name; update command paths when
+  revalidating them, without moving or deleting their data merely for this rename.
 - Existing v1 browser clients can use the explicitly selected `legacy-serve`
   command or the bundled `agent_browser_bridge.py serve` entry. See [LEGACY.md](LEGACY.md).
   They cannot speak v2 merely by changing their URL; upgrade credentials/client

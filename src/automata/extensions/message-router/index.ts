@@ -209,9 +209,10 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_start", (_event, ctx) => {
     invalidate();
     const active = pi.getActiveTools();
-    // Preserve an explicitly selected legacy-only tool set; otherwise expose one name.
-    if (!(active.includes("agent_browser_bridge") && !active.includes("agent_router")))
-      pi.setActiveTools([...new Set([...active.filter(name => name !== "agent_browser_bridge"), "agent_router"])]);
+    // Preserve an explicitly selected compatibility-only tool set; otherwise expose one name.
+    const aliases = ["agent_router", "agent_browser_bridge"];
+    if (active.includes("message_router") || !aliases.some(name => active.includes(name)))
+      pi.setActiveTools([...new Set([...active.filter(name => !aliases.includes(name)), "message_router"])]);
     sessionContext = ctx;
     boundSessionId = ctx.sessionManager.getSessionId();
   });
@@ -237,10 +238,10 @@ export default function (pi: ExtensionAPI) {
     void client?.request("state", { payload: { busy: false } }).catch(() => undefined);
   });
 
-  // One shared adapter/state; the old name stays callable for session compatibility.
-  for (const toolName of ["agent_router", "agent_browser_bridge"]) pi.registerTool({
+  // One shared adapter/state; old names stay callable for session compatibility.
+  for (const toolName of ["message_router", "agent_router", "agent_browser_bridge"]) pi.registerTool({
     name: toolName,
-    label: toolName === "agent_router" ? "Agent Router" : "Agent Browser Bridge",
+    label: toolName === "agent_browser_bridge" ? "Agent Browser Bridge" : "Message Router",
     description: "Exchange bounded JSON with authorized pages and agents. Route explicitly, receive asynchronous replies, or answer the exact pending inbound message. Supports Pi user/context delivery and session-local nextTurn buffers.",
     promptSnippet: "Route JSON between authorized pages and agents",
     promptGuidelines: [
@@ -386,7 +387,7 @@ export default function (pi: ExtensionAPI) {
     },
     renderCall(args, theme, _context) {
       let text = theme.fg("toolTitle", theme.bold(`${toolName} `)) + theme.fg("muted", displayJson(args.action));
-      if (args.action === "send") text += toolName === "agent_router" ? ' direction="pi-to-peer"' : ' direction="pi-to-browser"';
+      if (args.action === "send") text += toolName === "agent_browser_bridge" ? ' direction="pi-to-browser"' : ' direction="pi-to-peer"';
       if (args.replyTo) text += ` ${theme.fg("accent", `replyTo=${displayJson(args.replyTo)}`)}`;
       if (hasOwn(args, "payload")) text += `\n${theme.fg("text", `payload=${displayJson(args.payload)}`)}`;
       if (args.reason) text += `\n${theme.fg("muted", `reason=${displayJson(args.reason)}`)}`;

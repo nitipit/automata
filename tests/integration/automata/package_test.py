@@ -101,14 +101,16 @@ def test_package_excludes_adaptive_ui_generated_trees_from_sdists_and_wheels() -
     ]
 
 
-def test_package_includes_agent_browser_bridge_and_chat() -> None:
+def test_package_includes_message_router_and_chat() -> None:
     package_root = files("automata")
     for name in ("index.ts", "transport.ts", "protocol.ts"):
-        assert package_root.joinpath("extensions", "agent-router", name).is_file()
+        assert package_root.joinpath("extensions", "message-router", name).is_file()
+    assert not package_root.joinpath("extensions", "agent-router").exists()
+    assert not package_root.joinpath("tools", "agent-router").exists()
     assert not package_root.joinpath("extensions", "agent-browser-bridge.ts").exists()
-    tool = package_root.joinpath("tools", "agent-router")
+    tool = package_root.joinpath("tools", "message-router")
     for path in (
-        "agent_router.py",
+        "message_router.py",
         "agent_browser_bridge.py",
         "README.md",
         "LEGACY.md",
@@ -119,7 +121,7 @@ def test_package_includes_agent_browser_bridge_and_chat() -> None:
         "automata_router/server.py",
     ):
         assert tool.joinpath(path).is_file(), path
-    skill = package_root.joinpath("skills", "operations", "automata-agent-router", "SKILL.md")
+    skill = package_root.joinpath("skills", "operations", "automata-message-router", "SKILL.md")
     assert skill.is_file()
     components = adaptive_ui_source().joinpath("src", "ui", "_components")
     for path in ("chat.ts", "chat.schema.ts"):

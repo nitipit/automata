@@ -386,8 +386,11 @@ the agent; the tool does not detect sessions open in another process. Cleanup
 uses recoverable trash only and never falls back to permanent deletion.
 
 For authorized page-to-page, page-to-agent, and agent-to-agent JSON messaging,
-see [agent-router](src/automata/tools/agent-router/README.md). Its Pi extension uses
-a native `index.ts` bundle; existing single-file extensions remain supported.
+see [message-router](src/automata/tools/message-router/README.md), with Pi tool
+`message_router` and skill `automata-message-router`. Its Pi extension uses a native
+`index.ts` bundle; existing single-file extensions remain supported. This replaces
+the `agent-router` package name, not its stored data. Retire the old extension during
+an authorized sync rather than loading both; see the router's migration notes.
 
 Use `--source-root <path>` to install skills, tools, or Pi extensions from a different
 local source root.

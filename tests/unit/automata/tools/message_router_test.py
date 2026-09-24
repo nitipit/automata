@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parents[4] / "src/automata/tools/agent-router"))
+sys.path.insert(0, str(Path(__file__).parents[4] / "src/automata/tools/message-router"))
 from automata_router.protocol import Connection  # noqa: E402
 from automata_router.router import Router, validate_config  # noqa: E402
 

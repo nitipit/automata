@@ -5,11 +5,10 @@ import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
 const root = process.env.AGENT_BROWSER_BRIDGE_TEST_ROOT;
-const endpoints = process.env.AGENT_ROUTER_ENDPOINTS;
-const moduleRoot = process.env.AGENT_ROUTER_BROWSER;
-const {default:register} = await import(pathToFileURL(join(root,'agent-router/index.ts')));
-const {createAgentRouterChatClient} = await import(pathToFileURL(join(moduleRoot,'pi-client.js')));
-const {createAgentRouterClient} = await import(pathToFileURL(join(moduleRoot,'client.js')));
+const endpoints = process.env.MESSAGE_ROUTER_ENDPOINTS;
+const moduleRoot = process.env.MESSAGE_ROUTER_BROWSER;
+const {default:register} = await import(pathToFileURL(join(root,'message-router/index.ts')));
+const {createMessageRouterChatClient} = await import(pathToFileURL(join(moduleRoot,'pi-client.js')));
 const credential = id => JSON.parse(readFileSync(join(endpoints,'participants',id+'.json')));
 async function until(predicate) {
   for (let i=0;i<200;i++) { if (await predicate()) return; await delay(10); }
@@ -32,19 +31,23 @@ function agent(identity) {
       branch.push({type:'custom_message',...message});
     },
   });
-  const tool = tools.get('agent_router');
-  const call = params => tool.execute('test',params,undefined,undefined,ctx).then(value=>value.details);
+  const invoke = name => params => tools.get(name).execute('test',params,undefined,undefined,ctx).then(value=>value.details);
+  const call = invoke('message_router');
+  const legacyCall = invoke('agent_router');
   handlers.get('session_start')({},ctx);
-  return {handlers,ctx,users,custom,call,setIdle:value=>{idle=value;}};
+  return {handlers,ctx,users,custom,call,legacyCall,setIdle:value=>{idle=value;}};
 }
 
 const first = agent('agent'), second = agent('peer');
 const deliveriesA = [], deliveriesB = [], replies = [], states = [];
-const a = createAgentRouterChatClient({to:'agent',onDelivery:p=>deliveriesA.push(p),onMessage:p=>replies.push(p),onState:p=>states.push(p)});
-const b = createAgentRouterChatClient({to:'agent',onDelivery:p=>deliveriesB.push(p)});
+const a = createMessageRouterChatClient({to:'agent',onDelivery:p=>deliveriesA.push(p),onMessage:p=>replies.push(p),onState:p=>states.push(p)});
+const b = createMessageRouterChatClient({to:'agent',onDelivery:p=>deliveriesB.push(p)});
 try {
   await first.call({action:'open',endpoint:join(endpoints,'participants/agent.json')});
-  await second.call({action:'open',endpoint:join(endpoints,'participants/peer.json')});
+  // Compatibility name shares one binding; it cannot open a second connection.
+  assert.equal((await first.legacyCall({action:'status'})).participant,'agent');
+  await assert.rejects(first.legacyCall({action:'open',endpoint:join(endpoints,'participants/agent.json')}),/already opening or open/);
+  await second.legacyCall({action:'open',endpoint:join(endpoints,'participants/peer.json')});
   await a.connect(credential('a')); await b.connect(credential('b'));
   const sent = a.sendMessage({text:'hello',__proto__:null});
   await until(()=>first.users.length===1);
@@ -87,7 +90,7 @@ try {
   await until(()=>second.users.length===1);
   assert.match(second.users[0].content,/source="agent"\nparticipant="agent"\nsessionId="agent-session"/);
   const peerId = JSON.parse(second.users[0].content.split('\n').find(line=>line.startsWith('id=')).slice(3));
-  await second.call({action:'send',replyTo:peerId,payload:{answer:'peer'}});
+  await second.legacyCall({action:'send',replyTo:peerId,payload:{answer:'peer'}});
   await until(async()=> (await first.call({action:'status'})).outgoing.some(p=>p.id===outbound.id && p.final));
   assert.equal(first.users.length,1); // response did not start another model turn
   assert.deepEqual((await first.call({action:'receive',replyTo:outbound.id})).payload,{answer:'peer'});
