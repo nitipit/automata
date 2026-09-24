@@ -169,7 +169,13 @@ uv run --script .agents/tools/line/line.py --help
 
 LINE use currently supports Linux with an explicitly isolated Chrome profile and the user's
 own LINE login. It provides structured reads, per-consumer reading checkpoints, recoverable
-local collection, and separately authorized draft/send commands. No browser profile, login,
+local collection, and separately authorized draft/send commands. Sticker commands
+`sticker-catalog` and `prepare-sticker` inspect metadata without clicking sticker tiles;
+`send` consumes the recipient/sticker-bound token before one intentional click.
+Only observed, owned, non-effect sticker identities are supported; unfamiliar UI or
+asset shapes fail closed. Uncertain sends hold the sticker receipt for reconciliation,
+and operation-owned picker cleanup is reported separately from dispatch.
+No browser profile, login,
 chat transcript, runtime state or timer is installed. Paths resolve from the calling workspace;
 `AUTOMATA_LINE_PROFILE` and `AUTOMATA_LINE_TIMEZONE` select an isolated profile and timezone
 (default UTC). The CLI declares its optional Playwright, Cyclopts and Dictify dependencies;

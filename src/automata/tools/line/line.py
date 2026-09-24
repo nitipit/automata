@@ -311,6 +311,8 @@ class Line:
         return self.prepare(chat_id)
 
     def send(self, chat_id, token, chat=None):
+        if isinstance(token, str) and token.startswith("sticker:"):
+            return sticker_operations(self).send(chat_id, token, chat)
         state = load_state()
         require(
             state.get("token") == token and state.get("status") == "prepared",
@@ -365,7 +367,8 @@ Start Chrome with --user-data-dir=<absolute-profile-path>,
 No saved port or default-profile fallback is used. Open one LINE index page:
 chrome-extension://ophjlpahpchlmihnnnihgmmeilfjmjjc/index.html
 
-Draft tokens, profile binding and reading checkpoints: CWD/.agents/var/tools/line.
+Draft tokens, sticker receipt, profile binding and reading checkpoints:
+CWD/.agents/var/tools/line.
 Paths are workspace-relative even when this tool is globally installed/symlinked.
 A workspace is bound to one isolated profile after its first browser operation;
 use a separate workspace for another profile. Never copy login/profile/state data.
@@ -380,7 +383,9 @@ Disconnects on exit; Chrome remains open. Names are display hints only, never re
 authority. Draft and send commands require the stable --chat-id returned by chats while
 that same chat is active; an optional --chat only verifies its display name. The old
 name-only --chat contract is intentionally rejected. Use draft-mention for one native
-mention; @All is unsupported.
+mention; @All is unsupported. sticker-catalog inspects metadata; prepare-sticker never
+clicks a sticker. send accepts the returned sticker token only with explicit permission.
+Uncertain sticker receipts block fresh sticker preparation; cleanup is not rollback.
 """,
 )
 
@@ -463,6 +468,36 @@ def attach_image(*, chat_id: str, file: Path, chat: str | None = None):
         Existing local PNG path.
     """
     execute("attach-image", chat_id=chat_id, chat=chat, file=file)
+
+
+def sticker_operations(line):
+    from sticker_api import StickerOperations, verified_picker
+
+    return StickerOperations(line, STATE, verified_picker)
+
+
+@app.command
+def sticker_catalog(
+    *, chat_id: str, package_id: str | None = None, limit: int = 100, chat: str | None = None
+):
+    """Inspect bounded sticker metadata without clicking any sticker or sending.
+
+    Requires the exact active chat and an empty composer. Stops if the live
+    sticker UI adapter is not validated. Returned coverage is not a full catalog.
+    """
+    execute("sticker-catalog", chat_id=chat_id, package_id=package_id, limit=limit, chat=chat)
+
+
+@app.command
+def prepare_sticker(*, chat_id: str, package_id: str, sticker_id: str, chat: str | None = None):
+    """Prepare a recipient/sticker-bound metadata token; never click a sticker.
+
+    Select stable IDs from sticker-catalog. An uncertain sticker receipt blocks
+    new sticker preparation; never delete it to bypass reconciliation.
+    """
+    execute(
+        "prepare-sticker", chat_id=chat_id, package_id=package_id, sticker_id=sticker_id, chat=chat
+    )
 
 
 @app.command
@@ -672,6 +707,14 @@ def execute(command, **kwargs):
             output = line.mention(args.chat_id, args.member, args.text, args.chat)
         elif args.command == "attach-image":
             output = line.attach(args.chat_id, args.file, args.chat)
+        elif args.command == "sticker-catalog":
+            output = sticker_operations(line).inspect(
+                args.chat_id, args.package_id, args.limit, args.chat
+            )
+        elif args.command == "prepare-sticker":
+            output = sticker_operations(line).prepare(
+                args.chat_id, args.package_id, args.sticker_id, args.chat
+            )
         else:
             output = line.send(args.chat_id, args.token, args.chat)
         print(json.dumps(output, ensure_ascii=False))

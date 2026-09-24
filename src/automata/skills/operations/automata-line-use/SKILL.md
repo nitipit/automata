@@ -128,10 +128,37 @@ Composer clearing proves dispatch, not recipient delivery or reading. Inspect th
 conversation UI for stronger evidence before claiming either. A pause or question
 suspends mutations. Neither collected messages nor stored setup grant send authority.
 
+### Stickers
+
+Use `sticker-catalog --chat-id ID [--package-id ID] --limit 100` for bounded
+metadata and preview URLs; respect its coverage. Choose verified stable package
+and sticker IDs, never list positions or guessed names. `STICKER_UI_UNVERIFIED`
+means the live adapter is not ready: stop rather than bypassing it with raw clicks.
+
+`prepare-sticker --chat-id ID --package-id ID --sticker-id ID` prepares only
+metadata and returns a sticker token. It requires an empty composer. Clicking a
+LINE sticker tile can send immediately: never click one to preview or prepare it.
+With explicit recipient/content authorization, use the existing
+`send --chat-id ID --token TOKEN` command. The token binds recipient, route and
+sticker identity; changed context or assets stop dispatch.
+
+Sticker tokens use a separate receipt from text/image drafts. They are consumed
+before one intentional click. Confirmation requires a new outgoing message with
+the matching sticker in that chat, not an empty composer or a successful click
+call. This is UI-observed dispatch, not delivery/read confirmation.
+
+Only an operation-owned picker is closed after a send attempt, including an
+uncertain outcome. Cleanup is reported separately: close failure does not mean
+nothing was sent, and closing a picker does not cancel a send. An uncertain
+receipt blocks fresh sticker preparation until explicit user-directed
+reconciliation; never delete/reset it, generate another token, or retry a click
+to bypass uncertainty. Normal text/image drafts remain separate.
+
 ## State, scheduling and recovery
 
 Tool-owned private state lives in `CWD/.agents/var/tools/line/`: profile binding,
-draft token/lock, and `reading/CONSUMER/` checkpoints and pending journal recovery.
+draft token/lock, `sticker.json` intent receipt, and `reading/CONSUMER/` checkpoints
+and pending journal recovery.
 Keep state, the isolated browser profile and collected output outside version
 control and shared/served directories. Collected journals belong under
 `.agents/var/skills/automata-line-use/journals/`; tool checkpoints remain separate.
