@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createAgentBrowserBridgeClient } from "../../../../src/automata/tools/agent-router/browser/client.js";
+import { createAgentBrowserBridgeClient } from "../../../../src/automata/tools/message-router/browser/client.js";
 
 class FakeWebSocket {
   static instances = [];

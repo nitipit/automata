@@ -17,8 +17,10 @@ import pytest
 def prepare_runtime(tmp_path: Path) -> None:
     source_root = Path(__file__).parents[4]
     extension = tmp_path / "agent-browser-bridge.ts"
-    shutil.copytree(source_root / "src/automata/extensions/agent-router", tmp_path / "agent-router")
-    extension.write_text('export {default} from "./agent-router/index.ts";\n')
+    shutil.copytree(
+        source_root / "src/automata/extensions/message-router", tmp_path / "message-router"
+    )
+    extension.write_text('export {default} from "./message-router/index.ts";\n')
     for relative in ("agent_browser_bridge.py", "browser/client.js", "browser/page.js"):
         destination = tmp_path / ".agents" / "tools" / "agent-browser-bridge" / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -63,7 +65,10 @@ def test_agent_browser_bridge_extension_round_trip(tmp_path: Path) -> None:
         pytest.skip("Node.js with TypeScript stripping is required")
     prepare_runtime(tmp_path)
     result = subprocess.run(
-        [node, "--test", str(Path(__file__).with_suffix(".mjs"))],
+        [
+            node, "--test", str(Path(__file__).with_suffix(".mjs")),
+            str(Path(__file__).with_name("message_router_compat_test.mjs")),
+        ],
         env={**os.environ, "AGENT_BROWSER_BRIDGE_TEST_ROOT": str(tmp_path)},
         capture_output=True,
         text=True,
@@ -78,10 +83,10 @@ def test_agent_browser_bridge_native_pi_lifecycle(tmp_path: Path) -> None:
     node = shutil.which("node")
     if not package or not node:
         pytest.skip("Set AGENT_BROWSER_BRIDGE_NATIVE_PI_PACKAGE to an installed Pi package")
-    source = Path(__file__).parents[4] / "src/automata/extensions/agent-router"
-    shutil.copytree(source, tmp_path / "agent-router")
+    source = Path(__file__).parents[4] / "src/automata/extensions/message-router"
+    shutil.copytree(source, tmp_path / "message-router")
     (tmp_path / "agent-browser-bridge.ts").write_text(
-        'export {default} from "./agent-router/index.ts";\n'
+        'export {default} from "./message-router/index.ts";\n'
     )
     result = subprocess.run(
         [node, "--test", str(Path(__file__).with_name("agent_browser_bridge_native_test.mjs"))],
@@ -100,8 +105,8 @@ def test_two_pi_adapters_over_real_router_transport(tmp_path: Path) -> None:
     if not node or not uv:
         pytest.skip("Node and uv are required")
     prepare_runtime(tmp_path)
-    tool = Path(__file__).parents[4] / "src/automata/tools/agent-router"
-    cli = [uv, "run", "--offline", "--no-project", "--script", str(tool / "agent_router.py")]
+    tool = Path(__file__).parents[4] / "src/automata/tools/message-router"
+    cli = [uv, "run", "--offline", "--no-project", "--script", str(tool / "message_router.py")]
     private = tmp_path / "router-state"
     config, endpoints = private / "config.json", private / "endpoints"
     setup = subprocess.run(
@@ -160,13 +165,13 @@ def test_two_pi_adapters_over_real_router_transport(tmp_path: Path) -> None:
             checked = subprocess.run(
                 [
                     node,
-                    str(Path(__file__).with_name("agent_router_transport_test.mjs")),
+                    str(Path(__file__).with_name("message_router_transport_test.mjs")),
                 ],
                 env={
                     **os.environ,
                     "AGENT_BROWSER_BRIDGE_TEST_ROOT": str(tmp_path),
-                    "AGENT_ROUTER_ENDPOINTS": str(endpoints),
-                    "AGENT_ROUTER_BROWSER": str(tool / "browser"),
+                    "MESSAGE_ROUTER_ENDPOINTS": str(endpoints),
+                    "MESSAGE_ROUTER_BROWSER": str(tool / "browser"),
                 },
                 capture_output=True,
                 text=True,

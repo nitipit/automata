@@ -47,7 +47,9 @@ const model = {
   contextWindow: 32000, maxTokens: 1000,
 };
 
-test('native Pi confirms idle/deferred canonical appends, nextTurn, and busy binding', async () => {
+for (const selected of [undefined,'message_router','agent_router','agent_browser_bridge']) {
+const toolName = selected ?? 'message_router';
+test(`native Pi ${selected ?? 'default tools'} confirms canonical appends, nextTurn, and busy binding`, async () => {
   for (const file of ['agent_browser_bridge.py', 'browser/client.js', 'browser/page.js']) {
     const path = join(root, '.agents/tools/agent-browser-bridge', file);
     await mkdir(join(path, '..'), { recursive: true });
@@ -60,7 +62,7 @@ test('native Pi confirms idle/deferred canonical appends, nextTurn, and busy bin
   const settings = sdk.SettingsManager.inMemory({ compaction: { enabled: false }, retry: { enabled: false } });
   const loader = new sdk.DefaultResourceLoader({
     cwd: root, agentDir: join(root, 'agent'), settingsManager: settings,
-    additionalExtensionPaths: [join(root, 'agent-browser-bridge.ts')],
+    additionalExtensionPaths: [join(root, 'message-router')],
     noSkills: true, noPromptTemplates: true, noThemes: true,
     agentsFilesOverride: () => ({ agentsFiles: [] }), systemPromptOverride: () => 'Local fixture.',
     extensionFactories: [pi => pi.registerProvider('fixture', {
@@ -87,11 +89,16 @@ test('native Pi confirms idle/deferred canonical appends, nextTurn, and busy bin
     modelsPath: join(root, 'models.json'), modelsStorePath: join(root, 'models-store.json'), allowModelNetwork: false });
   const { session } = await sdk.createAgentSession({ cwd: root, agentDir: join(root, 'agent'),
     resourceLoader: loader, modelRuntime: runtime, model, settingsManager: settings,
-    sessionManager: sdk.SessionManager.inMemory(root), tools: ['agent_browser_bridge'] });
+    sessionManager: sdk.SessionManager.inMemory(root), tools: selected ? [selected] : undefined });
   try {
     await session.bindExtensions({});
-    const tool = session.agent.state.tools.find(t => t.name === 'agent_browser_bridge');
-    const execute = args => tool.execute('fixture', args);
+    assert.deepEqual(session.agent.state.tools.map(t => t.name).filter(name =>
+      ['message_router','agent_router','agent_browser_bridge'].includes(name)), [toolName]);
+    const tool = session.agent.state.tools.find(t => t.name === toolName);
+    const execute = args => tool.execute('fixture', {
+      ...args,
+      ...(args.action === 'open' ? {endpoint:join(root,'.agents/var/tools/agent-browser-bridge/endpoint.json')} : {}),
+    });
     await execute({ action: 'open' });
     let socket = ControlSocket.latest;
     const deliver = (id, payload, delivery) => socket.message({ type: 'event', envelope: {
@@ -136,3 +143,4 @@ test('native Pi confirms idle/deferred canonical appends, nextTurn, and busy bin
     await execute({ action: 'close' });
   } finally { session.dispose(); }
 });
+}

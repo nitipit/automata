@@ -24,6 +24,8 @@ def test_install_is_code_only_and_skill_mapping_is_neutral(tmp_path):
         "line.py",
         "reading_api.py",
         "reading_state.py",
+        "sticker_api.py",
+        "sticker_ui.py",
         ".automataignore",
     }
     assert not (tmp_path / ".agents").exists()
@@ -91,7 +93,13 @@ def test_installed_cli_is_json_and_does_not_create_profile(tmp_path):
     env = dict(
         os.environ, AUTOMATA_LINE_TIMEZONE="UTC", AUTOMATA_LINE_PROFILE=str(tmp_path / "isolated")
     )
-    for args in (["--help"], ["read", "--help"], ["collect", "--help"]):
+    for args in (
+        ["--help"],
+        ["read", "--help"],
+        ["collect", "--help"],
+        ["sticker-catalog", "--help"],
+        ["prepare-sticker", "--help"],
+    ):
         process = subprocess.run(
             [sys.executable, str(script), *args],
             cwd=tmp_path,

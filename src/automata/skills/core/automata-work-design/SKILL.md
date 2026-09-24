@@ -41,10 +41,11 @@ not selection authority: preserve approved model sets and effort choices, and do
 not treat missing permission as unlimited. Match choices to the work, not role
 labels alone.
 
-Reuse relevant task observations or research, distinguishing measured results,
-vendor claims and unknowns. Suggest focused research only when missing or stale
-evidence could change the decision. Research is neither a mandatory phase nor
-launch authorization. Do not infer model speed from price alone.
+Reuse relevant model-selection knowledge and approved preferences. Distinguish
+measured results, vendor claims and unknowns; apply preferences within their agreed
+scope without silently relaxing restrictions. Seek focused research only when
+missing or stale evidence could change the choice. Research is neither a mandatory
+phase nor launch authorization. Do not infer model speed from price alone.
 
 ## Present the proposal
 

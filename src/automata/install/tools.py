@@ -22,6 +22,7 @@ from automata.install.directory import (
 ToolInstallError = DirectoryInstallError
 ToolInstallResult = DirectoryInstallResult
 TOOL_COPY_IGNORE_FILE = ".automataignore"
+DEFAULT_TOOL_COPY_IGNORES = ("__pycache__", "*.pyc", "*.pyo")
 
 
 def bundled_tool_root() -> Path:
@@ -113,36 +114,37 @@ def _deno_files(source: Path) -> tuple[Path, ...] | None:
     return included
 
 
-def tool_copy_ignore(source: Path) -> CopyIgnore | None:
-    """Validate Deno entry metadata and select copies; retain legacy ignore support."""
+def tool_copy_ignore(source: Path) -> CopyIgnore:
+    """Exclude Python bytecode; apply Deno selection or legacy ignore declarations."""
 
     included = _deno_files(source)
-    if included is not None:
-        paths = included
-
-        def ignore(directory: str, names: list[str]) -> list[str]:
-            relative = Path(directory).relative_to(source)
-            return [
-                name
-                for name in names
-                if not any(
-                    (relative / name).is_relative_to(path) or path.is_relative_to(relative / name)
-                    for path in paths
-                )
-            ]
-
-        return ignore
-
+    patterns = DEFAULT_TOOL_COPY_IGNORES
     declaration = source / TOOL_COPY_IGNORE_FILE
-    if not declaration.is_file():
-        return None
+    if included is None and declaration.is_file():
+        patterns += tuple(
+            line
+            for raw_line in declaration.read_text(encoding="utf-8").splitlines()
+            if (line := raw_line.strip()) and not line.startswith("#")
+        )
+    ignore_patterns = shutil.ignore_patterns(*patterns)
 
-    patterns = tuple(
-        line
-        for raw_line in declaration.read_text(encoding="utf-8").splitlines()
-        if (line := raw_line.strip()) and not line.startswith("#")
-    )
-    return shutil.ignore_patterns(*patterns) if patterns else None
+    def ignore(directory: str, names: list[str]) -> list[str]:
+        ignored = set(ignore_patterns(directory, names))
+        relative = Path(directory).relative_to(source)
+        return [
+            name
+            for name in names
+            if name in ignored
+            or (
+                included is not None
+                and not any(
+                    (relative / name).is_relative_to(path) or path.is_relative_to(relative / name)
+                    for path in included
+                )
+            )
+        ]
+
+    return ignore
 
 
 def normalize_tool_names(tool_names: tuple[str, ...] | list[str] | None) -> tuple[str, ...]:

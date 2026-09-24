@@ -3,7 +3,9 @@ import { Type } from "typebox";
 
 export const CONTEXT_SIGNAL_TYPE = "automata-context-awareness";
 const RUNTIME_TIME_TYPE = "automata-runtime-time";
+export const RUNTIME_PRESSURE_TYPE = "automata-context-pressure";
 export const TIME_THRESHOLD_MS = 10 * 60 * 1000;
+export const PRESSURE_SIGNAL_THRESHOLDS = [50, 75, 80, 85, 90, 95] as const;
 
 export const PRESSURE_THRESHOLDS = {
   moderate: 50,
@@ -43,7 +45,7 @@ export interface RuntimeTelemetry {
 
 export interface SignalObservations {
   timeThreshold?: number;
-  pressureBands?: PressureBand[];
+  pressureThreshold?: number;
 }
 
 const ZERO_USAGE: ModelUsageTotals = {
@@ -104,6 +106,12 @@ export function pressureBandForPercent(percent: number | null | undefined): Pres
   if (percent < PRESSURE_THRESHOLDS.high) return "moderate";
   if (percent < PRESSURE_THRESHOLDS.critical) return "high";
   return "critical";
+}
+
+/** Coalesce crossed thresholds to the highest current level, including usage above 100%. */
+export function pressureThresholdForPercent(percent: number | null | undefined): number | null {
+  if (percent === null || percent === undefined || !Number.isFinite(percent)) return null;
+  return PRESSURE_SIGNAL_THRESHOLDS.findLast((threshold) => percent >= threshold) ?? null;
 }
 
 /** Build a status snapshot from Pi's supported context-usage API. */
@@ -247,111 +255,47 @@ export function formatContextStatus(status: ContextStatus): string {
   return lines.join("\n");
 }
 
-function formatContextChange(
-  previous: ContextStatus | undefined,
-  current: ContextStatus,
-  observations: SignalObservations | undefined,
+/** Report measured pressure; reminders defer compaction decisions to the applicable policy. */
+export function formatContextSignal(
+  _kind: SignalKind,
+  status: ContextStatus,
+  _previous?: ContextStatus,
+  observations?: SignalObservations,
 ): string {
   const changes: string[] = [];
-  if (observations?.pressureBands && observations.pressureBands.length > 0) {
-    changes.push(`Context pressure changed: ${previous?.pressure ?? "unknown"} -> ${current.pressure}`);
+  if (observations?.pressureThreshold !== undefined) {
+    changes.push(`Context pressure reached the ${observations.pressureThreshold}% threshold.`);
   }
   if (observations?.timeThreshold !== undefined) {
     changes.push(`Context elapsed time crossed: ${observations.timeThreshold * 10}m`);
   }
-  return changes.length > 0 ? changes.join("\n") : "Context status changed";
-}
-
-/** Format the factual message sent to the active agent on a meaningful change. */
-export function formatContextSignal(
-  _kind: SignalKind,
-  status: ContextStatus,
-  previous?: ContextStatus,
-  observations?: SignalObservations,
-): string {
-  return `${formatContextChange(previous, status, observations)}\n\n${formatContextStatus(status)}`;
-}
-
-interface PendingObservations {
-  timeThreshold: number | null;
-  pressureBands: PressureBand[];
+  const parts = [changes.join("\n") || "Context status changed", formatContextStatus(status)];
+  if ((observations?.pressureThreshold ?? 0) >= PRESSURE_THRESHOLDS.high) {
+    parts.push(status.pressure === "critical"
+      ? "Urgent compaction reminder: preserve the minimum durable checkpoint and use the earliest safe boundary before substantial new work."
+      : "Compaction reminder: finish the current coherent unit, preserve durable state, and use the next stable boundary.");
+    parts.push("Apply the existing compaction policy and preferences. Do not interrupt an unfinished operation; this observation does not itself authorize or run compaction.");
+  }
+  return parts.join("\n\n");
 }
 
 interface TaskCheckpoint {
   inputAnchorTimestamp: number | null;
   usage: ModelUsageTotals;
   lastTimeThreshold: number;
-  lastPressure: PressureBand;
-  reportedPressureBands: Set<PressureBand>;
-  pending: PendingObservations;
+  pendingTimeThreshold: number | null;
   seenAssistantMessages: WeakSet<object>;
-  previousStatus?: ContextStatus;
 }
 
-function emptyPendingObservations(): PendingObservations {
-  return {
-    timeThreshold: null,
-    pressureBands: [],
-  };
-}
-
-function pressureRank(pressure: PressureBand): number {
-  switch (pressure) {
-    case "low":
-      return 0;
-    case "moderate":
-      return 1;
-    case "high":
-      return 2;
-    case "critical":
-      return 3;
-    default:
-      return -1;
-  }
-}
-
-function isSignalPressure(pressure: PressureBand): boolean {
-  return pressure === "moderate" || pressure === "high" || pressure === "critical";
-}
-
-const SIGNAL_PRESSURE_BANDS = ["moderate", "high", "critical"] as const;
-
-/** Return upward pressure thresholds crossed but not already queued or reported. */
-export function newlyCrossedPressureBands(
-  previous: PressureBand,
-  current: PressureBand,
-  reported: ReadonlySet<PressureBand>,
-  pending: readonly PressureBand[],
-): PressureBand[] {
-  const previousRank = pressureRank(previous);
-  const currentRank = pressureRank(current);
-  if (currentRank <= previousRank) return [];
-
-  return SIGNAL_PRESSURE_BANDS.filter((pressure) => {
-    const rank = pressureRank(pressure);
-    return (
-      rank > previousRank &&
-      rank <= currentRank &&
-      !reported.has(pressure) &&
-      !pending.includes(pressure)
-    );
-  });
-}
-
-function signalKindForObservations(observations: SignalObservations): SignalKind {
-  const kinds = [
-    observations.timeThreshold !== undefined,
-    (observations.pressureBands?.length ?? 0) > 0,
-  ].filter(Boolean).length;
-
-  if (kinds > 1) return "state-change";
-  if ((observations.pressureBands?.length ?? 0) > 0) return "pressure-transition";
-  if (observations.timeThreshold !== undefined) return "time-threshold";
-  return "state-change";
+/** Pressure belongs to the context lifecycle, not to the latest user-input checkpoint. */
+interface PressureCheckpoint {
+  identity: string;
+  highestThreshold: number;
 }
 
 export default function (pi: ExtensionAPI) {
   let checkpoint: TaskCheckpoint | undefined;
+  let pressureCheckpoint: PressureCheckpoint | undefined;
 
   const getStatus = (ctx: ContextSource): ContextStatus => {
     if (!checkpoint) return readContextStatus(ctx);
@@ -367,31 +311,21 @@ export default function (pi: ExtensionAPI) {
     });
   };
 
-  const createCheckpoint = (ctx: ExtensionContext, inputAnchorTimestamp: number | null): TaskCheckpoint => {
-    const status = readContextStatus(ctx);
-    const reportedPressureBands = new Set<PressureBand>();
-    if (isSignalPressure(status.pressure)) reportedPressureBands.add(status.pressure);
+  const createCheckpoint = (inputAnchorTimestamp: number | null): TaskCheckpoint => ({
+    inputAnchorTimestamp,
+    usage: createUsageTotals(),
+    lastTimeThreshold: 0,
+    pendingTimeThreshold: null,
+    seenAssistantMessages: new WeakSet<object>(),
+  });
 
-    return {
-      inputAnchorTimestamp,
-      usage: createUsageTotals(),
-      lastTimeThreshold: 0,
-      lastPressure: status.pressure,
-      reportedPressureBands,
-      pending: emptyPendingObservations(),
-      seenAssistantMessages: new WeakSet<object>(),
-      previousStatus: status,
-    };
-  };
-
-  const ensureCheckpoint = (ctx: ExtensionContext): TaskCheckpoint => {
-    if (!checkpoint) checkpoint = createCheckpoint(ctx, null);
+  const ensureCheckpoint = (): TaskCheckpoint => {
+    if (!checkpoint) checkpoint = createCheckpoint(null);
     return checkpoint;
   };
 
-  const startInputAnchor = (ctx: ExtensionContext, timestamp: unknown): void => {
-    const inputAnchorTimestamp = finiteNumber(timestamp) ?? Date.now();
-    checkpoint = createCheckpoint(ctx, inputAnchorTimestamp);
+  const startInputAnchor = (timestamp: unknown): void => {
+    checkpoint = createCheckpoint(finiteNumber(timestamp) ?? Date.now());
   };
 
   const observeAssistantMessage = (message: { role: string; timestamp?: number; usage?: unknown }): void => {
@@ -406,80 +340,64 @@ export default function (pi: ExtensionAPI) {
     checkpoint.usage = addUsageTotals(checkpoint.usage, message.usage);
   };
 
-  const observeThresholds = (ctx: ExtensionContext): void => {
-    const current = ensureCheckpoint(ctx);
-    const status = getStatus(ctx);
-    const hadPending =
-      current.pending.timeThreshold !== null || current.pending.pressureBands.length > 0;
-    const threshold = elapsedTimeThreshold(status.elapsedMs);
+  const observeTimeThreshold = (ctx: ExtensionContext): void => {
+    const current = ensureCheckpoint();
+    const threshold = elapsedTimeThreshold(getStatus(ctx).elapsedMs);
     if (threshold !== null && threshold > current.lastTimeThreshold) {
-      current.pending.timeThreshold = Math.max(current.pending.timeThreshold ?? 0, threshold);
+      current.pendingTimeThreshold = threshold;
       current.lastTimeThreshold = threshold;
     }
-
-    current.pending.pressureBands.push(
-      ...newlyCrossedPressureBands(
-        current.lastPressure,
-        status.pressure,
-        current.reportedPressureBands,
-        current.pending.pressureBands,
-      ),
-    );
-    current.lastPressure = status.pressure;
-    const hasPending =
-      current.pending.timeThreshold !== null || current.pending.pressureBands.length > 0;
-    if (!hadPending && !hasPending) current.previousStatus = status;
   };
 
-  const pendingObservations = (current: TaskCheckpoint): SignalObservations => ({
-    ...(current.pending.timeThreshold === null
-      ? {}
-      : { timeThreshold: current.pending.timeThreshold }),
-    ...(current.pending.pressureBands.length === 0
-      ? {}
-      : { pressureBands: [...current.pending.pressureBands] }),
-  });
-
-  const hasPendingObservations = (observations: SignalObservations): boolean =>
-    observations.timeThreshold !== undefined || (observations.pressureBands?.length ?? 0) > 0;
-
-  const deliverPending = (
-    ctx: ExtensionContext,
-    deliverAs: "steer" | "nextTurn",
-  ): void => {
-    const current = ensureCheckpoint(ctx);
-    const observations = pendingObservations(current);
-    if (!hasPendingObservations(observations)) return;
-
+  const deliverPendingTime = (ctx: ExtensionContext): void => {
+    const current = ensureCheckpoint();
+    if (current.pendingTimeThreshold === null) return;
+    const observations = { timeThreshold: current.pendingTimeThreshold };
     const status = getStatus(ctx);
-    const kind = signalKindForObservations(observations);
+    const kind = "time-threshold";
     pi.sendMessage(
       {
         customType: CONTEXT_SIGNAL_TYPE,
-        content: formatContextSignal(kind, status, current.previousStatus, observations),
+        content: formatContextSignal(kind, status, undefined, observations),
         display: false,
         details: { kind, status, observations },
       },
-      { deliverAs },
+      { deliverAs: "nextTurn" },
     );
-
-    if (observations.pressureBands) {
-      for (const pressure of observations.pressureBands) {
-        current.reportedPressureBands.add(pressure);
-      }
-    }
-    current.pending = emptyPendingObservations();
-    current.previousStatus = status;
+    current.pendingTimeThreshold = null;
   };
 
-  // Modify only the outgoing context copy, not the session or telemetry anchor.
-  pi.on("context", (event) => {
+  const pressureSignal = (ctx: ExtensionContext, timestamp: number) => {
+    const status = getStatus(ctx);
+    const identity = JSON.stringify([ctx.model?.provider, ctx.model?.id, status.contextWindow]);
+    if (pressureCheckpoint?.identity !== identity) {
+      pressureCheckpoint = { identity, highestThreshold: 0 };
+    }
+    // Unknown post-compaction usage is not evidence of low pressure or another reset.
+    const threshold = status.pressure === "unknown" ? null : pressureThresholdForPercent(status.percent);
+    if (threshold === null || threshold <= pressureCheckpoint.highestThreshold) return [];
+    pressureCheckpoint.highestThreshold = threshold;
+    const observations = { pressureThreshold: threshold };
+    return [{
+      role: "custom" as const,
+      customType: RUNTIME_PRESSURE_TYPE,
+      content: formatContextSignal("pressure-transition", status, undefined, observations),
+      display: false,
+      timestamp,
+      details: { kind: "pressure-transition", status, observations },
+    }];
+  };
+
+  // Safe pre-request injection: no steering, wakeup, session entry or mid-stream event.
+  pi.on("context", (event, ctx) => {
     const timestamp = Date.now();
     return {
       messages: [
         ...event.messages.filter(
-          (message) => message.role !== "custom" || message.customType !== RUNTIME_TIME_TYPE,
+          (message) => message.role !== "custom" ||
+            (message.customType !== RUNTIME_TIME_TYPE && message.customType !== RUNTIME_PRESSURE_TYPE),
         ),
+        ...pressureSignal(ctx, timestamp),
         {
           role: "custom" as const,
           customType: RUNTIME_TIME_TYPE,
@@ -491,24 +409,25 @@ export default function (pi: ExtensionAPI) {
     };
   });
 
-  pi.on("session_start", () => {
+  const resetSession = () => {
     checkpoint = undefined;
-  });
+    pressureCheckpoint = undefined;
+  };
+  pi.on("session_start", resetSession);
+  pi.on("session_tree", resetSession);
+  // Only success rearms reminders. Failed/cancelled compaction leaves deduplication intact.
+  pi.on("session_compact", () => { pressureCheckpoint = undefined; });
 
-  pi.on("session_tree", () => {
-    checkpoint = undefined;
-  });
-
-  pi.on("agent_start", (_event, ctx) => {
+  pi.on("agent_start", () => {
     // This is an internal checkpoint only; no model-visible telemetry is emitted here.
-    ensureCheckpoint(ctx);
+    ensureCheckpoint();
   });
 
-  pi.on("message_start", (event, ctx) => {
+  pi.on("message_start", (event) => {
     if (event.message.role === "user") {
       // A generic user-role message is intentionally treated as the latest input,
       // including messages submitted by a coordinator or subagent.
-      startInputAnchor(ctx, event.message.timestamp);
+      startInputAnchor(event.message.timestamp);
     }
   });
 
@@ -517,18 +436,17 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("turn_end", (_event, ctx) => {
-    observeThresholds(ctx);
+    observeTimeThreshold(ctx);
   });
 
   pi.on("agent_end", (_event, ctx) => {
-    observeThresholds(ctx);
+    observeTimeThreshold(ctx);
   });
 
   pi.on("agent_settled", (_event, ctx) => {
-    // A settled run is a safe, non-streaming boundary. nextTurn queues the
-    // observation without starting an unsolicited model response.
-    observeThresholds(ctx);
-    deliverPending(ctx, "nextTurn");
+    // Preserve settled nextTurn delivery for time telemetry without waking the agent.
+    observeTimeThreshold(ctx);
+    deliverPendingTime(ctx);
   });
 
   pi.registerCommand("context-status", {

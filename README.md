@@ -4,8 +4,6 @@ Automata packages local-first agent guidance, character components, skills, tool
 and runtime extensions. It keeps agent behavior reusable, inspectable, and bounded
 by explicit authorization—not a general-purpose workflow orchestration platform.
 
-See [project goals](goal/main.md) for durable product direction.
-
 Licensed under the [MIT License](LICENSE).
 
 ## What is included
@@ -16,6 +14,91 @@ Licensed under the [MIT License](LICENSE).
 - Bundled Pi extensions under `src/automata/extensions/`
 - Skill, tool, and Pi extension installers exposed through the `automata` CLI
 - Copy, replace, or symlink installation modes
+
+## Design principles
+
+These principles guide Automata’s development without replacing the user’s task
+objectives.
+
+- Prefer simple, inspectable files and local workflows. Keep installation,
+  linking, and durable state choices explicit, reversible, and understandable
+  from the workspace.
+- Keep guidance focused and easy to use at startup and handoff, with clear
+  activation, boundaries, and enough direction for a useful first action.
+  Generalize reusable behavior rather than encoding one-off session details;
+  see [skill design](src/automata/skills/skill-ops/automata-skill-design/SKILL.md).
+- Make consequential actions controllable across digital and physical
+  environments. Expose permissions, confirmation boundaries, observable outcomes,
+  and practical recovery paths proportionate to the impact.
+- When using web interfaces for human-agent collaboration, support both
+  session-based and browser-first work. Preserve continuity, make outcomes
+  visible, and keep human direction and authorization explicit.
+
+## Capability research
+
+`automata-capability-research` guides assessments of capabilities that could improve
+Automata, including readiness for unfamiliar problems—not only fixes for existing
+pain points. It distinguishes available knowledge, operational readiness, and
+permission to use a capability. It does not redirect ordinary user-task research
+into Automata development or authorize adoption.
+
+Its purpose and assessment guidance live directly in
+[`SKILL.md`](src/automata/skills/skill-ops/automata-capability-research/SKILL.md),
+without a separate goal document or runtime notes.
+
+## Model research
+
+[`automata-model-research`](src/automata/skills/core/automata-model-research/SKILL.md)
+maintains a compact, source-backed guide to choosing models for tasks: when to
+choose one, its main tradeoff, evidence freshness, and references for deeper work.
+It refreshes decision-relevant knowledge on demand, not through automatic release
+monitoring. User-approved model preferences stay separate from research findings;
+new evidence does not authorize a model switch or expand an allowed list.
+
+Ask, for example, "Is this new model worth considering for our work?" or "Are our
+model choices still appropriate?" Reusable notes and preferences live under
+`~/.agents/var/skills/automata-model-research/`, with project-specific observations
+and explicit overrides under `.agents/var/skills/automata-model-research/`.
+Installation does not create a model catalog, preferences, or runtime configuration.
+
+## Runtime environment discovery
+
+[`automata-runtime-environment`](src/automata/skills/core/automata-runtime-environment/SKILL.md)
+helps an agent discover only the runtime and execution-environment facts needed
+for its task. It supports unfamiliar harnesses through targeted evidence and
+retains useful verified inspection recipes outside the package, revalidating
+changeable assumptions on later use. Active observations, configured defaults,
+and user preferences remain distinct; inspection does not authorize changes.
+
+This replaces `automata-runtime-status` and retains active provider/model/thinking
+verification within the broader scope. Installers do not automatically remove old
+installed names; retire the old skill package during an authorized sync without
+removing operational data. Existing installations are not migrated automatically.
+
+## Git worktrees
+
+[`automata-git-worktree`](src/automata/skills/development/automata-git-worktree/SKILL.md)
+guides task-owned checkout isolation, placement, reuse, integration and safe
+retirement. It follows established location conventions, checks whether a nested
+task workspace is safe, and retains useful setup recipes outside the package.
+Worktrees share Git state and are not security sandboxes. Creation does not grant
+permission to publish changes or delete work; cleanup accounts for active users,
+ignored files and unpreserved commits. Ordinary coding needs no worktree ceremony.
+
+## Storage
+
+[`automata-storage`](src/automata/skills/core/automata-storage/SKILL.md) guides
+placement, ownership, retention, and cleanup of capability-owned operational data
+under `.agents/var/skills/` and `.agents/var/tools/`.
+
+[`automata-workspace`](src/automata/skills/core/automata-workspace/SKILL.md) guides
+task workspace reuse, organization, continuation, promotion, and safe cleanup.
+It retains `.agents/var/workspace/<task-name>/` as an optional repository-local
+fallback. Neither skill requires moving existing data.
+
+`automata-storage` replaces the `automata-agent-data` skill name. Installers do not automatically
+remove old installed names; retire the old skill package during an authorized sync,
+without removing its operational data.
 
 ## Usage
 
@@ -104,7 +187,13 @@ uv run --script .agents/tools/line/line.py --help
 
 LINE use currently supports Linux with an explicitly isolated Chrome profile and the user's
 own LINE login. It provides structured reads, per-consumer reading checkpoints, recoverable
-local collection, and separately authorized draft/send commands. No browser profile, login,
+local collection, and separately authorized draft/send commands. Sticker commands
+`sticker-catalog` and `prepare-sticker` inspect metadata without clicking sticker tiles;
+`send` consumes the recipient/sticker-bound token before one intentional click.
+Only observed, owned, non-effect sticker identities are supported; unfamiliar UI or
+asset shapes fail closed. Uncertain sends hold the sticker receipt for reconciliation,
+and operation-owned picker cleanup is reported separately from dispatch.
+No browser profile, login,
 chat transcript, runtime state or timer is installed. Paths resolve from the calling workspace;
 `AUTOMATA_LINE_PROFILE` and `AUTOMATA_LINE_TIMEZONE` select an isolated profile and timezone
 (default UTC). The CLI declares its optional Playwright, Cyclopts and Dictify dependencies;
@@ -188,6 +277,29 @@ raster-image generation to the native Codex image-generation capability and
 copies the saved image into the workspace. It does not expose a general-purpose
 Codex task runner.
 
+Install the skill-load recorder globally, with its skill in repository and global catalogs:
+
+```bash
+uv run automata pi-extension install \
+  --target-root ~/.pi/agent/extensions --extension skill-activity --mode copy
+uv run automata skills install \
+  --target-root .agents/skills --skill automata-skill-activity --mode copy
+uv run automata skills install \
+  --target-root ~/.agents/skills --skill automata-skill-activity --mode copy
+uv run --no-project --script ~/.pi/agent/extensions/skill-activity/store.py --help
+```
+
+After `/reload` or a fresh session, `skill-activity` observes complete `SKILL.md`
+reads and records metadata in global ShelfDB storage at
+`~/.agents/var/tools/skill-activity/db`, validated by Dictify. Each record retains
+its project path; `list --project /absolute/project/path` scopes queries before
+applying the limit. Existing project-local records are not migrated automatically.
+The bundled CLI provides only `record` and `list`; it is not a general database API.
+No instruction bodies or conversations are stored. Dependency preparation may
+need downloads; the observer itself runs offline. See the
+[skill-activity skill](src/automata/skills/skill-ops/automata-skill-activity/SKILL.md)
+for discoverable query guidance, the data contract, and coverage limits.
+
 Install the context-status runtime extension:
 
 ```bash
@@ -199,8 +311,11 @@ uv run automata pi-extension install \
 
 `context-status` exposes `/context-status` and the agent-callable
 `context_status` tool. It reports runtime context usage, model window, pressure,
-elapsed time, the input anchor, and provider-reported model usage. It emits
-factual hidden agent signals when meaningful time or pressure observations change.
+elapsed time, the input anchor, and provider-reported model usage. Temporary
+pressure reminders reach the next model request at 75%, 80%, 85%, 90%, and 95%,
+with a moderate observation at 50%. They are deduplicated across user inputs and
+rearmed after successful compaction or context identity changes. Elapsed-time
+observations remain queued after the run settles. Signals do not run compaction.
 
 Install intentional context-compaction guidance and its native Pi extension:
 
@@ -271,8 +386,11 @@ the agent; the tool does not detect sessions open in another process. Cleanup
 uses recoverable trash only and never falls back to permanent deletion.
 
 For authorized page-to-page, page-to-agent, and agent-to-agent JSON messaging,
-see [agent-router](src/automata/tools/agent-router/README.md). Its Pi extension uses
-a native `index.ts` bundle; existing single-file extensions remain supported.
+see [message-router](src/automata/tools/message-router/README.md), with Pi tool
+`message_router` and skill `automata-message-router`. Its Pi extension uses a native
+`index.ts` bundle; existing single-file extensions remain supported. This replaces
+the `agent-router` package name, not its stored data. Retire the old extension during
+an authorized sync rather than loading both; see the router's migration notes.
 
 Use `--source-root <path>` to install skills, tools, or Pi extensions from a different
 local source root.
@@ -283,9 +401,10 @@ Modes:
 - `replace`: remove existing destination directories first, then copy.
 - `symlink`: destination directories must not exist; create symlinks to the source.
 
-Copy and replace installs honor optional per-tool `.automataignore` declarations so generated
-working trees are not installed. Symlink mode intentionally remains a transparent development
-view of the source, including any ignored local output present there.
+Tool copy and replace installs exclude Python bytecode artifacts (`__pycache__/`,
+`*.pyc`, `*.pyo`) by default; no per-tool ignore file is needed. `.gitignore`
+controls Git tracking, not installer file selection. Symlink mode intentionally
+remains a transparent development view of the source, including local output.
 
 Tools may alternatively declare entry and file selection through `deno.json` `exports` and
 `publish.include`; the config itself is always included. Legacy `.automataignore` handling
