@@ -11,10 +11,12 @@ observed load, not that the agent followed the instructions.
 
 ## Locate the contract
 
-Use the requested project's working directory; do not scan other projects or Pi
-session histories to fill gaps.
+The recorder uses one global database across projects. Scope queries to the
+requested project by its `project` field; use the current working directory when
+no broader scope is requested. Shared storage does not authorize cross-project
+analysis or scanning Pi session histories to fill gaps.
 
-- **Database:** `<session working directory>/.agents/var/tools/skill-activity/db`.
+- **Database:** `~/.agents/var/tools/skill-activity/db`.
 - **Shelf:** `skill_activations`.
 - **Schema:** `SkillRead` and `SkillActivation` in the installed extension's
   `store.py`, at `~/.pi/agent/extensions/skill-activity/store.py` for the global
@@ -29,19 +31,25 @@ session histories to fill gaps.
 
 If the extension or database is absent, report that recording may not be installed,
 loaded, or used yet. An empty result does not establish that no skills were used.
-Installation and reload are separate from querying existing records.
+Installation and reload are separate from querying existing records. Older
+versions recorded under `<session working directory>/.agents/var/tools/skill-activity/db`.
+Those records remain there; the new default does not migrate or merge them. Inspect
+an old project database only within the requested scope; moving records needs
+separate authorization.
 
 ## Query
 
-The narrow CLI provides a quick bounded view:
+The narrow CLI provides a quick bounded view for the current project:
 
 ```bash
 uv run --no-project --offline --script ~/.pi/agent/extensions/skill-activity/store.py \
-  list --db .agents/var/tools/skill-activity/db --limit 20
+  list --db ~/.agents/var/tools/skill-activity/db --project "$PWD" --limit 20
 ```
 
-Use the actual installed helper path. `list` returns at most 100 records in key
-order, not latest-first; do not present that sample as the full history. `record`
+Use the actual installed helper path and exact absolute project path recorded in
+`project`. The project filter applies before the limit. Omit `--project` only for
+an authorized cross-project view. `list` returns at most 100 records in key order,
+not latest-first; do not present that sample as the full history. `record`
 is for the observer and validates metadata before writing; do not fabricate events
 or manually log this skill's activation.
 
@@ -54,12 +62,14 @@ cached dependencies can be used offline. Query only trusted local databases.
 from pathlib import Path
 from shelfdb.shelf import DB
 
-path = Path(".agents/var/tools/skill-activity/db")
+path = Path.home() / ".agents/var/tools/skill-activity/db"
+project = str(Path.cwd())
 if (path / "data.mdb").exists():
     with DB(str(path)) as db, db.transaction(write=False) as tx:
         records = [
             item.value for item in tx.shelf("skill_activations").items()
-            if item.value["skill"] == "automata-work-design"
+            if item.value["project"] == project
+            and item.value["skill"] == "automata-work-design"
         ]
     # Analyze the selected records after closing the read transaction.
     print(records)
@@ -83,7 +93,7 @@ interrupted writes can leave gaps. This is usage evidence, not a security audit
 trail or an evaluation of skill quality.
 
 Keep records private. Querying does not authorize export, modification, deletion,
-backfill, or cross-project collection. When accumulated data needs retention
+backfill, or broader cross-project analysis. When accumulated data needs retention
 review, propose scoped cleanup rather than automatically deleting old records.
 The initial contract has no migration/versioning interface; do not silently
 reinterpret invalid records. See the actual schema and the

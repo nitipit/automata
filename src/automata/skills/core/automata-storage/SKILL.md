@@ -1,19 +1,15 @@
 ---
 name: automata-storage
-description: Use when choosing locations, ownership, retention, or cleanup for capability-owned operational data or task workspaces.
+description: Use when choosing locations, ownership, retention, or cleanup for capability-owned operational data.
 ---
 
 # Automata Storage
 
 Choose storage by ownership and lifecycle, not on every file read or write. This
-skill governs agent operational data and work artifacts, not arbitrary management
-of maintained project source or user-owned files.
-
-- Capability-owned data supports continuing use: reusable runtimes, profiles,
-  setup recipes, and tool state.
-- Work-owned data supports a particular task: drafts, experiments, trial-only
-  dependencies, generated artifacts, and evidence. A skill producing a file does
-  not automatically make that file capability-owned.
+skill governs capability-owned operational data: reusable runtimes, profiles,
+setup recipes, and tool state. Task-specific artifacts are not capability-owned
+merely because a skill produced them. Task-workspace layout and arbitrary
+management of maintained source or user-owned files are outside this scope.
 
 When no explicit storage convention applies, use these repository-local defaults
 for capability-owned data:
@@ -38,21 +34,6 @@ merely because a future use is possible.
 
 These defaults do not authorize installation, scope expansion, or moving existing
 files. Keep existing locations unless a migration is needed and authorized.
-
-## Task Workspaces
-
-Reuse a suitable working area. Otherwise, `.agents/var/workspace/<task-name>/`
-is a fallback for work-owned data, not a mandatory template or a new directory
-for every request. A workspace belongs to the work; agents may share or hand it
-over. Keep capability-owned state with its owner rather than copying it into
-individual workspaces.
-
-Workspaces may contain valuable edits and evidence; completion does not make them
-disposable. User-provided inputs remain user-owned. Promote work into maintained
-source only within approved scope; normal project operation must not depend on
-scratch work. Stop owned processes through their responsible capabilities before
-cleanup. Serve only public-safe files, keeping credentials and private state
-outside the served root; a whole workspace is not implicitly a public website.
 
 ## Setup Knowledge and Live State
 

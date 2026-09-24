@@ -58,16 +58,38 @@ def test_skill_activity_cli_round_trip(installed: Path, tmp_path: Path) -> None:
     assert json.loads(listed.stdout) == [{**event, "source": "read", "status": "loaded"}]
     assert cli("list", "--limit", "101").returncode == 2
 
+    other_project = str(tmp_path / "other-project")
+    other = {**event, "toolCallId": "zz-other", "project": other_project}
+    assert cli("record", "--event", json.dumps(other)).returncode == 0
+    # The match sorts after the first project: filter before applying limit=1.
+    filtered = cli("list", "--project", other_project, "--limit", "1")
+    assert filtered.returncode == 0, filtered.stderr
+    assert json.loads(filtered.stdout) == [{**other, "source": "read", "status": "loaded"}]
+    assert json.loads(cli("list", "--limit", "1").stdout) == [
+        {**event, "source": "read", "status": "loaded"}
+    ]
+    assert len(json.loads(cli("list").stdout)) == 2
+    assert json.loads(cli("list", "--project", str(tmp_path / "unknown")).stdout) == []
+    assert cli("list", "--project", "relative/path").returncode == 2
+    assert cli("record", "--project", other_project, "--event", json.dumps(event)).returncode == 2
+
 
 def test_skill_activity_native_pi(installed: Path, tmp_path: Path) -> None:
     sdk = os.environ.get("PI_SKILL_ACTIVITY_SDK")
     node = shutil.which("node")
     if not sdk or not node or not shutil.which("uv"):
         pytest.skip("Set PI_SKILL_ACTIVITY_SDK to an installed Pi dist/index.js; Node/uv required")
+    # Keep native homedir()-based writes out of the real global database, while
+    # reusing only the existing offline dependency cache.
+    home = tmp_path / "home"
+    home.mkdir()
+    cache = subprocess.check_output(["uv", "cache", "dir"], text=True, timeout=10).strip()
     result = subprocess.run(
         [node, str(Path(__file__).with_name("skill_activity_native_test.mjs"))],
         env={
             **os.environ,
+            "HOME": str(home),
+            "UV_CACHE_DIR": cache,
             "PI_OFFLINE": "1",
             "PI_CODING_AGENT_DIR": str(tmp_path / "agent"),
             "SKILL_ACTIVITY_TEST_ROOT": str(tmp_path),
@@ -77,5 +99,7 @@ def test_skill_activity_native_pi(installed: Path, tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stdout + result.stderr
     receipt = json.loads((tmp_path / "result.json").read_text())
-    assert len(receipt["records"]) == 2
+    assert len(receipt["records"]) == 3
+    assert receipt["db"] == str(home / ".agents/var/tools/skill-activity/db")
+    assert len({record["project"] for record in receipt["records"]}) == 2
     assert receipt["externalModelCalls"] == 0

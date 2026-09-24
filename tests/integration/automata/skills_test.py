@@ -38,6 +38,7 @@ REQUIRED_SKILLS = {
     "automata-setup",
     "automata-timer",
     "automata-storage",
+    "automata-workspace",
     "automata-agent-evaluation",
     "automata-communication",
     "automata-goal",

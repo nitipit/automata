@@ -31,7 +31,7 @@ export default function (pi: ExtensionAPI) {
     try {
       const result = await pi.exec("uv", [
         "run", "--no-project", "--offline", "--script", helper, "record",
-        "--db", join(ctx.cwd, ".agents/var/tools/skill-activity/db"),
+        "--db", join(homedir(), ".agents/var/tools/skill-activity/db"),
         "--event", JSON.stringify(eventData),
       ], { timeout: 5000 });
       if (result.code !== 0) throw new Error("Storage failed");

@@ -48,14 +48,20 @@ def record(path: Path, event: dict) -> bool:
     return True
 
 
-def records(path: Path, limit: int) -> list[dict]:
+def records(path: Path, limit: int, project: str | None = None) -> list[dict]:
+    """Return key-ordered records, filtering by exact project before limiting."""
     if not (path / "data.mdb").exists():
         return []
+    result = []
     with DB(str(path)) as db, db.transaction(write=False) as tx:
-        return [
-            dict(SkillActivation(item.value))
-            for item in tx.shelf("skill_activations").slice(0, limit).items()
-        ]
+        for item in tx.shelf("skill_activations").items():
+            value = dict(SkillActivation(item.value))
+            if project is not None and value["project"] != project:
+                continue
+            result.append(value)
+            if len(result) >= limit:
+                break
+    return result
 
 
 def main() -> None:
@@ -65,7 +71,12 @@ def main() -> None:
     parser.add_argument("--db", required=True, type=Path)
     parser.add_argument("--event", help="JSON metadata for record")
     parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--project", help="Exact absolute project path to filter list results")
     args = parser.parse_args()
+    if args.project is not None and (
+        args.action != "list" or not Path(args.project).is_absolute()
+    ):
+        parser.error("--project requires list and an absolute project path")
     if not 1 <= args.limit <= 100:
         parser.error("--limit must be between 1 and 100")
     try:
@@ -74,7 +85,7 @@ def main() -> None:
                 parser.error("record requires --event")
             result = {"inserted": record(args.db, json.loads(args.event))}
         else:
-            result = records(args.db, args.limit)
+            result = records(args.db, args.limit, args.project)
     except (Model.Error, ValueError):
         parser.error("Invalid skill-activation metadata")
     print(json.dumps(result, ensure_ascii=False))

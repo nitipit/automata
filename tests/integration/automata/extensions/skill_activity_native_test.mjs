@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { homedir } from "node:os";
 import { pathToFileURL } from "node:url";
 
 const here = process.env.SKILL_ACTIVITY_EXTENSION;
@@ -20,7 +21,9 @@ const model = {
 let pendingTool;
 let stubCalls = 0;
 const root = process.env.SKILL_ACTIVITY_TEST_ROOT;
-const db = join(root, ".agents/var/tools/skill-activity/db");
+assert.equal(homedir(), join(root, "home"), "Native test must use its isolated HOME");
+const db = join(homedir(), ".agents/var/tools/skill-activity/db");
+const legacyDb = join(root, ".agents/var/tools/skill-activity/db");
 const skillPath = join(root, "skills/fixture/SKILL.md");
 await mkdir(dirname(skillPath), { recursive: true });
 await writeFile(skillPath, "---\nname: fixture-skill\ndescription: Test fixture.\n---\n# Fixture Skill\n");
@@ -88,6 +91,12 @@ try {
   assert.equal(first[0].skill, "fixture-skill");
   assert.equal(first[0].sessionId, session.sessionManager.getSessionId());
   assert.equal(first[0].path, skillPath);
+  assert.equal(first[0].project, root);
+  await assert.rejects(access(legacyDb));
+  // Historical project data remains untouched; subsequent reads only go global.
+  const { source: oldSource, status: oldStatus, ...oldInput } = first[0];
+  helper("record", "--db", legacyDb, "--event", JSON.stringify(oldInput));
+  const historical = helper("list", "--db", legacyDb);
   assert.equal(first[0].status, "loaded");
   assert.deepEqual(Object.keys(first[0]).sort(), [
     "timestamp", "sessionId", "toolCallId", "project", "skill", "path", "source", "status",
@@ -134,12 +143,35 @@ try {
   assert.equal(failed, undefined);
   assert.equal(warnings.length, 1);
 
+  // A second project uses the same global database, retaining its own metadata.
+  const otherProject = join(root, "other-project");
+  register({
+    on(_name, handler) { observe = handler; },
+    exec: async (command, args) => ({ code: 0, stdout: execFileSync(command, args, {
+      encoding: "utf8", timeout: 15000, stdio: ["ignore", "pipe", "pipe"],
+    }), stderr: "" }),
+  });
+  await observe({
+    toolName: "read", isError: false, toolCallId: "other-project-read",
+    input: { path: skillPath }, content: result.content, details: result.details,
+  }, { cwd: otherProject, sessionManager: { getSessionId: () => "other-project-session" },
+    hasUI: false });
+  const otherRecords = helper("list", "--project", otherProject, "--limit", "1");
+  assert.equal(otherRecords.length, 1);
+  assert.equal(otherRecords[0].project, otherProject);
+  assert.equal(helper("list", "--project", root).length, 2);
+  assert.equal(helper("list").length, 3);
+  assert.deepEqual(helper("list", "--db", legacyDb), historical);
+  await assert.rejects(access(join(otherProject, ".agents/var/tools/skill-activity/db")));
+
   const receipt = { sdk: process.env.PI_SKILL_ACTIVITY_SDK, project: root, db,
     sessionId: session.sessionManager.getSessionId(), records: helper("list"),
     checks: ["native Pi read/event", "ShelfDB persistence across processes", "metadata only",
       "duplicate replay", "genuine reread", "skip limited/offset/failed/non-skill/truncated reads",
       "Dictify rejects 11 invalid inputs before DB creation",
-      "storage failure preserves read"], externalModelCalls: 0, stubCalls };
+      "storage failure preserves read", "global default under isolated home",
+      "cross-project observer storage and filtered queries", "historical local data preserved"],
+    externalModelCalls: 0, stubCalls };
   await writeFile(join(root, "result.json"), JSON.stringify(receipt, null, 2) + "\n");
   console.log(JSON.stringify(receipt, null, 2));
 } finally {

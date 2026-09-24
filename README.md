@@ -89,11 +89,14 @@ ignored files and unpreserved commits. Ordinary coding needs no worktree ceremon
 
 [`automata-storage`](src/automata/skills/core/automata-storage/SKILL.md) guides
 placement, ownership, retention, and cleanup of capability-owned operational data
-and work-owned artifacts. It retains `.agents/var/skills/`, `.agents/var/tools/`,
-and the `.agents/var/workspace/<task-name>/` fallback; no separate workspace skill
-or data migration is required.
+under `.agents/var/skills/` and `.agents/var/tools/`.
 
-This replaces the `automata-agent-data` skill name. Installers do not automatically
+[`automata-workspace`](src/automata/skills/core/automata-workspace/SKILL.md) guides
+task workspace reuse, organization, continuation, promotion, and safe cleanup.
+It retains `.agents/var/workspace/<task-name>/` as an optional repository-local
+fallback. Neither skill requires moving existing data.
+
+`automata-storage` replaces the `automata-agent-data` skill name. Installers do not automatically
 remove old installed names; retire the old skill package during an authorized sync,
 without removing its operational data.
 
@@ -287,7 +290,10 @@ uv run --no-project --script ~/.pi/agent/extensions/skill-activity/store.py --he
 ```
 
 After `/reload` or a fresh session, `skill-activity` observes complete `SKILL.md`
-reads and records metadata in local ShelfDB storage, validated by Dictify.
+reads and records metadata in global ShelfDB storage at
+`~/.agents/var/tools/skill-activity/db`, validated by Dictify. Each record retains
+its project path; `list --project /absolute/project/path` scopes queries before
+applying the limit. Existing project-local records are not migrated automatically.
 The bundled CLI provides only `record` and `list`; it is not a general database API.
 No instruction bodies or conversations are stored. Dependency preparation may
 need downloads; the observer itself runs offline. See the
