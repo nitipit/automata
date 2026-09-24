@@ -46,6 +46,21 @@ Its purpose and assessment guidance live directly in
 [`SKILL.md`](src/automata/skills/skill-ops/automata-capability-research/SKILL.md),
 without a separate goal document or runtime notes.
 
+## Model research
+
+[`automata-model-research`](src/automata/skills/core/automata-model-research/SKILL.md)
+maintains a compact, source-backed guide to choosing models for tasks: when to
+choose one, its main tradeoff, evidence freshness, and references for deeper work.
+It refreshes decision-relevant knowledge on demand, not through automatic release
+monitoring. User-approved model preferences stay separate from research findings;
+new evidence does not authorize a model switch or expand an allowed list.
+
+Ask, for example, "Is this new model worth considering for our work?" or "Are our
+model choices still appropriate?" Reusable notes and preferences live under
+`~/.agents/var/skills/automata-model-research/`, with project-specific observations
+and explicit overrides under `.agents/var/skills/automata-model-research/`.
+Installation does not create a model catalog, preferences, or runtime configuration.
+
 ## Runtime environment discovery
 
 [`automata-runtime-environment`](src/automata/skills/core/automata-runtime-environment/SKILL.md)
