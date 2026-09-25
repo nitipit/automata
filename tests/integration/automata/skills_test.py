@@ -11,8 +11,18 @@ from automata.install.skills import install_skills
 
 PACKAGE_ROOT = Path(__file__).parents[3] / "src" / "automata"
 SKILLS_ROOT = PACKAGE_ROOT / "skills"
+PI_SKILLS_ROOT = PACKAGE_ROOT / "runtimes" / "pi" / "skills"
+SKILL_ROOTS = (SKILLS_ROOT, PI_SKILLS_ROOT)
+PI_SKILL_NAMES = {
+    "automata-context-compaction",
+    "automata-context-status",
+    "automata-pi-sessions",
+    "automata-codex-imagegen",
+    "automata-skill-activity",
+    "automata-message-router",
+}
 TOOLS_ROOT = PACKAGE_ROOT / "tools"
-SKILL_FILES = sorted(SKILLS_ROOT.rglob("SKILL.md"))
+SKILL_FILES = sorted(path for root in SKILL_ROOTS for path in root.rglob("SKILL.md"))
 REQUIRED_SKILLS = {
     "automata-agents-md",
     "automata-agent-design",
@@ -101,6 +111,14 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
     assert REQUIRED_SKILLS <= names
     assert not RETIRED_SKILLS & names
     for name in RETIRED_SKILLS:
+        assert not [path for root in SKILL_ROOTS for path in root.rglob(name)], name
+
+
+def test_pi_skills_have_one_flat_source_and_no_shared_duplicates() -> None:
+    assert {path.name for path in PI_SKILLS_ROOT.iterdir()} == PI_SKILL_NAMES
+    for name in PI_SKILL_NAMES:
+        assert (PI_SKILLS_ROOT / name / "SKILL.md").is_file()
+        assert not (PI_SKILLS_ROOT / name).is_symlink()
         assert not list(SKILLS_ROOT.rglob(name)), name
 
 
@@ -152,12 +170,21 @@ def test_declared_skill_asset_references_exist() -> None:
 
 def test_bundled_skills_exclude_runtime_and_provider_state() -> None:
     for name in ("config", "generated", "openai.yaml", "calibration-records.md"):
-        assert not list(SKILLS_ROOT.rglob(name)), name
+        assert not [path for root in SKILL_ROOTS for path in root.rglob(name)], name
     assert not (TOOLS_ROOT / "ui-channel").exists()
-    assert not (PACKAGE_ROOT / "extensions/ui-channel.ts").exists()
+    assert not (PACKAGE_ROOT / "runtimes/pi/extensions/ui-channel.ts").exists()
     assert not (
         SKILLS_ROOT / "operations/automata-adaptive-ui/references/build-and-preview.md"
     ).exists()
+
+
+def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> None:
+    target = tmp_path / "skills"
+    results = install_skills(target_root=target)
+    expected = {path.parent.name for path in SKILL_FILES}
+    assert {result.name for result in results} == expected
+    assert {path.name for path in target.iterdir()} == expected
+    assert all((target / name / "SKILL.md").is_file() for name in expected)
 
 
 @pytest.mark.parametrize("skill_file", SKILL_FILES, ids=lambda p: p.parent.name)

@@ -16,7 +16,9 @@ def test_context_status_runtime_boundaries(tmp_path: Path) -> None:
         pytest.skip("Node.js 22.18+ is required for TypeScript runtime tests")
 
     extension = tmp_path / "context-status.ts"
-    extension.write_text(files("automata").joinpath("extensions", "context-status.ts").read_text())
+    extension.write_text(
+        files("automata").joinpath("runtimes", "pi", "extensions", "context-status.ts").read_text()
+    )
     package = tmp_path / "node_modules" / "typebox"
     package.mkdir(parents=True)
     (package / "package.json").write_text(

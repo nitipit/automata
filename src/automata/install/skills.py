@@ -20,7 +20,42 @@ SkillInstallResult = DirectoryInstallResult
 
 
 def bundled_skill_root() -> Path:
+    """Return the runtime-independent skill root, not the combined catalog."""
+
     return Path(str(files("automata").joinpath("skills")))
+
+
+def bundled_skill_roots() -> tuple[Path, ...]:
+    """Preserve the bundled Pi catalog while keeping its sources separate."""
+
+    return (
+        bundled_skill_root(),
+        Path(str(files("automata").joinpath("runtimes", "pi", "skills"))),
+    )
+
+
+def skill_sources(source_root: str | Path | None = None) -> dict[str, Path]:
+    """Resolve a unique catalog; an explicit source never adds bundled skills.
+
+    Reject collisions across the shared and Pi roots rather than silently choosing
+    a runtime override. Callers resolve their complete selection before writing.
+    """
+
+    roots = (
+        (resolve_source_root(source_root),)
+        if source_root is not None
+        else tuple(resolve_source_root(root) for root in bundled_skill_roots())
+    )
+    sources: dict[str, Path] = {}
+    for root in roots:
+        for path in sorted(root.rglob("SKILL.md")):
+            name = path.parent.name
+            if name in sources:
+                raise SkillInstallError(
+                    f"Duplicate skill name found: {name}: {sources[name]} and {path.parent}"
+                )
+            sources[name] = path.parent
+    return dict(sorted(sources.items()))
 
 
 def install_skills(
@@ -30,16 +65,20 @@ def install_skills(
     skill_names: tuple[str, ...] | list[str] = (),
     mode: InstallMode = "copy",
 ) -> tuple[SkillInstallResult, ...]:
-    source_path = resolve_source_root(source_root or bundled_skill_root())
-    selected_names = normalize_skill_names(skill_names)
+    sources = skill_sources(source_root)
+    selected_names = normalize_skill_names(skill_names) or tuple(sources)
     if not selected_names:
-        selected_names = list_skill_dirs(source_path)
-    if not selected_names:
-        raise SkillInstallError(f"No skill directories found under: {source_path}")
+        raise SkillInstallError(f"No skill directories found under: {source_root}")
+
+    # Validate every requested name before an earlier item can mutate a destination.
+    for name in selected_names:
+        validate_directory_name(name, kind="skill")
+        if name not in sources:
+            raise SkillInstallError(f"Source skill directory does not exist: {name}")
 
     return tuple(
         install_one(
-            source=find_skill_dir(source_path, name),
+            source=sources[name],
             target=Path(target_root).expanduser() / name,
             name=name,
             mode=mode,

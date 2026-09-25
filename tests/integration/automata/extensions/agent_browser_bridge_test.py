@@ -18,7 +18,8 @@ def prepare_runtime(tmp_path: Path) -> None:
     source_root = Path(__file__).parents[4]
     extension = tmp_path / "agent-browser-bridge.ts"
     shutil.copytree(
-        source_root / "src/automata/extensions/message-router", tmp_path / "message-router"
+        source_root / "src/automata/runtimes/pi/extensions/message-router",
+        tmp_path / "message-router",
     )
     extension.write_text('export {default} from "./message-router/index.ts";\n')
     for relative in ("agent_browser_bridge.py", "browser/client.js", "browser/page.js"):
@@ -83,7 +84,7 @@ def test_agent_browser_bridge_native_pi_lifecycle(tmp_path: Path) -> None:
     node = shutil.which("node")
     if not package or not node:
         pytest.skip("Set AGENT_BROWSER_BRIDGE_NATIVE_PI_PACKAGE to an installed Pi package")
-    source = Path(__file__).parents[4] / "src/automata/extensions/message-router"
+    source = Path(__file__).parents[4] / "src/automata/runtimes/pi/extensions/message-router"
     shutil.copytree(source, tmp_path / "message-router")
     (tmp_path / "agent-browser-bridge.ts").write_text(
         'export {default} from "./message-router/index.ts";\n'

@@ -1,6 +1,13 @@
 from pathlib import Path
 
-from automata.install.pi_extensions import install_pi_extensions
+from automata.install.pi_extensions import bundled_pi_extension_root, install_pi_extensions
+
+
+def test_bundled_pi_extension_root_is_under_pi_runtime() -> None:
+    root = bundled_pi_extension_root()
+    assert root.parts[-3:] == ("runtimes", "pi", "extensions")
+    assert root.joinpath("message-router", "index.ts").is_file()
+    assert not root.parent.parent.parent.joinpath("extensions").exists()
 
 
 def test_install_pi_extensions_copies_bundled_codex_bridge(tmp_path: Path) -> None:

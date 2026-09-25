@@ -23,7 +23,7 @@ def test_context_status_installed_runtime_offline(tmp_path: Path) -> None:
     assert (package / "dist/core/extensions/runner.js").is_file(), package
 
     (tmp_path / "context-status.ts").write_text(
-        files("automata").joinpath("extensions", "context-status.ts").read_text()
+        files("automata").joinpath("runtimes", "pi", "extensions", "context-status.ts").read_text()
     )
     typebox = tmp_path / "node_modules" / "typebox"
     typebox.mkdir(parents=True)

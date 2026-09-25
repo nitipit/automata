@@ -26,7 +26,9 @@ def test_context_compaction_installed_runtime_offline(tmp_path: Path) -> None:
         pytest.skip("Node.js and the installed Pi coding-agent package are required")
 
     (tmp_path / "context-compaction.ts").write_text(
-        files("automata").joinpath("extensions", "context-compaction.ts").read_text()
+        files("automata")
+        .joinpath("runtimes", "pi", "extensions", "context-compaction.ts")
+        .read_text()
     )
     typebox = tmp_path / "node_modules" / "typebox"
     typebox.mkdir(parents=True)

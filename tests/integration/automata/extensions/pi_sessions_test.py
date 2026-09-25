@@ -16,7 +16,9 @@ def test_pi_sessions_runtime_boundaries(tmp_path: Path) -> None:
         pytest.skip("Node.js 22.18+ is required for TypeScript runtime tests")
 
     extension = tmp_path / "pi-sessions.ts"
-    extension.write_text(files("automata").joinpath("extensions", "pi-sessions.ts").read_text())
+    extension.write_text(
+        files("automata").joinpath("runtimes", "pi", "extensions", "pi-sessions.ts").read_text()
+    )
     adapters = {
         "@earendil-works/pi-coding-agent": "export const SessionManager = {};",
         "typebox": "export const Type = new Proxy({}, {get: () => (...args) => args});",
@@ -48,7 +50,7 @@ def test_pi_session_copy_native_sdk(tmp_path: Path) -> None:
     sdk_path = Path(sdk).resolve()
     assert sdk_path.is_file()
     (tmp_path / "pi-sessions.ts").write_text(
-        files("automata").joinpath("extensions", "pi-sessions.ts").read_text()
+        files("automata").joinpath("runtimes", "pi", "extensions", "pi-sessions.ts").read_text()
     )
     adapters = {
         "@earendil-works/pi-coding-agent":
