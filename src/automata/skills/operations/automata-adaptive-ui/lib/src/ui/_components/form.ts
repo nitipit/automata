@@ -117,7 +117,12 @@ export class Form extends Base<FormData> {
         previous.set(input.name, { kind: "choice", value: input.value });
       }
     }
-    const focused = form.contains(document.activeElement) ? document.activeElement as HTMLElement : null;
+    // document.activeElement is the host when this Form lives in a ShadowRoot.
+    const root = this.getRootNode();
+    const active = root instanceof Document || root instanceof ShadowRoot
+      ? root.activeElement
+      : null;
+    const focused = active && form.contains(active) ? active as HTMLElement : null;
     const focusedInput = focused instanceof HTMLInputElement ? focused : null;
     const focusName = focusedInput?.name;
     const focusValue = focusedInput?.value;
