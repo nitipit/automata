@@ -35,7 +35,7 @@ class BrowserReadingTests(unittest.TestCase):
         cls.playwright.stop()
 
     def setUp(self):
-        import line as line_tool
+        import line_send as line_tool
 
         self.page = self.browser.new_page()
         self.page.set_content("""<input placeholder="Search chat list">
@@ -100,6 +100,36 @@ class BrowserReadingTests(unittest.TestCase):
     def test_wrong_chat_identity_blocks(self):
         with self.assertRaises(storage.ApiError):
             self.reader.extract("different")
+
+    def test_after_cursor_returns_newer_without_duplicate(self):
+        with patch.object(self.reader, "open_id", return_value="Fixture"):
+            result = self.reader.read(
+                "chat1", {}, None, unseen=False, max_scrolls=0, after=(100, "100-m1")
+            )
+        self.assertEqual([m["id"] for m in result["messages"]], ["100-m2"])
+        self.assertTrue(result["coverage"]["cursor_found"])
+
+    def test_missing_cursor_returns_no_misleading_continuation(self):
+        for direction in ("after", "before"):
+            with patch.object(self.reader, "open_id", return_value="Fixture"):
+                result = self.reader.read(
+                    "chat1", {}, None, unseen=False, max_scrolls=0, **{direction: (99, "missing")}
+                )
+            self.assertEqual(result["messages"], [])
+            self.assertEqual(result["coverage"]["code"], "HISTORY_GAP")
+
+    def test_new_arrival_appears_on_next_after_read(self):
+        self.page.locator(".message_list").evaluate("""e => {
+            const m=document.createElement('div');
+            m.dataset.messageSelectId='101-m3'; m.dataset.timestamp='101';
+            m.innerHTML='<div class="textMessageContent-module__text__fixture">new</div>';
+            e.prepend(m);
+        }""")
+        with patch.object(self.reader, "open_id", return_value="Fixture"):
+            result = self.reader.read(
+                "chat1", {}, None, unseen=False, max_scrolls=0, after=(100, "100-m2")
+            )
+        self.assertEqual([m["id"] for m in result["messages"]], ["101-m3"])
 
     def test_state_unchanged_by_read(self):
         entry = {"anchor_id": "100-m1", "seen": {}}

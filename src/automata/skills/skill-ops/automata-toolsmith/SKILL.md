@@ -39,11 +39,19 @@ observable state, actionable errors, and provenance or correlation identifiers n
 for safe interpretation—not redundant labels or repeated behavioral instructions.
 Do not hide important state when direct inspection is safer.
 
+Agents are adaptive users: they can inspect help or schemas, understand effects,
+choose an invocation and verify the result. Design commands around user goals;
+use options for variations, keeping preparation steps internal when appropriate.
+Do not preserve old filenames or flags solely for familiarity. Add compatibility
+only for actual consumers or explicit requirements; update entry-point mappings
+and tests when replacing an interface.
+
 Keep operation discoverable without reading implementation:
 
 - Tiny one-off helpers need `--help` or a short top comment.
-- Durable CLIs need root/subcommand help explaining purpose, non-obvious options,
-  expected values, defaults, effects, state/artifact paths, safety limits, and cleanup.
+- Durable CLIs need concise root purpose/command discovery and subcommand parameters,
+  expected values and defaults. Explain surprising effects and necessary recovery;
+  omit tutorials, repeated policy and separate help-text files.
 - Use executable discovery for schemas or contracts too large for clear help text.
 - Tools managing state or processes need a clear `status`, `stop`, and cleanup story.
 - Keep usage in CLI help, tool descriptions, or the owning skill. Do not duplicate
@@ -60,9 +68,12 @@ language when parsing, state, or retries become non-trivial.
 
 When choosing a stack without established conventions, consult
 [Stack defaults](references/stacks.md). These are defaults, not permission to
-install runtimes or fetch dependencies. Use schema validation for structured,
-persisted, safety-sensitive, or externally exposed inputs; ordinary scalar CLI
-flags usually need only parser validation and explicit checks.
+install runtimes or fetch dependencies. For substantive Python agent-facing CLIs,
+prefer Cyclopts and Dictify together: Dictify models own input types, defaults and
+validation; Cyclopts binds commands and generates help. Verify the integration's
+actual signatures, help and error paths rather than duplicating schemas in flags.
+Keep standard-library scripts or established stacks when they are simpler; use
+schema validation for persisted or externally exposed structured data as needed.
 
 ## Ownership and placement
 

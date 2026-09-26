@@ -7,10 +7,11 @@ do not authorize installation or downloads.
 ## Python
 
 - Prefer `uv`, a project-local `.venv`, and `uv run ...`.
-- Use `cyclopts` for command definitions and self-documenting help unless a
-  confirmed runtime constraint prohibits dependencies.
-- Use `dictify` when structured results, configuration, or state serialization
-  benefit from it.
+- For substantive agent-facing CLIs, use `cyclopts` and `dictify` together:
+  Dictify models define validated inputs; Cyclopts binds commands and help.
+  Verify field descriptions and cross-field errors through the real CLI.
+- Use Dictify for structured results, configuration or persisted state when useful;
+  do not force a model onto data that needs no validation.
 - Keep tiny tools on the standard library when dependencies do not reduce complexity.
 
 ## JavaScript / TypeScript

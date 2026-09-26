@@ -25,7 +25,7 @@ def test_package_includes_self_documenting_python_tools() -> None:
     scripts = (
         package_root.joinpath("timer", "timer.py"),
         package_root.joinpath("tmux-message", "tmux_message.py"),
-        package_root.joinpath("line", "line.py"),
+        package_root.joinpath("line", "line_cli.py"),
     )
 
     for script in scripts:

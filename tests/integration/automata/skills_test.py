@@ -128,7 +128,7 @@ def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
     expected = {
         "automata-message-router": ".agents/tools/message-router/message_router.py",
         "automata-timer": ".agents/tools/timer/timer.py",
-        "automata-line-use": ".agents/tools/line/line.py",
+        "automata-line-use": ".agents/tools/line/line_cli.py",
         "automata-tmux-communication": ".agents/tools/tmux-message/tmux_message.py",
     }
     for path in SKILL_FILES:
