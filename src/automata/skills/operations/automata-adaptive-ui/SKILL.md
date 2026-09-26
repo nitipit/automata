@@ -1,13 +1,22 @@
 ---
 name: automata-adaptive-ui
-description: Use for browser interfaces, websites, web-app frontends, dashboards, forms and tools when composing, previewing, updating, reconnecting to, or promoting an Adaptive UI.
+description: Use when creating or modifying browser interfaces, websites, web-app frontends, dashboards, forms, or interactive tools; also when previewing, reconnecting to, or promoting an existing Adaptive UI.
 ---
 
 # Automata Adaptive UI
 
 Create inspectable, task-appropriate web interfaces with the least-complex
-composition that remains reproducible. Respect an established application's stack;
-this catalog is a composition option, not a reason to replace its framework.
+composition that remains reproducible. For a new standalone browser interface,
+use the shipped library as the default composition layer: reuse suitable catalog
+components and extend `Base` for task-local components. Do not read the examples
+and then recreate their foundation with a separate vanilla component system.
+Keep simple content static; use Arrow only where reactive behavior is useful.
+
+Respect an established application's stack rather than replacing its framework.
+An explicit user stack choice or an incompatible requirement can justify a
+different implementation; explain the reason. If the library is unavailable,
+check its documented build path and report the specific prerequisite rather than
+silently abandoning it.
 
 ## Reuse and locate
 
@@ -82,8 +91,9 @@ that must not affect existing sessions.
 Serve only public-safe assets on loopback. Verify the rendered UI and relevant
 interactions, including keyboard navigation, focus feedback, labels, responsive
 layout, and compatible Form draft preservation—not just server startup or HTTP
-success. Preserve existing work when updating: full reloads do not guarantee transient-state preservation. Reflect
-accepted changes in session source rather than leaving browser-only probes.
+success. Preserve existing work when updating: full reloads do not guarantee
+transient-state preservation. Reflect accepted changes in session source rather
+than leaving browser-only probes.
 
 ## Lifecycle
 

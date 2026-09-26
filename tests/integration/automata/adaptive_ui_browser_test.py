@@ -1,7 +1,7 @@
 """Real-browser Form update regression; no implicit browser/package download.
 
 Run with cached tooling, e.g.:
-AUI_CHROMIUM_EXECUTABLE="$HOME/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell" \
+AUI_CHROMIUM_EXECUTABLE="/absolute/path/to/cached/chromium" \
   PYTHONPATH=src uv run --offline --no-project --with 'playwright==1.63.0' \
   --with 'shelfdb==3.0.2' --with 'dictify==5.0.2' --with pytest \
   python -m pytest tests/integration/automata/adaptive_ui_browser_test.py -q
@@ -40,7 +40,9 @@ def test_form_drafts_and_focus_in_light_and_shadow_dom(tmp_path: Path) -> None:
         capture_output=True, text=True, timeout=90,
     )
     assert result.returncode == 0, result.stderr
-    (root / "index.html").write_text('<!doctype html><script type="module" src="/test.js"></script>')
+    (root / "index.html").write_text(
+        '<!doctype html><script type="module" src="/test.js"></script>'
+    )
     (root / "test.js").write_text('''
       import { Form } from "/lib/adaptive-ui.js";
       Form.define("aui-browser-form");
