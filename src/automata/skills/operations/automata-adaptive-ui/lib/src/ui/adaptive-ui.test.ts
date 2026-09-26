@@ -33,6 +33,17 @@ Deno.test("Adaptive UI exports Chat and Arrow reactive primitives", () => {
   assert(state.count === 1);
 });
 
+Deno.test("public semantic tokens use overridable CSS values with defaults", () => {
+  for (const role of [
+    "surface", "text", "mutedText", "border", "action", "actionHover",
+    "actionText", "danger", "focus", "status",
+  ] as const) {
+    assert(ui.tokens[role].startsWith("var(--aui-"));
+    assert(ui.tokens[role].includes(", "));
+  }
+  assert(ui.tokens.action === "var(--aui-action, #2563eb)");
+});
+
 function restoreGlobal(name: string, original: unknown): void {
   if (original === undefined) {
     delete globals[name];

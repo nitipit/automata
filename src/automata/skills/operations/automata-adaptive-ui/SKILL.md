@@ -1,12 +1,13 @@
 ---
 name: automata-adaptive-ui
-description: Use when generating, previewing, updating, reconnecting to, or promoting a live Adaptive UI.
+description: Use for browser interfaces, websites, web-app frontends, dashboards, forms and tools when composing, previewing, updating, reconnecting to, or promoting an Adaptive UI.
 ---
 
 # Automata Adaptive UI
 
 Create inspectable, task-appropriate web interfaces with the least-complex
-composition that remains reproducible.
+composition that remains reproducible. Respect an established application's stack;
+this catalog is a composition option, not a reason to replace its framework.
 
 ## Reuse and locate
 
@@ -32,14 +33,31 @@ blindly:
 
 - `lib/example/index.html`: static composition.
 - `lib/example/reactive-shadow.html`: reactive state and Shadow DOM.
-- `lib/example/chat-with-agent.html`: Chat + bridge integration; the component
-  owns payload semantics, the page wires transport.
-- `lib/src/ui/adaptive-ui.ts` and component modules: APIs and schemas.
+- `lib/example/chat-with-agent.html`: optional Chat + bridge integration; the
+  component owns payload semantics, the page wires transport.
+- `lib/example/dashboard.html`: task-local chart with resize/disposal, Arrow
+  filtering and sorting, validated sample data, and loading/empty/error states.
+- `lib/src/ui/adaptive-ui.ts`, `lib/src/ui/tokens.ts`, and relevant component
+  modules: public exports, semantic tokens, exact APIs and schemas.
 
-Reuse available catalog components before creating new ones. Use `Base` for
-component boundaries, Adapter for component styles, and Arrow for instance-local
-reactive state and rendering. Register components before mounting templates; keep
-static content static and document CSS limited to document concerns.
+Reuse the maintained `Base`, `Button`, `Card`, `Form`, and `Chat` catalog before
+creating task-local components. `Base` extends Adapter (component-scoped styles,
+registration and `create()`); register with `define(tagName)` before creation or
+mounting templates. Edictor validates catalog data via each component's static
+`validateData`; direct `applyData` callers validate first. Arrow supplies optional
+local reactive state and rendering; keep static content static. Use component CSS
+for component styles and document CSS for page layout.
+
+Public `tokens` exports semantic CSS values (`surface`, `text`, `mutedText`,
+`border`, `action`, `actionHover`, `actionText`, `danger`, `focus`, `status`).
+Each value uses `var(--aui-<role>, fallback)`: override custom properties on
+an ancestor or component; defaults remain usable without a theme service.
+For example, `:root { --aui-action: #2456a6; }` changes action controls.
+Do not import private `_tokens` or component token modules as public APIs.
+`Form.applyData` retains text drafts by name/kind and radio selection only if
+its value remains offered; removed or changed-kind fields lose drafts. Use native
+`form.reset()` to explicitly clear drafts to blank defaults. Attribute changes
+reconcile Button/Card/Form; Chat owns its separate pending state and never resends.
 
 Each agent-connected component owns its outgoing payload, expected reply contract,
 validation, and interaction state as a single source of truth. Page composition
@@ -62,8 +80,9 @@ built library across session pages; choose a separate website root for experimen
 that must not affect existing sessions.
 
 Serve only public-safe assets on loopback. Verify the rendered UI and relevant
-interactions, not just server startup or HTTP success. Preserve existing work when
-updating: full reloads do not guarantee transient-state preservation. Reflect
+interactions, including keyboard navigation, focus feedback, labels, responsive
+layout, and compatible Form draft preservation—not just server startup or HTTP
+success. Preserve existing work when updating: full reloads do not guarantee transient-state preservation. Reflect
 accepted changes in session source rather than leaving browser-only probes.
 
 ## Lifecycle

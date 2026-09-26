@@ -1,4 +1,5 @@
 import { Base } from "./base.js";
+import { tokens } from "../tokens.js";
 import {
   type ChatData,
   validateChatData,
@@ -47,15 +48,15 @@ export class Chat extends Base<ChatData> {
       min-height: 30rem;
       box-sizing: border-box;
       overflow: hidden;
-      border: 1px solid #dce3eb;
+      border: 1px solid ${tokens.border};
       border-radius: 1.25rem;
-      background: #fff;
+      background: ${tokens.surface};
       box-shadow: 0 18px 65px #14283e12;
       font-size: 1.2rem;
 
       header {
         padding: 1.4rem 1.6rem;
-        border-bottom: 1px solid #e7ecf1;
+        border-bottom: 1px solid ${tokens.border};
       }
 
       h1 {
@@ -75,7 +76,7 @@ export class Chat extends Base<ChatData> {
       .empty {
         max-width: 28rem;
         margin: auto;
-        color: #64748b;
+        color: ${tokens.status};
         text-align: center;
       }
 
@@ -94,7 +95,7 @@ export class Chat extends Base<ChatData> {
       .message strong {
         display: block;
         margin-bottom: .3rem;
-        color: #475569;
+        color: ${tokens.mutedText};
         font-size: .95rem;
       }
 
@@ -106,13 +107,13 @@ export class Chat extends Base<ChatData> {
 
       form {
         padding: 1rem 1.5rem 1.4rem;
-        border-top: 1px solid #e7ecf1;
+        border-top: 1px solid ${tokens.border};
       }
 
       label {
         display: block;
         margin-bottom: .4rem;
-        color: #475569;
+        color: ${tokens.mutedText};
         font-size: 1rem;
       }
 
@@ -122,9 +123,14 @@ export class Chat extends Base<ChatData> {
         box-sizing: border-box;
         resize: vertical;
         padding: .7rem;
-        border: 1px solid #cbd5e1;
+        border: 1px solid ${tokens.border};
         border-radius: .65rem;
         font: inherit;
+      }
+
+      textarea:focus-visible {
+        outline: 2px solid ${tokens.focus};
+        outline-offset: 2px;
       }
 
       .footer {
@@ -136,7 +142,7 @@ export class Chat extends Base<ChatData> {
       }
 
       .status {
-        color: #64748b;
+        color: ${tokens.status};
         font-size: 1rem;
       }
 

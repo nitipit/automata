@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Adaptive UI · activity dashboard</title>
+  <style>
+    :root { --aui-action: #2456a6; --aui-focus: #8b3dde; }
+    body { margin: 0; padding: clamp(1rem, 4vw, 3rem); background: #f4f7fb; font: 1rem/1.5 system-ui, sans-serif; }
+    main { max-width: 70rem; margin: auto; }
+    .grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(15rem, 1fr); gap: 1rem; }
+    @media (max-width: 45rem) { .grid { grid-template-columns: 1fr; } }
+    .controls { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; margin-block: 1rem; }
+    label { display: grid; gap: .25rem; }
+    input, select, button { font: inherit; min-height: 2.5rem; }
+    :focus-visible { outline: 2px solid var(--aui-focus); outline-offset: 2px; }
+    aui-card { min-width: 0; }
+    aui-activity-chart { display: block; min-height: 15rem; }
+    ul { padding-inline-start: 1.3rem; }
+  </style>
+  <script type="module">
+    import { Base, Button, Card, component, html, reactive, tokens } from "/lib/adaptive-ui.js";
+
+    // Task-local component: only promote to the maintained catalog after separate approval.
+    class ActivityChart extends Base {
+      #rows = [];
+      #observer;
+      static { this.css = `display:block; color:${tokens.text};` }
+      static validateData(value) {
+        if (!Array.isArray(value) || !value.every(row =>
+          typeof row.name === "string" && row.name.trim() &&
+          typeof row.count === "number" && Number.isFinite(row.count) && row.count >= 0)) {
+          throw new Error("ActivityChart expects nonnegative numeric counts and names");
+        }
+        return value;
+      }
+      applyData(rows) { this.#rows = rows; this.#draw(); }
+      connectedCallback() {
+        super.connectedCallback();
+        this.#observer ??= new ResizeObserver(() => this.#draw());
+        this.#observer.observe(this);
+        this.#draw();
+      }
+      disconnectedCallback() {
+        super.disconnectedCallback?.();
+        this.#observer?.disconnect();
+      }
+      #draw() {
+        if (!this.isConnected) return;
+        this.replaceChildren();
+        const ns = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(ns, "svg");
+        const width = Math.max(240, this.clientWidth);
+        const height = Math.max(100, this.#rows.length * 38 + 12);
+        svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        svg.setAttribute("width", "100%");
+        svg.setAttribute("height", String(height));
+        svg.setAttribute("role", "img");
+        svg.setAttribute("aria-label", this.#rows.length
+          ? `Activity counts: ${this.#rows.map(r => `${r.name} ${r.count}`).join(", ")}`
+          : "No activity to chart");
+        const max = Math.max(1, ...this.#rows.map(row => row.count));
+        this.#rows.forEach((row, i) => {
+          const y = i * 38 + 7;
+          const text = document.createElementNS(ns, "text");
+          text.setAttribute("x", "0"); text.setAttribute("y", String(y + 17));
+          text.textContent = row.name;
+          const bar = document.createElementNS(ns, "rect");
+          bar.setAttribute("x", "95"); bar.setAttribute("y", String(y));
+          bar.setAttribute("width", String((width - 145) * row.count / max));
+          bar.setAttribute("height", "24"); bar.setAttribute("fill", "var(--aui-action, #2563eb)");
+          const count = document.createElementNS(ns, "text");
+          count.setAttribute("x", String(width - 45)); count.setAttribute("y", String(y + 17));
+          count.textContent = String(row.count);
+          svg.append(text, bar, count);
+        });
+        this.append(svg);
+      }
+    }
+    Card.define("aui-card");
+    Button.define("aui-button");
+    ActivityChart.define("aui-activity-chart");
+
+    // Arrow owns page-local filtering/sorting; chart owns only its drawing lifecycle.
+    const state = reactive({ query: "", order: "count", phase: "loading", rows: [] });
+    const visible = () => state.rows.filter(row =>
+      row.name.toLowerCase().includes(state.query.toLowerCase()))
+      .sort((a, b) => state.order === "count" ? b.count - a.count : a.name.localeCompare(b.name));
+    const chart = ActivityChart.create({ data: [] });
+    const Results = component(() => html`
+      <p role="status" aria-live="polite">${() => state.phase === "ready"
+        ? `${visible().length} activities shown` : state.phase === "loading"
+        ? "Loading activities…" : "Unable to load activities; try again."}</p>
+      <ul>${() => state.phase === "ready" ? visible().map(row =>
+        html`<li>${row.name}: ${row.count}</li>`) : []}</ul>
+      ${() => state.phase === "ready" && visible().length === 0
+        ? html`<p>No matching activities.</p>` : ""}
+    `);
+    html`${Results()}`(document.querySelector("#results"));
+    document.querySelector("#chart").append(chart);
+    function refreshChart() { chart.applyData(ActivityChart.validateData(visible())); }
+    function filter(event) { state.query = event.target.value; refreshChart(); }
+    document.querySelector("#filter").addEventListener("input", filter);
+    document.querySelector("#sort").addEventListener("change", event => {
+      state.order = event.target.value; refreshChart();
+    });
+    async function load(fail = false) {
+      state.phase = "loading";
+      chart.applyData([]);
+      try {
+        // Replace with a task-approved data source. No remote account or CDN is required.
+        await new Promise(resolve => setTimeout(resolve, 150));
+        const data = fail ? null : [
+          { name: "Research", count: 16 }, { name: "Design", count: 8 },
+          { name: "Delivery", count: 12 }, { name: "Review", count: 4 },
+        ];
+        state.rows = ActivityChart.validateData(data);
+        state.phase = "ready";
+        refreshChart();
+      } catch {
+        state.rows = []; state.phase = "error"; chart.applyData([]);
+      }
+    }
+    document.querySelector("#reload").addEventListener("click", () => load());
+    document.querySelector("#fail").addEventListener("click", () => load(true));
+    load();
+  </script>
+</head>
+<body>
+  <main>
+    <h1>Activity dashboard</h1>
+    <p>Local sample data; explore filter, sort, empty and retry states.</p>
+    <div class="controls">
+      <label>Filter activities <input id="filter" type="search" autocomplete="off" /></label>
+      <label>Sort by <select id="sort"><option value="count">Highest count</option><option value="name">Name</option></select></label>
+      <button id="reload" type="button">Reload data</button>
+      <button id="fail" type="button">Simulate error</button>
+    </div>
+    <div class="grid">
+      <aui-card padding="lg"><h2>Overview</h2><div id="chart"></div></aui-card>
+      <aui-card padding="lg"><h2>Activities</h2><div id="results"></div></aui-card>
+    </div>
+  </main>
+</body>
+</html>
