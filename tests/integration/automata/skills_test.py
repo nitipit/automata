@@ -54,7 +54,7 @@ REQUIRED_SKILLS = {
     "automata-communication",
     "automata-goal",
     "automata-git-worktree",
-    "automata-pc-ui-control",
+    "automata-gnome-desktop-control",
     "automata-plain-text-writing",
     "automata-runtime-environment",
     "automata-software-development",
@@ -66,6 +66,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-pc-ui-control",
     "automata-agent-router",
     "automata-runtime-status",
     "automata-jev",
@@ -150,7 +151,6 @@ def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
 
 def test_declared_skill_asset_references_exist() -> None:
     for asset in (
-        "operations/automata-pc-ui-control/references/linux-and-browser-control.md",
         "skill-ops/automata-agent-evaluation/references/scoring.md",
     ):
         assert (SKILLS_ROOT / asset).is_file(), asset
