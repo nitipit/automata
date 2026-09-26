@@ -1,6 +1,8 @@
 # Base Behavior
 
 Distinguish estimates from observations; revise expectations with evidence.
+Consult relevant past experience when it could materially affect a decision;
+verify that earlier conclusions still apply.
 Keep resource awareness proportionate. Check time when a pause, deadline, or
 time-dependent claim makes it relevant.
 

@@ -41,6 +41,7 @@ REQUIRED_SKILLS = {
     "automata-skill-activity",
     "automata-delegation",
     "automata-cue",
+    "automata-journal",
     "automata-time-awareness",
     "automata-team-management",
     "automata-plan",
@@ -206,6 +207,26 @@ def test_selected_skill_installs_only_its_packaged_files(tmp_path: Path, skill_f
         }
 
     assert contents(installed) == contents(skill_file.parent)
+
+
+def test_journal_template_metadata_supports_discovery() -> None:
+    path = SKILLS_ROOT / "core/automata-journal/templates/entry.md"
+    metadata = parse_frontmatter(path)
+    for field in ("id", "created", "kind", "title", "summary"):
+        assert isinstance(metadata[field], str) and metadata[field].strip(), field
+    assert isinstance(metadata["topics"], list) and metadata["topics"]
+    assert all(isinstance(topic, str) and topic for topic in metadata["topics"])
+    # Placeholders must not masquerade as actual event timestamps or evidence.
+    assert metadata["id"].startswith("REPLACE-")
+    assert metadata["created"].startswith("REPLACE-")
+
+
+def test_journal_and_cue_do_not_name_other_skills() -> None:
+    for name in ("automata-journal", "automata-cue"):
+        root = SKILLS_ROOT / "core" / name
+        for path in root.rglob("*.md"):
+            names = set(re.findall(r"automata-[a-z0-9]+(?:-[a-z0-9]+)*", path.read_text()))
+            assert names <= {name}, (path, names)
 
 
 def test_evaluation_record_example_is_internally_consistent() -> None:

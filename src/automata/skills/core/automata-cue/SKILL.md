@@ -14,6 +14,9 @@ Capture reusable decisions, preferences, discoveries, and pointers. Prefer one i
 per Markdown bullet, usually 15–40 words excluding its timestamp and source pointer.
 This is a soft target: recall matters more than word count. Keep enough meaning to
 recognize the idea; link to details rather than compressing everything into the note.
+When fuller context, reasoning, or outcomes already exist in a durable record,
+link to it rather than duplicating its detail. Keep the reminder independently
+understandable. A reminder does not require creating a fuller record, or vice versa.
 Leave changing task status in its existing owner records.
 
 Start each new or revised note with the actual save-time ISO 8601 timestamp and
