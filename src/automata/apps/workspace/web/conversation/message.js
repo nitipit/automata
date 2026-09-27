@@ -3,12 +3,20 @@ import { createComponent } from "../components/registry.js";
 
 export class Message extends Base {
   static { this.css = "display:block; min-width:0; .delivery {font-size:.8rem;}"; }
-  present(message, agentName, conversationId) {
+  present(message, agentName, conversationId, historicalEvidence) {
     this.replaceChildren();
     this.className = `message ${message.role}`;
     const speaker = document.createElement("span");
     speaker.className = "speaker";
-    speaker.textContent = message.role === "user" ? "You" : `${agentName}${message.provenance === "historical-simulation" || !message.content ? " · historical simulation" : ""}`;
+    const simulated = message.provenance === "historical-simulation" || !message.content
+      || message.text.startsWith("[Simulation]");
+    const author = message.author ?? historicalEvidence;
+    const assigned = author?.participant === "workspace-agent" && author?.sessionId;
+    const historicalName = conversationId === "conversation-aster" ? "Aster" : "Mira";
+    speaker.textContent = message.role === "user" ? "You" : simulated
+      ? `${historicalName} · historical simulation`
+      : assigned ? `Automata · recorded runtime ${author.sessionId}`
+      : "Historical agent · identity unverified";
     this.append(speaker);
     const content = message.content ?? [{ id: "legacy-text", type: "text", version: 1, data: { text: message.text } }];
     for (const description of content) {

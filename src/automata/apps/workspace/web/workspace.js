@@ -4,10 +4,7 @@ import "./conversation-view.js";
 import "./bottom-controls.js";
 import { createAgentConversation } from "/modules/agent/conversation.js";
 
-const agents = {
-  "agent-a": { name: "Aster", conversation: "conversation-aster" },
-  "agent-b": { name: "Mira", conversation: "conversation-mira" },
-};
+// Storage slots remain legacy IDs; assignment comes only from server provisioning.
 
 class WorkspaceRoot extends Base {
   static { this.css = "display:block; width:100%; height:100%; min-height:0;"; }
@@ -43,7 +40,7 @@ function currentConversation() {
 function render() {
   if (!state.ready) return;
   const conversation = currentConversation();
-  const name = agents[conversation.agentId].name;
+  const name = state.assignment?.displayName ?? "Unassigned";
   controls.present(state.value, name);
   controls.setConversationOpen(state.conversationOpen);
   conversationView.present(conversation, name);
@@ -115,14 +112,6 @@ function scheduleSave() {
   clearTimeout(state.timer);
   state.timer = setTimeout(saveNow, 250);
 }
-function selectAgent(agentId) {
-  const conversationId = agents[agentId]?.conversation;
-  if (!state.ready || !conversationId || state.sendPending || state.uncertainSend) return;
-  currentConversation().draft = controls.draftText;
-  state.value.view.selectedConversationId = conversationId;
-  render();
-  scheduleSave();
-}
 const agentConversation = createAgentConversation({ state, api, saveNow, render, controls, setStatus });
 conversationView.addEventListener("component-draft", event => agentConversation.draft(event.detail));
 conversationView.addEventListener("component-submit", event => void agentConversation.submit(event.detail));
@@ -150,7 +139,8 @@ controls.addEventListener("draft-change", (event) => {
   scheduleSave();
 });
 controls.addEventListener("draft-blur", () => { if (state.dirty) void saveNow(); });
-controls.addEventListener("agent-change", (event) => selectAgent(event.detail));
+controls.addEventListener("connect-agent", () => void agentConversation.connect());
+controls.addEventListener("disconnect-agent", () => agentConversation.disconnect());
 controls.addEventListener("send-message", (event) => void agentConversation.send(event.detail));
 controls.addEventListener("copy-recovery", () => void copyRecovery());
 document.addEventListener("keydown", (event) => {
@@ -167,6 +157,9 @@ window.addEventListener("beforeunload", (event) => {
 
 try {
   state.value = await api("/api/state");
+  // Hidden Mira data is preserved, not transferred or reassigned. The active UI
+  // is the single explicitly assignable historical storage slot.
+  state.value.view.selectedConversationId = "conversation-aster";
   state.ready = true;
   render();
   await agentConversation.initialize();

@@ -108,6 +108,8 @@ def validate_state(value: Any) -> dict[str, Any]:
         ids = set()
         for message in row["messages"]:
             validate_message(message)
+            if "author" in message and conversation_id != "conversation-aster":
+                raise ValueError("Assigned agent does not own this conversation")
             if message["id"] in ids:
                 raise ValueError(f"Duplicate message in {conversation_id}")
             ids.add(message["id"])

@@ -70,7 +70,8 @@ def test_bootstrap_rejects_agent_credentials_and_remote_router(tmp_path, monkeyp
     import json
     endpoint = tmp_path / "endpoint.json"
     monkeypatch.setenv("WORKSPACE_PAGE_ENDPOINT", str(endpoint))
-    monkeypatch.setenv("WORKSPACE_AGENT_PARTICIPANT", "target-agent")
+    monkeypatch.setenv("WORKSPACE_AGENT_PARTICIPANT", "workspace-agent")
+    monkeypatch.setenv("WORKSPACE_AGENT_ID", "agent-automata")
     endpoint.write_text(json.dumps({"wsUrl": "ws://127.0.0.1:8791/ws", "kind": "agent",
                                     "participant": "page", "token": "test-only"}))
     with pytest.raises(ValueError, match="Only page"):

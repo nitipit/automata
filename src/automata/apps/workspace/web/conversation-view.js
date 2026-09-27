@@ -83,7 +83,13 @@ export class ConversationView extends Base {
     log.replaceChildren();
     for (const message of conversation.messages) {
       const row = document.createElement("wsp-message");
-      row.present(message, agentName, conversation.id);
+      // Earlier real replies recorded provenance on the correlated submission.
+      // Use that existing evidence for display without rewriting historical rows.
+      const evidence = conversation.messages.flatMap(item => [item.delivery,
+        ...Object.values(item.interactions ?? {})]).find(item => item?.status === "completed"
+          && item.operationId === message.operationId && item.participant === "workspace-agent"
+          && typeof item.sessionId === "string");
+      row.present(message, agentName, conversation.id, evidence);
       log.append(row);
     }
     if (!conversation.messages.length) {

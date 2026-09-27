@@ -20,7 +20,7 @@ export class BottomControls extends Base {
         gap:var(--workspace-space-md);
         padding:var(--workspace-space-md);
       }
-      select, #conversation-toggle {
+      #agent, #conversation-toggle, .connection button {
         flex:none;
         min-width:0;
         height:42px;
@@ -32,7 +32,12 @@ export class BottomControls extends Base {
         font:inherit;
         cursor:pointer;
       }
-      select { max-width:30%; }
+      #agent { max-width:30%; display:flex; align-items:center; }
+      .connection { padding:var(--workspace-space-sm); font-size:.8rem; }
+      .connection button { height:30px; }
+      .connection button:disabled { opacity:.5; cursor:default; }
+      #connection-status { overflow-wrap:anywhere; }
+      .connection p { margin:4px 0; }
       #conversation-toggle { white-space:nowrap; }
       #conversation-toggle[aria-expanded="true"] {
         border-color:${tokens.action};
@@ -43,7 +48,7 @@ export class BottomControls extends Base {
       [hidden] { display:none !important; }
       @media(max-width:600px) {
         .bar { gap:var(--workspace-space-sm); padding:var(--workspace-space-sm); }
-        select { max-width:29%; padding:0 var(--workspace-space-xs); font-size:.85rem; }
+        #agent { max-width:29%; padding:0 var(--workspace-space-xs); font-size:.85rem; }
         #conversation-toggle { padding:0 var(--workspace-space-xs); font-size:.85rem; }
       }
     `;
@@ -52,21 +57,23 @@ export class BottomControls extends Base {
   constructor() {
     super();
     this.innerHTML = `
+      <div class="connection" aria-label="Agent connection">
+        <button id="connect" type="button" disabled>Connect</button>
+        <button id="disconnect" type="button" disabled>Disconnect</button>
+        <span id="connection-status" role="status">Disconnected · assignment unavailable</span>
+        <p>Reconnect restores transport only. History is not automatically supplied; agent context is unknown.</p>
+      </div>
       <div class="bar" role="group" aria-label="Workspace controls">
         <button id="conversation-toggle" type="button" aria-controls="conversation-panel"
           aria-expanded="false" aria-label="Open conversation">Conversation</button>
         <wsp-composer></wsp-composer>
-        <select id="agent" aria-label="Agent">
-          <option value="agent-a">Aster</option>
-          <option value="agent-b">Mira</option>
-        </select>
+        <span id="agent" aria-label="Assigned agent">Unassigned</span>
       </div>`;
     this.querySelector("#conversation-toggle").addEventListener("click", () => {
       this.dispatchEvent(new Event("conversation-toggle"));
     });
-    this.querySelector("#agent").addEventListener("change", (event) => {
-      this.#emit("agent-change", event.target.value);
-    });
+    this.querySelector("#connect").addEventListener("click", () => this.dispatchEvent(new Event("connect-agent")));
+    this.querySelector("#disconnect").addEventListener("click", () => this.dispatchEvent(new Event("disconnect-agent")));
     const composer = this.querySelector("wsp-composer");
     composer.addEventListener("draft-change", (event) => this.#emit("draft-change", event.detail));
     composer.addEventListener("send-message", (event) => this.#emit("send-message", event.detail));
@@ -78,7 +85,7 @@ export class BottomControls extends Base {
   #emit(type, detail) { this.dispatchEvent(new CustomEvent(type, { detail })); }
   get draftText() { return this.querySelector("wsp-composer").draftText; }
   present(state, name) {
-    this.querySelector("#agent").value = state.conversations[state.view.selectedConversationId].agentId;
+    this.querySelector("#agent").textContent = name;
     const composer = this.querySelector("wsp-composer");
     composer.recipient = name;
     composer.draftText = state.conversations[state.view.selectedConversationId].draft;
@@ -97,8 +104,15 @@ export class BottomControls extends Base {
       this.#statusTimer = setTimeout(() => composer.setStatus(""), 2500);
     }
   }
+  setConnection({ phase, binding, lastSession, attempted, detail }) {
+    this.querySelector("#connect").textContent = attempted ? "Reconnect" : "Connect";
+    this.querySelector("#connect").disabled = !binding || phase !== "disconnected";
+    this.querySelector("#disconnect").disabled = phase !== "connected";
+    const status = phase === "connected" ? "Connected · router; assigned agent available at connection check"
+      : phase === "connecting" ? "Connecting…" : "Disconnected";
+    this.querySelector("#connection-status").textContent = `${status} · ${lastSession ? `last authenticated response runtime: ${lastSession}` : "runtime unknown"}${detail ? ` · ${detail}` : ""}`;
+  }
   setLocked(locked) {
-    this.querySelector("#agent").disabled = locked;
     this.querySelector("wsp-composer").locked = locked;
   }
   setConflict(visible) { this.querySelector("wsp-composer").setConflict(visible); }

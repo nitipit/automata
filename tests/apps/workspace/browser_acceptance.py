@@ -8,6 +8,7 @@ Run from checkout root with cached dependencies:
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import socket
@@ -16,6 +17,7 @@ import sys
 import tempfile
 import time
 import urllib.request
+from contextlib import nullcontext
 from pathlib import Path
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -87,7 +89,8 @@ def test_browser(url: str) -> None:
         context = browser.new_context()
         context.add_init_script(path=ROOT / "tests/apps/workspace/mock_router.js")
         context.route("**/api/agent-binding", lambda route: route.fulfill(json={"binding": {
-            "conversationId": "conversation-aster", "to": "mock-agent",
+            "conversationId": "conversation-aster", "to": "workspace-agent",
+            "agentId": "agent-automata", "displayName": "Automata",
             "credentials": {"wsUrl": "ws://127.0.0.1:8791/ws",
                             "participant": "mock-page", "token": "mock-only"},
         }}))
@@ -135,10 +138,11 @@ def test_browser(url: str) -> None:
         )
         assert surface == "rgb(240, 241, 242)" and border == "rgb(4, 5, 6)", (surface, border)
 
-        control(workspace, "#agent").select_option("agent-b")
-        expect(control(workspace, ".notice")).to_contain_text("All changes saved", timeout=5000)
+        expect(control(workspace, "#agent")).to_have_text("Automata")
+        expect(control(workspace, "#connection-status")).to_contain_text("Disconnected")
+        assert workspace.evaluate("mockRouter.requests.length") == 0
         compose = control(workspace, "wsp-composer textarea")
-        expect(compose).to_have_attribute("placeholder", "Message Mira…")
+        expect(compose).to_have_attribute("placeholder", "Message Automata…")
         send = control(workspace, "wsp-composer #send")
         expect(send).to_be_hidden()
         single_height = compose.bounding_box()["height"]
@@ -158,7 +162,7 @@ def test_browser(url: str) -> None:
         assert abs(
             agent_box["y"] + agent_box["height"] - compose_box["y"] - compose_box["height"]
         ) < 1
-        compose.fill("Draft for Mira")
+        compose.fill("Draft for Automata")
         assert compose.bounding_box()["height"] == single_height
         notice = control(workspace, ".notice")
         expect(notice).to_contain_text("All changes saved", timeout=5000)
@@ -177,8 +181,8 @@ def test_browser(url: str) -> None:
         expect(toggle).to_have_attribute("aria-expanded", "false")
         expect(toggle).to_be_focused()
         workspace.reload(wait_until="networkidle")
-        expect(control(workspace, "#agent")).to_have_value("agent-b")
-        expect(control(workspace, "wsp-composer textarea")).to_have_value("Draft for Mira")
+        expect(control(workspace, "#agent")).to_have_text("Automata")
+        expect(control(workspace, "wsp-composer textarea")).to_have_value("Draft for Automata")
         expect(control(workspace, "wsp-composer #send")).to_be_visible()
         expect(app(workspace, "#conversation-panel")).to_be_hidden()
         assert workspace.request.get(f"{url}/api/state").json()["artifact"] == original
@@ -202,7 +206,9 @@ def test_browser(url: str) -> None:
         compose.focus()
         focus = compose.evaluate("element => getComputedStyle(element).borderTopColor")
         assert focus == "rgb(85, 118, 162)", focus
-        control(workspace, "#agent").select_option("agent-a")
+        control(workspace, "#connect").click()
+        expect(control(workspace, "#connection-status")).to_contain_text("Connected")
+        assert workspace.evaluate("mockRouter.requests.length") == 0
         compose.fill("Sent while conversation is closed")
         expect(control(workspace, ".notice")).to_contain_text("All changes saved", timeout=5000)
         expect(app(workspace, "#conversation-panel")).to_be_hidden()
@@ -236,6 +242,8 @@ def test_browser(url: str) -> None:
         expect(conversation(workspace, 'aui-form input[name="title"]')).to_have_value(
             "Small harmless task"
         )
+        control(workspace, "#connect").click()
+        expect(control(workspace, "#connection-status")).to_contain_text("Connected")
         conversation(workspace, "aui-form button").click()
         expect(conversation(workspace, ".message.agent").last).to_contain_text(
             "Mock acknowledgement"
@@ -284,12 +292,18 @@ def test_browser(url: str) -> None:
         delivered_compose = control(delivery, "wsp-composer textarea")
         delivered_compose.fill("Commit then lose response")
         expect(control(delivery, ".notice")).to_contain_text("All changes saved", timeout=5000)
+        control(delivery, "#connect").click()
+        expect(control(delivery, "#connection-status")).to_contain_text("Connected")
         delivery.evaluate("mockRouter.mode = 'disconnect'")
         control(delivery, "wsp-composer #send").click()
         expect(control(delivery, ".notice")).to_contain_text("Delivery uncertain", timeout=5000)
         expect(delivered_compose).to_be_enabled()
         expect(control(delivery, "wsp-composer #send")).to_be_hidden()
         assert delivery.evaluate("mockRouter.requests.length") == 1
+        expect(control(delivery, "#connection-status")).to_contain_text("Disconnected")
+        control(delivery, "#connect").click()
+        expect(control(delivery, "#connection-status")).to_contain_text("Connected")
+        assert delivery.evaluate("mockRouter.requests.length") == 1  # reconnect never replays
         expect(app(delivery, "#conversation-panel")).to_be_hidden()
         delivery_toggle = control(delivery, "#conversation-toggle")
         delivery_toggle.click()
@@ -368,6 +382,31 @@ def test_browser(url: str) -> None:
             and panel_box["y"] + panel_box["height"] <= workspace_box["y"] + workspace_box["height"]
         ), (panel_box, workspace_box)
 
+        contract = context.new_page()
+        contract.goto(f"{url}{PROJECT_ROOT}", wait_until="networkidle")
+        contract.route("**/connection-acceptance.js", lambda route: route.fulfill(
+            path=ROOT / "tests/apps/workspace/connection_acceptance.js",
+            content_type="text/javascript"))
+        result = contract.evaluate(
+            "async () => (await import('/connection-acceptance.js')).verifyConnection()")
+        assert result["mock"] is True
+        print("MOCK connection boundary checks:", result)
+        for headers in ({"Origin": "http://wrong-origin.invalid"},
+                        {"Sec-Fetch-Site": "cross-site"}, {}):
+            response = contract.request.get(f"{url}/api/agent-binding", headers=headers)
+            assert response.status == 403
+            assert "credentials" not in response.text()
+        response = contract.request.get(
+            f"{url}/api/agent-binding", headers={"Sec-Fetch-Site": "same-origin"})
+        assert response.status == 200
+        assert response.json()["binding"]["agentId"] == "agent-automata"
+        assert response.headers["cache-control"] == "no-store"
+        assert "access-control-allow-origin" not in response.headers
+        evidence_root = os.environ.get("WORKSPACE_TEST_ROOT")
+        if evidence_root:
+            failed.screenshot(path=str(Path(evidence_root) / "mock-mobile.png"))
+            contract.screenshot(path=str(Path(evidence_root) / "mock-desktop.png"))
+            (Path(evidence_root) / "mock-result.json").write_text(json.dumps(result, indent=2))
         assert not errors, errors
         print(
             "PASS: slug-only route and parent-shadow Base styles/tokens; "
@@ -386,7 +425,12 @@ def main() -> None:
     ):
         raise FileNotFoundError("Build workspace web assets and Adaptive UI before acceptance")
     port = free_port()
-    with tempfile.TemporaryDirectory(prefix="workspace-poc-browser-") as temporary:
+    retained = os.environ.get("WORKSPACE_TEST_ROOT")
+    if retained:
+        Path(retained).mkdir(parents=True, exist_ok=True)
+    area = (nullcontext(retained) if retained
+            else tempfile.TemporaryDirectory(prefix="workspace-poc-browser-"))
+    with area as temporary:
         runtime = Path(temporary) / "runtime"
         subprocess.run(
             ["deno", "task", "--config",
@@ -394,13 +438,18 @@ def main() -> None:
             cwd=ROOT, env={**os.environ, "WORKSPACE_RUNTIME_ROOT": str(runtime)}, check=True,
         )
         shutil.copytree(RUNTIME / "lib", runtime / "lib")
+        endpoint = runtime / "synthetic-page.json"
+        endpoint.write_text(json.dumps({"kind": "page", "wsUrl": "ws://127.0.0.1:8791/ws",
+                                        "participant": "mock-page", "token": "mock-only"}))
         environment = os.environ.copy()
         environment.update(
             {
                 "PYTHONPATH": str(ROOT / "src"),
                 "WORKSPACE_RUNTIME_ROOT": str(runtime),
                 "WORKSPACE_PORT": str(port),
-                "WORKSPACE_PAGE_ENDPOINT": "",
+                "WORKSPACE_PAGE_ENDPOINT": str(endpoint),
+                "WORKSPACE_AGENT_ID": "agent-automata",
+                "WORKSPACE_AGENT_PARTICIPANT": "workspace-agent",
             }
         )
         process = subprocess.Popen(

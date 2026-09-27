@@ -19,9 +19,13 @@ def read_binding() -> dict | None:
     participant = endpoint.get("participant")
     token = endpoint.get("token")
     target = os.environ.get("WORKSPACE_AGENT_PARTICIPANT")
+    agent_id = os.environ.get("WORKSPACE_AGENT_ID")
+    if agent_id != "agent-automata" or target != "workspace-agent":
+        raise ValueError("Explicit Automata assignment is required")
     if not all(isinstance(value, str) and value for value in (participant, token, target)):
         raise ValueError("Incomplete explicit binding")
     return {
-        "conversationId": "conversation-aster", "to": target,
+        "conversationId": "conversation-aster", "agentId": agent_id,
+        "displayName": "Automata", "to": target,
         "credentials": {"wsUrl": endpoint["wsUrl"], "participant": participant, "token": token},
     }

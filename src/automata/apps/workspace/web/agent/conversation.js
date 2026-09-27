@@ -2,7 +2,7 @@ import { AgentConnection } from "./connection.js";
 import { FormComponent } from "../components/form.js";
 
 export function createAgentConversation({ state, api, saveNow, render, controls, setStatus }) {
-  const connection = new AgentConnection();
+  const connection = new AgentConnection(value => controls.setConnection(value));
   const changed = () => { state.dirty = true; state.changeSerial++; };
   const messageAt = detail => state.value.conversations[detail.conversationId]?.messages.find(message => message.id === detail.messageId);
 
@@ -23,7 +23,9 @@ export function createAgentConversation({ state, api, saveNow, render, controls,
     if (interrupted) { changed(); render(); await saveNow(); }
     try {
       await connection.initialize(api);
-      setStatus(connection.binding ? "Real agent connected · harmless conversation only" : "No real agent bound · sending unavailable");
+      state.assignment = connection.binding;
+      render();
+      setStatus(connection.binding ? "Assigned to Automata · connect explicitly to send" : "No real agent bound · sending unavailable");
     } catch (error) { setStatus(`Agent unavailable · ${error.message}`, "error"); }
   }
 
@@ -55,6 +57,8 @@ export function createAgentConversation({ state, api, saveNow, render, controls,
         id: `reply-${payload.operationId}`, operationId: payload.operationId, role: "agent",
         text: reply.content.filter(item => item.type === "text").map(item => item.data.text).join("\n").slice(0, 6000),
         content: reply.content, interactions: {},
+        author: { agentId: reply.agentId, participant: reply.participant, sessionId: reply.sessionId },
+        provenance: "assigned-agent-response",
       });
       changed(); render();
       if (await saveNow()) setStatus("Saved · real agent reply received");
@@ -87,7 +91,8 @@ export function createAgentConversation({ state, api, saveNow, render, controls,
     clearTimeout(state.timer);
     await exchange(conversation, {
       kind: "workspace.message", version: 1, projectId: state.value.projectId,
-      conversationId: conversation.id, operationId, messageId: message.id, content: message.content,
+      conversationId: conversation.id, agentId: connection.binding.agentId,
+      operationId, messageId: message.id, content: message.content,
     }, message.delivery);
   }
 
@@ -127,10 +132,12 @@ export function createAgentConversation({ state, api, saveNow, render, controls,
       clearTimeout(state.timer);
       await exchange(conversation, {
         kind: "workspace.form-submit", version: 1, projectId: state.value.projectId,
-        conversationId: conversation.id, operationId, messageId: message.id,
+        conversationId: conversation.id, agentId: connection.binding.agentId,
+        operationId, messageId: message.id,
         componentId: description.id, componentType: "form", componentVersion: 1, values,
       }, interaction);
     } catch (error) { setStatus(error.message, "error"); }
   }
-  return { initialize, send, draft, submit };
+  return { initialize, send, draft, submit,
+    connect: () => connection.connect(), disconnect: () => connection.disconnect() };
 }

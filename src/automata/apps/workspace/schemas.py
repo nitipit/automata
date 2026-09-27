@@ -41,6 +41,13 @@ def validate_message(message: Any) -> None:
                for name in ("id", "operationId"))
     ):
         raise ValueError("Invalid message envelope")
+    if "author" in message:
+        author = message["author"]
+        if (not isinstance(author, dict) or author.get("agentId") != "agent-automata"
+                or author.get("participant") != "workspace-agent"
+                or not isinstance(author.get("sessionId"), str)
+                or not IDENTIFIER.fullmatch(author["sessionId"])):
+            raise ValueError("Invalid assigned author identity")
     content = message.get("content")
     if content is not None:
         if not isinstance(content, list) or not 1 <= len(content) <= 16:

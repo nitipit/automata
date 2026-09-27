@@ -3,9 +3,9 @@
 A local-first project workspace at `/project-northstar/`. The work surface remains
 visible while the selected conversation opens as a closable overlay. A clear toggle
 in the bottom control bar opens and closes that overlay; sending a message never
-opens it automatically. The project, selected agent, saved artifact, conversations,
-and drafts share one durable local state. The artifact has no visible editor in this
-revision and is not erased by conversation or agent changes.
+opens it automatically. One provisioned agent, Automata, is available; there is no
+agent switching. Legacy conversations, drafts and the hidden artifact are preserved
+in durable local state.
 
 ## Build and run
 
@@ -34,7 +34,8 @@ fetch or dependency installation is required for the cached verification recipes
 
 ```sh
 uv run --offline --with shelfdb==3.0.2 --with dictify==5.0.2 --with pytest \
-  pytest -q tests/apps/workspace/test_store.py tests/apps/workspace/test_components.py
+  pytest -q tests/apps/workspace/test_store.py tests/apps/workspace/test_components.py \
+    tests/apps/workspace/test_identity.py
 uv run --offline --with ruff ruff check \
   src/automata/apps/workspace tests/apps/workspace
 uv run --offline --with fastapi --with uvicorn --with shelfdb==3.0.2 \
@@ -57,14 +58,50 @@ never launches an agent. Before starting the app, set:
 ```sh
 export WORKSPACE_PAGE_ENDPOINT=/absolute/private/endpoints/participants/workspace-page.json
 export WORKSPACE_AGENT_PARTICIPANT=workspace-agent
+export WORKSPACE_AGENT_ID=agent-automata
 ```
 
-Only `conversation-aster` is bound in this slice. Mira remains available for stored
-history/drafts but cannot send to a real agent. The bootstrap API returns only the
+All three settings are required for the explicit assignment. The fixed approved
+mapping is `conversation-aster` (legacy storage slot) -> `agent-automata` (stable
+identity), display name Automata, router participant `workspace-agent`. Arbitrary
+participant names and missing stable identity fail closed. The legacy stored row
+`agentId: agent-a` remains a historical slot marker, not the current assignment.
+Mira history/drafts remain stored but hidden, unbound and never sent. The active UI
+selects the Aster storage slot; it never moves Mira data into that conversation. The bootstrap API returns only the
 page participant credential, after Host/origin/Fetch-Metadata checks; it sends
 `Cache-Control: no-store`, no CORS headers, and permits only the configured loopback
 WebSocket in CSP. Never put endpoint files, agent/master credentials or profiles in
 `web-assets`. This is same-machine isolation, not multi-user authentication.
+
+### Connection and trust boundary
+
+Pi joins the router using its private agent endpoint; Workspace never starts or
+resumes Pi. Initial page load is disconnected. **Connect** attaches the browser
+side, checks that the provisioned participant is available, and exposes a separate
+connection status. **Disconnect** closes only this page connection. **Reconnect**
+restores transport only: no history, component descriptions, old form values or
+operation requests are transmitted. There is no context-ready/restored/understood
+state and no automatic retry, takeover or replay. Only a new explicit message or
+form submission sends its own payload. Its `agentId` must match the assignment;
+other conversation IDs cannot use the connection.
+
+The connection label describes the router connection and destination availability
+at the connection check, not continuous agent liveness. Runtime is unknown until
+an authenticated router response provides `from.sessionId`. The UI labels it
+**last authenticated response runtime**, clears it on disconnect, and updates it
+if later responses come from a different runtime. This never proves context
+continuity or silently changes stable agent identity. Stable assignment is
+operator-provisioned; it is not authenticated by a matching display name.
+
+The existing router targets participants, not runtime sessions. Token custody and
+an exclusively authorized agent participant are trusted. A replacement session
+holding that credential can receive a later page-push operation; response checks
+cannot prevent that disclosure. Neither a malicious credential holder nor other
+local processes bypassing browser origin restrictions are isolated by this POC.
+The router binds replies to request capabilities and supplies participant/session
+provenance; sessionId itself is supplied by the credential-holding Pi runtime.
+No agent-facing history API or synchronization protocol is introduced. `/api/state`
+remains the trusted local human browser's whole-state API, not multi-user auth.
 
 `tests/apps/workspace/live_acceptance.py start|submit|verify
 --confirm-owned-binding` is an explicitly coordinated, three-stage acceptance
@@ -119,14 +156,20 @@ identities are validated. Version 1 state is deliberately not migrated; preserve
 needed old local data before switching this prototype to the new schema.
 
 Existing v2 messages normalize additively on read: original text/history/drafts
-remain intact and gain a text component plus historical-simulation provenance. A
+remain intact and gain a text component plus historical-simulation provenance.
+Simulated messages keep their Aster/Mira historical labels, never Automata. Earlier
+real replies are displayed as Automata only where a correlated completed interaction
+records `workspace-agent` and a runtime session; otherwise identity is unverified.
+New replies persist explicit assigned-author provenance. Stored provenance is local
+application evidence, not a cryptographic attestation. A
 read does not rewrite the DB; the next explicit save persists the extra fields.
 The legacy conversation `sessionId` is a historical slot marker, not a live Pi
 identity. Authenticated responder participant/session identity is retained with the
 completed interaction. Older UI code can still show the text fallback, but cannot
 render or manage forms; preserve a DB backup before any promotion or rollback.
 
-The UI uses the shipped browser router client directly. A pending operation is
+The UI uses the shipped browser router client directly. Local saves cannot overwrite
+the separate connection status. A pending operation is
 saved before transport; local persistence, forwarding/admission and agent completion
 are distinct. Form submission locks immediately and remains disabled after an
 acknowledgement, failure or uncertainty. Interrupted pending state becomes uncertain
