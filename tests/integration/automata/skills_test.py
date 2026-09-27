@@ -51,7 +51,7 @@ REQUIRED_SKILLS = {
     "automata-setup",
     "automata-timer",
     "automata-storage",
-    "automata-workspace",
+    "automata-task-space",
     "automata-agent-evaluation",
     "automata-communication",
     "automata-goal",
@@ -68,6 +68,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-workspace",
     "automata-pc-ui-control",
     "automata-agent-router",
     "automata-runtime-status",

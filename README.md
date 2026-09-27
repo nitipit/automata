@@ -130,7 +130,7 @@ ignored files and unpreserved commits. Ordinary coding needs no worktree ceremon
 placement, ownership, retention, and cleanup of capability-owned operational data
 under `.agents/var/skills/`, `.agents/var/tools/`, and `.agents/var/apps/`.
 
-[`automata-workspace`](src/automata/skills/core/automata-workspace/SKILL.md) guides
+[`automata-task-space`](src/automata/skills/core/automata-task-space/SKILL.md) guides
 task workspace reuse, organization, continuation, promotion, and safe cleanup.
 It retains `.agents/var/workspace/<task-name>/` as an optional repository-local
 fallback. Neither skill requires moving existing data.

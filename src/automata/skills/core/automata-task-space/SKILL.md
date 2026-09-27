@@ -1,11 +1,11 @@
 ---
-name: automata-workspace
-description: Use when choosing, organizing, sharing, resuming, or cleaning up a task workspace.
+name: automata-task-space
+description: Use when choosing, organizing, sharing, resuming, or cleaning up a task-specific working area.
 ---
 
-# Automata Workspace
+# Automata Task Space
 
-A workspace holds task-specific drafts, experiments, temporary dependencies,
+A task space holds task-specific drafts, experiments, temporary dependencies,
 outputs, and evidence. Keep reusable capability state with its owner, not copied
 into each task.
 
@@ -15,7 +15,7 @@ into each task.
   Otherwise, `.agents/var/workspace/<task-name>/` is a repository-local fallback,
   not a mandatory directory for every request. Ask before establishing storage
   outside the authorized scope.
-- A workspace belongs to the work, not one agent. Share or hand it over when
+- A task space belongs to the work, not one agent. Share or hand it over when
   useful; coordinate changes to shared files and avoid duplicate working copies.
 - Use a simple layout that separates user inputs, useful evidence, and disposable
   outputs. Do not impose a fixed template or create empty bookkeeping files.
