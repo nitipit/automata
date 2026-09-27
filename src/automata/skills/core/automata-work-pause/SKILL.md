@@ -22,9 +22,10 @@ do not rediscover the environment or audit the task. If something cannot stop
 safely, report the remaining activity or uncertain outcome rather than claiming
 it stopped.
 
-Keep existing agent sessions and files. For an ordinary pause, leave Pi open but
-idle by default. If shutdown requires exiting a process, retain its saved session
-for later continuation; stopping a process is not deleting its history.
+Keep existing agent sessions and files. For an ordinary pause, leave the agent
+session open but idle by default. If shutdown requires exiting a process, retain
+its saved session for later continuation; stopping a process is not deleting its
+history.
 
 ## Preserve Only What Is Missing
 

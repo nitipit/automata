@@ -121,7 +121,7 @@ def install(
     *,
     source_root: Annotated[
         str | None,
-        Parameter(help="Optional directory containing skills; defaults to bundled skills."),
+        Parameter(help="Exclusive skill source; defaults to bundled shared and Pi skills."),
     ] = None,
     target_root: Annotated[
         Path,

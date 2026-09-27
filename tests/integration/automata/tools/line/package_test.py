@@ -21,16 +21,18 @@ def test_install_is_code_only_and_skill_mapping_is_neutral(tmp_path):
     install_tools(target_root=tools, tool_names=["line"])
     install_skills(target_root=skills, skill_names=["automata-line-use"])
     assert {p.name for p in (tools / "line").iterdir()} == {
-        "line.py",
+        "line_cli.py",
+        "line_runtime.py",
+        "line_schemas.py",
+        "line_send.py",
         "reading_api.py",
         "reading_state.py",
         "sticker_api.py",
         "sticker_ui.py",
-        ".automataignore",
     }
     assert not (tmp_path / ".agents").exists()
     text = (skills / "automata-line-use/SKILL.md").read_text()
-    assert ".agents/tools/line/line.py" in text
+    assert ".agents/tools/line/line_cli.py" in text
     for path in [*(tools / "line").rglob("*"), *(skills / "automata-line-use").rglob("*")]:
         if path.is_file():
             contents = path.read_text()
@@ -40,7 +42,7 @@ def test_install_is_code_only_and_skill_mapping_is_neutral(tmp_path):
     assert not list(tmp_path.rglob("draft.json"))
 
 
-def load_tool(path=SOURCE / "line.py"):
+def load_tool(path=SOURCE / "line_runtime.py"):
     spec = importlib.util.spec_from_file_location("line_scope_fixture", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -54,7 +56,7 @@ def test_paths_follow_calling_workspace_not_install_location(tmp_path, monkeypat
     workspace.mkdir()
     monkeypatch.chdir(workspace)
     monkeypatch.delenv("AUTOMATA_LINE_PROFILE", raising=False)
-    tool = load_tool(install / "line/line.py")
+    tool = load_tool(install / "line/line_runtime.py")
     assert tool.ROOT == workspace
     assert tool.PROFILE == workspace / ".agents/var/browser/line"
     assert tool.STATE == workspace / ".agents/var/tools/line"
@@ -89,17 +91,37 @@ def test_installed_cli_is_json_and_does_not_create_profile(tmp_path):
     pytest.importorskip("dictify")
     pytest.importorskip("playwright")
     install_tools(target_root=tmp_path / "tools", tool_names=["line"])
-    script = tmp_path / "tools/line/line.py"
+    script = tmp_path / "tools/line/line_cli.py"
     env = dict(
         os.environ, AUTOMATA_LINE_TIMEZONE="UTC", AUTOMATA_LINE_PROFILE=str(tmp_path / "isolated")
     )
-    for args in (
-        ["--help"],
-        ["read", "--help"],
-        ["collect", "--help"],
-        ["sticker-catalog", "--help"],
-        ["prepare-sticker", "--help"],
-    ):
+    help_contracts = {
+        "": ["LINE Chrome extension", "already-running isolated profile"],
+        "status": ["without reading messages"],
+        "open-chat": ["may mark messages read", "--chat-id"],
+        "chats": ["List stable chat IDs", "--search"],
+        "read": [
+            "never save",
+            "--after",
+            "--before",
+            "--until",
+            "oldest-first",
+            "Maximum messages returned",
+            "Stable chat ID",
+        ],
+        "send": [
+            "before dispatch",
+            "Never retry",
+            "--confirm",
+            "--draft",
+            "--image",
+            "Exact text",
+            "One local PNG",
+        ],
+        "stickers": ["clicks can send", "--package-id"],
+    }
+    for command, expected in help_contracts.items():
+        args = [command, "--help"] if command else ["--help"]
         process = subprocess.run(
             [sys.executable, str(script), *args],
             cwd=tmp_path,
@@ -109,6 +131,12 @@ def test_installed_cli_is_json_and_does_not_create_profile(tmp_path):
             timeout=15,
         )
         assert process.returncode == 0, process.stderr
+        rendered = " ".join(process.stdout.split())
+        for fragment in expected:
+            assert fragment in rendered, (command, fragment, process.stdout)
+    # Reading help must not launch a browser or initialize workspace state.
+    assert not (tmp_path / ".agents").exists()
+    assert not (tmp_path / "isolated").exists()
     process = subprocess.run(
         [sys.executable, str(script), "read"],
         cwd=tmp_path,
@@ -127,9 +155,8 @@ def test_installed_cli_is_json_and_does_not_create_profile(tmp_path):
         text=True,
         timeout=15,
     )
-    assert process.returncode == 0, process.stderr
-    result = json.loads(process.stdout)["result"]
-    assert result["revision"] == 0 and result["chats"] == []
+    assert process.returncode == 2
+    assert json.loads(process.stderr)["code"] == "INVALID_ARGUMENT"
     assert not (tmp_path / "isolated").exists()
     assert not (tmp_path / "tools/.agents").exists()
     assert not (tmp_path / "LINE.md").exists()

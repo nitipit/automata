@@ -37,6 +37,51 @@ def test_export_merges_profile_and_explicit_selections(tmp_path: Path) -> None:
     assert (output / "skills" / "automata-cue" / "SKILL.md").is_file()
 
 
+def test_export_selects_shared_and_pi_skills(tmp_path: Path) -> None:
+    output = tmp_path / "plugin"
+    result = export_plugin(
+        name="mixed-skills",
+        skill_names=("automata-storage", "automata-context-status"),
+        output=output,
+    )
+    assert result.skills == ("automata-storage", "automata-context-status")
+    for name in result.skills:
+        assert (output / "skills" / name / "SKILL.md").is_file()
+
+
+def test_export_custom_skill_root_is_exclusive(tmp_path: Path) -> None:
+    custom = tmp_path / "custom"
+    skill = custom / "nested" / "automata-storage"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("custom source\n")
+    output = tmp_path / "plugin"
+    with pytest.raises(PluginExportError, match="automata-context-status"):
+        export_plugin(
+            name="mixed-skills",
+            skill_source_root=custom,
+            skill_names=("automata-storage", "automata-context-status"),
+            output=output,
+        )
+    assert not output.exists()
+    result = export_plugin(
+        name="custom-only", skill_source_root=custom,
+        skill_names=("automata-storage",), output=output,
+    )
+    assert result.skills == ("automata-storage",)
+    assert (output / "skills" / "automata-storage" / "SKILL.md").read_text() == "custom source\n"
+
+
+def test_export_missing_selection_does_not_create_output(tmp_path: Path) -> None:
+    output = tmp_path / "plugin"
+    with pytest.raises(PluginExportError, match="does-not-exist"):
+        export_plugin(
+            name="mixed-skills",
+            skill_names=("automata-storage", "does-not-exist"),
+            output=output,
+        )
+    assert not output.exists()
+
+
 def test_export_packages_tools_under_automata_extension(tmp_path: Path) -> None:
     output = tmp_path / "automata-runtime"
 

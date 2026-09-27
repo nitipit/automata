@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from automata.install.directory import CopyIgnore, DirectoryInstallError, validate_directory_name
-from automata.install.skills import bundled_skill_root, find_skill_dir
+from automata.install.skills import find_skill_dir, skill_sources
 from automata.install.tools import bundled_tool_root, tool_copy_ignore
 from automata.plugin.profiles import PluginProfile, get_profile
 
@@ -73,9 +73,17 @@ def export_plugin(
     if not selected_skills and not selected_tools:
         raise PluginExportError("Select a profile, skill, or tool before exporting")
 
-    skill_root = Path(skill_source_root) if skill_source_root else bundled_skill_root()
+    try:
+        sources = skill_sources(skill_source_root) if selected_skills else {}
+        for skill_name in selected_skills:
+            validate_directory_name(skill_name, kind="skill")
+            if skill_name not in sources:
+                raise DirectoryInstallError(
+                    f"Source skill directory does not exist: {skill_name}"
+                )
+    except DirectoryInstallError as exc:
+        raise PluginExportError(str(exc)) from exc
     tool_root = Path(tool_source_root) if tool_source_root else bundled_tool_root()
-    validate_selected_assets(skill_root, selected_skills, kind="skill")
     validate_selected_assets(tool_root, selected_tools, kind="tool")
 
     output_path = Path(output).expanduser()
@@ -88,10 +96,9 @@ def export_plugin(
     staging_path = Path(tempfile.mkdtemp(prefix=f".{output_path.name}.", dir=output_path.parent))
     try:
         if selected_skills:
-            copy_selected_skill_assets(
-                source_root=skill_root,
+            copy_skill_sources(
+                sources={name: sources[name] for name in selected_skills},
                 target_root=staging_path / "skills",
-                names=selected_skills,
             )
         if selected_tools:
             copy_selected_assets(
@@ -136,10 +143,19 @@ def copy_selected_skill_assets(
 ) -> None:
     """Copy selected skills from grouped sources into a flat package directory."""
 
+    copy_skill_sources(
+        sources={name: find_skill_dir(source_root, name) for name in names},
+        target_root=target_root,
+    )
+
+
+def copy_skill_sources(*, sources: dict[str, Path], target_root: Path) -> None:
+    """Flatten already-resolved shared and runtime skill packages for export."""
+
     target_root.mkdir(parents=True, exist_ok=True)
     ignore = shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo")
-    for name in names:
-        shutil.copytree(find_skill_dir(source_root, name), target_root / name, ignore=ignore)
+    for name, source in sources.items():
+        shutil.copytree(source, target_root / name, ignore=ignore)
 
 
 def copy_selected_assets(

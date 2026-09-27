@@ -47,13 +47,27 @@ def in_window(window, now=None):
     return begin <= (now or datetime.now(TZ)).strftime("%H:%M") < end
 
 
-def select_messages(messages, entry, since_ms, unseen, limit, before=None, newest_first=False):
+def select_messages(
+    messages,
+    entry,
+    since_ms,
+    unseen,
+    limit,
+    before=None,
+    newest_first=False,
+    after=None,
+    until_ms=None,
+):
     """Equal timestamps never collapse messages. Cursor is the (timestamp, ID) tuple."""
     selected = []
     for message in sorted(messages, key=lambda m: (m["timestamp_ms"], m["id"])):
         if since_ms is not None and message["timestamp_ms"] < since_ms:
             continue
+        if until_ms is not None and message["timestamp_ms"] >= until_ms:
+            continue
         if before and (message["timestamp_ms"], message["id"]) >= tuple(before):
+            continue
+        if after and (message["timestamp_ms"], message["id"]) <= tuple(after):
             continue
         old = entry.get("seen", {}).get(message["id"])
         fingerprint = digest(
@@ -95,7 +109,7 @@ class Reader:
             )
 
     @contextmanager
-    def preserved(self):
+    def preserved(self, restore=True):
         original = self.page.url
         self.guard()
         search = self.page.get_by_placeholder("Search chat list")
@@ -108,7 +122,7 @@ class Reader:
             yield self
         finally:
             # No global input. Restore only while the known chat and empty draft are still ours.
-            if self.page.url == self.owned_url and original != self.page.url:
+            if restore and self.page.url == self.owned_url and original != self.page.url:
                 try:
                     self.guard()
                     self.page.goto(original)
@@ -226,6 +240,8 @@ class Reader:
         max_scrolls=10,
         before=None,
         newest_first=False,
+        after=None,
+        until_ms=None,
     ):
         name = self.open_id(chat_id)
         log = self.line.room.locator(".message_list")
@@ -266,7 +282,15 @@ class Reader:
             if self.page.url == self.owned_url:
                 log.evaluate("(e,v)=>e.scrollTop=v", original_scroll)
         selected, more = select_messages(
-            list(messages.values()), entry, since_ms, unseen, limit, before, newest_first
+            list(messages.values()),
+            entry,
+            since_ms,
+            unseen,
+            limit,
+            before,
+            newest_first,
+            after,
+            until_ms,
         )
         coverage = {
             "boundary_reached": reached,
@@ -278,6 +302,16 @@ class Reader:
             "more": more,
             "attachments_reviewed": False,
         }
+        cursor = after or before
+        if cursor:
+            coverage["cursor_found"] = any(
+                (m["timestamp_ms"], m["id"]) == tuple(cursor) for m in messages.values()
+            )
+            coverage["history_gap"] = not coverage["cursor_found"]
+            # Without the actual boundary, filtered batches can silently skip history.
+            if not coverage["cursor_found"]:
+                selected, more = [], False
+                coverage["more"] = False
         if coverage["history_gap"]:
             coverage["code"] = "HISTORY_GAP"
         return {

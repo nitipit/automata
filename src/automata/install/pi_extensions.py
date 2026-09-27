@@ -21,7 +21,7 @@ PiExtensionInstallResult = DirectoryInstallResult
 
 
 def bundled_pi_extension_root() -> Path:
-    return Path(str(files("automata").joinpath("extensions")))
+    return Path(str(files("automata").joinpath("runtimes", "pi", "extensions")))
 
 
 def install_pi_extensions(

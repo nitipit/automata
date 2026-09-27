@@ -17,7 +17,9 @@ def test_context_compaction_runtime_boundaries(tmp_path: Path) -> None:
 
     extension = tmp_path / "context-compaction.ts"
     extension.write_text(
-        files("automata").joinpath("extensions", "context-compaction.ts").read_text()
+        files("automata")
+        .joinpath("runtimes", "pi", "extensions", "context-compaction.ts")
+        .read_text()
     )
     package = tmp_path / "node_modules" / "typebox"
     package.mkdir(parents=True)

@@ -54,7 +54,9 @@ def setup(browser, monkeypatch, tmp_path):
     api = importlib.import_module("sticker_api")
     monkeypatch.setattr(ui, "INDEX", BASE)
     monkeypatch.setattr(ui, "POPUP", POPUP)
-    spec = importlib.util.spec_from_file_location("line_sticker_ui_fixture", SOURCE / "line.py")
+    spec = importlib.util.spec_from_file_location(
+        "line_sticker_ui_fixture", SOURCE / "line_send.py"
+    )
     tool = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tool)
     monkeypatch.setattr(tool, "STATE", tmp_path)

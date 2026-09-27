@@ -8,12 +8,46 @@ Licensed under the [MIT License](LICENSE).
 
 ## What is included
 
-- Bundled Automata skills under `src/automata/skills/`
+- Shared Automata skills under `src/automata/skills/`
+- Pi-specific skills under `src/automata/runtimes/pi/skills/`
 - Packaged character components under `src/automata/character/`
 - Bundled repo-local tools under `src/automata/tools/`
-- Bundled Pi extensions under `src/automata/extensions/`
+- Bundled Pi extensions under `src/automata/runtimes/pi/extensions/`
 - Skill, tool, and Pi extension installers exposed through the `automata` CLI
 - Copy, replace, or symlink installation modes
+
+## Source layout and runtime boundaries
+
+```text
+src/automata/
+├── character/              # Shared identity and behavior
+├── skills/                 # Shared skills, grouped by capability
+├── tools/                  # Shared shell-invoked CLI tools
+├── runtimes/
+│   └── pi/
+│       ├── extensions/     # Pi APIs, event handlers, and session integrations
+│       └── skills/         # Instructions that depend on those Pi interfaces
+├── install/                # Asset discovery and installation
+└── plugin/                 # Selected-asset package export
+```
+
+Pi-specific skills cover context compaction, context status, Pi sessions, the
+Codex image-generation bridge, skill activity, and the current message-router
+session integration. The router CLI stays shared under `tools/message-router/`.
+A model/provider name does not determine the host runtime: `codex-bridge` is a Pi
+extension, not a Codex integration. Codex runtime support is deferred.
+
+Default skill installation and selected-skill plugin export search both shared
+and Pi skill roots, preserving the existing catalog. Duplicate names are errors,
+not implicit overrides. An explicit custom skill source is exclusive; it never
+falls back to bundled skills. For source-only shared skills, select
+`--source-root src/automata/skills`; for Pi-only skills, select
+`--source-root src/automata/runtimes/pi/skills`.
+
+This is source organization, not installation or data migration. Skill names and
+flat installed directories remain unchanged, as do Pi extension destinations,
+credentials, and owner-scoped operational state. In particular, historical
+router state remains under `.agents/var/tools/agent-router`.
 
 ## Design principles
 
@@ -259,7 +293,8 @@ uv run automata plugin export \
 
 Profiles provide a starting selection; repeat `--skill` or `--tool` to add explicit assets.
 Skills are exported to the standard `skills/` directory. Selected tools are packaged under
-Automata's `me.umlab.automata` extension until portable MCP adapters are available.
+Automata's `me.umlab.automata` metadata namespace and remain shell-invoked CLI tools;
+export does not register them with an agent runtime.
 
 Install the Codex account-status extension globally for all Pi sessions:
 
@@ -297,7 +332,7 @@ applying the limit. Existing project-local records are not migrated automaticall
 The bundled CLI provides only `record` and `list`; it is not a general database API.
 No instruction bodies or conversations are stored. Dependency preparation may
 need downloads; the observer itself runs offline. See the
-[skill-activity skill](src/automata/skills/skill-ops/automata-skill-activity/SKILL.md)
+[skill-activity skill](src/automata/runtimes/pi/skills/automata-skill-activity/SKILL.md)
 for discoverable query guidance, the data contract, and coverage limits.
 
 Install the context-status runtime extension:
@@ -475,7 +510,10 @@ description: Use when an agent needs the example workflow.
 # Automata Example
 ```
 
-Skills are grouped under the source-only categories `core`, `communication`,
-`development`, `skill-ops`, and `operations`. The installer discovers `SKILL.md` files
-recursively below `--source-root` and installs each skill into the flat runtime namespace
-by its skill name; source categories are not exposed at runtime.
+Shared skills are grouped under the source-only categories `core`, `communication`,
+`development`, `skill-ops`, and `operations`. Pi-specific skills live separately in
+`src/automata/runtimes/pi/skills/`. The default catalog combines those two roots.
+The installer discovers `SKILL.md` files recursively below each selected source and
+installs each containing directory into the flat skill namespace; source categories
+and runtime groupings are not exposed in installed paths. An explicit `--source-root`
+selects only that directory. Keep each skill in one canonical source location.

@@ -2,6 +2,7 @@
 
 import importlib.util
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,7 +11,8 @@ import pytest
 
 sync_playwright = pytest.importorskip("playwright.sync_api").sync_playwright
 pytest.importorskip("dictify")
-TOOL_PATH = Path(__file__).parents[5] / "src/automata/tools/line/line.py"
+TOOL_PATH = Path(__file__).parents[5] / "src/automata/tools/line/line_send.py"
+sys.path.insert(0, str(TOOL_PATH.parent))
 spec = importlib.util.spec_from_file_location("line_tool", TOOL_PATH)
 line = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(line)
@@ -175,9 +177,9 @@ class LineTests(unittest.TestCase):
             self.client.mention("group-a", "All", "", "Fixture Group")
         self.assertEqual(self.page.locator("textarea").input_value(), "")
 
-    def test_today_boundary(self):
-        self.assertEqual(
-            line.today_text("Fixture Group\nnew\nToday\nold\nYesterday"), "Fixture Group\nnew"
-        )
-        with self.assertRaises(RuntimeError):
-            line.today_text("old\nYesterday")
+    def test_uncertain_receipt_blocks_fresh_preparation_even_when_empty(self):
+        line.save_state({"token": "uncertain", "status": "uncertain"})
+        with self.assertRaisesRegex(RuntimeError, "uncertain"):
+            self.client.draft("group-a", "do not duplicate")
+        self.assertEqual(self.page.locator("textarea").input_value(), "")
+        self.assertEqual(self.page.evaluate("sent"), 0)

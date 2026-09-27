@@ -1,12 +1,15 @@
+from importlib import import_module
 from pathlib import Path
 
 import pytest
 
 from automata.install.skills import (
     SkillInstallError,
+    bundled_skill_roots,
     install_skills,
     list_skill_dirs,
     resolve_source_root,
+    skill_sources,
 )
 
 
@@ -58,6 +61,71 @@ def test_list_skill_dirs_rejects_duplicate_names(tmp_path: Path) -> None:
 
     with pytest.raises(SkillInstallError, match="Duplicate skill name"):
         list_skill_dirs(source_root)
+
+
+def test_default_sources_include_shared_and_pi_skills_without_shadowing() -> None:
+    shared, pi = bundled_skill_roots()
+    sources = skill_sources()
+    assert shared.name == "skills" and pi.name == "skills"
+    assert sources["automata-storage"].is_relative_to(shared)
+    assert sources["automata-context-status"] == pi / "automata-context-status"
+    assert len(sources) == len(set(sources))
+
+
+def test_install_skills_selects_shared_and_pi_skills_together(tmp_path: Path) -> None:
+    target = tmp_path / "skills"
+    results = install_skills(
+        target_root=target,
+        skill_names=["automata-storage", "automata-context-status"],
+    )
+    assert [result.name for result in results] == ["automata-storage", "automata-context-status"]
+    for name in ("automata-storage", "automata-context-status"):
+        assert (target / name / "SKILL.md").is_file()
+
+
+def test_explicit_skill_source_is_exclusive_and_recurses(tmp_path: Path) -> None:
+    source = tmp_path / "custom"
+    make_grouped_skill(source, "nested", "automata-storage")
+    assert skill_sources(source)["automata-storage"] == source / "nested" / "automata-storage"
+    assert "automata-context-status" not in skill_sources(source)
+    target = tmp_path / "dest"
+    with pytest.raises(SkillInstallError, match="automata-context-status"):
+        install_skills(
+            source_root=source,
+            target_root=target,
+            skill_names=["automata-storage", "automata-context-status"],
+        )
+    assert not target.exists()
+
+
+def test_missing_default_selection_does_not_partially_install(tmp_path: Path) -> None:
+    target = tmp_path / "dest"
+    with pytest.raises(SkillInstallError, match="does-not-exist"):
+        install_skills(
+            target_root=target, skill_names=["automata-storage", "does-not-exist"]
+        )
+    assert not target.exists()
+
+
+def test_invalid_selection_does_not_partially_install(tmp_path: Path) -> None:
+    target = tmp_path / "dest"
+    with pytest.raises(SkillInstallError, match="Invalid skill name"):
+        install_skills(target_root=target, skill_names=["automata-storage", "../escape"])
+    assert not target.exists()
+
+
+def test_duplicate_names_across_bundled_roots_fail_before_install(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    shared, pi = tmp_path / "shared", tmp_path / "pi"
+    make_skill(shared / "same-skill")
+    make_skill(pi / "same-skill")
+    skills_module = import_module("automata.install.skills")
+    monkeypatch.setattr(skills_module, "bundled_skill_roots", lambda: (shared, pi))
+    target = tmp_path / "dest"
+    with pytest.raises(SkillInstallError, match="Duplicate skill name"):
+        install_skills(target_root=target, skill_names=["same-skill"])
+    assert not target.exists()
 
 
 def test_install_skills_copies_bundled_storage_skill(tmp_path: Path) -> None:

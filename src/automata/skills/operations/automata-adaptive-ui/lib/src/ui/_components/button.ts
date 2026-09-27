@@ -1,6 +1,7 @@
 import { Base } from "./base.js";
 import { type ButtonData, validateButtonData } from "./button.schema.js";
 import { buttonTokens as tokens } from "./button.tokens.js";
+import { tokens as semantic } from "../tokens.js";
 
 /** A native-button wrapper with validated catalog data and Adapter styles. */
 export class Button extends Base<ButtonData> {
@@ -25,6 +26,11 @@ export class Button extends Base<ButtonData> {
         font: inherit;
         font-weight: ${tokens.weight};
         cursor: pointer;
+      }
+
+      button:focus-visible {
+        outline: 2px solid ${semantic.focus};
+        outline-offset: 2px;
       }
 
       button:hover {

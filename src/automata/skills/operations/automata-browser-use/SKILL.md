@@ -1,73 +1,51 @@
 ---
 name: automata-browser-use
-description: Use when automating a real browser, establishing a reusable control connection, or recovering browser interaction.
+description: Use when selecting a browser profile, automating a real browser, establishing a reusable control connection, or recovering browser interaction.
 ---
 
 # Automata Browser Use
 
-Control the intended browser through a verified setup recipe, discovering a new
-method only when needed. This skill owns browser interaction, not application,
-UI component, or visual asset creation.
+Control the intended browser; this skill owns interaction, not UI creation.
+Reuse working setup and profile knowledge from conversation context. Consult relevant
+saved knowledge only when needed, using the applicable storage convention. Discover
+missing details rather than reconstructing a working method. An unavailable tool
+or failed connection does not establish that browser control is impossible.
 
-## Find or establish working control
+## Target and control
 
-Consult relevant saved setup knowledge first and reuse its verified recipe rather
-than reconstructing commands. On reuse, check only changeable prerequisites:
-connection, browser/profile ownership, and target availability. Treat recorded
-coordinates as hints to verify, not permanent identity.
+A registered profile is not automatically selected or authorized. Clarify ambiguous
+targets or conflicting profile guidance; never silently switch profiles or reuse
+another task's browser resources. Use isolated Chrome/Chromium profiles, never the
+user's real/default profile. For Firefox, confirm default versus isolated use.
 
-If the recipe is absent or invalid, inspect available browsers, automation libraries,
-connections, and display constraints. Choose the smallest reliable path that fits
-the task; an unavailable tool is not proof that browser control is impossible.
-Use visible control when the user needs to watch or participate. Resolve choices
-that affect privacy, profiles, persistence, installation, or user control.
+Verify the connection, intended browser/profile ownership and target availability.
+Saved ports, process IDs and coordinates are not permanent identity. Use visible
+control when the user needs to watch or participate. Perform bounded actions and
+verify actual browser results, not merely successful commands. Continue authorized
+multi-step work without routine confirmation; pause for user-paced interaction,
+material ambiguity, blockers or actions outside authority. Recover narrowly and
+report limitations rather than claiming unverified readiness.
 
-Verify the chosen connection and intended browser/profile ownership, then confirm
-control through a bounded authorized action and observed result. Executable presence
-alone is not a successful connection. Recover only the affected setup within existing
-authorization; report blockers or unverified parts rather than claiming readiness.
+## State and lifecycle
 
-## Save and reuse the recipe
+Keep findings in context by default. Persist useful setup knowledge only when
+requested or covered by an explicit retention policy, using the applicable storage
+convention. Retain verified methods, prerequisites, cleanup and limitations—not
+secrets, browser content or transient handles. Report where knowledge was saved.
+Keep machine-specific details out of maintained and always-loaded instructions.
 
-After successful setup, save a reusable recipe in a suitable agent-data location
-within approved owner-scoped data. Include verified launch or attach commands,
-executable/library paths, profile policy, working directories and variable inputs,
-a minimal control example, connection checks, cleanup procedure, limitations, and
-invalidation conditions. Record what worked, not speculative alternatives; exclude
-secrets and browser content. Reuse existing storage approval; if absent, ask before
-saving. Report the recipe's location and update the recipe after verifying a changed
-setup. Commands and environment-specific details belong there, not in this skill.
+Prefer temporary runtime locations outside the repository. Do not add browser
+automation dependencies to a project unless it needs them. Keep persistent browsers
+identifiably owned with a reconnect/cleanup path. Retain them only for authorized
+use; otherwise disconnect and stop only owned resources no longer needed. Provide
+connection and ownership details when needed for handoff or cleanup.
 
-Keep live endpoints and process handles separate and temporary; saved knowledge
-does not authorize future actions. Revalidate live identity before reuse rather
-than treating a saved port or process ID as proof of ownership.
+## Authority and privacy
 
-## Act, observe, and finish
-
-Connect to the intended page, perform bounded actions, and verify actual browser
-results; successful command execution alone is insufficient. Use screenshots or
-other feedback as needed. Complete authorized multi-step work; do not stop after
-each routine action. Pause for user-paced interaction, a consequential unresolved
-choice, a blocker, or an action outside authority. Diagnose failures narrowly and
-report setup changes or fallbacks.
-
-Prefer temporary runtime locations outside the repository. Do not add automation
-dependencies to a project unless it needs them. Keep persistent browsers managed
-with identifiable ownership and a reconnect/cleanup path, not unmanaged background
-processes. Retain them only when useful and authorized; otherwise disconnect and
-stop only owned resources no longer needed. Report enough live connection and
-ownership information for reconnection or cleanup.
-
-## Boundaries
-
-- Use isolated profiles for Chrome/Chromium, never the user's real/default profile.
-  For Firefox, confirm default versus isolated profile use. Never silently switch
-  profile policy or reuse another task's profiles, ports, or sessions.
-- Confirm ambiguous targets. Require authorization for package installation, file
-  creation, persistent browser launches, profile changes, or broader repairs.
-- Require explicit instruction for credentials, form submissions, purchases,
-  deletions, or account changes. Saved recipes do not authorize these actions.
-- Read cookies, storage, passwords, form values, or account data only when requested
-  or necessary for the confirmed task. Ask before inspecting sensitive pages,
-  extracting full page text, or saving page content. Store sensitive browser content
-  only when requested.
+Require authorization for installation, file creation, persistent browser launches,
+profile changes or broader repairs. Credentials, form submissions, purchases,
+deletions and account changes require explicit instruction; saved knowledge grants
+no authority. Read cookies, storage, passwords, form values or account data only
+when requested or necessary for the confirmed task. Ask before inspecting sensitive
+pages, extracting full page text or saving page content. Store sensitive browser
+content only when requested.

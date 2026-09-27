@@ -52,9 +52,14 @@ path for bundled assets. Skill sources accept local paths and `file://` URLs. Fo
 remote sources, first obtain a confirmed local source; the installer does not fetch
 remote repositories.
 
-Skill discovery finds `SKILL.md` recursively and installs each containing directory
-by its directory name; source grouping directories are not exposed. Keep this a
-copy/exposure operation, not a skill-content review or extra package-structure audit.
+Default skill discovery combines shared skills and Pi-specific skills from the
+bundled `skills/` and `runtimes/pi/skills/` roots. Pi extension sources live under
+`runtimes/pi/extensions/`; installed destinations above are unchanged. An explicit
+skill `--source-root` is exclusive and never adds bundled skills as a fallback.
+Discovery finds `SKILL.md` recursively and installs each containing directory by
+its directory name; source grouping directories are not exposed. Duplicate names
+are errors, not runtime overrides. Keep this a copy/exposure operation, not a
+skill-content review or extra package-structure audit.
 
 ## Capability Readiness
 
