@@ -20,6 +20,7 @@ PI_SKILL_NAMES = {
     "automata-codex-imagegen",
     "automata-skill-activity",
     "automata-message-router",
+    "automata-thinking-control",
 }
 TOOLS_ROOT = PACKAGE_ROOT / "tools"
 SKILL_FILES = sorted(path for root in SKILL_ROOTS for path in root.rglob("SKILL.md"))
@@ -37,6 +38,7 @@ REQUIRED_SKILLS = {
     "automata-question",
     "automata-context-status",
     "automata-context-compaction",
+    "automata-thinking-control",
     "automata-pi-sessions",
     "automata-skill-activity",
     "automata-delegation",

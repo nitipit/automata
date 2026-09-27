@@ -36,8 +36,8 @@ Maintain application source under `src/automata/apps/<app-name>/` and generated
 builds or runtime data under `.agents/var/apps/<app-name>/`, outside source control.
 Each application determines its own internal layout.
 
-Pi-specific skills cover context compaction, context status, Pi sessions, the
-Codex image-generation bridge, skill activity, and the current message-router
+Pi-specific skills cover context compaction, context status, thinking control, Pi
+sessions, the Codex image-generation bridge, skill activity, and the message-router
 session integration. The router CLI stays shared under `tools/message-router/`.
 A model/provider name does not determine the host runtime: `codex-bridge` is a Pi
 extension, not a Codex integration. Codex runtime support is deferred.
@@ -374,6 +374,23 @@ uv run automata skills install \
 one intentional request, waits for `agent_settled`, and then calls Pi's native
 compaction API. It does not turn context signals into automatic actions or route
 built-in commands through tmux or injected messages.
+
+Install native session thinking-effort control:
+
+```bash
+uv run automata pi-extension install \
+  --target-root ~/.pi/agent/extensions --extension thinking-control --mode copy
+uv run automata skills install \
+  --target-root ~/.agents/skills --skill automata-thinking-control --mode copy
+```
+
+`thinking_control` inspects or changes this session's supported effort without
+changing the model or global defaults. It affects the next model request, never
+reasoning already in flight. To ask an owned agent to change effort, use existing
+authorized tmux communication; the target checks authority, applies its local tool,
+and replies with the effective setting. Forwarding is not application. There is no
+remote control API or grant system. See the [thinking-control documentation](src/automata/runtimes/pi/extensions/thinking-control/README.md)
+for local use and verification boundaries.
 
 Install the focused image-generation guidance alongside the extension:
 

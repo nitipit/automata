@@ -62,6 +62,17 @@ def test_install_pi_extensions_copies_bundled_message_router(tmp_path: Path) -> 
     assert not (tmp_path / ".agents" / "var").exists()
 
 
+def test_install_pi_extensions_copies_bundled_thinking_control(tmp_path: Path) -> None:
+    target_root = tmp_path / ".pi/extensions"
+    results = install_pi_extensions(target_root=target_root, extension_names=["thinking-control"])
+
+    assert [result.name for result in results] == ["thinking-control"]
+    for name in ("index.ts", "local.ts", "README.md"):
+        installed = target_root / "thinking-control" / name
+        assert installed.read_bytes() == (Path(results[0].source) / name).read_bytes()
+    assert not (tmp_path / ".agents").exists()
+
+
 def test_install_pi_extensions_copies_bundled_pi_sessions(tmp_path: Path) -> None:
     target_root = tmp_path / ".pi" / "extensions"
 
