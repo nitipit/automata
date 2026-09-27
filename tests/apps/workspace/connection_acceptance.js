@@ -7,10 +7,21 @@ export async function verifyConnection() {
       wsUrl: "ws://127.0.0.1:8791/ws", participant: "mock-page", token: "mock-only" } };
   const events = [];
   const connection = new AgentConnection(value => events.push(value));
-  await connection.initialize(async () => ({ binding }));
-  assert(!connection.isBound("conversation-aster"), "Initialization must not connect");
+  const beforeConnections = mockRouter.connections;
+  const launches = [];
+  const api = async (path, options) => {
+    if (path === "/api/agent-binding") return { binding };
+    if (options?.method === "POST") {
+      launches.push({ path, body: JSON.parse(options.body) });
+      return { configured: true, phase: "starting", action: null };
+    }
+    return { configured: true, phase: "offline", action: "start" };
+  };
+  await connection.initialize(api);
+  assert(connection.isBound("conversation-aster"), "Initialization auto-connects page only");
+  assert(launches.length === 0, "Opening page never launches agent");
   await Promise.all([connection.connect(), connection.connect()]);
-  assert(mockRouter.connections === 1, "Concurrent connect creates one socket");
+  assert(mockRouter.connections === beforeConnections + 1, "Concurrent connect creates one socket");
   assert(connection.isBound("conversation-aster"), "Assigned conversation connects");
   assert(!connection.isBound("conversation-mira"), "Other history is not bound");
   assert(mockRouter.requests.length === 0, "Connect never sends history or requests");
@@ -48,12 +59,34 @@ export async function verifyConnection() {
   assert(rejected, "Missing runtime provenance rejected");
   mockRouter.online = false;
   await connection.connect();
-  assert(connection.phase === "disconnected", "Offline destination is not connected");
+  assert(connection.phase === "connected" && !connection.available,
+    "Offline agent keeps healthy router connected");
+  await Promise.all([connection.launch(), connection.launch()]);
+  assert(launches.length === 1, "Double-click launches only once");
+  assert(launches[0].body.agentId === binding.agentId, "Launch names only configured identity");
+  assert(mockRouter.requests.length === before + 2, "Lifecycle checks never replay messages");
+  mockRouter.online = true;
+  await connection.check();
+  assert(connection.available, "Presence check detects agent becoming available");
+  const requestsBeforeRecovery = mockRouter.requests.length;
+  connection.client.close();
+  await new Promise(resolve => setTimeout(resolve, 1200));
+  assert(connection.available, "Background recovery restores page transport");
+  assert(mockRouter.requests.length === requestsBeforeRecovery, "Background recovery never replays");
+  connection.retries = 6;
+  connection.client.close();
+  assert(connection.phase === "disconnected" && !connection.retryTimer,
+    "Exhausted retry burst pauses instead of looping forever");
+  connection.wake();
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert(connection.available, "Network wake starts a new bounded transport recovery");
+  assert(mockRouter.requests.length === requestsBeforeRecovery, "Network wake never replays");
+  connection.disconnect();
   const invalid = new AgentConnection();
   rejected = false;
   try { await invalid.initialize(async () => ({ binding: { ...binding, to: "other-agent" } })); }
   catch { rejected = true; }
   assert(rejected, "Arbitrary online participant cannot become assigned agent");
   return { mock: true, requests: mockRouter.requests.length, events: events.length,
-    checks: "assignment, double-connect, offline, response provenance, runtime change, no-history/no-replay" };
+    checks: "auto-connect, explicit single launch, offline healthy router, background recovery, assignment, provenance, no-history/no-replay" };
 }

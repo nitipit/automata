@@ -58,10 +58,9 @@ export class BottomControls extends Base {
     super();
     this.innerHTML = `
       <div class="connection" aria-label="Agent connection">
-        <button id="connect" type="button" disabled>Connect</button>
-        <button id="disconnect" type="button" disabled>Disconnect</button>
-        <span id="connection-status" role="status">Disconnected · assignment unavailable</span>
-        <p>Reconnect restores transport only. History is not automatically supplied; agent context is unknown.</p>
+        <button id="start-agent" type="button" hidden>Start agent</button>
+        <span id="connection-status" role="status">Offline · assignment unavailable</span>
+        <p>History is not automatically supplied. Agent availability does not imply context continuity.</p>
       </div>
       <div class="bar" role="group" aria-label="Workspace controls">
         <button id="conversation-toggle" type="button" aria-controls="conversation-panel"
@@ -72,8 +71,7 @@ export class BottomControls extends Base {
     this.querySelector("#conversation-toggle").addEventListener("click", () => {
       this.dispatchEvent(new Event("conversation-toggle"));
     });
-    this.querySelector("#connect").addEventListener("click", () => this.dispatchEvent(new Event("connect-agent")));
-    this.querySelector("#disconnect").addEventListener("click", () => this.dispatchEvent(new Event("disconnect-agent")));
+    this.querySelector("#start-agent").addEventListener("click", () => this.dispatchEvent(new Event("start-agent")));
     const composer = this.querySelector("wsp-composer");
     composer.addEventListener("draft-change", (event) => this.#emit("draft-change", event.detail));
     composer.addEventListener("send-message", (event) => this.#emit("send-message", event.detail));
@@ -104,13 +102,17 @@ export class BottomControls extends Base {
       this.#statusTimer = setTimeout(() => composer.setStatus(""), 2500);
     }
   }
-  setConnection({ phase, binding, lastSession, attempted, detail }) {
-    this.querySelector("#connect").textContent = attempted ? "Reconnect" : "Connect";
-    this.querySelector("#connect").disabled = !binding || phase !== "disconnected";
-    this.querySelector("#disconnect").disabled = phase !== "connected";
-    const status = phase === "connected" ? "Connected · router; assigned agent available at connection check"
-      : phase === "connecting" ? "Connecting…" : "Disconnected";
-    this.querySelector("#connection-status").textContent = `${status} · ${lastSession ? `last authenticated response runtime: ${lastSession}` : "runtime unknown"}${detail ? ` · ${detail}` : ""}`;
+  setConnection({ phase, binding, lastSession, detail, available,
+    lifecycle = {}, launching }) {
+    const button = this.querySelector("#start-agent");
+    button.hidden = !binding || available || !["start", "resume"].includes(lifecycle.action);
+    button.textContent = lifecycle.action === "resume" ? "Resume agent" : "Start agent";
+    button.disabled = launching || phase !== "connected";
+    const status = available ? "Available" : launching || lifecycle.phase === "starting"
+      ? "Starting…" : lifecycle.phase === "failed" ? "Failed" : "Offline";
+    const transport = phase === "connected" ? "router connected"
+      : phase === "connecting" ? "router connecting" : "router offline";
+    this.querySelector("#connection-status").textContent = `${status} · ${transport} · ${lastSession ? `last authenticated response runtime: ${lastSession}` : "runtime unknown"}${detail || lifecycle.detail ? ` · ${detail || lifecycle.detail}` : ""}`;
   }
   setLocked(locked) {
     this.querySelector("wsp-composer").locked = locked;

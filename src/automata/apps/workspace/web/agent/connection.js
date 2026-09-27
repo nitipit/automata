@@ -1,7 +1,7 @@
 import { createMessageRouterClient } from "../router/client.js";
 import { validateContent } from "../components/registry.js";
 
-/** Explicit local assignment; participant-targeted transport, never history sync. */
+/** Automatic page transport only; explicit agent launch, never history/request replay. */
 export class AgentConnection {
   constructor(onChange = () => {}) {
     this.binding = null;
@@ -9,17 +9,28 @@ export class AgentConnection {
     this.phase = "disconnected";
     this.lastSession = null;
     this.attempted = false;
+    this.available = false;
+    this.lifecycle = { configured: false, phase: "offline", action: null };
+    this.retries = 0;
+    this.stopped = false;
+    this.launching = false;
+    this.detail = "";
+    this.generation = 0;
     this.client = createMessageRouterClient({ onState: event => {
-      if (event.status === "disconnected" && this.phase !== "connecting") {
-        this.phase = "disconnected";
-        this.lastSession = null;
-        this.publish();
-      }
+      if (event.status === "disconnected" && this.phase !== "connecting") this.lost();
     } });
+    this.wake = () => {
+      if (this.stopped) return;
+      if (this.phase !== "connected") { this.retries = 0; void this.connect(); }
+      else void this.check();
+    };
+    globalThis.addEventListener?.("online", this.wake);
   }
-  publish(detail = "") {
+  publish(detail = this.detail) {
+    this.detail = detail;
     this.onChange({ phase: this.phase, binding: this.binding, lastSession: this.lastSession,
-      attempted: this.attempted, detail });
+      attempted: this.attempted, detail, available: this.available,
+      lifecycle: this.lifecycle, launching: this.launching });
   }
   async initialize(api) {
     const { binding } = await api("/api/agent-binding");
@@ -28,37 +39,110 @@ export class AgentConnection {
       throw new Error("Unrecognized assigned-agent binding");
     }
     this.binding = binding;
+    this.api = api;
+    await this.refreshLifecycle();
     this.publish();
+    if (binding) await this.connect();
+  }
+  async refreshLifecycle() {
+    try { this.lifecycle = await this.api("/api/agent-lifecycle"); }
+    catch { this.lifecycle = { configured: false, phase: "failed", action: null }; }
+  }
+  async launch() {
+    const action = this.lifecycle.action;
+    if (this.launching || this.available || this.phase !== "connected"
+        || !["start", "resume"].includes(action)) return;
+    this.launching = true;
+    this.publish("");
+    try {
+      this.lifecycle = await this.api(`/api/agent-lifecycle/${action}`, {
+        method: "POST", body: JSON.stringify({ agentId: this.binding.agentId }),
+      });
+    } catch (error) {
+      // An HTTP error may follow a spawn. Never retry the POST automatically.
+      await this.refreshLifecycle();
+      this.detail = `${error.message}; launch outcome must be checked, no automatic retry`;
+    } finally { this.launching = false; this.publish(); }
+  }
+  async check() {
+    if (this.checking || this.phase !== "connected" || this.stopped) return;
+    this.checking = true;
+    clearTimeout(this.checkTimer);
+    try {
+      const status = await this.client.status();
+      if (this.stopped || this.phase !== "connected") return;
+      this.retries = 0;
+      this.available = status.destinations?.some(peer => peer.id === this.binding.to
+        && peer.kind === "agent" && peer.connected) === true;
+      if (!this.available) this.lastSession = null;
+      await this.refreshLifecycle();
+      this.publish("");
+    } catch { this.lost(); }
+    finally {
+      this.checking = false;
+      if (this.phase === "connected" && !this.stopped) {
+        this.checkTimer = setTimeout(() => void this.check(), document.hidden ? 30000 : 5000);
+      }
+    }
+  }
+  lost() {
+    this.phase = "disconnected";
+    this.available = false;
+    this.lastSession = null;
+    clearTimeout(this.checkTimer);
+    this.publish();
+    this.recover();
+  }
+  recover() {
+    if (this.stopped || this.retryTimer || !this.binding) return;
+    if (this.retries >= 6) {
+      this.publish("Router unavailable; recovery paused until network returns or page reload");
+      return;
+    }
+    const delay = Math.min(1000 * 2 ** this.retries++, 15000);
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      void this.connect();
+    }, delay);
   }
   async connect() {
     if (!this.binding || this.phase === "connecting" || this.phase === "connected") return;
+    this.stopped = false;
+    clearTimeout(this.retryTimer);
+    this.retryTimer = null;
     this.attempted = true;
+    const generation = ++this.generation;
     this.phase = "connecting";
     this.lastSession = null;
     this.publish();
     try {
       await this.client.connect(this.binding.credentials);
-      const status = await this.client.status();
-      if (!status.destinations?.some(peer => peer.id === this.binding.to
-          && peer.kind === "agent" && peer.connected)) {
-        throw new Error("Assigned agent unavailable; it must join the router itself");
-      }
+      if (this.stopped || generation !== this.generation) return;
       this.phase = "connected";
-      this.publish();
+      await this.check();
     } catch (error) {
+      if (this.stopped || generation !== this.generation) return;
       this.phase = "disconnected";
       this.client.close();
       this.publish(error.message);
+      this.recover();
     }
   }
   disconnect() {
+    // Internal disposal/testing only, not a conversation control.
+    this.stopped = true;
+    this.generation++;
+    clearTimeout(this.retryTimer);
+    this.retryTimer = null;
+    clearTimeout(this.checkTimer);
     this.phase = "disconnected";
+    this.available = false;
     this.lastSession = null;
     this.client.close();
     this.publish();
   }
   isBound(conversationId) {
-    return this.binding?.conversationId === conversationId && this.phase === "connected"
+    return this.binding?.conversationId === conversationId && this.phase === "connected" && this.available
       && this.client.isConnected();
   }
   request(payload, onReceipt) {
@@ -80,7 +164,10 @@ export class AgentConnection {
           onResponse: response => {
             if (settled) return;
             if (response.type === "route_closed") {
-              this.disconnect();
+              this.available = false;
+              this.lastSession = null;
+              this.publish("Agent route closed; outcome uncertain, no resend");
+              void this.check();
               finish(new Error("Agent route closed; outcome uncertain, no resend"));
               return;
             }
@@ -110,7 +197,7 @@ export class AgentConnection {
         });
         request.accepted.then(() => {
           if (!settled) onReceipt?.({ status: "forwarded" });
-        }).catch(error => { this.disconnect(); finish(error); });
+        }).catch(error => { void this.check(); finish(error); });
       } catch (error) { finish(error); }
     });
   }

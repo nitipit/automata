@@ -139,8 +139,8 @@ controls.addEventListener("draft-change", (event) => {
   scheduleSave();
 });
 controls.addEventListener("draft-blur", () => { if (state.dirty) void saveNow(); });
-controls.addEventListener("connect-agent", () => void agentConversation.connect());
-controls.addEventListener("disconnect-agent", () => agentConversation.disconnect());
+controls.addEventListener("start-agent", () => void agentConversation.launch());
+window.addEventListener("pagehide", () => agentConversation.disconnect());
 controls.addEventListener("send-message", (event) => void agentConversation.send(event.detail));
 controls.addEventListener("copy-recovery", () => void copyRecovery());
 document.addEventListener("keydown", (event) => {

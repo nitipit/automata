@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from threading import RLock
 from typing import Any
@@ -13,13 +14,30 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from .binding import read_binding
+from .lifecycle import configured_lifecycle
 from .store import RevisionConflict, WorkspaceStore, append_message
 
 ROOT = Path(__file__).resolve().parents[4]
 RUNTIME = Path(os.environ.get("WORKSPACE_RUNTIME_ROOT", ROOT / ".agents/var/apps/workspace"))
 SITE = RUNTIME / "web-assets"
 store = WorkspaceStore(RUNTIME / "data")
-app = FastAPI(title="Workspace POC", docs_url=None, redoc_url=None, openapi_url=None)
+@asynccontextmanager
+async def lifespan(app):
+    app.state.lifecycle_error = None
+    try:
+        app.state.lifecycle = configured_lifecycle(RUNTIME)
+    except (OSError, ValueError, TypeError):
+        app.state.lifecycle = None
+        app.state.lifecycle_error = "Private agent configuration requires operator review"
+    try:
+        yield
+    finally:
+        if app.state.lifecycle:
+            app.state.lifecycle.shutdown()
+
+
+app = FastAPI(title="Workspace POC", docs_url=None, redoc_url=None,
+              openapi_url=None, lifespan=lifespan)
 app.state.port = int(os.environ.get("WORKSPACE_PORT", "8787"))
 write_lock = RLock()
 
@@ -119,6 +137,42 @@ def agent_binding(request: Request):
         return {"binding": read_binding()}
     except (OSError, ValueError, TypeError):
         return JSONResponse({"detail": "Explicit agent binding unavailable"}, status_code=503)
+
+
+@app.get("/api/agent-lifecycle")
+def agent_lifecycle(request: Request):
+    if request.headers.get("sec-fetch-site") != "same-origin":
+        return JSONResponse({"detail": "Same-origin browser only"}, status_code=403)
+    lifecycle = getattr(app.state, "lifecycle", None)
+    if not lifecycle:
+        error = getattr(app.state, "lifecycle_error", None)
+        return {"configured": False, "phase": "failed" if error else "offline",
+                "action": None, "detail": error or ""}
+    binding = read_binding()
+    if not binding or (binding["agentId"], binding["to"]) != (
+            lifecycle.config.agent_id, lifecycle.config.participant):
+        return JSONResponse({"detail": "Lifecycle assignment mismatch"}, status_code=503)
+    return lifecycle.status()
+
+
+@app.post("/api/agent-lifecycle/{action}")
+def launch_agent(action: str, value: dict, request: Request):
+    if request.headers.get("sec-fetch-site") != "same-origin":
+        return JSONResponse({"detail": "Same-origin browser only"}, status_code=403)
+    lifecycle = getattr(app.state, "lifecycle", None)
+    if not lifecycle:
+        return JSONResponse({"detail": "Agent launch is not configured"}, status_code=409)
+    binding = read_binding()
+    if (not binding or value != {"agentId": lifecycle.config.agent_id}
+            or (binding["agentId"], binding["to"]) != (
+                lifecycle.config.agent_id, lifecycle.config.participant)):
+        return JSONResponse({"detail": "Only the configured agent may be launched"},
+                            status_code=422)
+    try:
+        return lifecycle.launch(action)
+    except (OSError, ValueError, RuntimeError):
+        detail = "Launch rejected; inspect private configuration or saved session"
+        return JSONResponse({"detail": detail}, status_code=409)
 
 
 @app.get("/api/state")

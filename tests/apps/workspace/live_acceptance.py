@@ -60,10 +60,9 @@ def main():
                     e => __workspaceErrors.push(String(e.reason)));
             """)
             page.goto(args.url, wait_until="networkidle")
-            expect(control(page, "#connection-status")).to_contain_text("Disconnected")
-            assert routes == [], "Initial load must not connect or transfer history"
-            control(page, "#connect").click()
-            expect(control(page, "#connection-status")).to_contain_text("Connected")
+            expect(control(page, "#connection-status")).to_contain_text("Available")
+            assert routes == [], "Initial auto-connect must not transfer history"
+            assert control(page, "#connect, #disconnect").count() == 0
             expect(control(page, "#connection-status")).to_contain_text("runtime unknown")
             expect(control(page, "#agent")).to_have_text("Automata")
             expect(app(page, "#conversation-panel")).to_be_hidden()
@@ -87,10 +86,8 @@ def main():
             expect(control(page, ".notice")).to_contain_text("All changes saved")
             page.screenshot(path=str(args.evidence_root / "live-form-draft.png"))
             page.reload(wait_until="networkidle")
-            expect(control(page, "#connection-status")).to_contain_text("Disconnected")
-            control(page, "#connect").click()
-            expect(control(page, "#connection-status")).to_contain_text("Connected")
-            assert routes == [], "History hydration and manual connection must never route"
+            expect(control(page, "#connection-status")).to_contain_text("Available")
+            assert routes == [], "History hydration and auto-connect must never route"
             control(page, "#conversation-toggle").click()
             expect(conversation(page, 'input[name="title"]')).to_have_value(
                 "Harmless acceptance check"
@@ -107,13 +104,8 @@ def main():
             page.screenshot(path=str(args.evidence_root / "live-acknowledgement.png"))
             before = page.request.get(state_url).json()
             page.reload(wait_until="networkidle")
-            expect(control(page, "#connection-status")).to_contain_text("Disconnected")
-            control(page, "#connect").click()
-            expect(control(page, "#connection-status")).to_contain_text("Connected")
-            control(page, "#disconnect").click()
-            expect(control(page, "#connection-status")).to_contain_text("Disconnected")
-            control(page, "#connect").click()
-            expect(control(page, "#connection-status")).to_contain_text("Connected")
+            expect(control(page, "#connection-status")).to_contain_text("Available")
+            assert control(page, "#connect, #disconnect").count() == 0
             expect(control(page, "#connection-status")).to_contain_text("runtime unknown")
             assert routes == [], "Completed history and reconnect must not replay"
             control(page, "#conversation-toggle").click()

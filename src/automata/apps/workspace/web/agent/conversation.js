@@ -25,7 +25,7 @@ export function createAgentConversation({ state, api, saveNow, render, controls,
       await connection.initialize(api);
       state.assignment = connection.binding;
       render();
-      setStatus(connection.binding ? "Assigned to Automata · connect explicitly to send" : "No real agent bound · sending unavailable");
+      setStatus(connection.binding ? "Assigned to Automata · agent availability shown separately" : "No real agent bound · sending unavailable");
     } catch (error) { setStatus(`Agent unavailable · ${error.message}`, "error"); }
   }
 
@@ -139,5 +139,5 @@ export function createAgentConversation({ state, api, saveNow, render, controls,
     } catch (error) { setStatus(error.message, "error"); }
   }
   return { initialize, send, draft, submit,
-    connect: () => connection.connect(), disconnect: () => connection.disconnect() };
+    launch: () => connection.launch(), disconnect: () => connection.disconnect() };
 }

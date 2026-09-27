@@ -139,7 +139,8 @@ def test_browser(url: str) -> None:
         assert surface == "rgb(240, 241, 242)" and border == "rgb(4, 5, 6)", (surface, border)
 
         expect(control(workspace, "#agent")).to_have_text("Automata")
-        expect(control(workspace, "#connection-status")).to_contain_text("Disconnected")
+        expect(control(workspace, "#connection-status")).to_contain_text("Available")
+        assert control(workspace, "#connect, #disconnect").count() == 0
         assert workspace.evaluate("mockRouter.requests.length") == 0
         compose = control(workspace, "wsp-composer textarea")
         expect(compose).to_have_attribute("placeholder", "Message Automata…")
@@ -206,8 +207,7 @@ def test_browser(url: str) -> None:
         compose.focus()
         focus = compose.evaluate("element => getComputedStyle(element).borderTopColor")
         assert focus == "rgb(85, 118, 162)", focus
-        control(workspace, "#connect").click()
-        expect(control(workspace, "#connection-status")).to_contain_text("Connected")
+        expect(control(workspace, "#connection-status")).to_contain_text("Available")
         assert workspace.evaluate("mockRouter.requests.length") == 0
         compose.fill("Sent while conversation is closed")
         expect(control(workspace, ".notice")).to_contain_text("All changes saved", timeout=5000)
@@ -242,8 +242,7 @@ def test_browser(url: str) -> None:
         expect(conversation(workspace, 'aui-form input[name="title"]')).to_have_value(
             "Small harmless task"
         )
-        control(workspace, "#connect").click()
-        expect(control(workspace, "#connection-status")).to_contain_text("Connected")
+        expect(control(workspace, "#connection-status")).to_contain_text("Available")
         conversation(workspace, "aui-form button").click()
         expect(conversation(workspace, ".message.agent").last).to_contain_text(
             "Mock acknowledgement"
@@ -292,17 +291,14 @@ def test_browser(url: str) -> None:
         delivered_compose = control(delivery, "wsp-composer textarea")
         delivered_compose.fill("Commit then lose response")
         expect(control(delivery, ".notice")).to_contain_text("All changes saved", timeout=5000)
-        control(delivery, "#connect").click()
-        expect(control(delivery, "#connection-status")).to_contain_text("Connected")
+        expect(control(delivery, "#connection-status")).to_contain_text("Available")
         delivery.evaluate("mockRouter.mode = 'disconnect'")
         control(delivery, "wsp-composer #send").click()
         expect(control(delivery, ".notice")).to_contain_text("Delivery uncertain", timeout=5000)
         expect(delivered_compose).to_be_enabled()
         expect(control(delivery, "wsp-composer #send")).to_be_hidden()
         assert delivery.evaluate("mockRouter.requests.length") == 1
-        expect(control(delivery, "#connection-status")).to_contain_text("Disconnected")
-        control(delivery, "#connect").click()
-        expect(control(delivery, "#connection-status")).to_contain_text("Connected")
+        expect(control(delivery, "#connection-status")).to_contain_text("Available", timeout=6000)
         assert delivery.evaluate("mockRouter.requests.length") == 1  # reconnect never replays
         expect(app(delivery, "#conversation-panel")).to_be_hidden()
         delivery_toggle = control(delivery, "#conversation-toggle")
