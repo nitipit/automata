@@ -1,0 +1,105 @@
+/* Theme values are centralized here for the dashboard and ECharts. */
+:root,
+:root[data-theme="light"],
+:root:not([data-theme]) {
+  color-scheme: light;
+  --aui-surface: #ffffff;
+  --aui-text: #172b4d;
+  --aui-muted-text: #475569;
+  --aui-border: #cbd5e1;
+  --aui-action: #1d4ed8;
+  --aui-action-hover: #1e40af;
+  --aui-action-text: #ffffff;
+  --aui-danger: #b91c1c;
+  --aui-focus: #1d4ed8;
+  --aui-status: #475569;
+
+  --anatomy-bg: #f8fafc;
+  --anatomy-surface-raised: var(--aui-surface);
+  --anatomy-text: var(--aui-text);
+  --anatomy-muted: var(--aui-muted-text);
+  --anatomy-border: var(--aui-border);
+  --anatomy-accent: var(--aui-action);
+  --anatomy-accent-soft: #dbeafe;
+  --anatomy-success: #166534;
+  --anatomy-warning: #92400e;
+  --anatomy-danger: var(--aui-danger);
+  --anatomy-chart-bar: #2563eb;
+  --anatomy-chart-line: #0f766e;
+  --anatomy-chart-grid: #e2e8f0;
+  --anatomy-chart-text: #334155;
+  --anatomy-chart-tooltip-bg: #ffffff;
+  --anatomy-chart-tooltip-text: #172b4d;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --aui-surface: #1e293b;
+  --aui-text: #e2e8f0;
+  --aui-muted-text: #b6c3d2;
+  --aui-border: #475569;
+  --aui-action: #60a5fa;
+  --aui-action-hover: #93c5fd;
+  --aui-action-text: #0b1220;
+  --aui-danger: #fca5a5;
+  --aui-focus: #93c5fd;
+  --aui-status: #b6c3d2;
+
+  --anatomy-bg: #0f172a;
+  --anatomy-surface-raised: var(--aui-surface);
+  --anatomy-text: var(--aui-text);
+  --anatomy-muted: var(--aui-muted-text);
+  --anatomy-border: var(--aui-border);
+  --anatomy-accent: var(--aui-action);
+  --anatomy-accent-soft: #1e3a5f;
+  --anatomy-success: #86efac;
+  --anatomy-warning: #fcd34d;
+  --anatomy-danger: var(--aui-danger);
+  --anatomy-chart-bar: #60a5fa;
+  --anatomy-chart-line: #5eead4;
+  --anatomy-chart-grid: #334155;
+  --anatomy-chart-text: #cbd5e1;
+  --anatomy-chart-tooltip-bg: #1e293b;
+  --anatomy-chart-tooltip-text: #f1f5f9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --aui-surface: #1e293b;
+    --aui-text: #e2e8f0;
+    --aui-muted-text: #b6c3d2;
+    --aui-border: #475569;
+    --aui-action: #60a5fa;
+    --aui-action-hover: #93c5fd;
+    --aui-action-text: #0b1220;
+    --aui-danger: #fca5a5;
+    --aui-focus: #93c5fd;
+    --aui-status: #b6c3d2;
+    --anatomy-bg: #0f172a;
+    --anatomy-accent-soft: #1e3a5f;
+    --anatomy-success: #86efac;
+    --anatomy-warning: #fcd34d;
+    --anatomy-chart-bar: #60a5fa;
+    --anatomy-chart-line: #5eead4;
+    --anatomy-chart-grid: #334155;
+    --anatomy-chart-text: #cbd5e1;
+    --anatomy-chart-tooltip-bg: #1e293b;
+    --anatomy-chart-tooltip-text: #f1f5f9;
+  }
+}
+
+html {
+  background: var(--anatomy-bg);
+  color: var(--anatomy-text);
+}
+
+body {
+  background: var(--anatomy-bg);
+  color: var(--anatomy-text);
+}
+
+:focus-visible {
+  outline: 3px solid var(--aui-focus);
+  outline-offset: 2px;
+}

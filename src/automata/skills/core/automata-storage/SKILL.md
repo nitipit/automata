@@ -7,7 +7,7 @@ description: Use when choosing locations, ownership, retention, or cleanup for c
 
 Choose storage by ownership and lifecycle, not on every file read or write. This
 skill governs capability-owned operational data: reusable runtimes, profiles,
-setup recipes, and tool state. Task-specific artifacts are not capability-owned
+setup recipes, application builds, and tool state. Task-specific artifacts are not capability-owned
 merely because a skill produced them. Task-workspace layout and arbitrary
 management of maintained source or user-owned files are outside this scope.
 
@@ -17,10 +17,11 @@ for capability-owned data:
 ```text
 .agents/var/skills/<skill-name>/
 .agents/var/tools/<tool-name>/
+.agents/var/apps/<app-name>/
 ```
 
 Choose the namespace from the capability that owns the data. Let that owner define
-its internal layout. Shared skill/tool data needs one owner, not duplicate copies
+its internal layout. Shared capability data needs one owner, not duplicate copies
 or a central storage-skill directory. Do not create a generic shared directory
 merely because a future use is possible.
 
@@ -71,7 +72,7 @@ outside an already authorized maintenance policy.
 
 ## Boundaries
 
-- Keep packaged instructions and skill/tool source separate from mutable data;
+- Keep maintained source and packaged instructions separate from mutable data;
   package installation belongs to setup, not this skill.
 - Planning, delegation, and process control remain with their existing owners.
 - Do not modify or remove another capability's or task's data without authorization.

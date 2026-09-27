@@ -1,0 +1,29 @@
+{
+  "version": "5",
+  "specifiers": {
+    "npm:echarts@6.0.0": "6.0.0"
+  },
+  "npm": {
+    "echarts@6.0.0": {
+      "integrity": "sha512-Tte/grDQRiETQP4xz3iZWSvoHrkCQtwqd6hs+mifXcjrCuo2iKWbajFObuLJVBlDIJlOzgQPd1hsaKt/3+OMkQ==",
+      "dependencies": [
+        "tslib",
+        "zrender"
+      ]
+    },
+    "tslib@2.3.0": {
+      "integrity": "sha512-N82ooyxVNm6h1riLCoyS9e3fuJ3AMG2zIZs2Gd1ATcSFjSA23Q0fzjjZeh0jbJvWVDZ0cJT8yaNNaaXHzueNjg=="
+    },
+    "zrender@6.0.0": {
+      "integrity": "sha512-41dFXEEXuJpNecuUQq6JlbybmnHaqqpGlbH1yxnA5V9MMP4SbohSVZsJIwz+zdjQXSSlR1Vc34EgH1zxyTDvhg==",
+      "dependencies": [
+        "tslib"
+      ]
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "npm:echarts@6.0.0"
+    ]
+  }
+}

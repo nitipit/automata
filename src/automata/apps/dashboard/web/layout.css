@@ -1,0 +1,52 @@
+* { box-sizing: border-box; }
+body { margin: 0; padding: clamp(1rem, 3vw, 2.5rem); background: var(--anatomy-bg); color: var(--anatomy-text); font: 15px/1.5 system-ui, sans-serif; }
+main { max-width: 1180px; margin: auto; }
+h1, h2, h3, p { margin-top: 0; }
+h1 { font-size: clamp(1.8rem, 3vw, 2.5rem); line-height: 1.15; margin-bottom: .5rem; }
+h2 { font-size: 1.35rem; margin-bottom: .35rem; }
+h3 { font-size: 1rem; margin-bottom: .75rem; }
+p { margin-bottom: .8rem; }
+.page-head, .header-actions, .refresh-line, .controls, .section-heading { display: flex; align-items: center; justify-content: space-between; gap: .85rem; flex-wrap: wrap; }
+.page-head { border-bottom: 1px solid var(--anatomy-border); padding-bottom: 1rem; }
+.eyebrow { letter-spacing: .12em; font-size: .72rem; font-weight: 700; color: var(--anatomy-accent); margin-bottom: .5rem; }
+.muted, .small { color: var(--anatomy-muted); }
+.small { font-size: .84rem; }
+.warning, #status[data-state=error] { color: var(--anatomy-danger); }
+.refresh-line { justify-content: flex-start; padding: .85rem 0; font-size: .85rem; }
+#scope { margin-right: auto; }
+.tabs { display: flex; gap: .25rem; border-bottom: 1px solid var(--anatomy-border); margin: .5rem 0 1.25rem; overflow-x: auto; }
+.tabs button { background: none; color: var(--anatomy-muted); border: 0; border-bottom: 2px solid transparent; padding: .7rem 1rem; font: inherit; cursor: pointer; white-space: nowrap; }
+.tabs button[aria-selected=true] { color: var(--anatomy-accent); border-bottom-color: var(--anatomy-accent); font-weight: 650; }
+section[hidden], [hidden] { display: none !important; }
+section { min-width: 0; }
+aui-card { display: block; min-width: 0; }
+.controls { justify-content: flex-start; margin: 1rem 0; align-items: end; }
+label { display: inline-flex; flex-direction: column; gap: .3rem; font-size: .85rem; font-weight: 550; }
+label:has(input[type=checkbox]) { flex-direction: row; align-items: center; font-weight: normal; }
+input, select { max-width: 100%; padding: .48rem .65rem; min-height: 2.45rem; border: 1px solid var(--anatomy-border); border-radius: .35rem; background: var(--anatomy-surface-raised); color: var(--anatomy-text); font: inherit; }
+input[type=search] { width: min(22rem, 100%); }
+input[type=checkbox] { min-height: auto; accent-color: var(--anatomy-accent); }
+#timezone { width: 13rem; }
+:focus-visible { outline: 2px solid var(--aui-focus); outline-offset: 2px; }
+.metrics { display: flex; gap: .75rem; flex-wrap: wrap; margin: 1rem 0; }
+.metrics > div { min-width: 9rem; padding: .7rem 1rem; border: 1px solid var(--anatomy-border); border-radius: .4rem; background: var(--anatomy-surface-raised); }
+.metrics strong { display: block; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.metrics span { color: var(--anatomy-muted); font-size: .8rem; }
+.source, code { overflow-wrap: anywhere; }
+#identity-body { padding: 1rem; background: var(--anatomy-bg); color: var(--anatomy-text); border: 1px solid var(--anatomy-border); border-radius: .35rem; max-height: 55vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: .8rem/1.6 ui-monospace, monospace; }
+.capability-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(15rem, .8fr); gap: 1rem; align-items: start; }
+.table-wrap { min-width: 0; overflow-x: auto; }
+.detail-panel { border: 1px solid var(--anatomy-border); background: var(--anatomy-surface-raised); border-radius: .4rem; padding: 1rem; min-width: 0; overflow-wrap: anywhere; }
+.detail-panel h3 { margin-bottom: .3rem; }
+.detail-panel ul { padding-left: 1.25rem; }
+.detail-panel li { margin: .4rem 0; }
+.detail-panel code { font-size: .78rem; }
+.capability-select { display: block; width: 100%; background: none; color: var(--anatomy-accent); border: 0; padding: 0; text-align: left; font: inherit; cursor: pointer; }
+.capability-select[aria-pressed=true] { font-weight: 700; }
+#timeline-chart { min-height: 250px; }
+#activity-chart { min-height: 120px; }
+.section-heading { margin-top: 1.5rem; }
+.section-heading h3 { margin-bottom: 0; }
+details { margin: 1rem 0; } summary { cursor: pointer; }
+footer { border-top: 1px solid var(--anatomy-border); margin-top: 1.5rem; padding-top: 1rem; }
+@media (max-width: 760px) { .capability-layout { grid-template-columns: 1fr; } .header-actions { width: 100%; justify-content: flex-start; } .metrics > div { flex: 1 1 9rem; } .refresh-line #scope { flex-basis: 100%; } }

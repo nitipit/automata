@@ -23,6 +23,7 @@ src/automata/
 ├── character/              # Shared identity and behavior
 ├── skills/                 # Shared skills, grouped by capability
 ├── tools/                  # Shared shell-invoked CLI tools
+├── apps/                   # Maintained application source
 ├── runtimes/
 │   └── pi/
 │       ├── extensions/     # Pi APIs, event handlers, and session integrations
@@ -30,6 +31,10 @@ src/automata/
 ├── install/                # Asset discovery and installation
 └── plugin/                 # Selected-asset package export
 ```
+
+Maintain application source under `src/automata/apps/<app-name>/` and generated
+builds or runtime data under `.agents/var/apps/<app-name>/`, outside source control.
+Each application determines its own internal layout.
 
 Pi-specific skills cover context compaction, context status, Pi sessions, the
 Codex image-generation bridge, skill activity, and the current message-router
@@ -123,7 +128,7 @@ ignored files and unpreserved commits. Ordinary coding needs no worktree ceremon
 
 [`automata-storage`](src/automata/skills/core/automata-storage/SKILL.md) guides
 placement, ownership, retention, and cleanup of capability-owned operational data
-under `.agents/var/skills/` and `.agents/var/tools/`.
+under `.agents/var/skills/`, `.agents/var/tools/`, and `.agents/var/apps/`.
 
 [`automata-workspace`](src/automata/skills/core/automata-workspace/SKILL.md) guides
 task workspace reuse, organization, continuation, promotion, and safe cleanup.
