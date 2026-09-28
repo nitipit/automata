@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from .binding import read_binding
 from .lifecycle import configured_lifecycle
 from .store import RevisionConflict, WorkspaceStore, append_message
+from .webboards import BOARD_CSP, PUBLIC_PATH, public_asset
 
 ROOT = Path(__file__).resolve().parents[4]
 RUNTIME = Path(os.environ.get("WORKSPACE_RUNTIME_ROOT", ROOT / ".agents/var/apps/workspace"))
@@ -47,12 +48,26 @@ async def local_only(request: Request, call_next):
     address = f"127.0.0.1:{app.state.port}"
     origin = request.headers.get("origin")
     fetch_site = request.headers.get("sec-fetch-site")
-    if (request.headers.get("host") != address or (origin and origin != f"http://{address}")
-            or fetch_site not in {None, "same-origin", "none"}):
+    board_asset = request.url.path.startswith(PUBLIC_PATH)
+    destination = request.headers.get("sec-fetch-dest")
+    # Opaque sandbox subresources may have Origin:null / cross-site metadata.
+    # Only the fixed public board route accepts them. All APIs reject frame,
+    # script, object and other navigations, including same-origin iframe URLs.
+    if (request.headers.get("host") != address
+            or (not board_asset and (
+                (origin and origin != f"http://{address}")
+                or fetch_site not in {None, "same-origin", "none"}
+                or (request.url.path.startswith("/api/")
+                    and destination not in {None, "empty"})
+                or destination in {"iframe", "frame", "object", "embed"}))):
         return JSONResponse({"detail": "Local same-origin access only"}, status_code=403)
     response = await call_next(request)
     response.headers["Cache-Control"] = "no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
+    if board_asset:
+        response.headers["Content-Security-Policy"] = BOARD_CSP
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return response
     try:
         binding = read_binding()
         websocket = binding["credentials"]["wsUrl"] if binding else ""
@@ -60,9 +75,15 @@ async def local_only(request: Request, call_next):
         websocket = ""
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-        f"connect-src 'self' {websocket}; frame-ancestors 'none'; base-uri 'none'"
+        f"connect-src 'self' {websocket}; frame-src 'self'; "
+        "frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
     )
     return response
+
+
+@app.get(PUBLIC_PATH + "{name}", include_in_schema=False)
+def board_file(name: str):
+    return public_asset(RUNTIME, name)
 
 
 @app.get("/project-northstar/", include_in_schema=False)

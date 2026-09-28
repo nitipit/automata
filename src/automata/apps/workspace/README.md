@@ -1,5 +1,7 @@
 # Workspace POC
 
+See [Workspace concept](DESIGN.md) for the development direction.
+
 A local-first project workspace at `/project-northstar/`. The work surface remains
 visible while the selected conversation opens as a closable overlay. A clear toggle
 in the bottom control bar opens and closes that overlay; sending a message never
@@ -187,11 +189,91 @@ after acknowledgement, `verify` checks completion and refresh without replay.
 It must not be run against an unrelated browser/agent. Real response handling and
 transport delivery are separate evidence.
 
+## Isolated Main webboard
+
+The app shell now loads one separately provisioned board. The stable storage ID
+`project-northstar` maps explicitly to directory `northstar`; board ID is `main`.
+Public assets live at `<WORKSPACE_RUNTIME_ROOT>/northstar/main/web/`, outside app
+source. No state/identity migration is performed. Only `index.html`, `board.css`
+and `board.js` are exposed at `/boards/project-northstar/main/`; missing assets
+remain unavailable. The server does not discover directories or serve siblings,
+parents, symlinks or arbitrary filenames. Files are bounded to 256 KB and opened
+using no-follow directory descriptors. Runtime ancestors are operator-owned.
+
+Provisioning is an explicit operator action, not app startup or frontend build.
+This slice retains the migrated demo and non-overwriting seed recipe at
+`.agents/var/workspace/webboard-slice/provision.py`; pass an explicit absolute
+runtime root. Its `seed/northstar/main/web/` contains the board-owned HTML/CSS/JS,
+and `seed/original-demo-card.js` preserves the previous component. The coordinator
+owns promotion into the live runtime; tests use an isolated copy. The small board
+uses native controls, not parent Adaptive UI imports: its script cannot import
+host application code or access the host's framework/credentials. Future boards
+can replace the public files through an independently approved provisioning step;
+there is no browser/agent arbitrary-file-write API.
+
+### Sandbox and event authority
+
+The iframe has only `sandbox="allow-scripts"`, no same-origin, forms, popups,
+downloads or top-navigation allowances. Response CSP independently enforces that
+sandbox, blocks connections, forms, child frames, workers, objects and non-script/
+style resources, and limits scripts/styles to the public server origin. Parent
+APIs reject opaque origins, cross-site requests and all navigation/subresource
+Fetch-Metadata destinations; only trusted same-origin fetch requests can use the
+browser bootstrap. Exact asset allowlists and same-origin guards remain separate
+from CSP. The board never receives router credentials, conversation state, host
+HTML or executable agent responses. Neither sandbox nor CSP is a complete network
+egress or resource-DoS jail: frame self-navigation is not universally preventable
+by current browser CSP. It may reach external URLs, but cannot read parent secrets,
+navigate the top page or retain its host event capability after a new frame load.
+Other local processes and the trusted operator remain outside this boundary.
+
+Board JS can propose only a bounded notification, not assert human authority.
+`workspace.board-proposal` v1 contains exactly `generation`, `componentId`,
+`operationId`, and `text` (nonempty, at most 2000 characters), plus kind/version.
+IDs are 1–80 alphanumeric/underscore/hyphen characters. Host validation requires
+exact frame source, opaque origin, the current generation and exact schema. It
+accepts at most one proposal per second, one pending/in-flight operation, and 100
+unique operations per page lifetime. Duplicate operations do not replay. A
+host-owned preview and **Send board event to Automata** button require explicit
+human confirmation; an untrusted board cannot press that button through its DOM.
+The notification itself grants no authority to carry out embedded instructions.
+
+The host constructs `workspace.webboard-event` v1 with authoritative `projectId`,
+`webboardId`, `origin: {projectId, webboardId}`, local actor
+`{kind: "local-user", id: "local-user", authority: "host-confirmed-notification"}`,
+component/operation IDs, `action: "notify-agent"`, and the reviewed text. There is
+**no conversationId**, inferred selected chat or fake authenticated account.
+The existing explicit assignment adds `agentId` and
+`target: {agentId, participant}` and uses the existing router destination. Origin
+is not target, proposal is not receipt, and context is not action permission.
+
+The terminal reply must be exactly `workspace.webboard-result` v1 with matching
+`operationId` and `text` (at most 4000 characters). Existing authenticated router
+participant/session checks apply. The host and board render only text; replies
+cannot create HTML, JS or conversation messages. Each first frame load receives
+a fresh generation and a document-owned MessagePort for replies. A subsequent
+load permanently revokes that frame's capability until the host page reloads;
+the port also prevents a replacement document consuming a response before its
+load event. Pending matching and host generation checks reject stale replies.
+
+Events/results are transient, outside conversation storage and revision state.
+No history/context is synchronized, no request is retried, and reload never
+replays. An unavailable agent fails explicitly; a 120-second reply timeout is
+uncertainty, not proof of non-delivery. There is no durable event recovery/ack log,
+multi-board navigation, arbitrary writes, multi-user auth or RBAC in this slice.
+
+For integrated verification, run the existing browser command with
+`WORKSPACE_BOARD_SEED` pointing to the seed's absolute `web/` directory and an
+optional fresh `WORKSPACE_TEST_ROOT` for retained screenshots/results. It uses
+real isolated Chrome, synthetic binding and **mock router/agent replies**, not a
+new product agent. `test_webboards.py` covers filesystem and API guard contracts.
+
 ## UI and state boundaries
 
 Task-local `Base` components own coherent visual boundaries: `wsp-surface`,
 `wsp-conversation`, `wsp-composer`, and `wsp-controls`. They render light-DOM
-content inside the `wsp-root` parent shadow root. Each component's `static css`
+content inside the `wsp-root` parent shadow root; `wsp-surface` hosts the isolated
+webboard iframe and host-owned confirmation/result controls. Each component's `static css`
 is registered by Adaptive UI on that containing root; there are no per-component
 shadow roots or duplicated inline styles. `workspace-root.css` owns the internal
 layout, while document CSS handles the page frame. `workspace-tokens.css` defines

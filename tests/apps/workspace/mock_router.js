@@ -32,7 +32,12 @@ window.WebSocket = class MockWebSocket extends EventTarget {
                { name: "outcome", kind: "text", label: "Desired outcome", required: true, maxLength: 500 },
              ] } }];
         this.emit({ type: "response", id: routeId, requestId: frame.requestId, final: true,
-          from: { id: window.mockRouter.participant, kind: "agent", sessionId: window.mockRouter.sessionId }, metadata: {}, payload: { content } });
+          from: { id: window.mockRouter.participant, kind: "agent", sessionId: window.mockRouter.sessionId }, metadata: {}, payload: frame.payload.kind === "workspace.webboard-event"
+            ? (window.mockRouter.mode === "bad-board-reply"
+              ? { kind: "workspace.webboard-result", version: 1, operationId: "wrong", text: "Rejected" }
+              : { kind: "workspace.webboard-result", version: 1,
+                operationId: frame.payload.operationId, text: "Mock board acknowledgement <script>not executable</script>" })
+            : { content } });
       });
     }
   }

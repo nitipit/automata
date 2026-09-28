@@ -145,9 +145,19 @@ export class AgentConnection {
     return this.binding?.conversationId === conversationId && this.phase === "connected" && this.available
       && this.client.isConnected();
   }
-  request(payload, onReceipt) {
-    if (!this.isBound(payload.conversationId) || payload.agentId !== this.binding.agentId) {
-      throw new Error("No connected assigned agent for this conversation");
+  requestBoard(payload) {
+    if (!this.binding) throw new Error("No assigned agent; board event not sent");
+    if (payload.kind !== "workspace.webboard-event"
+        || payload.projectId !== "project-northstar" || payload.webboardId !== "main"
+        || "conversationId" in payload) throw new Error("Invalid board origin");
+    return this.request({ ...payload, agentId: this.binding.agentId,
+      target: { agentId: this.binding.agentId, participant: this.binding.to } }, null, true);
+  }
+  request(payload, onReceipt, board = false) {
+    const bound = board ? this.binding && this.phase === "connected" && this.available
+      && this.client.isConnected() : this.isBound(payload.conversationId);
+    if (!bound || payload.agentId !== this.binding.agentId) {
+      throw new Error(`No connected assigned agent for this ${board ? "webboard" : "conversation"}`);
     }
     return new Promise((resolve, reject) => {
       let settled = false;
@@ -186,6 +196,19 @@ export class AgentConnection {
               return;
             }
             try {
+              if (board) {
+                const reply = response.payload;
+                if (!reply || typeof reply !== "object" || Array.isArray(reply)
+                    || Object.keys(reply).sort().join() !== "kind,operationId,text,version"
+                    || reply.kind !== "workspace.webboard-result" || reply.version !== 1
+                    || reply.operationId !== payload.operationId
+                    || typeof reply.text !== "string" || reply.text.length > 4000) {
+                  throw new Error("Invalid correlated text-only board response");
+                }
+                finish(null, { text: reply.text, participant: response.from.id,
+                  sessionId: response.from.sessionId, agentId: this.binding.agentId });
+                return;
+              }
               if (!response.payload || !Array.isArray(response.payload.content)) {
                 throw new Error("Agent did not return the Workspace content contract");
               }

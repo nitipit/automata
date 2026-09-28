@@ -139,5 +139,6 @@ export function createAgentConversation({ state, api, saveNow, render, controls,
     } catch (error) { setStatus(error.message, "error"); }
   }
   return { initialize, send, draft, submit,
+    boardEvent: payload => connection.requestBoard(payload),
     launch: () => connection.launch(), disconnect: () => connection.disconnect() };
 }

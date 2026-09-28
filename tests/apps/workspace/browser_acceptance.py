@@ -403,6 +403,9 @@ def test_browser(url: str) -> None:
             failed.screenshot(path=str(Path(evidence_root) / "mock-mobile.png"))
             contract.screenshot(path=str(Path(evidence_root) / "mock-desktop.png"))
             (Path(evidence_root) / "mock-result.json").write_text(json.dumps(result, indent=2))
+        if os.environ.get("WORKSPACE_BOARD_SEED"):
+            from webboard_acceptance import verify_board
+            verify_board(context, url, Path(evidence_root) if evidence_root else None)
         assert not errors, errors
         print(
             "PASS: slug-only route and parent-shadow Base styles/tokens; "
@@ -434,6 +437,8 @@ def main() -> None:
             cwd=ROOT, env={**os.environ, "WORKSPACE_RUNTIME_ROOT": str(runtime)}, check=True,
         )
         shutil.copytree(RUNTIME / "lib", runtime / "lib")
+        if seed := os.environ.get("WORKSPACE_BOARD_SEED"):
+            shutil.copytree(Path(seed), runtime / "northstar/main/web")
         endpoint = runtime / "synthetic-page.json"
         endpoint.write_text(json.dumps({"kind": "page", "wsUrl": "ws://127.0.0.1:8791/ws",
                                         "participant": "mock-page", "token": "mock-only"}))
@@ -443,6 +448,7 @@ def main() -> None:
                 "PYTHONPATH": str(ROOT / "src"),
                 "WORKSPACE_RUNTIME_ROOT": str(runtime),
                 "WORKSPACE_PORT": str(port),
+                "WORKSPACE_AGENT_CONFIG": "",
                 "WORKSPACE_PAGE_ENDPOINT": str(endpoint),
                 "WORKSPACE_AGENT_ID": "agent-automata",
                 "WORKSPACE_AGENT_PARTICIPANT": "workspace-agent",

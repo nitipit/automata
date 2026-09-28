@@ -113,6 +113,7 @@ function scheduleSave() {
   state.timer = setTimeout(saveNow, 250);
 }
 const agentConversation = createAgentConversation({ state, api, saveNow, render, controls, setStatus });
+root.querySelector("wsp-surface").exchange = payload => agentConversation.boardEvent(payload);
 conversationView.addEventListener("component-draft", event => agentConversation.draft(event.detail));
 conversationView.addEventListener("component-submit", event => void agentConversation.submit(event.detail));
 async function copyRecovery() {
