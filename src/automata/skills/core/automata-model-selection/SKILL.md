@@ -1,21 +1,38 @@
 ---
-name: automata-model-research
-description: Use when consulting or updating model-selection knowledge, researching new or changed AI models, or discussing the user's permitted and preferred models. Not for routine assignments when the needed guidance is already in context.
+name: automata-model-selection
+description: Use when choosing or comparing AI models for a task, planning model use, or designing solo/team model assignments; also when consulting model preferences or researching evidence that could change a choice.
 ---
 
-# Automata Model Research
+# Automata Model Selection
 
-Help agents choose models for tasks through a compact comparative guide, not a
-model encyclopedia or fixed routing table. Research what could change a useful
-choice; a new release does not automatically deserve an entry or adoption.
+Choose AI models that fit the work and the user's constraints. Support choices
+with a compact comparative guide, not a model encyclopedia or fixed routing table.
+Research supports selection; it is not a prerequisite for every choice.
 
-## Research for a decision
+## Choose for the work
 
-Start with the user's question, relevant task demands, existing guidance and
-approved preferences. Compare usable models and promising candidates against a
-current alternative. Explain when the difference matters, rather than assigning
-universal roles such as "best for coding". Consider only decision-relevant
-constraints; speed and cost include correction effort, not just token prices.
+Start with the task demands and relevant existing selection guidance and approved
+preferences, using the record locations below when that context is not already
+available. Apply their agreed scope; distinguish permission and preference from
+verified runtime availability. Missing records are unknowns, not an unrestricted
+allowed set.
+
+Compare suitable models against a viable alternative. Match the choice to the
+work's reasoning, context, tool-use and verification needs, not fixed role labels
+such as "best for coding". Consider only decision-relevant constraints; speed and
+cost include briefing, review and correction effort, not just token prices.
+
+Give a brief recommendation and its main tradeoff for the plan or assignment.
+Reuse sufficient evidence without fresh research. If an uncertainty could change
+the choice, resolve it through a focused evidence check or user clarification;
+otherwise state the limitation without blocking the work. A plan with no model
+choice does not need a model-selection exercise.
+
+## Research what could change the choice
+
+Investigate missing or potentially stale evidence relevant to the decision.
+Compare promising candidates with a current alternative; a new release does not
+automatically deserve an entry or adoption.
 
 Prefer primary sources for identity, release changes and supported features.
 Use relevant independent evidence or task observations for practical strengths
@@ -68,7 +85,9 @@ Keep mutable records outside the skill package. Use
 cross-project knowledge and `preferences.md` beside it for approved preferences.
 Project-specific observations and explicit overrides use the corresponding files
 under `.agents/var/skills/automata-model-research/`, relative to the project, not
-the installed skill. Read relevant existing records before writing. Create only
+the installed skill. These legacy `automata-model-research` data paths remain
+canonical after the skill rename; do not migrate or duplicate records merely to
+match the new name. Read relevant existing records before writing. Create only
 useful records within authorized storage scope, not empty scaffolding. Keep
 private project evidence local unless sharing it more broadly is authorized.
 
@@ -96,9 +115,10 @@ unless a separate authorized action changes them.
 
 ## Boundaries
 
-This skill owns model-selection knowledge and preference discussion. Work design
-owns task assignments; runtime discovery owns availability checks. Ordinary
-selection can reuse existing guidance without fresh research. Research does not
-authorize paid trials, new agents, private-data transfer, installation or runtime
-configuration changes. Release monitoring and scheduled refreshes require their
+This skill owns model recommendations, comparative knowledge and preference
+discussion. Planning owns decomposition; teamwork design owns task assignments
+and the solo/team arrangement; runtime discovery owns availability checks.
+Compose these capabilities when needed, not as a mandatory invocation chain.
+Selection and research do not authorize paid trials, new agents, private-data
+transfer, installation or runtime configuration changes. Release monitoring and scheduled refreshes require their
 own authorization; on-demand freshness checks are the default.

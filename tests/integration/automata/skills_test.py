@@ -28,7 +28,7 @@ REQUIRED_SKILLS = {
     "automata-agents-md",
     "automata-agent-design",
     "automata-capability-research",
-    "automata-model-research",
+    "automata-model-selection",
     "automata-teamwork-design",
     "automata-adaptive-ui",
     "automata-browser-use",
