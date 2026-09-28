@@ -44,7 +44,7 @@ export function createAgentConversation({ state, api, saveNow, refresh, render, 
     } catch { setStatus("Pending input recovery requires review; nothing replayed", "error"); }
   }
 
-  async function post(content, detail = null, originalText = null) {
+  async function post(content, detail = null, originalDraft = null) {
     if (!state.ready || state.sendPending || state.conflicted) return;
     const conversationId = detail?.conversationId ?? state.value.view.selectedConversationId;
     const operationId = crypto.randomUUID();
@@ -70,7 +70,7 @@ export function createAgentConversation({ state, api, saveNow, refresh, render, 
       state.uncertainSend = null;
       await refresh();
       const conversation = state.value.conversations[conversationId];
-      if (originalText !== null && conversation.draft === originalText) conversation.draft = "";
+      if (originalDraft !== null && conversation.draft === originalDraft) conversation.draft = "";
       changed(); render();
       const findInteractions = () => {
         const row = state.value.conversations[conversationId];
@@ -106,7 +106,12 @@ export function createAgentConversation({ state, api, saveNow, refresh, render, 
 
   async function send(text) {
     if (!text) return;
-    await post([{ id: "text", type: "text", version: 1, data: { text } }], null, text);
+    // The composer trims message content, not its durable draft (Enter adds a
+    // newline). Compare against the exact raw snapshot so a saved trailing newline
+    // clears, while a newer draft adopted during the request is never erased.
+    const draft = state.value?.conversations[state.value.view.selectedConversationId]?.draft;
+    const originalDraft = typeof draft === "string" && draft.trim() === text ? draft : null;
+    await post([{ id: "text", type: "text", version: 1, data: { text } }], null, originalDraft);
   }
 
   function draft(detail) {

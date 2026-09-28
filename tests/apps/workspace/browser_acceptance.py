@@ -218,7 +218,15 @@ def test_browser(url: str, runtime: Path) -> None:
         expect(control(workspace, "#connection-status")).to_contain_text("Available")
         assert workspace.evaluate("mockRouter.requests.length") == 0
         compose.fill("Sent while conversation is closed")
+        compose.press("End")
+        compose.press("Enter")  # Native Enter inserts a newline; it does not send.
+        expect(compose).to_have_value("Sent while conversation is closed\n")
         expect(control(workspace, ".notice")).to_contain_text("All changes saved", timeout=5000)
+        assert workspace.request.get(f"{url}/api/state").json()["conversations"][
+            "conversation-aster"]["draft"] == "Sent while conversation is closed\n"
+        # Reproduce the reviewed failure after autosave and multiple catch-up cycles.
+        workspace.wait_for_timeout(15000)
+        expect(compose).to_have_value("Sent while conversation is closed\n")
         expect(app(workspace, "#conversation-panel")).to_be_hidden()
         control(workspace, "wsp-composer #send").click()
         expect(control(workspace, "wsp-composer textarea")).to_have_value("")
@@ -226,6 +234,11 @@ def test_browser(url: str, runtime: Path) -> None:
         expect(control(workspace, ".notice")).to_contain_text(
             "agent admitted input", timeout=5000
         )
+        assert workspace.request.get(f"{url}/api/state").json()["conversations"][
+            "conversation-aster"]["draft"] == ""
+        workspace.reload(wait_until="networkidle")
+        expect(control(workspace, "wsp-composer textarea")).to_have_value("")
+        assert workspace.evaluate("mockRouter.requests.length") == 0
         expect(app(workspace, "#conversation-panel")).to_be_hidden()
         expect(control(workspace, "#conversation-toggle")).to_have_attribute(
             "aria-expanded", "false"
