@@ -1,7 +1,8 @@
-import { Base, Button, Card, html, reactive } from '/lib/adaptive-ui.js';
-import { SkillLoadsChart, SkillTimelineChart, loadChartLibrary } from '/chart.js';
-import { initializeTheme, setTheme, getTheme } from '/theme.js';
-
+import { Base, html, reactive } from '/lib/adaptive-ui.js';
+import { parseMonitorState, serializeMonitorState } from './monitor-state.js';
+import { SkillLoadsChart, SkillTimelineChart, loadChartLibrary } from './activity-chart.js';
+/** One document owns its polling lifecycle; navigation fully unloads it. */
+export function initializeAutomata(onTabChange = () => {}) {
 const $ = id => document.getElementById(id);
 const el = (tag, text, className) => {
   const node = document.createElement(tag);
@@ -10,7 +11,15 @@ const el = (tag, text, className) => {
   return node;
 };
 const setupNames = { installed: 'Installed', available: 'Available to install', incomplete: 'Incomplete setup', unknown: 'Unknown setup' };
-const state = reactive({ tab: 'identity', query: '', setup: 'all', selected: '', range: '7d', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Bangkok', skill: '', limit: '10', phase: 'loading', error: '', count: 0, total: 0 });
+const restored = parseMonitorState(location.search, Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Bangkok');
+const state = reactive({ ...restored, phase: 'loading', error: '', count: 0, total: 0 });
+let disposed = false;
+const lifetime = new AbortController();
+function persist() {
+  const query = serializeMonitorState({ ...state, paused: !$('auto').checked, start:$('start').value, end:$('end').value });
+  history.replaceState(null, '', `${location.pathname}?${query}`);
+  try { sessionStorage.setItem('anatomy-monitor-query', query); } catch { /* History remains usable. */ }
+}
 const when = (value, timezone = data?.activity?.window?.timezone || state.timezone) => value ? new Intl.DateTimeFormat(undefined, { timeZone: timezone, dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'No recorded event';
 
 class AnatomyTable extends Base {
@@ -40,8 +49,7 @@ class AnatomyTable extends Base {
     table.append(body); this.replaceChildren(table);
   }
 }
-Card.addStyle('grid-template-columns: minmax(0, 1fr); > * { min-width: 0; }');
-Card.define('aui-card'); Button.define('aui-button'); AnatomyTable.define('anatomy-table');
+AnatomyTable.define('anatomy-table');
 const tables = {};
 for (const id of ['capabilities-table', 'other-tools-table', 'activity-table']) {
   tables[id] = AnatomyTable.create({ data: { headers: [], rows: [] } }); $(id).append(tables[id]);
@@ -94,7 +102,7 @@ function renderCapabilities() {
       state.selected = row.name;
       for (const item of tables['capabilities-table'].querySelectorAll('.capability-select'))
         item.setAttribute('aria-pressed', String(item === button));
-      capabilityDetail(row);
+      capabilityDetail(row); persist();
     });
     return [button, row.description, setupNames[row.status] || row.status];
   }) });
@@ -158,16 +166,17 @@ function setTab(name, focus = false) {
     button.setAttribute('aria-selected', String(active)); button.tabIndex = active ? 0 : -1;
     $(tab).hidden = !active;
   }
+  persist();
   if (focus) $(`tab-${name}`).focus();
   if (name === 'statistics') { timeline.redraw(); ranking.redraw(); }
 }
 for (const tab of ['identity', 'capabilities', 'statistics']) {
-  $(`tab-${tab}`).addEventListener('click', () => setTab(tab));
+  $(`tab-${tab}`).addEventListener('click', () => { setTab(tab); onTabChange(tab); });
   $(`tab-${tab}`).addEventListener('keydown', event => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault(); const tabs = ['identity', 'capabilities', 'statistics'];
     const index = event.key === 'Home' ? 0 : event.key === 'End' ? 2 : (tabs.indexOf(state.tab) + (event.key === 'ArrowRight' ? 1 : 2)) % 3;
-    setTab(tabs[index], true);
+    setTab(tabs[index], true); onTabChange(tabs[index]);
   });
 }
 function status() {
@@ -183,17 +192,18 @@ function params() {
   return query;
 }
 async function refresh() {
+  if (disposed) return;
   if (busy) { queued = true; return; }
   busy = true; const request = params().toString();
   try {
     // Let the server validate timezone, dates and skill; never substitute a different window.
-    const response = await fetch(`/api/anatomy?${request}`, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    const response = await fetch(`/api/anatomy?${request}`, { cache: 'no-store', signal: AbortSignal.any([lifetime.signal, AbortSignal.timeout(8000)]) });
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
       throw new Error(typeof body.detail === 'string' ? body.detail : `Snapshot unavailable (${response.status})`);
     }
     const snapshot = await response.json();
-    if (request === params().toString()) { render(snapshot); lastSuccess = Date.now(); state.error = ''; state.phase = 'ready'; }
+    if (!disposed && request === params().toString()) { render(snapshot); persist(); lastSuccess = Date.now(); state.error = ''; state.phase = 'ready'; }
     else queued = true;
   } catch (error) { if (request === params().toString()) { state.error = error.message || 'Refresh failed.'; state.phase = 'error'; } }
   finally { busy = false; status(); if (queued) { queued = false; refresh(); } }
@@ -208,10 +218,22 @@ $('skill').addEventListener('change', event => { state.skill = event.target.valu
 for (const id of ['start', 'end']) $(id).addEventListener('change', () => { if ($('start').value && $('end').value) refresh(); });
 $('refresh').addEventListener('click', refresh);
 $('auto').addEventListener('change', () => { status(); if ($('auto').checked) refresh(); });
-initializeTheme(); $('theme').value = getTheme().preference;
-$('theme').addEventListener('change', event => setTheme(event.target.value));
-document.addEventListener('anatomy-theme-change', () => { $('theme').value = getTheme().preference; timeline.redraw(); ranking.redraw(); });
-setInterval(() => { if ($('auto').checked) refresh(); }, 5000);
-setInterval(status, 1000);
-loadChartLibrary().then(library => { libraryReady = Boolean(library); renderCharts(); });
+document.addEventListener('anatomy-theme-change', () => { timeline.redraw(); ranking.redraw(); });
+const polling = setInterval(() => { if ($('auto').checked) refresh(); }, 5000);
+const aging = setInterval(status, 1000);
+window.addEventListener('pagehide', () => { disposed = true; clearInterval(polling); clearInterval(aging); lifetime.abort(); }, {once:true});
+// Back-forward cache restores a stopped document: reload its validated URL once.
+window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
+for (const [id, value] of Object.entries({ 'capability-filter':state.query, 'setup-filter':state.setup, 'range':state.range, 'timezone':state.timezone, 'chart-limit':state.limit, 'start':restored.start, 'end':restored.end })) $(id).value = value;
+$('auto').checked = !restored.paused;
+$('custom-dates').hidden = state.range !== 'custom';
+for (const id of ['capability-filter','setup-filter','range','timezone','chart-limit','skill','start','end','auto']) {
+  $(id).addEventListener(id === 'capability-filter' ? 'input' : 'change', persist);
+}
+setTab(state.tab);
+loadChartLibrary().then(library => { libraryReady = Boolean(library); if (!disposed) renderCharts(); });
+// One initial snapshot even when paused; periodic refresh stays paused.
 refresh();
+return { show(tab) { setTab(tab); requestAnimationFrame(() => { timeline.redraw(); ranking.redraw(); }); } };
+}
+initializeAutomata();

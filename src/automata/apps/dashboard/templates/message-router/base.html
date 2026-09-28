@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block scripts %}
+<script type="module" src="./{{ page }}.css.js"></script>
+<script type="module" src="./components/protocol-diagram.js"></script>
+<script type="module" src="./components/code-example.js"></script>
+{% endblock %}
+{% block content %}
+<header class="guide-heading"><p class="eyebrow">MESSAGE ROUTER / PROTOCOL GUIDE</p><h1>{{ title }}</h1><p class="goal">{{ goal }}</p></header>
+<anatomy-nav><nav aria-label="Guide steps">{% for slug, info in pages.items() %}<a href="./{{ slug }}.html" {% if page == slug %}aria-current="page"{% endif %}>{{ loop.index }}. {{ info[0] }}</a>{% endfor %}</nav></anatomy-nav>
+<p class="guide-context">One topology throughout: <strong>desk</strong> &amp; <strong>viewer</strong> (pages), <strong>worker</strong> &amp; <strong>reviewer</strong> (agents). Grants: desk → viewer, desk → worker, worker ↔ reviewer. The router service is not a participant.</p>
+{% block guide %}{% endblock %}
+{% endblock %}

@@ -1,20 +1,17 @@
-"""Loopback-only development dashboard; serves explicit built-asset routes only."""
-
+"""Loopback-only Jinja application with a closed public JavaScript registry."""
 import argparse
-from threading import Lock
 
 import uvicorn
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
-from .activity import make_window
-from .data import ROOT, snapshot
+from .data import ROOT
+from .routes import automata, message_router_guide
 
 SITE = ROOT / ".agents/var/apps/dashboard/public"
-PAGE = SITE
+TEMPLATES = message_router_guide.TEMPLATES
 app = FastAPI(title="Automata Anatomy", docs_url=None, redoc_url=None, openapi_url=None)
 app.state.port = 8766
-snapshot_lock = Lock()
 
 
 @app.middleware("http")
@@ -34,67 +31,43 @@ async def local_only(request: Request, call_next):
 
 
 @app.get("/")
+@app.get("/automata/")
 def index():
-    return FileResponse(PAGE / "index.html", media_type="text/html")
+    return RedirectResponse("/automata/index.html", status_code=302)
 
 
-@app.get("/app.js")
-def javascript():
-    return FileResponse(PAGE / "app.js", media_type="text/javascript")
+@app.get("/message-router/")
+def guide_index():
+    return RedirectResponse("/message-router/configure.html", status_code=302)
 
 
-@app.get("/chart.js")
-def chart_component():
-    return FileResponse(PAGE / "chart.js", media_type="text/javascript")
+app.include_router(automata.router)
+app.include_router(message_router_guide.router)
+
+# Public-safe maintained assets only. Never mount templates or a filesystem tree.
+PUBLIC_ASSETS = (
+    "shared/theme.js", "shared/components/anatomy-nav.js",
+    "automata/index.css.js", "automata/components/monitor.js",
+    "automata/components/monitor-state.js",
+    "automata/components/activity-chart.js",
+    "message-router/components/protocol-diagram.js",
+    "message-router/components/code-example.js",
+    *(f"message-router/{page}.css.js" for page in message_router_guide.PAGES),
+)
 
 
-@app.get("/layout.css")
-def layout():
-    return FileResponse(PAGE / "layout.css", media_type="text/css")
+def register_asset(url, path):
+    def serve_asset():
+        if not path.is_file():
+            return JSONResponse({"detail": "Asset unavailable"}, status_code=503)
+        return FileResponse(path, media_type="text/javascript")
+    app.add_api_route(url, serve_asset, methods=["GET"])
 
 
-@app.get("/themes.css")
-def themes():
-    return FileResponse(PAGE / "themes.css", media_type="text/css")
-
-
-@app.get("/theme.js")
-def theme_module():
-    return FileResponse(PAGE / "theme.js", media_type="text/javascript")
-
-
-@app.get("/lib/adaptive-ui.js")
-def adaptive_ui():
-    return FileResponse(SITE / "lib/adaptive-ui.js", media_type="text/javascript")
-
-
-@app.get("/lib/echarts.js")
-def echarts():
-    file = SITE / "lib/echarts.js"
-    if not file.is_file():
-        return JSONResponse({"detail": "ECharts asset not installed"}, status_code=503)
-    return FileResponse(file, media_type="text/javascript")
-
-
-@app.get("/api/anatomy")
-def anatomy(
-    range: str = "7d",
-    timezone: str = "Asia/Bangkok",
-    skill: str | None = None,
-    start: str | None = None,
-    end: str | None = None,
-):
-    try:
-        window = make_window(range, timezone, start, end, skill)
-    except ValueError as error:
-        return JSONResponse({"detail": str(error)}, status_code=422)
-    try:
-        # Keep the existing ShelfDB reader serialized under FastAPI's thread pool.
-        with snapshot_lock:
-            return snapshot(window)
-    except Exception as error:
-        print("Snapshot failed:", type(error).__name__, flush=True)
-        return JSONResponse({"detail": "Anatomy sources temporarily unavailable"}, status_code=503)
+for asset in PUBLIC_ASSETS:
+    register_asset(f"/{asset}", TEMPLATES / asset)
+for library in ("adaptive-ui", "echarts", "mermaid"):
+    register_asset(f"/lib/{library}.js", SITE / "lib" / f"{library}.js")
 
 
 if __name__ == "__main__":

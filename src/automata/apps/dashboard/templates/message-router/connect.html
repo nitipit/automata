@@ -1,0 +1,59 @@
+{% extends "message-router/base.html" %}
+{% block guide %}
+<section class="lesson"><h2>Every client connects to the router, not its peer</h2>
+<p>After <a href="./configure.html">Configure</a>, authenticate each participant separately. These lines show WebSocket connections, not grants. An authenticated connection proves neither permission to every destination nor application readiness.</p>
+<protocol-diagram data-diagram="connections" aria-label="Transport connections: desk, viewer, worker and reviewer each connect to the central Router service; no direct peer connections."></protocol-diagram>
+<h3>Browser page: desk (or viewer in its own page)</h3>
+<p>In your own authorized frontend, import the shipped client module and its relative dependencies. The router serves them at <code>/assets/</code>; this Anatomy guide deliberately does not. A same-origin frontend can be served using the router's <code>--public-root</code> option with a public-safe directory. Never serve the repository or private setup directory.</p>
+<code-example><pre tabindex="0"><code>import {createMessageRouterClient} from "/assets/client.js";
+
+// Memory-only value provisioned out of band by the page's owner.
+// Replace placeholders privately, NOT in a public JS/HTML file.
+const deskCredentials = {
+  wsUrl: "ws://127.0.0.1:8787/ws",
+  participant: "desk",
+  token: "&lt;privately supplied desk token&gt;"
+};
+const desk = createMessageRouterClient({
+  onMessage: message =&gt; console.log(message.from, message.payload),
+  onResponse: response =&gt; console.log(response)
+});
+console.log(await desk.connect(deskCredentials));
+// viewer uses its own credential and a separate client in its own context.</code></pre></code-example>
+<div class="result"><h3>Expected connect result</h3>
+<code-example><pre tabindex="0"><code>{"v": 2, "type": "hello_ack", "participant": "desk", "kind": "page"}</code></pre></code-example>
+<p>For viewer, use a separate page/context and replace <code>desk</code> with <code>viewer</code> in the client variable, credential variable, participant ID and private token. The viewer handler logs the one-way payload and sends no reply.</p>
+<p>The browser Origin must match the router by default. For a separately hosted frontend, explicitly authorize its exact origin with <code>--origin http://127.0.0.1:3000</code> and copy/bundle the browser modules into that frontend. This guide's own CSP and permissions remain unchanged; it never connects.</p></div>
+</section>
+<section class="lesson"><h2>Node: a generic agent-kind client, not a Pi agent</h2>
+<p>Use a Node runtime with built-in WebSocket (for example Node 22+) and run from the checkout root. Save this as a private <code>.mjs</code> file in that root or adjust the import path. Set <code>WORKER_ENDPOINT</code> to the private worker endpoint file emitted by your owned router.</p>
+<code-example><pre tabindex="0"><code>import {readFile} from "node:fs/promises";
+import {createMessageRouterClient} from "./.agents/tools/message-router/browser/client.js";
+
+const workerCredentials = {
+  ...JSON.parse(await readFile(process.env.WORKER_ENDPOINT, "utf8")),
+  sessionId: "worker-example"
+};
+const worker = createMessageRouterClient({
+  onMessage: async message =&gt; {
+    console.log(message.from, message.payload);
+    if (message.expectReply) {
+      console.log(await worker.respond(message.id, {answer: "Outline checked"}));
+    }
+  },
+  onResponse: response =&gt; console.log(response)
+});
+console.log(await worker.connect(workerCredentials));
+// Keep this process running to receive messages; worker.close() when finished.
+// reviewer is a SEPARATE client/process: use its own endpoint + reviewer-example.</code></pre></code-example>
+<div class="result"><p>Expected: <code>{"v":2,"type":"hello_ack","participant":"worker","kind":"agent"}</code>. Agent-kind authentication requires a <code>sessionId</code>. Page-kind authentication must not include one. A second connection cannot displace an already-connected identity.</p></div>
+<p>Run the private file with <code>WORKER_ENDPOINT=/your/private/endpoints/participants/worker.json node worker-example.mjs</code>. For reviewer, make a separate copy: rename the <code>worker</code>/<code>workerCredentials</code> variables to <code>reviewer</code>/<code>reviewerCredentials</code>, use <code>REVIEWER_ENDPOINT</code> pointing at <code>reviewer.json</code>, and change the session ID to <code>reviewer-example</code>. Keep both processes connected for the independent initiation lesson.</p>
+<p><strong>This generic JavaScript handler does not launch Pi, a model turn, or another agent.</strong> It simply receives JSON and emits JSON. The Send page's worker/reviewer examples use these generic clients.</p>
+</section>
+<section class="lesson"><h2>Native Pi adapter: an alternative owner of the agent identity</h2>
+<p>If using Pi instead, install/configure its shipped message-router extension through the approved setup process. In an existing authorized Pi session, open that agent's private endpoint:</p>
+<code-example><pre tabindex="0"><code>// message_router tool arguments inside the intended Pi session
+{"action":"open", "endpoint":"/private/example/endpoints/participants/worker.json"}</code></pre></code-example>
+<p><code>open</code> binds the current Pi session; it starts neither router nor agent. Do not simultaneously connect the Node worker with the same identity. Pi admission and delivery options are separate from router forwarding. A tool reply uses <code>action: "send"</code> and the exact pending inbound ID as <code>replyTo</code>; outbound tool requests use <code>action: "route"</code>. The current adapter ignores one-way notifications.</p></section>
+<a class="next" href="./discover.html">Next: inspect permitted destinations →</a>
+{% endblock %}
