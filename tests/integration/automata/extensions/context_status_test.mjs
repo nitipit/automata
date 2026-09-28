@@ -42,7 +42,7 @@ function fixture() {
 
 const start = Date.parse("2026-09-09T12:00:00.000+07:00");
 
-test("each outgoing copy gets a fresh local timestamp without changing history", (t) => {
+test("context status no longer injects a changing clock", (t) => {
   let now = start;
   t.mock.method(Date, "now", () => now);
   const f = fixture();
@@ -52,20 +52,14 @@ test("each outgoing copy gets a fresh local timestamp without changing history",
   for (let i = 0; i < 3; i++) {
     now = start + i * 1000;
     const { messages } = f.emit("context", { messages: history });
-    assert.equal(messages.length, 2);
+    assert.deepEqual(messages, history);
     assert.equal(messages[0], user);
-    const clock = messages.at(-1);
-    assert.equal(clock.role, "custom");
-    assert.equal(clock.customType, "automata-runtime-time");
-    assert.equal(clock.display, false);
-    assert.equal(clock.timestamp, now);
-    assert.equal(clock.content, `Runtime local time: 2026-09-09T12:00:0${i}.000+07:00`);
   }
   assert.deepEqual(history, [user]);
   assert.deepEqual(f.sent, []); // No sendMessage or extra agent turn.
 });
 
-test("refresh replaces only its own snapshot and preserves tool/message order", (t) => {
+test("context status preserves tool/message order without a clock suffix", (t) => {
   t.mock.method(Date, "now", () => start);
   const f = fixture();
   const history = [
@@ -75,9 +69,9 @@ test("refresh replaces only its own snapshot and preserves tool/message order", 
   ];
   const first = f.emit("context", { messages: history }).messages;
   const second = f.emit("context", { messages: first }).messages;
-  assert.equal(second.length, history.length + 1);
-  assert.deepEqual(second.slice(0, -1), history);
-  assert.equal(first.length, history.length + 1);
+  assert.equal(second.length, history.length);
+  assert.deepEqual(second, history);
+  assert.equal(first.length, history.length);
   assert.deepEqual(f.sent, []);
 });
 
@@ -271,10 +265,10 @@ test("ephemeral reminders preserve history and tool pairs and never accumulate",
   f.setPercent(80);
   const first = f.emit("context", { messages: history }).messages;
   assert.deepEqual(first.slice(0, history.length), history);
-  assert.equal(first.length, history.length + 2);
+  assert.equal(first.length, history.length + 1);
   const second = f.emit("context", { messages: first }).messages;
-  assert.deepEqual(second.slice(0, -1), history);
-  assert.equal(second.length, history.length + 1);
+  assert.deepEqual(second, history);
+  assert.equal(second.length, history.length);
   assert.equal(history.length, 3);
   assert.deepEqual(f.sent, []);
 });

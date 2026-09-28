@@ -130,6 +130,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
     sdist = next(output.glob("*.tar.gz"))
     expected = {
         "runtimes/pi/extensions/context-status.ts",
+        "runtimes/pi/extensions/message-timestamps.ts",
         "runtimes/pi/extensions/message-router/index.ts",
         "runtimes/pi/skills/automata-context-status/SKILL.md",
         "runtimes/pi/skills/automata-context-compaction/SKILL.md",

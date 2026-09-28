@@ -15,9 +15,9 @@ would inform the next step; do not call it merely to acknowledge a new run or si
 
 ## Runtime observations
 
-- Each model request includes a temporary runtime-local ISO 8601 timestamp with timezone.
-  It observes time before that request, not task start or exact completion. It is not saved
-  to session history and does not reset the input anchor or accumulate timestamp messages.
+- Conversational timestamps belong to the separate `message-timestamps` extension.
+  Context-status no longer injects a changing clock on each request. Its elapsed-time
+  and usage telemetry remain independent of those stable message annotations.
 - Time is wall-clock elapsed since the latest input message. There is no active/idle timer
   distinction and no `automata-timer` integration.
 - Assistant messages contribute provider-reported input, output, cache, and total usage after

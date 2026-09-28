@@ -357,6 +357,32 @@ with a moderate observation at 50%. They are deduplicated across user inputs and
 rearmed after successful compaction or context identity changes. Elapsed-time
 observations remain queued after the run settles. Signals do not run compaction.
 
+Stable conversational times are owned by the separate `message-timestamps`
+extension, not context-status. It annotates model-facing user messages, assistant
+messages containing visible text, and routed `browser-context` messages with their
+original Pi timestamp in UTC. Tool-only/thinking-only messages, tool results,
+system messages and internal events are untouched. Stored text is not rewritten;
+annotations are deterministic across requests, reloads and timezone changes.
+Missing timestamps remain unknown. Retained post-compaction messages keep their
+original dates; summaries do not receive invented historical dates. Pi may build
+compaction input without this context hook, so summaries are not guaranteed to
+retain annotations. Assistant timestamps describe creation, not exact completion.
+
+When explicitly authorized to activate this change, install **both** the new
+extension and updated context-status, then reload Pi or start a new session:
+
+```bash
+uv run automata pi-extension install \
+  --target-root ~/.pi/agent/extensions \
+  --extension message-timestamps --extension context-status --mode replace
+```
+
+Updating context-status removes its old changing request-clock injection. Loading
+message-timestamps alongside an *old* installed context-status leaves both behaviors
+active. No current-clock tool or extra model turns are added. Use an explicit clock
+check when current time matters. Stable prefixes are tested offline; provider cache
+savings and hidden/private model reasoning visibility are not claimed.
+
 Install intentional context-compaction guidance and its native Pi extension:
 
 ```bash

@@ -31,8 +31,13 @@ context. Preserve that timestamp when reporting time; do not append a separate U
 - Resolve relative dates against the refreshed local timestamp.
 - State the assumed date or offset when an interpretation could be ambiguous.
 - Ask for clarification when the user's timezone or date materially changes the outcome.
-- When measuring elapsed work, capture a fresh timestamp at the relevant start or resume
-  point instead of inferring duration from turns or token usage.
+- When available, stable runtime message timestamps can establish approximate elapsed
+  conversation time between a request and a reply. They include pauses and are not
+  active-work timers. Do not infer duration from turns or token usage.
+- Message timestamps describe original message creation, not the current clock or exact
+  completion time. Refresh time when needed; do not invent dates for missing/compacted
+  messages. The Pi `message-timestamps` extension labels retained conversation messages
+  in UTC; original message text and stored history remain unchanged.
 
 ## Scheduling Boundary
 

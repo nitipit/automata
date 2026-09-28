@@ -40,6 +40,18 @@ def test_install_pi_extensions_copies_bundled_context_status(tmp_path: Path) -> 
     assert not (target_root / "context-awareness.ts").exists()
 
 
+def test_install_pi_extensions_copies_message_timestamps_with_updated_context_status(tmp_path):
+    target = tmp_path / "extensions"
+    results = install_pi_extensions(
+        target_root=target, extension_names=["message-timestamps", "context-status"]
+    )
+    assert {r.name for r in results} == {"message-timestamps", "context-status"}
+    root = bundled_pi_extension_root()
+    for name in ("message-timestamps", "context-status"):
+        assert (target / f"{name}.ts").read_bytes() == (root / f"{name}.ts").read_bytes()
+    assert "Runtime local time:" not in (target / "context-status.ts").read_text()
+
+
 def test_install_pi_extensions_copies_bundled_context_compaction(tmp_path: Path) -> None:
     target_root = tmp_path / ".pi" / "extensions"
 

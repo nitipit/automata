@@ -2,7 +2,6 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { Type } from "typebox";
 
 export const CONTEXT_SIGNAL_TYPE = "automata-context-awareness";
-const RUNTIME_TIME_TYPE = "automata-runtime-time";
 export const RUNTIME_PRESSURE_TYPE = "automata-context-pressure";
 export const TIME_THRESHOLD_MS = 10 * 60 * 1000;
 export const PRESSURE_SIGNAL_THRESHOLDS = [50, 75, 80, 85, 90, 95] as const;
@@ -394,17 +393,9 @@ export default function (pi: ExtensionAPI) {
     return {
       messages: [
         ...event.messages.filter(
-          (message) => message.role !== "custom" ||
-            (message.customType !== RUNTIME_TIME_TYPE && message.customType !== RUNTIME_PRESSURE_TYPE),
+          (message) => message.role !== "custom" || message.customType !== RUNTIME_PRESSURE_TYPE,
         ),
         ...pressureSignal(ctx, timestamp),
-        {
-          role: "custom" as const,
-          customType: RUNTIME_TIME_TYPE,
-          content: `Runtime local time: ${formatLocalTimestamp(timestamp)}`,
-          display: false,
-          timestamp,
-        },
       ],
     };
   });
