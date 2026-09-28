@@ -1,9 +1,9 @@
 ---
-name: automata-work-design
+name: automata-teamwork-design
 description: Use when choosing assignment boundaries, context ownership, models, or solo/team arrangements, or revising them as evidence changes.
 ---
 
-# Automata Work Design
+# Automata Teamwork Design
 
 Choose how to organize work and context for an acceptable result, balancing total
 cost, completion time and risk. Use this judgment when the choices matter, not as
@@ -90,7 +90,7 @@ authority, and redesign does not expand permissions.
 
 ## Boundaries
 
-Planning owns decomposition and acceptance criteria. Work design proposes
+Planning owns decomposition and acceptance criteria. Teamwork design proposes
 responsibilities, context allocation, models and transitions. Delegation owns
 executable handoffs and runtime verification; management enacts authorized changes
 and owns active-work recovery. This skill does not launch or reassign workers.

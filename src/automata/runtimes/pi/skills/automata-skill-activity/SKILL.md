@@ -69,7 +69,7 @@ if (path / "data.mdb").exists():
         records = [
             item.value for item in tx.shelf("skill_activations").items()
             if item.value["project"] == project
-            and item.value["skill"] == "automata-work-design"
+            and item.value["skill"] == "automata-teamwork-design"
         ]
     # Analyze the selected records after closing the read transaction.
     print(records)
