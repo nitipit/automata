@@ -79,14 +79,22 @@ def assert_layout_bounds(page) -> None:
     assert panel["height"] < surface["height"] * 0.8, (panel, surface)
 
 
-def test_browser(url: str) -> None:
+def test_browser(url: str, runtime: Path) -> None:
     chrome = shutil.which("google-chrome") or "/usr/bin/google-chrome"
     errors: list[str] = []
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
-            headless=True, executable_path=chrome, args=["--no-sandbox"]
+            headless=True, executable_path=chrome, args=["--no-sandbox"],
+            env={key: value for key, value in os.environ.items()
+                 if not key.startswith(("WORKSPACE_", "PI_", "AUTOMATA_MESSAGE_ROUTER",
+                                        "AUTOMATA_AGENT_ROUTER"))}
         )
         context = browser.new_context()
+        from automata.apps.workspace.store import WorkspaceStore
+        isolated_store = WorkspaceStore(runtime / "data")
+        context.expose_function("mockAgentPost", lambda value: isolated_store.post(
+            value, provenance={"kind": "agent", "id": "workspace-agent",
+                               "sessionId": "mock-session"}))
         context.add_init_script(path=ROOT / "tests/apps/workspace/mock_router.js")
         context.route("**/api/agent-binding", lambda route: route.fulfill(json={"binding": {
             "conversationId": "conversation-aster", "to": "workspace-agent",
@@ -216,7 +224,7 @@ def test_browser(url: str) -> None:
         expect(control(workspace, "wsp-composer textarea")).to_have_value("")
         expect(control(workspace, "wsp-composer #send")).to_be_hidden()
         expect(control(workspace, ".notice")).to_contain_text(
-            "real agent reply received", timeout=5000
+            "agent admitted input", timeout=5000
         )
         expect(app(workspace, "#conversation-panel")).to_be_hidden()
         expect(control(workspace, "#conversation-toggle")).to_have_attribute(
@@ -235,6 +243,25 @@ def test_browser(url: str) -> None:
         outcome = conversation(workspace, 'aui-form input[name="outcome"]')
         title.fill("Small harmless task")
         outcome.fill("Verify structured exchange")
+        compose.fill("Composer draft survives incoming posts")
+        # Backend append races the unsaved debounce. CAS rebases only draft edits;
+        # catch-up never replaces the form node, focus or local composer values.
+        for index in (1, 2):
+            isolated_store.post({"operationId": f"independent-progress-{index}",
+                "context": {"projectId": "project-northstar",
+                            "conversationId": "conversation-aster"},
+                "content": [{"id": "text", "type": "text", "version": 1,
+                             "data": {"text": f"Independent progress {index}"}}]},
+                provenance={"kind": "agent", "id": "workspace-agent", "sessionId": "mock-session"})
+        expect(conversation(workspace, ".message.agent")).to_have_count(3)
+        expect(conversation(workspace, ".message.agent").nth(1)).to_contain_text(
+            "Independent progress 1")
+        expect(conversation(workspace, ".message.agent").nth(2)).to_contain_text(
+            "Independent progress 2")
+        expect(title).to_have_value("Small harmless task")
+        expect(outcome).to_have_value("Verify structured exchange")
+        expect(compose).to_have_value("Composer draft survives incoming posts")
+        expect(compose).to_be_focused()
         expect(control(workspace, ".notice")).to_contain_text("All changes saved")
         workspace.reload(wait_until="networkidle")
         assert workspace.evaluate("mockRouter.requests.length") == 0
@@ -242,6 +269,9 @@ def test_browser(url: str) -> None:
         expect(conversation(workspace, 'aui-form input[name="title"]')).to_have_value(
             "Small harmless task"
         )
+        expect(conversation(workspace, ".message.agent")).to_have_count(3)
+        expect(control(workspace, "wsp-composer textarea")).to_have_value(
+            "Composer draft survives incoming posts")
         expect(control(workspace, "#connection-status")).to_contain_text("Available")
         conversation(workspace, "aui-form button").click()
         expect(conversation(workspace, ".message.agent").last).to_contain_text(
@@ -249,12 +279,15 @@ def test_browser(url: str) -> None:
         )
         expect(conversation(workspace, "aui-form button")).to_be_disabled()
         requests = workspace.evaluate("mockRouter.requests")
-        assert len(requests) == 1 and requests[0]["payload"]["kind"] == "workspace.form-submit"
-        assert requests[0]["payload"]["values"] == {
+        assert len(requests) == 1 and requests[0]["payload"]["postTo"] == "workspace-app"
+        response = requests[0]["payload"]["content"][0]
+        assert response["type"] == "form-response"
+        assert response["data"]["values"] == {
             "title": "Small harmless task", "outcome": "Verify structured exchange"
         }
-        assert requests[0]["payload"]["componentId"] == "task-form"
-        assert requests[0]["payload"]["messageId"].startswith("reply-")
+        assert response["data"]["componentId"] == "task-form"
+        assert response["data"]["messageId"]
+        assert response["data"]["definition"]["title"] == "A small task"
         workspace.keyboard.press("Escape")
 
         stale = context.new_page()
@@ -294,7 +327,7 @@ def test_browser(url: str) -> None:
         expect(control(delivery, "#connection-status")).to_contain_text("Available")
         delivery.evaluate("mockRouter.mode = 'disconnect'")
         control(delivery, "wsp-composer #send").click()
-        expect(control(delivery, ".notice")).to_contain_text("Delivery uncertain", timeout=5000)
+        expect(control(delivery, ".notice")).to_contain_text("delivery uncertain", timeout=5000)
         expect(delivered_compose).to_be_enabled()
         expect(control(delivery, "wsp-composer #send")).to_be_hidden()
         assert delivery.evaluate("mockRouter.requests.length") == 1
@@ -303,18 +336,18 @@ def test_browser(url: str) -> None:
         expect(app(delivery, "#conversation-panel")).to_be_hidden()
         delivery_toggle = control(delivery, "#conversation-toggle")
         delivery_toggle.click()
-        expect(conversation(delivery, ".message.user").nth(1)).to_contain_text(
+        expect(conversation(delivery, ".message.user").nth(2)).to_contain_text(
             "Commit then lose response"
         )
-        expect(conversation(delivery, ".message.user").nth(1)).to_contain_text("uncertain")
+        expect(conversation(delivery, ".message.user").nth(2)).to_contain_text("uncertain")
         assert delivery.evaluate("mockRouter.requests.length") == 1
-        expect(conversation(delivery, ".message.user")).to_have_count(2)
+        expect(conversation(delivery, ".message.user")).to_have_count(3)
         delivery.reload(wait_until="networkidle")
         assert delivery.evaluate("mockRouter.requests.length") == 0
         expect(app(delivery, "#conversation-panel")).to_be_hidden()
         delivery_toggle = control(delivery, "#conversation-toggle")
         delivery_toggle.click()
-        expect(conversation(delivery, ".message.user")).to_have_count(2)
+        expect(conversation(delivery, ".message.user")).to_have_count(3)
         for envelope in (
             {
                 "projectId": "project-northstar",
@@ -406,6 +439,8 @@ def test_browser(url: str) -> None:
         if os.environ.get("WORKSPACE_BOARD_SEED"):
             from webboard_acceptance import verify_board
             verify_board(context, url, Path(evidence_root) if evidence_root else None)
+        from post_recovery_acceptance import verify_uncertain_save
+        verify_uncertain_save(context, url, control, PROJECT_ROOT)
         assert not errors, errors
         print(
             "PASS: slug-only route and parent-shadow Base styles/tokens; "
@@ -442,7 +477,9 @@ def main() -> None:
         endpoint = runtime / "synthetic-page.json"
         endpoint.write_text(json.dumps({"kind": "page", "wsUrl": "ws://127.0.0.1:8791/ws",
                                         "participant": "mock-page", "token": "mock-only"}))
-        environment = os.environ.copy()
+        environment = {key: value for key, value in os.environ.items()
+                       if not key.startswith(("WORKSPACE_", "AUTOMATA_MESSAGE_ROUTER",
+                                              "AUTOMATA_AGENT_ROUTER", "PI_"))}
         environment.update(
             {
                 "PYTHONPATH": str(ROOT / "src"),
@@ -474,7 +511,7 @@ def main() -> None:
         )
         try:
             wait_for_server(f"http://127.0.0.1:{port}/api/state", process)
-            test_browser(f"http://127.0.0.1:{port}")
+            test_browser(f"http://127.0.0.1:{port}", runtime)
         finally:
             process.terminate()
             try:

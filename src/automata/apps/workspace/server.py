@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from .binding import read_binding
 from .lifecycle import configured_lifecycle
+from .receiver import configured_receiver
 from .store import RevisionConflict, WorkspaceStore, append_message
 from .webboards import BOARD_CSP, PUBLIC_PATH, public_asset
 
@@ -30,9 +31,19 @@ async def lifespan(app):
     except (OSError, ValueError, TypeError):
         app.state.lifecycle = None
         app.state.lifecycle_error = "Private agent configuration requires operator review"
+    app.state.receiver = None
+    app.state.receiver_error = None
+    try:
+        app.state.receiver = configured_receiver(store)
+        if app.state.receiver:
+            app.state.receiver.start()
+    except (OSError, ValueError, RuntimeError):
+        app.state.receiver_error = "Private app receiver configuration requires operator review"
     try:
         yield
     finally:
+        if app.state.receiver:
+            app.state.receiver.shutdown()
         if app.state.lifecycle:
             app.state.lifecycle.shutdown()
 
@@ -116,6 +127,11 @@ def work_surface_module():
     return FileResponse(SITE / "work-surface.js", media_type="text/javascript")
 
 
+@app.get("/state-sync.js", include_in_schema=False)
+def sync_module():
+    return FileResponse(SITE / "state-sync.js", media_type="text/javascript")
+
+
 @app.get("/conversation-view.js", include_in_schema=False)
 def conversation_module():
     return FileResponse(SITE / "conversation-view.js", media_type="text/javascript")
@@ -142,7 +158,8 @@ def adaptive_ui():
 @app.get("/modules/{module_path:path}", include_in_schema=False)
 def component_module(module_path: str):
     # A fixed allowlist, not a generic private/static file server.
-    allowed = {"components/text.js", "components/form.js", "components/registry.js",
+    allowed = {"components/text.js", "components/form.js", "components/form-response.js",
+               "components/registry.js",
                "conversation/message.js", "agent/connection.js", "agent/conversation.js",
                "router/client.js", "router/protocol.js", "router/legacy-client.js"}
     if module_path not in allowed:
@@ -210,7 +227,7 @@ def get_state():
 def put_state(value: dict[str, Any]):
     try:
         with write_lock:
-            return store.save(value)
+            return store.save(value, browser=True)
     except RevisionConflict as error:
         return JSONResponse(
             {"detail": str(error), "currentRevision": error.current_revision},
@@ -221,6 +238,29 @@ def put_state(value: dict[str, Any]):
     except (OSError, RuntimeError) as error:
         print("Workspace write failed:", type(error).__name__, flush=True)
         return JSONResponse({"detail": "Workspace changes were not saved"}, status_code=503)
+
+
+@app.get("/api/conversation-posts")
+def post_status():
+    receiver = getattr(app.state, "receiver", None)
+    error = getattr(app.state, "receiver_error", None)
+    return {"receiver": receiver.status() if receiver else {
+        "configured": False, "phase": "failed" if error else "offline"},
+        "detail": error or ""}
+
+
+@app.post("/api/conversation-posts")
+def save_user_post(value: dict[str, Any], request: Request):
+    if request.headers.get("sec-fetch-site") != "same-origin":
+        return JSONResponse({"detail": "Same-origin browser only"}, status_code=403)
+    try:
+        # Never accept payload/router provenance from this human-browser route.
+        return store.post(value)
+    except (ValueError, TypeError) as error:
+        return JSONResponse({"detail": str(error)}, status_code=422)
+    except (OSError, RuntimeError):
+        return JSONResponse({"detail": (
+            "Save outcome uncertain; do not deliver or replay automatically")}, status_code=503)
 
 
 @app.post("/api/conversations/{conversation_id}/messages")

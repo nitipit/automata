@@ -1,9 +1,11 @@
 import { TextComponent } from "./text.js";
 import { FormComponent } from "./form.js";
+import { FormResponseComponent } from "./form-response.js";
 
 const registry = new Map([
   ["text:1", { tag: "wsp-text", component: TextComponent }],
   ["form:1", { tag: "wsp-form", component: FormComponent }],
+  ["form-response:1", { tag: "wsp-form-response", component: FormResponseComponent }],
 ]);
 const identifier = /^[a-zA-Z0-9_-]{1,100}$/;
 export function validateContent(content) {

@@ -28,16 +28,30 @@ export class FormComponent extends Base {
     return result;
   }
   applyData(data, interaction = {}) {
+    const changed = JSON.stringify(this.data) !== JSON.stringify(data);
     this.data = data;
     this.interaction = interaction;
-    this.replaceChildren();
-    this.form = document.createElement("aui-form");
-    const fieldset = document.createElement("fieldset");
-    fieldset.style.cssText = "border:0; padding:0; margin:0; min-width:0";
-    fieldset.disabled = Boolean(interaction.status && interaction.status !== "draft");
-    fieldset.append(this.form);
-    this.append(fieldset);
-    this.form.applyData(data);
+    if (!this.form) {
+      this.form = document.createElement("aui-form");
+      this.fieldset = document.createElement("fieldset");
+      this.fieldset.style.cssText = "border:0; padding:0; margin:0; min-width:0";
+      this.fieldset.append(this.form);
+      this.status = document.createElement("p");
+      this.status.className = "form-status";
+      this.status.setAttribute("role", "status");
+      this.append(this.fieldset, this.status);
+      this.form.addEventListener("input", () => this.emit("component-draft", this.readValues()));
+      this.form.addEventListener("aui-form-submit", event => {
+        event.stopPropagation();
+        if (this.interaction.status && this.interaction.status !== "draft") return;
+        try {
+          const values = FormComponent.validateValues(this.data, event.detail.values);
+          this.emit("component-submit", values);
+        } catch (error) { this.status.textContent = error.message; }
+      });
+    }
+    this.fieldset.disabled = Boolean(interaction.status && interaction.status !== "draft");
+    if (changed) this.form.applyData(data);
     const values = FormComponent.validateValues(data, interaction.values ?? {}, false);
     for (const input of this.form.querySelectorAll("input")) {
       if (input.type === "text") input.value = values[input.name] ?? "";
@@ -45,20 +59,7 @@ export class FormComponent extends Base {
     }
     const locked = interaction.status && interaction.status !== "draft";
     for (const input of this.form.querySelectorAll("input,button")) input.disabled = Boolean(locked);
-    this.status = document.createElement("p");
-    this.status.className = "form-status";
-    this.status.setAttribute("role", "status");
     this.status.textContent = locked ? `${interaction.status} · ${interaction.detail ?? "No automatic resend"}` : "";
-    this.append(this.status);
-    this.form.addEventListener("input", () => this.emit("component-draft", this.readValues()));
-    this.form.addEventListener("aui-form-submit", event => {
-      event.stopPropagation();
-      if (this.interaction.status && this.interaction.status !== "draft") return;
-      try {
-        const values = FormComponent.validateValues(data, event.detail.values);
-        this.emit("component-submit", values);
-      } catch (error) { this.status.textContent = error.message; }
-    });
   }
   readValues() {
     const values = Object.create(null);

@@ -58,7 +58,8 @@ def test_regular_bounded_assets_only(runtime):
         read_asset(runtime, "private.json")
 
 
-@pytest.mark.parametrize("path", ["/api/state", "/api/agent-binding", "/api/agent-lifecycle",
+@pytest.mark.parametrize("path", ["/api/state", "/api/conversation-posts",
+                                  "/api/agent-binding", "/api/agent-lifecycle",
                                   "/api/agent-lifecycle/start",
                                   "/api/conversations/conversation-aster/messages"])
 @pytest.mark.parametrize("headers", [{"origin": "null"}, {"sec-fetch-site": "cross-site"},

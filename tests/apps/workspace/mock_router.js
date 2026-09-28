@@ -24,13 +24,24 @@ window.WebSocket = class MockWebSocket extends EventTarget {
         this.emit({ type: "result", requestId: frame.requestId, routeId, status: "forwarded" });
         if (window.mockRouter.mode === "disconnect") { this.close(); return; }
         if (window.mockRouter.mode === "hold") return;
-        const content = frame.payload.kind === "workspace.form-submit"
+        const content = frame.payload.kind === "workspace.form-submit" || frame.payload.content?.[0]?.type === "form-response"
           ? [{ id: "ack", type: "text", version: 1, data: { text: "Mock acknowledgement: structured values received" } }]
           : [{ id: "intro", type: "text", version: 1, data: { text: "Mock agent reply (not live evidence)" } },
              { id: "task-form", type: "form", version: 1, data: { title: "A small task", submitLabel: "Send details", fields: [
                { name: "title", kind: "text", label: "Task title", required: true, maxLength: 100 },
                { name: "outcome", kind: "text", label: "Desired outcome", required: true, maxLength: 500 },
              ] } }];
+        if (frame.payload.postTo === "workspace-app") {
+          this.emit({ type: "response", id: routeId, requestId: frame.requestId, final: false,
+            from: { id: window.mockRouter.participant, kind: "agent", sessionId: window.mockRouter.sessionId },
+            metadata: { pi: { type: "admitted" } }, payload: null });
+          this.emit({ type: "response", id: routeId, requestId: frame.requestId, final: true,
+            from: { id: window.mockRouter.participant, kind: "agent", sessionId: window.mockRouter.sessionId },
+            metadata: {}, payload: { status: "accepted", operationId: frame.payload.operationId } });
+          // Test-only Playwright binding persists through the isolated backend store.
+          void window.mockAgentPost({ operationId: crypto.randomUUID(), context: frame.payload.context, content });
+          return;
+        }
         this.emit({ type: "response", id: routeId, requestId: frame.requestId, final: true,
           from: { id: window.mockRouter.participant, kind: "agent", sessionId: window.mockRouter.sessionId }, metadata: {}, payload: frame.payload.kind === "workspace.webboard-event"
             ? (window.mockRouter.mode === "bad-board-reply"

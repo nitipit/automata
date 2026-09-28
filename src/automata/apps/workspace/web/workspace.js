@@ -3,6 +3,7 @@ import "./work-surface.js";
 import "./conversation-view.js";
 import "./bottom-controls.js";
 import { createAgentConversation } from "/modules/agent/conversation.js";
+import { createStateSync } from "./state-sync.js";
 
 // Storage slots remain legacy IDs; assignment comes only from server provisioning.
 
@@ -69,38 +70,8 @@ async function api(path, options = {}) {
   return result;
 }
 
-function saveNow() {
-  clearTimeout(state.timer);
-  if (!state.ready || state.conflicted) return Promise.resolve(false);
-  const save = state.saveChain.catch(() => {}).then(async () => {
-    if (state.conflicted) return false;
-    const serialAtSend = state.changeSerial;
-    setStatus("Saving…");
-    try {
-      const saved = await api("/api/state", { method: "PUT", body: JSON.stringify(state.value) });
-      state.value.revision = saved.revision;
-      if (state.changeSerial === serialAtSend) {
-        state.dirty = false;
-        setStatus("All changes saved");
-      } else {
-        setStatus("Unsaved changes", "pending");
-      }
-      return true;
-    } catch (error) {
-      state.dirty = true;
-      if (error.status === 409) {
-        state.conflicted = true;
-        controls.setConflict(true);
-        setStatus(`Conflict · local edits kept; server is revision ${error.currentRevision}. Copy local changes before reloading.`, "error");
-      } else {
-        setStatus(`Save failed · ${error.message} · changes retained here`, "error");
-      }
-      return false;
-    }
-  });
-  state.saveChain = save;
-  return save;
-}
+const sync = createStateSync({ state, api, render, controls, setStatus });
+const saveNow = () => sync.saveNow();
 function scheduleSave() {
   state.dirty = true;
   state.changeSerial++;
@@ -112,7 +83,7 @@ function scheduleSave() {
   clearTimeout(state.timer);
   state.timer = setTimeout(saveNow, 250);
 }
-const agentConversation = createAgentConversation({ state, api, saveNow, render, controls, setStatus });
+const agentConversation = createAgentConversation({ state, api, saveNow, refresh: sync.refresh, render, controls, setStatus });
 root.querySelector("wsp-surface").exchange = payload => agentConversation.boardEvent(payload);
 conversationView.addEventListener("component-draft", event => agentConversation.draft(event.detail));
 conversationView.addEventListener("component-submit", event => void agentConversation.submit(event.detail));
@@ -141,7 +112,7 @@ controls.addEventListener("draft-change", (event) => {
 });
 controls.addEventListener("draft-blur", () => { if (state.dirty) void saveNow(); });
 controls.addEventListener("start-agent", () => void agentConversation.launch());
-window.addEventListener("pagehide", () => agentConversation.disconnect());
+window.addEventListener("pagehide", () => { sync.stop(); agentConversation.disconnect(); });
 controls.addEventListener("send-message", (event) => void agentConversation.send(event.detail));
 controls.addEventListener("copy-recovery", () => void copyRecovery());
 document.addEventListener("keydown", (event) => {
@@ -162,6 +133,7 @@ try {
   // is the single explicitly assignable historical storage slot.
   state.value.view.selectedConversationId = "conversation-aster";
   state.ready = true;
+  sync.start();
   render();
   await agentConversation.initialize();
 } catch (error) {

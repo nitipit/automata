@@ -17,6 +17,8 @@ def read_binding() -> dict | None:
     if endpoint.get("kind") != "page":
         raise ValueError("Only page credentials may be supplied to Workspace")
     participant = endpoint.get("participant")
+    if participant == "workspace-app":
+        raise ValueError("Backend receiver credentials are never browser credentials")
     token = endpoint.get("token")
     target = os.environ.get("WORKSPACE_AGENT_PARTICIPANT")
     agent_id = os.environ.get("WORKSPACE_AGENT_ID")

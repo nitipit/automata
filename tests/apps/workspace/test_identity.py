@@ -76,7 +76,10 @@ def test_v2_mixed_history_is_preserved_without_relabeling_or_transfer(tmp_path):
     messages = loaded["conversations"]["conversation-aster"]["messages"]
     assert messages[0]["provenance"] == "historical-simulation"
     assert messages[0]["text"] == aster["messages"][0]["text"]
-    assert messages[1:] == aster["messages"][1:]
+    assert messages[1:] == [
+        {**message, "messageId": message["id"], "seq": seq, "createdAt": None}
+        for seq, message in enumerate(aster["messages"][1:], 2)
+    ]
     assert "author" not in messages[2]  # No retroactive author fabrication.
     with DB(str(tmp_path)) as db, db.transaction(write=False) as tx:
         assert tx.shelf("workspace").key(PROJECT_ID).item().value == original

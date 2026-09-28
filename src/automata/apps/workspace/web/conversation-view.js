@@ -80,25 +80,41 @@ export class ConversationView extends Base {
     const heading = this.querySelector(".heading");
     heading.textContent = `Conversation · ${agentName}`;
     const log = this.querySelector(".log");
-    log.replaceChildren();
+    const followBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 60;
+    if (this.conversationId !== conversation.id) {
+      log.replaceChildren();
+      this.rows = new Map();
+      this.conversationId = conversation.id;
+    }
+    if (conversation.messages.length) log.querySelector(".empty")?.remove();
+    let appended = false;
     for (const message of conversation.messages) {
-      const row = document.createElement("wsp-message");
+      let entry = this.rows.get(message.id);
+      if (!entry) {
+        entry = { row: document.createElement("wsp-message"), signature: null };
+        this.rows.set(message.id, entry);
+      }
+      const row = entry.row;
       // Earlier real replies recorded provenance on the correlated submission.
       // Use that existing evidence for display without rewriting historical rows.
       const evidence = conversation.messages.flatMap(item => [item.delivery,
         ...Object.values(item.interactions ?? {})]).find(item => item?.status === "completed"
           && item.operationId === message.operationId && item.participant === "workspace-agent"
           && typeof item.sessionId === "string");
-      row.present(message, agentName, conversation.id, evidence);
-      log.append(row);
+      const signature = JSON.stringify([message, evidence]);
+      if (signature !== entry.signature) {
+        row.present(message, agentName, conversation.id, evidence);
+        entry.signature = signature;
+      }
+      if (row.parentNode !== log) { log.append(row); appended = true; }
     }
-    if (!conversation.messages.length) {
+    if (!conversation.messages.length && !log.querySelector(".empty")) {
       const empty = document.createElement("p");
       empty.className = "empty";
       empty.textContent = "No messages yet.";
       log.append(empty);
     }
-    log.scrollTop = log.scrollHeight;
+    if (appended && followBottom) log.scrollTop = log.scrollHeight;
   }
 
   focusHeading() {

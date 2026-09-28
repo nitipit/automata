@@ -43,7 +43,8 @@ def test_components_interactions_roundtrip_without_execution(tmp_path):
     message = example_message()
     state["conversations"]["conversation-aster"]["messages"].append(message)
     store.save(state)
-    assert store.load()["conversations"]["conversation-aster"]["messages"][0] == message
+    assert store.load()["conversations"]["conversation-aster"]["messages"][0] == {
+        **message, "messageId": message["id"], "seq": 1, "createdAt": None}
     # Python does NOT duplicate the catalog Form schema: JS rejects this empty
     # field list before rendering. Storage never executes payloads.
 

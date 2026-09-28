@@ -9,9 +9,14 @@ from threading import RLock
 from typing import Any
 
 from dictify import Field, Model
+from lmdb import Error as StorageError
 from shelfdb.shelf import DB
 
+from .posts import agent_author, apply_post, guard_browser_save, normalize_posts
 from .schemas import normalize_message, validate_message
+
+_PATH_LOCKS: dict[str, RLock] = {}
+_PATH_LOCKS_GUARD = RLock()
 
 PROJECT_ID = "project-northstar"
 AGENTS = {"agent-a": "Aster", "agent-b": "Mira"}
@@ -27,6 +32,7 @@ class WorkspaceState(Model):
     artifact = Field(required=True).instance(dict)
     conversations = Field(required=True).instance(dict)
     view = Field(required=True).instance(dict)
+    postOperations = Field().instance(dict)
 
 
 def default_state() -> dict[str, Any]:
@@ -70,7 +76,7 @@ def _load_state(value: Any) -> dict[str, Any]:
     state = validate_state(value)
     for row in state["conversations"].values():
         row["messages"] = [normalize_message(message) for message in row["messages"]]
-    return state
+    return normalize_posts(state)
 
 
 def validate_state(value: Any) -> dict[str, Any]:
@@ -128,7 +134,8 @@ class WorkspaceStore:
 
     def __init__(self, path: Path):
         self.path = path
-        self._lock = RLock()
+        with _PATH_LOCKS_GUARD:
+            self._lock = _PATH_LOCKS.setdefault(str(path.resolve()), RLock())
         path.mkdir(parents=True, exist_ok=True, mode=0o700)
 
     def load(self) -> dict[str, Any]:
@@ -137,14 +144,17 @@ class WorkspaceStore:
                 return default_state()
             try:
                 with DB(str(self.path)) as database, database.transaction(write=False) as tx:
-                    item = tx.shelf("workspace").key(PROJECT_ID).item()
-                    if item is None:
+                    # A first failed write can leave a valid but empty LMDB file.
+                    if tx.tx.get(b"workspace") is None:
                         return default_state()
-                    return _load_state(item.value)
-            except (OSError, RuntimeError, ValueError, Model.Error) as error:
+                    selected = tx.shelf("workspace").key(PROJECT_ID)
+                    if not selected.exists():
+                        return default_state()
+                    return _load_state(selected.item().value)
+            except (OSError, RuntimeError, ValueError, Model.Error, StorageError) as error:
                 raise RuntimeError("Saved workspace state could not be read") from error
 
-    def save(self, value: Any) -> dict[str, Any]:
+    def save(self, value: Any, *, browser: bool = False) -> dict[str, Any]:
         state = validate_state(value)
         with self._lock:
             try:
@@ -159,16 +169,38 @@ class WorkspaceStore:
                     )
                     if expected != current["revision"]:
                         raise RevisionConflict(current["revision"])
+                    if browser:
+                        guard_browser_save(state, current)
                     state["revision"] = expected + 1
                     encoded = json.loads(json.dumps(state, ensure_ascii=False))
                     result = shelf.put(PROJECT_ID, encoded)
                     if not result.ok:
                         raise RuntimeError("ShelfDB rejected the workspace update")
                 return encoded
-            except RevisionConflict:
+            except (RevisionConflict, ValueError):
                 raise
-            except (OSError, RuntimeError, ValueError, Model.Error) as error:
+            except (OSError, RuntimeError, Model.Error, StorageError) as error:
                 raise RuntimeError("Workspace changes were not saved") from error
+
+    def post(self, envelope: dict, *, provenance: dict | None = None) -> dict:
+        """Commit message and dedup receipt together, including concurrent retries."""
+        author = agent_author(provenance) if provenance is not None else None
+        with self._lock:
+            try:
+                with DB(str(self.path)) as database, database.transaction(write=True) as tx:
+                    shelf = tx.shelf("workspace")
+                    selected = shelf.key(PROJECT_ID)
+                    state = (_load_state(selected.item().value) if selected.exists()
+                             else normalize_posts(default_state()))
+                    before = state["revision"]
+                    receipt = apply_post(state, envelope, author)
+                    if state["revision"] != before:
+                        validate_state(state)
+                        if not shelf.put(PROJECT_ID, state).ok:
+                            raise RuntimeError("Workspace post was not saved")
+                    return json.loads(json.dumps(receipt))
+            except (OSError, StorageError) as error:
+                raise RuntimeError("Workspace post save outcome uncertain") from error
 
 
 class RevisionConflict(RuntimeError):

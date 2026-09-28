@@ -145,6 +145,48 @@ export class AgentConnection {
     return this.binding?.conversationId === conversationId && this.phase === "connected" && this.available
       && this.client.isConnected();
   }
+  deliver(payload) {
+    if (!this.isBound(payload.context?.conversationId)) {
+      throw new Error("Saved locally; no connected assigned agent for this destination");
+    }
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (error, response) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (error) reject(error); else resolve(response);
+      };
+      const timer = setTimeout(() => finish(new Error("Admission uncertain; saved input is not replayed")), 120000);
+      try {
+        const request = this.client.send(this.binding.to, payload, {
+          metadata: { pi: { delivery: { role: "user", deliverAs: "followUp" } } },
+          onResponse: response => {
+            if (response.type === "route_closed") {
+              finish(new Error("Admission uncertain after disconnect; not resent"));
+              return;
+            }
+            if (response.from?.kind !== "agent" || response.from.id !== this.binding.to
+                || typeof response.from.sessionId !== "string" || !response.from.sessionId) {
+              finish(new Error("Unrecognized admission identity"));
+              return;
+            }
+            this.lastSession = response.from.sessionId;
+            this.publish();
+            const pi = response.metadata?.pi;
+            if (!response.final && pi?.type === "admitted") {
+              finish(null, { status: "attached", participant: response.from.id, sessionId: response.from.sessionId });
+            } else if (response.final) {
+              if (response.payload?.status === "accepted" && response.payload.operationId === payload.operationId) {
+                finish(null, { status: "attached", participant: response.from.id, sessionId: response.from.sessionId });
+              } else finish(new Error("Agent rejected or did not acknowledge input; no automatic replay"));
+            }
+          },
+        });
+        request.accepted.catch(error => finish(error));
+      } catch (error) { finish(error); }
+    });
+  }
   requestBoard(payload) {
     if (!this.binding) throw new Error("No assigned agent; board event not sent");
     if (payload.kind !== "workspace.webboard-event"

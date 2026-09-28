@@ -1,6 +1,8 @@
 # Workspace POC
 
-See [Workspace concept](DESIGN.md) for the development direction.
+See [Workspace concept](DESIGN.md) for the development direction,
+[ongoing conversation posting](POSTING.md) for the agent/user protocol, and
+[provisioning and recovery](PROVISIONING.md) before changing a runtime.
 
 A local-first project workspace at `/project-northstar/`. The work surface remains
 visible while the selected conversation opens as a closable overlay. A clear toggle
@@ -55,8 +57,10 @@ agent responses are explicitly **mocks**, not evidence of a real-agent exchange.
 
 ### Explicit real-agent binding
 
-Provision the existing message-router separately, with one page participant and a
-directed grant to the authorized agent participant. Permit the exact app origin
+Provision the existing message-router separately, with a browser page participant,
+a dedicated private `workspace-app` backend receiver participant, a page-to-agent
+grant, and an agent-to-app grant. The backend uses the existing page transport kind
+as a service adapter; it is not a human or shared browser credential. Permit the exact app origin
 on that router. The agent must open its own private agent endpoint in Pi; the
 router never launches an agent. Workspace can optionally own one explicitly
 configured Pi process through the separate local launcher below. Before starting
@@ -66,9 +70,13 @@ the app, set:
 export WORKSPACE_PAGE_ENDPOINT=/absolute/private/endpoints/participants/workspace-page.json
 export WORKSPACE_AGENT_PARTICIPANT=workspace-agent
 export WORKSPACE_AGENT_ID=agent-automata
+export WORKSPACE_APP_ENDPOINT=/absolute/private/endpoints/participants/workspace-app.json
 ```
 
-All three settings are required for the explicit assignment. The fixed approved
+The first three settings are required for the explicit browser assignment.
+The fourth enables the app-owned receiver independently of browser lifetime;
+Node with native WebSocket is required (verified with Node 24). Its credential
+must be private, distinct from the browser credential and never publicly served. The fixed approved
 mapping is `conversation-aster` (legacy storage slot) -> `agent-automata` (stable
 identity), display name Automata, router participant `workspace-agent`. Arbitrary
 participant names and missing stable identity fail closed. The legacy stored row
@@ -90,7 +98,9 @@ starts a new bounded burst. No history, component descriptions, old form values 
 operation requests are transmitted during connection/recovery. No request is
 retried, including uncertain launch POSTs. There is no context-ready/restored/
 understood state or participant takeover. Only a new explicit message or form
-submission sends its own payload. Its `agentId` must match the assignment; other
+submission saves its own input and attempts agent delivery. Independent agent posts
+are saved by the app receiver and observed by browser catch-up; they do not require
+a new human request. Its explicit destination must match the assignment; other
 conversation IDs cannot use the connection.
 
 The UI separates router connectivity from agent Offline/Starting/Available/Failed.
@@ -169,6 +179,12 @@ an explicit Resume action. An existing external participant is shown Available,
 never taken over. A still-running child whose router binding is lost is Offline;
 this slice does not silently reopen the agent binding or replay its startup
 prompt. An operator may stop the owning app and explicitly resume after recovery.
+
+The two historical real-agent helpers below still exercise the previous one-shot
+conversation contract. **Do not run them for the ongoing-post deployment.** They
+are retained for historical reference, not current posting acceptance. Use isolated
+`post_acceptance.py` for mechanical verification; the coordinator owns any separately
+authorized real exchange using [POSTING](POSTING.md).
 
 `tests/apps/workspace/lifecycle_live_acceptance.py
 --confirm-one-owned-test-session --evidence-root /absolute/fresh/private/path`
@@ -279,7 +295,8 @@ shadow roots or duplicated inline styles. `workspace-root.css` owns the internal
 layout, while document CSS handles the page frame. `workspace-tokens.css` defines
 public `--aui-*` roles and app spacing/radius values that inherit through the parent
 root; browser acceptance checks computed styles after token overrides. The page
-controller in `web/workspace.js` owns shared state and persistence. Adaptive UI
+controller in `web/workspace.js` owns shared state; `web/state-sync.js` owns queued
+persistence, non-overlapping catch-up and three-way draft merging. Adaptive UI
 `Chat` is not reused because its private append-only log has no durable history
 hydrate/replace or per-conversation draft API. No generic component framework is
 introduced. `wsp-message` constructs ordered component descriptions through the
@@ -288,16 +305,14 @@ rendering-data validation to shipped `Form.validateData`, renders `aui-form`, an
 owns structured submission/draft state. Unknown or invalid components are rejected
 or visibly fall back; payloads cannot supply executable HTML, JS, imports or tags.
 
-The request contracts are:
-
-- `workspace.message`, version 1: project/conversation/operation/message IDs plus
-  `content: [{id, type: "text", version: 1, data: {text}}]`.
-- `workspace.form-submit`, version 1: those correlation IDs plus `componentId`,
-  `componentType: "form"`, `componentVersion: 1`, and string-valued `values`.
-- Agent terminal reply: `{content: [{id, type, version: 1, data}, ...]}`, using only
-  registered `text` and `form`. Form data is the exact catalog contract: optional
-  title, submitLabel, and fields with name/kind/label/required plus text bounds or
-  choices. Reply IDs are unique within a message. No task is executed by this demo.
+The conversation post contract is `{operationId, context, content}` with explicit
+project/conversation destination and optional webboard ID. Agent posts use registered
+`text` and `form`; human form submissions use self-contained `form-response` content.
+The app authenticates authors from router provenance, assigns message identity/order/
+time, and returns a durable saved receipt. Human input saving and agent admission
+are separate. Agents acknowledge the inbound request promptly, then post independent
+progress/results rather than returning task content through a browser-only promise.
+See [POSTING](POSTING.md) for exact envelopes, receipt/retry semantics and limits.
 
 Python validates bounded persistence envelopes, identities and interaction states,
 not a second copy of Form's schema. The browser component registry is the rendering
@@ -312,7 +327,11 @@ identities are validated. Version 1 state is deliberately not migrated; preserve
 needed old local data before switching this prototype to the new schema.
 
 Existing v2 messages normalize additively on read: original text/history/drafts
-remain intact and gain a text component plus historical-simulation provenance.
+remain intact. Text-only messages gain a text component plus historical-simulation
+provenance. All messages gain stable messageId, conversation-local sequence and a
+null legacy timestamp; new posts have backend-assigned UTC timestamps. The atomic
+postOperations ledger shares the workspace value. Migration/rollback constraints
+are documented in [PROVISIONING](PROVISIONING.md).
 Simulated messages keep their Aster/Mira historical labels, never Automata. Earlier
 real replies are displayed as Automata only where a correlated completed interaction
 records `workspace-agent` and a runtime session; otherwise identity is unverified.
@@ -324,16 +343,18 @@ identity. Authenticated responder participant/session identity is retained with 
 completed interaction. Older UI code can still show the text fallback, but cannot
 render or manage forms; preserve a DB backup before any promotion or rollback.
 
-The UI uses the shipped browser router client directly. Local saves cannot overwrite
-the separate connection status. A pending operation is
-saved before transport; local persistence, forwarding/admission and agent completion
-are distinct. Form submission locks immediately and remains disabled after an
-acknowledgement, failure or uncertainty. Interrupted pending state becomes uncertain
-on hydration; neither history loading nor reconnect replays requests. There is no
-automatic retry and no UI resend of an uncertain operation. A reply timeout is
-conservative uncertainty, not proof that the agent did not handle the request.
-A 409 keeps local values and offers recovery copy rather than overwriting the
-winner. A reply received but not saved stays in the tab with an explicit error.
+The UI uses the shipped router client for explicit human-input delivery and separate
+board events. Backend-owned conversation posts survive browser closure. A saved
+input precedes transport; persistence, forwarding/admission and task completion are
+distinct. Submitted forms stay locked after admission, failure or uncertainty.
+Interrupted pending delivery becomes uncertain on hydration; history loading and
+reconnect never replay inputs. Operation-specific browser recovery keys retain
+unknown saves. There is no automatic input retry or UI resend of an uncertain input.
+A timeout is uncertainty, not proof of non-delivery. Non-overlapping polling merges
+backend messages without replacing drafts or focused form controls. Browser saves
+retain CAS; one append-only rebase is permitted, while divergent edits retain local
+values and offer recovery copy. Even a current-revision PUT cannot remove or forge
+backend messages/operation records.
 
 The legacy POST `/api/conversations/{id}/messages` and `append_message` remain an
 explicit **local simulator** for historical regression tests only. They create
