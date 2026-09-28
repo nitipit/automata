@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Northstar · Main webboard</title>
+  <link rel="stylesheet" href="board.css">
+  <script src="board.js" defer></script>
+</head>
+<body>
+  <main aria-label="Workspace demo">
+    <p class="eyebrow">Northstar · Main webboard</p>
+    <h2>Hello, workspace!</h2>
+    <p>A little interactive card outside the conversation. Try the counter below.</p>
+    <output aria-live="polite">Count: 0</output>
+    <div class="actions">
+      <button id="add" type="button">Add one</button>
+      <button id="reset" type="button">Reset</button>
+      <button id="notify" type="button" disabled>Share counter with agent…</button>
+    </div>
+    <p>Local demo · counter resets when the page reloads. Sharing requires confirmation in the host.</p>
+    <p id="reply" role="status"></p>
+  </main>
+</body>
+</html>

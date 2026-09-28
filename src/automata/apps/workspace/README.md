@@ -3,6 +3,9 @@
 See [Workspace concept](DESIGN.md) for the development direction,
 [ongoing conversation posting](POSTING.md) for the agent/user protocol, and
 [provisioning and recovery](PROVISIONING.md) before changing a runtime.
+[Developer guidance](AGENTS.md) distinguishes application and project-content work;
+the canonical [Workspace usage skill](../../skills/core/automata-workspace-app/SKILL.md)
+guides agents participating in the app.
 
 A local-first project workspace at `/project-northstar/`. The work surface remains
 visible while the selected conversation opens as a closable overlay. A clear toggle
@@ -217,12 +220,19 @@ parents, symlinks or arbitrary filenames. Files are bounded to 256 KB and opened
 using no-follow directory descriptors. Runtime ancestors are operator-owned.
 
 Provisioning is an explicit operator action, not app startup or frontend build.
-This slice retains the migrated demo and non-overwriting seed recipe at
-`.agents/var/workspace/webboard-slice/provision.py`; pass an explicit absolute
-runtime root. Its `seed/northstar/main/web/` contains the board-owned HTML/CSS/JS,
-and `seed/original-demo-card.js` preserves the previous component. The coordinator
-owns promotion into the live runtime; tests use an isolated copy. The small board
-uses native controls, not parent Adaptive UI imports: its script cannot import
+The maintained [webboard example](examples/webboard/README.md) includes the counter
+and host-mediated agent interaction. Copy it to a new explicit public directory:
+
+```sh
+python src/automata/apps/workspace/provision_webboard.py \
+  "$WORKSPACE_RUNTIME_ROOT/northstar/main/web"
+```
+
+Use an absolute, isolated runtime unless live provisioning is explicitly approved.
+The helper refuses existing targets and symlink ancestors; it copies only the three
+browser assets. App startup/build never provisions content. Source examples and
+runtime boards are independent copies, not synchronized. The small board uses
+native controls, not parent Adaptive UI imports: its script cannot import
 host application code or access the host's framework/credentials. Future boards
 can replace the public files through an independently approved provisioning step;
 there is no browser/agent arbitrary-file-write API.
@@ -279,7 +289,7 @@ uncertainty, not proof of non-delivery. There is no durable event recovery/ack l
 multi-board navigation, arbitrary writes, multi-user auth or RBAC in this slice.
 
 For integrated verification, run the existing browser command with
-`WORKSPACE_BOARD_SEED` pointing to the seed's absolute `web/` directory and an
+`WORKSPACE_BOARD_SEED="$PWD/src/automata/apps/workspace/examples/webboard"` and an
 optional fresh `WORKSPACE_TEST_ROOT` for retained screenshots/results. It uses
 real isolated Chrome, synthetic binding and **mock router/agent replies**, not a
 new product agent. `test_webboards.py` covers filesystem and API guard contracts.
