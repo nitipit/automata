@@ -1,0 +1,25 @@
+{% extends 'templates/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block body %}
+<skill-page>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <main>
+    <header class="page-head">
+      <a class="brand" href="/{{ skill }}/">AUTOMATA · SKILLS</a>
+      <label>Theme <select id="theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+    </header>
+    <nav aria-label="Skill references">{% for path, label in navigation %}<a href="/{{ skill }}/{{ path }}" {% if label == title %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</nav>
+    <article id="content" class="lesson" tabindex="-1" data-source="/skills/{{ skill }}/{{ document }}">
+      {% if document == 'SKILL.md' %}
+      <h1>{{ title }}</h1>
+      <p>Complete canonical skill source. References are rendered as Markdown.</p>
+      <raw-skill src="/skills/{{ skill }}/SKILL.md">
+        <p role="status">Loading skill source…</p>
+        <code-example><pre tabindex="0"><code></code></pre></code-example>
+      </raw-skill>
+      {% else %}{{ markdown(markdown_path) }}{% endif %}
+    </article>
+    <footer>Canonical authored Markdown, rendered by native Engrave. Fenced examples are not executed. <a href="/templates/licenses/PROVENANCE.txt">Library provenance</a></footer>
+  </main>
+</skill-page>
+{% endblock %}

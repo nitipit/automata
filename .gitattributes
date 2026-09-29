@@ -1,3 +1,3 @@
 # Preserve exact upstream bytes in reviewed library bundles and license notices.
-src/automata/runtimes/pi/skills/automata-message-router/webref/lib/* -whitespace
-src/automata/apps/skill_builder/message_router/licenses/*.txt -whitespace
+src/automata/apps/skill_builder/templates/lib/*.js -whitespace
+src/automata/apps/skill_builder/templates/licenses/*.txt -whitespace

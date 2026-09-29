@@ -60,12 +60,7 @@ def test_only_allowlisted_assets_are_served(client):
         assert response.headers['content-type'].startswith('text/javascript')
         assert "frame-ancestors 'none'" in response.headers['content-security-policy']
     assert client.post('/automata/components/monitor.js', json={}).status_code == 405
-    for name in message_router_guide.MODULES:
-        response = client.get('/message-router/' + name)
-        assert response.status_code == 200, name
-        assert response.content == (message_router_guide.WEBREF / name).read_bytes()
-    for name in message_router_guide.NOTICES:
-        assert client.get('/message-router/lib/' + name).status_code == 200
+    assert client.get('/message-router/lib/mermaid.js').status_code == 404
 
 
 @pytest.mark.parametrize('path', [
@@ -83,12 +78,6 @@ def test_template_sources_and_retired_spa_are_private(client, path):
 
 @pytest.mark.parametrize('path,title', [
     ('/automata/index.html', 'Automata'),
-    ('/message-router/index.html', 'Overview'),
-    ('/message-router/configure.html', 'Configure'),
-    ('/message-router/connect.html', 'Connect'),
-    ('/message-router/discover.html', 'Discover'),
-    ('/message-router/send.html', 'Send'),
-    ('/message-router/failures.html', 'Handle failures'),
 ])
 def test_rendered_documents_not_template_sources(client, path, title):
     response = client.get(path)
@@ -103,6 +92,14 @@ def test_rendered_documents_not_template_sources(client, path, title):
     if 'message-router' in path:
         assert 'components/monitor.js' not in response.text
         assert 'id="auto"' not in response.text
+
+
+@pytest.mark.parametrize('name', ['index', 'configure', 'connect', 'discover', 'send', 'failures'])
+def test_router_redirects_to_separate_site(client, name):
+    response = client.get(f'/message-router/{name}.html', follow_redirects=False)
+    assert response.status_code == 307
+    suffix = '' if name == 'index' else 'references/' + name + '.html'
+    assert response.headers['location'] == message_router_guide.SITE + suffix
 
 
 def test_document_aliases(client):

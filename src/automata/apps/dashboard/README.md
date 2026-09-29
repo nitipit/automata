@@ -1,28 +1,24 @@
 # Anatomy (development)
 
 Read-only, loopback-only **FastAPI + Jinja monitoring app**, with Adaptive UI
-components and local ECharts. It also serves the finished Message Router skill
-reference through a closed file allowlist. Normal links load independent documents.
-No SPA, router connection, simulator, or code executor.
+components and local ECharts. Its Message Router guide link opens the separately
+launched Skill Builder site; Anatomy neither renders nor serves installed skills.
+Normal links load independent documents. No SPA, router connection, simulator,
+or code executor.
 
 ## Pages
 
 - `/automata/index.html`: Identity, Capabilities and Statistics local tabs.
-- `/message-router/index.html`: portable reference Overview.
-- `/message-router/configure.html`: directed permissions and private setup CLI.
-- `/message-router/connect.html`: authentic browser/Node client setup; generic
-  agent-kind clients are explicitly distinct from the native Pi adapter.
-- `/message-router/discover.html`: caller-scoped `client.status()` and its limits.
-- `/message-router/send.html`: separate independent initiation, request/reply and
-  one-way lessons, each with a focused diagram, code and expected result.
-- `/message-router/failures.html`: forbidden/offline, cancel and disconnect limits.
+- Message Router guide: `http://127.0.0.1:8788/message-router/` displays the complete
+  canonical `SKILL.md` as source code. Rendered references use
+  `/message-router/references/<name>.html` there.
+- Legacy `/message-router/index.html` redirects to that landing page;
+  `configure.html`, `connect.html`, `discover.html`, `send.html` and `failures.html`
+  redirect to the matching references on the separate site.
 
-One illustrative topology is used throughout: desk/viewer pages and
-worker/reviewer agents; grants desk → viewer, desk → worker, worker ↔ reviewer.
-The router service is explicit in transport diagrams and is not a participant.
-Permission diagrams are labeled as grants, not physical links. All guide examples
-are non-executing text; credentials are placeholders, provisioned out of band in
-an independently authorized setup. Anatomy never reads router endpoint records.
+Guide usage belongs in the canonical Markdown, not this README. Examples are
+non-executing text. Anatomy never reads router endpoint records or starts the
+skill-site server.
 
 ## Offline build and run
 
@@ -34,10 +30,6 @@ From the repository root, with Python/Deno and pinned dependencies already cache
 python .agents/skills/automata-adaptive-ui/scripts/build.py \
   --runtime-root .agents/var/apps/dashboard/public
 (cd src/automata/apps/dashboard/frontend && deno task build)
-# After editing guide authoring, render the ready-made skill reference:
-PYTHONPATH=src uv run --offline --no-project --with engrave==3.2.6 \
-  python -m automata.apps.skill_builder.cli message-router
-
 PYTHONPATH="$PWD/src" uv run --offline --no-project \
   --with fastapi==0.141.1 --with uvicorn==0.53.0 --with jinja2==3.1.6 \
   --with shelfdb==3.0.2 --with dictify==5.0.2 --with pyyaml==6.0.3 \
@@ -50,18 +42,32 @@ not a new core dependency. Isolated cached resolution does not install globally.
 Missing dependencies require separate approval/preparation; no implicit downloads.
 The Deno task uses `--cached-only`, pinned ECharts 6.0.0 and Mermaid 11.12.2.
 
+For the optional guide, run a separate owned process using cached Engrave 3.2.6:
+
+```sh
+PYTHONPATH=src uv run --offline --no-project --with engrave==3.2.6 \
+  python -m automata.apps.skill_builder.cli serve message-router --port 8788
+```
+
+This one command builds, serves and watches the canonical Markdown; no manual
+website build or agent export is needed. See [Skill Builder](../skill_builder/README.md)
+for catalog mode, restart boundaries and Markdown-only agent export. Anatomy's
+link targets default port 8788; open a custom skill-site port directly.
+
 ## Maintained structure and public boundary
 
 - `server.py`: FastAPI, loopback Host/Origin/CSP protections and closed asset list.
 - `routes/automata.py`: monitor document and compatible `/api/anatomy` endpoint.
-- `routes/message_router_guide.py`: closed allowlist serving the finished skill
-  reference, not transport or template rendering.
+- `routes/message_router_guide.py`: narrow compatibility redirects to the
+  independently launched skill site; no asset serving or renderer.
 - `templates/base.html`: private monitor inheritance.
 - `templates/automata/index.html` and matching `index.css.js`: monitor page;
   `components/monitor.js`, `monitor-state.js`, `activity-chart.js` own its lifecycle.
-- `../skill_builder/message_router/`: sole skill/guide authoring and licenses;
-  see `../skill_builder/README.md` for the Engrave CLI recipe and provenance. Generated pages live in
-  `runtimes/pi/skills/automata-message-router/webref/`, not dashboard templates.
+- `../skill_builder/skills/message-router/`: canonical `SKILL.md` and linked
+  `references/*.md`, shared by agents and the human website.
+- `../skill_builder/templates/`: shared website templates, components, reviewed
+  libraries and notices. Native Engrave output lives in owned temporary storage,
+  never in the installed agent skill or dashboard templates.
 - `templates/shared/theme.js` and `shared/components/anatomy-nav.js`: shared
   semantic tokens/theme preference, catalog registration and normal document links.
 
@@ -74,23 +80,21 @@ Never mount the whole `templates/` tree or repository as a static directory.
 
 The central dependency cache is `.agents/var/apps/dashboard/public/lib`.
 Anatomy exposes only Adaptive UI and ECharts through explicit `/lib/*.js` routes.
-The portable reference carries its own reviewed copies of Adaptive UI and Mermaid,
-plus notices, under `/message-router/lib/`. No ECharts is shipped in the reference.
+The separate skill site uses native Engrave CLI copy/exclude rules for its local
+Adaptive UI/Mermaid/Highlight.js assets under `/templates/` and the public raw
+`SKILL.md` asset. Its native preview HTTP/Markdown semantics differ from Anatomy's
+protections; see the Skill Builder README. Agent export contains Markdown only;
+Anatomy exposes no guide libraries or installed-skill directories.
 Old generated SPA files remain unreachable. Reload after monitor JS/template edits;
-rebuild after guide authoring edits; restart after Python route changes. Keep
-profiles, credentials and evidence outside public assets.
-
-Mermaid receives only authored diagram blocks from built Markdown, in strict mode with
-HTML labels disabled. No user/URL/API content enters its SVG sink. Themes use
-semantic Adaptive UI tokens; diagrams follow the theme. Flowcharts become vertical
-on narrow pages; sequence diagrams retain readable width with a keyboard-focusable
-horizontal scroll area. Code uses escaped HTML text, never execution or evaluation.
-CSP has no inline scripts, `unsafe-eval`, CDN or additional connection destinations.
+restart after Python route changes. Keep profiles, credentials and evidence outside
+public assets. Anatomy CSP has no inline scripts, `unsafe-eval`, CDN or additional
+connection destinations; the separate site's native localhost SSE supports refresh.
 
 ## Monitoring and navigation contract
 
 `/` and `/automata/` redirect to `/automata/index.html`; `/message-router/` redirects
-to Overview at `/message-router/index.html`. All five existing lesson URLs remain.
+to the legacy `/message-router/index.html`, which redirects to the separate skill
+landing page. All five existing lesson URLs remain as compatibility redirects.
 Old hash-only SPA bookmarks are intentionally retired: the root redirect reaches
 the default monitor, and any retained fragment has no routing
 meaning. There is no hash router or arbitrary redirect input.
@@ -105,7 +109,7 @@ readable API errors and never silently replace last-good data. Dates outside the
 API's permitted window remain API validation errors.
 
 The host navigation remembers only these query parameters in sessionStorage;
-it never stores data snapshots or arbitrary destinations. The portable reference
+it never stores data snapshots or arbitrary destinations. The separate skill site
 intentionally has no Anatomy return link or shared theme preference. Return via
 browser Back or a bookmarked monitor URL; both restore state even if storage is
 disabled. A return loads one initial snapshot even when paused, but **does not
@@ -157,9 +161,9 @@ ANATOMY_EVIDENCE=/absolute/task/evidence/fresh-run \
 ```
 
 `ANATOMY_URL` defaults to `http://127.0.0.1:8766/`. Browser checks cover actual
-navigation, rendered guides/assets/diagrams, URL restoration, pause/poll lifecycle,
-charts, validation/outage recovery, desktop/mobile, keyboard and themes. Temporary
-browsers always close. Screenshots supplement assertions and should be reviewed
-for teaching clarity, not just SVG counts. No live router service is
-contacted; protocol examples are checked against shipped implementation, not
-claimed as live end-to-end delivery tests.
+external guide navigation, URL restoration, pause/poll lifecycle, charts,
+validation/outage recovery, desktop/mobile, keyboard and themes. Both API reads and
+the guide destination are intercepted by synthetic fixtures. Native skill-site
+rendering, diagrams and canonical Markdown edit/rebuild/browser refresh are tested
+separately in `tests/apps/skill_builder/`. Temporary browsers always close.
+Screenshots supplement assertions. No live router service is contacted.

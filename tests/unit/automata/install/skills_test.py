@@ -88,6 +88,7 @@ def test_explicit_skill_source_is_exclusive_and_recurses(tmp_path: Path) -> None
     make_grouped_skill(source, "nested", "automata-storage")
     assert skill_sources(source)["automata-storage"] == source / "nested" / "automata-storage"
     assert "automata-context-status" not in skill_sources(source)
+    assert "automata-message-router" not in skill_sources(source)
     target = tmp_path / "dest"
     with pytest.raises(SkillInstallError, match="automata-context-status"):
         install_skills(
@@ -126,6 +127,31 @@ def test_duplicate_names_across_bundled_roots_fail_before_install(
     with pytest.raises(SkillInstallError, match="Duplicate skill name"):
         install_skills(target_root=target, skill_names=["same-skill"])
     assert not target.exists()
+
+
+@pytest.mark.parametrize("mode", ["copy", "symlink"])
+def test_canonical_router_alias_preserves_install_name(tmp_path: Path, mode: str) -> None:
+    source = skill_sources()["automata-message-router"]
+    assert source.parts[-4:] == ("apps", "skill_builder", "skills", "message-router")
+    target = tmp_path / "installed"
+    install_skills(target_root=target, skill_names=["automata-message-router"], mode=mode)
+    installed = target / "automata-message-router"
+    assert installed.is_symlink() == (mode == "symlink")
+    assert (installed / "SKILL.md").read_bytes() == (source / "SKILL.md").read_bytes()
+    assert all(path.suffix == ".md" for path in installed.rglob("*") if path.is_file())
+
+
+def test_canonical_alias_rejects_collision_before_writing(tmp_path, monkeypatch) -> None:
+    source = tmp_path / "source"
+    make_skill(source / "automata-message-router")
+    skills_module = import_module("automata.install.skills")
+    monkeypatch.setattr(skills_module, "bundled_skill_roots", lambda: (source,))
+    target = tmp_path / "target"
+    with pytest.raises(SkillInstallError, match="Duplicate skill name.*automata-message-router"):
+        install_skills(target_root=target)
+    assert not target.exists()
+    # Explicit sources do not apply the bundled alias, including the same name.
+    assert skill_sources(source) == {"automata-message-router": source / "automata-message-router"}
 
 
 def test_install_skills_copies_bundled_storage_skill(tmp_path: Path) -> None:

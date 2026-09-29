@@ -7,23 +7,24 @@ from pathlib import Path, PurePosixPath
 import pytest
 import yaml
 
-from automata.install.skills import install_skills
+from automata.install.skills import install_skills, skill_sources
 
 PACKAGE_ROOT = Path(__file__).parents[3] / "src" / "automata"
 SKILLS_ROOT = PACKAGE_ROOT / "skills"
 PI_SKILLS_ROOT = PACKAGE_ROOT / "runtimes" / "pi" / "skills"
-SKILL_ROOTS = (SKILLS_ROOT, PI_SKILLS_ROOT)
+CANONICAL_ROUTER = PACKAGE_ROOT / "apps/skill_builder/skills/message-router"
+SKILL_ROOTS = (SKILLS_ROOT, PI_SKILLS_ROOT, CANONICAL_ROUTER)
 PI_SKILL_NAMES = {
     "automata-context-compaction",
     "automata-context-status",
     "automata-pi-sessions",
     "automata-codex-imagegen",
     "automata-skill-activity",
-    "automata-message-router",
     "automata-thinking-control",
 }
 TOOLS_ROOT = PACKAGE_ROOT / "tools"
-SKILL_FILES = sorted(path for root in SKILL_ROOTS for path in root.rglob("SKILL.md"))
+SOURCES = skill_sources()
+SKILL_FILES = sorted(path / "SKILL.md" for path in SOURCES.values())
 REQUIRED_SKILLS = {
     "automata-agents-md",
     "automata-agent-design",
@@ -110,7 +111,7 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
         data = parse_frontmatter(path)
         name = data.get("name")
         assert isinstance(name, str) and re.fullmatch(r"automata-[a-z0-9]+(?:-[a-z0-9]+)*", name)
-        assert name == path.parent.name, path
+        assert SOURCES[name] == path.parent, path
         assert name not in names, name
         names.add(name)
         assert isinstance(data.get("description"), str) and data["description"].strip(), path
@@ -139,8 +140,9 @@ def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
         metadata = parse_frontmatter(path).get("metadata", {})
         assert isinstance(metadata, dict), path
         mapping = metadata.get("automata-tools")
-        if path.parent.name in expected:
-            assert mapping == expected[path.parent.name], path
+        name = parse_frontmatter(path)["name"]
+        if name in expected:
+            assert mapping == expected[name], path
         if mapping is None:
             continue
         assert isinstance(mapping, str), path
@@ -186,7 +188,8 @@ def test_bundled_skills_exclude_runtime_and_provider_state() -> None:
 def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> None:
     target = tmp_path / "skills"
     results = install_skills(target_root=target)
-    expected = {path.parent.name for path in SKILL_FILES}
+    expected = set(SOURCES)
+    assert len(expected) == 41
     assert {result.name for result in results} == expected
     assert {path.name for path in target.iterdir()} == expected
     assert all((target / name / "SKILL.md").is_file() for name in expected)
@@ -194,7 +197,7 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
 
 @pytest.mark.parametrize("skill_file", SKILL_FILES, ids=lambda p: p.parent.name)
 def test_selected_skill_installs_only_its_packaged_files(tmp_path: Path, skill_file: Path) -> None:
-    name = skill_file.parent.name
+    name = parse_frontmatter(skill_file)["name"]
     target = tmp_path / "skills"
     results = install_skills(target_root=target, skill_names=[name])
     assert [result.name for result in results] == [name]

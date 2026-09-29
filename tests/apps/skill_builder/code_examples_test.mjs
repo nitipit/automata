@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-const page = name => readFileSync(`src/automata/apps/skill_builder/message_router/content/${name}.md`, 'utf8');
+const page = name => readFileSync(`src/automata/apps/skill_builder/skills/message-router/references/${name}.md`, 'utf8');
 
 test('send teaches distinct independent, reply and one-way flows', () => {
   const source = page('send');
-  assert.equal((source.match(/<protocol-diagram /g) || []).length, 3);
+  assert.equal((source.match(/```mermaid\n/g) || []).length, 3);
   assert.match(source, /worker.send\("reviewer"/);
   assert.match(source, /reviewer.send\("worker"/);
   assert.match(source, /worker.respond\(message.id/);
@@ -39,12 +39,15 @@ test('failure examples preserve uncertainty and cancellation race', () => {
   assert.match(source, /cancel\(request.id\)/); assert.match(source, /no retraction/);
 });
 test('diagrams render authored Markdown blocks, not a JavaScript content registry', () => {
-  const source = readFileSync('src/automata/apps/skill_builder/message_router/site/components/protocol-diagram.js', 'utf8');
+  const source = readFileSync('src/automata/apps/skill_builder/templates/components/protocol-diagram.js', 'utf8');
   assert.match(source, /securityLevel: 'strict'/); assert.match(source, /htmlLabels: false/);
   assert.match(source, /querySelector\('\.diagram-source'\)\?\.textContent/);
   assert.doesNotMatch(source, /Object.freeze|dataset.diagram|WebSocket|location.search|fetch\(/);
   assert.doesNotMatch(source, /participant W as worker|desk\[desk/);
-  for (const [name, count] of Object.entries({index: 2, configure: 1, connect: 1, discover: 1, send: 3, failures: 2})) {
+  const landing = readFileSync('src/automata/apps/skill_builder/skills/message-router/SKILL.md', 'utf8');
+  assert.equal((landing.match(/```mermaid\n/g) || []).length, 2);
+  assert.doesNotMatch(landing, /references\/overview\.md/);
+  for (const [name, count] of Object.entries({configure: 1, connect: 1, discover: 1, send: 3, failures: 2})) {
     assert.equal((page(name).match(/```mermaid\n/g) || []).length, count);
   }
 });

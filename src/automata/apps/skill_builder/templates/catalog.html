@@ -1,0 +1,9 @@
+{% extends 'templates/base.html' %}
+{% block module %}catalog{% endblock %}
+{% block body %}
+<catalog-page><main>
+  <header class="page-head"><h1>Automata skills</h1><label>Theme <select id="theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></header>
+  <p>Human-readable views of the same Markdown used by agents.</p>
+  <ul>{% for item in landings %}<li><a href="{{ item.url }}">{{ item.title }}</a></li>{% endfor %}</ul>
+</main></catalog-page>
+{% endblock %}

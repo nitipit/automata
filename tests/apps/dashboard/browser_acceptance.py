@@ -1,5 +1,4 @@
-"""Isolated real Chrome, synthetic API data, owned loopback preview, no router sends."""
-from __future__ import annotations
+"""Owned Chrome, synthetic monitor API, external guide navigation fixture."""
 
 import json
 import os
@@ -11,14 +10,14 @@ from playwright.sync_api import expect, sync_playwright
 
 URL = os.environ.get("ANATOMY_URL", "http://127.0.0.1:8766/").rstrip("/")
 EVIDENCE = Path(os.environ["ANATOMY_EVIDENCE"])
+GUIDE = "http://127.0.0.1:8788/message-router/"
 
 
 def main():
-    assert urlparse(URL).hostname == "127.0.0.1", "Only an owned loopback preview"
+    assert urlparse(URL).hostname == "127.0.0.1"
     EVIDENCE.mkdir(parents=True, exist_ok=False)
     errors, requests, sockets, results = [], [], [], []
-    api_count = 0
-    outage = False
+    api_count, outage = 0, False
 
     def api(route):
         nonlocal api_count
@@ -35,16 +34,23 @@ def main():
             executable_path="/usr/bin/google-chrome", headless=True
         )
         try:
-            context = browser.new_context(viewport={"width": 1440, "height": 1000},
-                                          reduced_motion="reduce")
+            context = browser.new_context(
+                viewport={"width": 1440, "height": 1000}, reduced_motion="reduce"
+            )
             context.route("**/api/anatomy*", api)
+            # Skill-site rendering has its own native/browser tests. This isolates
+            # monitor teardown and URL restoration across the external link.
+            context.route(
+                GUIDE,
+                lambda route: route.fulfill(
+                    content_type="text/html", body="<h1>Separate skill site fixture</h1>"
+                ),
+            )
             page = context.new_page()
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.on("request", lambda request: requests.append((request.method, request.url)))
             page.on("websocket", lambda socket: sockets.append(socket.url))
             page.goto(URL + "/", wait_until="networkidle")
-            expect(page).to_have_url(URL + "/automata/index.html?" +
-                                    page.url.split("?", 1)[1])
             expect(page.locator("#status")).to_contain_text("updated")
             page.locator("#auto").uncheck()
             page.locator("#tab-capabilities").click()
@@ -67,36 +73,30 @@ def main():
             monitor_url = page.url
             page.screenshot(path=str(EVIDENCE / "monitor-desktop.png"), full_page=True)
             page.get_by_role("link", name="Message Router guide", exact=True).click()
-            expect(page).to_have_url(URL + "/message-router/index.html")
+            expect(page).to_have_url(GUIDE)
             before = api_count
             page.wait_for_timeout(5600)
-            assert api_count == before, "No monitor polling while on guide"
-            assert page.locator("#dashboard-automata").count() == 0
-            results.append("Full document navigation: monitor absent and polling stopped on guide")
-
-            for slug, count in [("index", 2), ("configure", 1), ("connect", 1), ("discover", 1),
-                                ("send", 3), ("failures", 2)]:
-                page.goto(URL + f"/message-router/{slug}.html", wait_until="networkidle")
-                expect(page.locator("protocol-diagram svg")).to_have_count(count)
-                expect(page.locator("protocol-diagram foreignObject")).to_have_count(0)
-                assert "{%" not in page.content() and "{{" not in page.content()
-                assert page.locator('nav a[aria-current="page"]').count() == 1
-                page.screenshot(path=str(EVIDENCE / f"{slug}-desktop.png"), full_page=True)
-                assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
             assert api_count == before
-            results.append("Six finished guides: strict authored diagrams, no API polling")
-            # The portable reference has no host navigation; return via saved URL.
-            page.goto(monitor_url, wait_until="networkidle")
+            assert page.locator("#dashboard-automata").count() == 0
+            page.go_back(wait_until="networkidle")
             expect(page).to_have_url(monitor_url)
+            page.go_forward(wait_until="networkidle")
+            expect(page).to_have_url(GUIDE)
+            page.goto(monitor_url, wait_until="networkidle")
             expect(page.locator("#statistics")).to_be_visible()
-            for key, value in {"range": "custom", "timezone": "UTC", "start": "2026-09-01",
-                               "end": "2026-09-20", "chart-limit": "all",
-                               "skill": "automata-message-router"}.items():
+            for key, value in {
+                "range": "custom",
+                "timezone": "UTC",
+                "start": "2026-09-01",
+                "end": "2026-09-20",
+                "chart-limit": "all",
+                "skill": "automata-message-router",
+            }.items():
                 expect(page.locator("#" + key)).to_have_value(value)
             expect(page.locator("#auto")).not_to_be_checked()
             before = api_count
             page.wait_for_timeout(5600)
-            assert api_count == before, "Restored pause must remain paused"
+            assert api_count == before
             page.locator("#tab-capabilities").click()
             expect(page.locator("#capability-filter")).to_have_value("router")
             expect(page.locator("#setup-filter")).to_have_value("installed")
@@ -106,8 +106,10 @@ def main():
             expect(page.locator("#tab-statistics")).to_be_focused()
             page.keyboard.press("Home")
             expect(page.locator("#tab-identity")).to_be_focused()
-            results.append("Validated URL return restores tabs, filters, dates, timezone and pause")
-
+            results.append(
+                "External guide unload stops polling; "
+                "history and URL restore filters, dates and pause"
+            )
             outage = True
             page.locator("#refresh").click()
             expect(page.locator("#status")).to_contain_text("Synthetic outage")
@@ -126,54 +128,42 @@ def main():
             page.locator("#auto").check()
             before = api_count
             page.wait_for_timeout(5600)
-            assert api_count > before, "5s polling on monitor"
+            assert api_count > before
             page.locator("#auto").uncheck()
             results.append("5s polling, manual refresh, validation and last-good outage recovery")
-
             for theme in ["dark", "light", "system"]:
                 page.locator("#theme").select_option(theme)
                 expect(page.locator("#theme")).to_have_value(theme)
                 assert page.locator("#statistics canvas").count() == 2
             page.locator("#theme").select_option("dark")
             page.screenshot(path=str(EVIDENCE / "monitor-dark.png"), full_page=True)
-            page.get_by_role("link", name="Message Router guide", exact=True).click()
-            page.get_by_role("link", name="Send", exact=True).first.click()
-            # The reference owns its preference, independently of the host.
-            page.locator("#theme").select_option("dark")
-            expect(page.locator("#theme")).to_have_value("dark")
-            expect(page.locator("protocol-diagram svg")).to_have_count(3)
-            page.screenshot(path=str(EVIDENCE / "send-dark.png"), full_page=True)
-            page.go_back(wait_until="networkidle")
-            expect(page).to_have_url(URL + "/message-router/index.html")
-            page.go_forward(wait_until="networkidle")
-            expect(page).to_have_url(URL + "/message-router/send.html")
             page.set_viewport_size({"width": 390, "height": 844})
-            for slug in ["index", "configure", "connect", "discover", "send", "failures"]:
-                page.goto(URL + f"/message-router/{slug}.html", wait_until="networkidle")
-                assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), slug
-                page.screenshot(path=str(EVIDENCE / f"{slug}-mobile.png"), full_page=True)
-                if slug == 'send':
-                    stage = page.locator('.diagram-stage').first
-                    stage.focus()
-                    stage.press('ArrowRight')
-                    page.wait_for_timeout(200)
-                    assert stage.evaluate('(node) => node.scrollLeft > 0')
-            page.keyboard.press("Tab")
-            expect(page.locator(".skip-link")).to_be_focused()
-            page.keyboard.press("Enter")
-            expect(page.locator("#content")).to_be_focused()
             page.goto(monitor_url, wait_until="networkidle")
             expect(page.locator("#auto")).not_to_be_checked()
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
             page.screenshot(path=str(EVIDENCE / "monitor-mobile.png"), full_page=True)
-            results.append("Desktop/mobile, themes, keyboard skip/tabs and document history")
             assert not errors, errors
             assert not sockets, sockets
-            assert all(method == "GET" and url.startswith(URL + "/") for method, url in requests)
-            results.append("No page errors, WebSockets, mutation or external requests")
-            (EVIDENCE / "results.json").write_text(json.dumps({"results": results, "errors": errors,
-                "sockets": sockets, "requests": requests, "apiFixtureRequests": api_count
-            }, indent=2))
+            assert all(
+                method == "GET" and (url.startswith(URL + "/") or url == GUIDE)
+                for method, url in requests
+            )
+            results.append(
+                "Desktop/mobile/themes/keyboard; "
+                "no page errors, WebSockets or unauthorized requests"
+            )
+            (EVIDENCE / "results.json").write_text(
+                json.dumps(
+                    {
+                        "results": results,
+                        "errors": errors,
+                        "sockets": sockets,
+                        "requests": requests,
+                        "apiFixtureRequests": api_count,
+                    },
+                    indent=2,
+                )
+            )
             print(json.dumps(results, indent=2))
         finally:
             browser.close()

@@ -14,6 +14,7 @@ from automata import __version__
 PI_RUNTIME = ("runtimes", "pi")
 PI_SKILLS = (*PI_RUNTIME, "skills")
 PI_EXTENSIONS = (*PI_RUNTIME, "extensions")
+ROUTER_SKILL = ("apps", "skill_builder", "skills", "message-router")
 
 
 def test_version() -> None:
@@ -143,7 +144,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "runtimes/pi/skills/automata-pi-sessions/SKILL.md",
         "runtimes/pi/skills/automata-codex-imagegen/SKILL.md",
         "runtimes/pi/skills/automata-skill-activity/SKILL.md",
-        "runtimes/pi/skills/automata-message-router/SKILL.md",
+        "apps/skill_builder/skills/message-router/SKILL.md",
         "skills/core/automata-storage/SKILL.md",
     }
     with zipfile.ZipFile(wheel) as archive:
@@ -158,7 +159,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
             for member in archive.getmembers()
             if member.isfile() and "/src/automata/" in member.name
         }
-    webref_prefix = "runtimes/pi/skills/automata-message-router/"
+    webref_prefix = "apps/skill_builder/skills/message-router/"
     source_skill = root / "src/automata" / webref_prefix
     finished_skill = {
         webref_prefix + path.relative_to(source_skill).as_posix()
@@ -167,9 +168,16 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
     for paths in (wheel_paths, sdist_paths):
         assert expected <= paths
         assert {path for path in paths if path.startswith(webref_prefix)} == finished_skill
-        assert webref_prefix + "webref/index.html" in paths
-        assert webref_prefix + "webref/lib/mermaid.js" in paths
-        assert not any(path.endswith((".py", ".ts", ".map")) for path in finished_skill)
+        assert webref_prefix + "references/overview.md" not in paths
+        assert not any(
+            path.startswith("runtimes/pi/skills/automata-message-router/") for path in paths
+        )
+        assert webref_prefix + "references/connect.md" in paths
+        assert all(path.endswith('.md') for path in finished_skill)
+        assert 'apps/skill_builder/templates/lib/mermaid.js' in paths
+        assert 'apps/skill_builder/templates/lib/highlight.js' in paths
+        assert 'apps/skill_builder/templates/licenses/highlightjs-LICENSE.txt' in paths
+        assert 'apps/skill_builder/templates/licenses/PROVENANCE.txt' in paths
         assert not any(path.startswith("extensions/") for path in paths)
         pi_skill_names = (
             "automata-context-status", "automata-context-compaction",
@@ -202,17 +210,24 @@ from automata.plugin import export_plugin
 assert Path(automata.__file__).is_relative_to(site)
 sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
+assert len(sources) == 41
+canonical = site / 'automata/apps/skill_builder/skills/message-router'
+assert sources['automata-message-router'] == canonical
+assert not any(name in sys.modules for name in ('engrave', 'mistune', 'playwright'))
 results = install_skills(target_root=work / 'skills')
 assert {result.name for result in results} == set(sources)
 for name in ('automata-storage', 'automata-context-status', 'automata-message-router'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
 router_skill = work / 'skills/automata-message-router'
-assert {path.name for path in router_skill.iterdir()} == {'SKILL.md', 'webref'}
-for page in ('index', 'configure', 'connect', 'discover', 'send', 'failures'):
-    html = (router_skill / 'webref' / (page + '.html')).read_text()
-    assert '{%' not in html and '{{' not in html
-assert (router_skill / 'webref/lib/adaptive-ui.js').is_file()
-assert (router_skill / 'webref/lib/PROVENANCE.txt').is_file()
+assert {path.name for path in router_skill.iterdir()} == {'SKILL.md', 'references'}
+for page in ('configure', 'connect', 'discover', 'send', 'failures'):
+    assert (router_skill / 'references' / (page + '.md')).is_file()
+assert all(path.suffix == '.md' for path in router_skill.rglob('*') if path.is_file())
+assert '(references/connect.md)' in (router_skill / 'SKILL.md').read_text()
+install_skills(target_root=work / 'linked', skill_names=['automata-message-router'], mode='symlink')
+linked = work / 'linked/automata-message-router'
+assert linked.is_symlink() and linked.resolve() == sources['automata-message-router']
+assert (linked / 'SKILL.md').read_bytes() == (router_skill / 'SKILL.md').read_bytes()
 installed = install_pi_extensions(target_root=work / 'extensions')
 assert 'message-router' in {item.name for item in installed}
 assert (work / 'extensions/message-router/index.ts').is_file()
@@ -232,7 +247,7 @@ def test_package_uses_only_pi_runtime_roots_for_pi_resources() -> None:
     pi = package.joinpath(*PI_RUNTIME)
     for name in (
         "automata-context-compaction", "automata-context-status", "automata-pi-sessions",
-        "automata-codex-imagegen", "automata-skill-activity", "automata-message-router",
+        "automata-codex-imagegen", "automata-skill-activity",
     ):
         assert pi.joinpath("skills", name, "SKILL.md").is_file()
         assert not package.joinpath("skills", "core", name).exists()
@@ -260,7 +275,7 @@ def test_package_includes_message_router_and_chat() -> None:
         "automata_router/server.py",
     ):
         assert tool.joinpath(path).is_file(), path
-    skill = package_root.joinpath(*PI_SKILLS, "automata-message-router", "SKILL.md")
+    skill = package_root.joinpath(*ROUTER_SKILL, "SKILL.md")
     assert skill.is_file()
     components = adaptive_ui_source().joinpath("src", "ui", "_components")
     for path in ("chat.ts", "chat.schema.ts"):
