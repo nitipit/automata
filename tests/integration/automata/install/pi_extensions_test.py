@@ -52,6 +52,16 @@ def test_install_pi_extensions_copies_message_timestamps_with_updated_context_st
     assert "Runtime local time:" not in (target / "context-status.ts").read_text()
 
 
+def test_install_pi_extensions_copies_bundled_token_awareness(tmp_path: Path) -> None:
+    target = tmp_path / "extensions"
+    results = install_pi_extensions(target_root=target, extension_names=["token-awareness"])
+    assert [result.name for result in results] == ["token-awareness"]
+    assert (target / "token-awareness.ts").read_bytes() == (
+        bundled_pi_extension_root() / "token-awareness.ts"
+    ).read_bytes()
+    assert not (tmp_path / ".agents").exists()
+
+
 def test_install_pi_extensions_copies_bundled_context_compaction(tmp_path: Path) -> None:
     target_root = tmp_path / ".pi" / "extensions"
 

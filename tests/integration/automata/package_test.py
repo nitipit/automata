@@ -140,6 +140,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
     expected = {
         "runtimes/pi/extensions/context-status.ts",
         "runtimes/pi/extensions/message-timestamps.ts",
+        "runtimes/pi/extensions/token-awareness.ts",
         "runtimes/pi/extensions/message-router/index.ts",
         "skills/bundled/automata-context-status/SKILL.md",
         "skills/bundled/automata-context-compaction/SKILL.md",
@@ -164,6 +165,9 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
             for member in archive.getmembers()
             if member.isfile() and "/src/automata/" in member.name
         }
+    for paths in (wheel_paths, sdist_paths):
+        assert "skills/bundled/automata-time-awareness/SKILL.md" not in paths
+        assert "skills/bundled/automata-timer/SKILL.md" in paths
     webref_prefix = "skills/bundled/automata-message-router/"
     source_skill = root / "src/automata" / webref_prefix
     finished_skill = {
@@ -235,7 +239,9 @@ from automata.plugin import export_plugin
 assert Path(automata.__file__).is_relative_to(site)
 sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
-assert len(sources) == 41
+assert len(sources) == 40
+assert 'automata-time-awareness' not in sources
+assert 'automata-timer' in sources
 assert all(path.name == name for name, path in sources.items())
 canonical = site / 'automata/skills/bundled/automata-message-router'
 assert sources['automata-message-router'] == canonical
@@ -260,6 +266,7 @@ installed = install_pi_extensions(target_root=work / 'extensions')
 assert 'message-router' in {item.name for item in installed}
 assert (work / 'extensions/message-router/index.ts').is_file()
 assert (work / 'extensions/skill-activity/store.py').is_file()
+assert (work / 'extensions/token-awareness.ts').is_file()
 export_plugin(name='wheel-smoke', output=work / 'plugin',
               skill_names=['automata-storage', 'automata-context-status'])
 assert (work / 'plugin/skills/automata-context-status/SKILL.md').is_file()
