@@ -366,7 +366,9 @@ annotations are deterministic across requests, reloads and timezone changes.
 Missing timestamps remain unknown. Retained post-compaction messages keep their
 original dates; summaries do not receive invented historical dates. Pi may build
 compaction input without this context hook, so summaries are not guaranteed to
-retain annotations. Assistant timestamps describe creation, not exact completion.
+retain annotations. Assistant timestamps describe creation, not exact completion,
+the current clock, or active-work duration. Conversation intervals include pauses;
+do not infer active work from timestamps or token usage.
 
 When explicitly authorized to activate this change, install **both** the new
 extension and updated context-status, then reload Pi or start a new session:
@@ -382,6 +384,54 @@ message-timestamps alongside an *old* installed context-status leaves both behav
 active. No current-clock tool or extra model turns are added. Use an explicit clock
 check when current time matters. Stable prefixes are tested offline; provider cache
 savings and hidden/private model reasoning visibility are not claimed.
+
+### Token usage landmarks
+
+The separate `token-awareness` extension adds stable, model-only usage landmarks.
+It does not replace context-status's input-anchored telemetry, elapsed-time signals,
+pressure reminders, or compaction behavior. It has **no elapsed-time trigger** and
+adds no model requests. Message timestamps retain their per-message behavior.
+
+```bash
+uv run automata pi-extension install \
+  --target-root ~/.pi/agent/extensions --extension token-awareness --mode copy
+```
+
+Activation/reload requires separate authorization. The `token_awareness` tool can
+`inspect` the active branch or `set` a session-local threshold (integer 1 through
+1,000,000,000; default 100,000). Counted tokens are Pi-normalized uncached `input` +
+`output` + `cacheWrite`; `cacheRead` is reported but excluded from the trigger.
+Cache writes and reasoning subsets are not counted twice. A crossed threshold
+creates one landmark with the actual delta, even after a multi-threshold jump.
+Changing the threshold does not reset accrued usage or revise old landmarks.
+Lowering it below accrued usage creates one landmark at the next turn-end or
+context boundary; it does not wake the model.
+
+Landmarks report per-category delta and cumulative **main-assistant response**
+usage on the active branch, including tool-call-only rounds. Nested tool model
+calls, compaction/branch-summary model calls, cache warming, and abandoned branches
+are excluded. Missing/invalid usage is counted as unknown, not zero. Valid zero
+records are retained and flagged separately: Pi can initialize missing provider
+telemetry to zero, so the extension cannot prove whether such a record was a true
+zero measurement. Totals are not full-session billing totals or active-work timers.
+
+Immutable metadata lives in Pi custom entries, separate from stored conversation
+text. Each request replays model-facing annotations at branch positions; compacted
+or omitted anchors move to the next surviving context message. Raw branch ancestry
+preserves totals across compaction and reload, without counting summary usage.
+Old landmarks intentionally remain after compaction; they are not recreated with
+new dates. Corrupt or inconsistent landmark metadata is ignored, never used as an
+accounting baseline. Replay scans the active ancestry and projected messages with
+linear ordered matching; it does not scan abandoned branches.
+Forks inherit their selected ancestry and settings; old landmarks retain original
+session/branch IDs, while new ones identify the child session. Tree navigation
+restores that branch's threshold and totals, never future-branch state. Loading
+into existing history may create one catch-up landmark with today's creation
+metadata, not invented historical annotation dates. No global settings are changed.
+
+The canonical time-awareness skill is retired; installed copies are not removed.
+Timestamp limitations remain documented above. Scheduling remains owned by the
+unchanged timer capability.
 
 Install intentional context-compaction guidance and its native Pi extension:
 

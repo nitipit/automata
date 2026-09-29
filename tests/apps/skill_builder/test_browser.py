@@ -71,7 +71,7 @@ def test_catalog_sources_references_and_sse(site):
                                 ("automata-storage", "Automata Storage"),
                                 ("plan", "Automata Plan")]:
                 page.goto(url + "/")
-                assert page.locator(".skill-card").count() == 41
+                assert page.locator(".skill-card").count() == 40
                 link = page.get_by_role("link", name=title, exact=True)
                 expect(link).to_have_attribute("href", f"/{slug}/")
                 link.click()
