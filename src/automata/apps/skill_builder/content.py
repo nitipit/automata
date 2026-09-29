@@ -1,10 +1,10 @@
-"""Canonical Markdown discovery, navigation, and agent-only export."""
+"""Canonical Markdown discovery, safe page lookup, rendering, and agent export."""
 
 import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import unquote, urljoin, urlsplit
 
 SOURCE = Path(__file__).resolve().parent
 SKILLS = SOURCE / "skills"
@@ -28,10 +28,8 @@ class Page:
     source: Path
     url: str
     title: str
+    document: str
 
-    @property
-    def template_name(self) -> str:
-        return self.url.lstrip("/") + ("index.html" if self.url.endswith("/") else "")
 
 
 def markdown_links(text: str):
@@ -90,7 +88,7 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
                 if relative == Path("SKILL.md")
                 else f"/{root.name}/{relative.with_suffix('.html').as_posix()}"
             )
-            pages.append(Page(root.name, source, url, title))
+            pages.append(Page(root.name, source, url, title, relative.as_posix()))
             visited.add(source)
             for link in markdown_links(text):
                 parsed = urlsplit(link)
@@ -99,6 +97,34 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
     if not pages:
         raise ValueError("No skills found")
     return pages
+
+
+def lookup(pages: list[Page], skill: str, document: str = "SKILL.md") -> Page:
+    """Accept only a document reached through canonical discovery, never a file path."""
+    for page in pages:
+        if page.skill == skill and page.document == document:
+            return page
+    raise ValueError("Unknown skill document")
+
+
+def render_markdown(page: Page) -> str:
+    """Render references as Markdown only: no Jinja evaluation or authored raw HTML."""
+    import mistune
+
+    class Renderer(mistune.HTMLRenderer):
+        def link(self, text, url, title=None):
+            parsed = urlsplit(url)
+            if not parsed.scheme and not parsed.netloc and parsed.path.endswith(".md"):
+                target = urlsplit(urljoin(f"/skills/{page.skill}/{page.document}", url))
+                path = target.path.removeprefix("/skills")
+                path = (path.removesuffix("SKILL.md") if path.endswith("/SKILL.md")
+                        else path[:-3] + ".html")
+                url = target._replace(path=path).geturl()
+            return super().link(text, url, title)
+
+    return mistune.create_markdown(renderer=Renderer(escape=True))(
+        page.source.read_text(encoding="utf-8")
+    )
 
 
 def export_agent(selector: str, output: Path, skills: Path = SKILLS) -> None:

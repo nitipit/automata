@@ -1,10 +1,10 @@
-"""Bounded catalog checks against native single/all previews and network failures."""
+"""Bounded catalog checks against direct source previews and network failures."""
 
 import shutil
 
 from playwright.sync_api import expect, sync_playwright
 
-# Reuse the disposable native multi-skill fixture, not any coordinator preview.
+# Reuse the disposable two-skill fixture, not the user preview.
 from . import test_browser
 
 site = test_browser.site
@@ -33,11 +33,11 @@ def test_catalog_checks_are_local_bounded_and_disconnect_safe(site):
                     else:
                         route.fulfill(status=503, body='unavailable')
 
-                page.route(url + '/second/', fail)
+                page.route(url + '/plan/', fail)
                 start = len(requests)
                 page.goto(url + '/templates/index.html')
                 selected = page.get_by_role('link', name='Automata Message Router', exact=True)
-                second = page.get_by_role('link', name='Second synthetic skill', exact=True)
+                second = page.get_by_role('link', name='Automata Plan', exact=True)
                 expect(selected).to_have_attribute('href', '/message-router/')
                 expect(second.locator('..').get_by_role('status')).to_have_text(
                     'Unavailable in this preview.', timeout=7000
@@ -48,9 +48,9 @@ def test_catalog_checks_are_local_bounded_and_disconnect_safe(site):
                 page.wait_for_timeout(150)
                 checks = requests[start:]
                 assert checks.count(url + '/message-router/') == 1
-                assert checks.count(url + '/second/') == 1
+                assert checks.count(url + '/plan/') == 1
                 assert all(request.startswith(url + '/') for request in checks)
-                page.unroute(url + '/second/')
+                page.unroute(url + '/plan/')
 
             # Malformed/external maintained targets fail closed without fetching.
             for target in ['https://outside.invalid/', 'http://[invalid']:
@@ -72,7 +72,7 @@ def test_catalog_checks_are_local_bounded_and_disconnect_safe(site):
                 pending.push({resolve, signal: options.signal});
               });
               const el = document.querySelector('catalog-page'), parent = el.parentNode;
-              el.querySelectorAll('[data-catalog-href]')[1].dataset.catalogHref = '/second/';
+              el.querySelectorAll('[data-catalog-href]')[1].dataset.catalogHref = '/plan/';
               try {
                 el.remove(); parent.append(el);
                 el.remove(); parent.append(el);

@@ -1,7 +1,6 @@
 import { ReferencePage } from './components/reference-page.js';
 import './components/protocol-diagram.js';
 import './components/code-example.js';
-import './components/raw-skill.js';
 import { enhanceMarkdown } from './components/markdown-content.js';
 
 class SkillPage extends ReferencePage {

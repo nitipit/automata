@@ -1,4 +1,4 @@
-"""Run the durable native/browser tests; optionally set SKILL_SITE_EVIDENCE."""
+"""Run the focused shared-template/browser proof."""
 
 from pathlib import Path
 

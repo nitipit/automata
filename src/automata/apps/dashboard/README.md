@@ -42,15 +42,17 @@ not a new core dependency. Isolated cached resolution does not install globally.
 Missing dependencies require separate approval/preparation; no implicit downloads.
 The Deno task uses `--cached-only`, pinned ECharts 6.0.0 and Mermaid 11.12.2.
 
-For the optional guide, run a separate owned process using cached Engrave 3.2.6:
+For the optional guide, run a separate owned process using cached dependencies:
 
 ```sh
-PYTHONPATH=src uv run --offline --no-project --with engrave==3.2.6 \
+PYTHONPATH=src uv run --offline --no-project \
+  --with fastapi==0.141.1 --with jinja2==3.1.6 --with mistune==3.3.4 \
+  --with watchfiles==1.3.0 --with uvicorn==0.54.0 --with cyclopts==4.25.3 \
   python -m automata.apps.skill_builder.cli serve message-router --port 8788
 ```
 
-This one command builds, serves and watches the canonical Markdown; no manual
-website build or agent export is needed. See [Skill Builder](../skill_builder/README.md)
+This command serves and watches canonical Markdown directly; no website build,
+per-skill HTML wrapper or agent export is needed. See [Skill Builder](../skill_builder/README.md)
 for catalog mode, restart boundaries and Markdown-only agent export. Anatomy's
 link targets default port 8788; open a custom skill-site port directly.
 

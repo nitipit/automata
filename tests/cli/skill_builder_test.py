@@ -1,12 +1,10 @@
 """User-facing CLI boundaries without starting live previews."""
 
-import shlex
 import socket
 import subprocess
 import sys
 import time
 import urllib.request
-from pathlib import Path
 
 import pytest
 
@@ -26,7 +24,7 @@ def test_help():
     result = cli("serve", "--help")
     assert result.returncode == 0
     assert "--all" in result.stdout and "--port" in result.stdout
-    assert "restart" in result.stdout
+    assert "FastAPI" in result.stdout
 
 
 @pytest.mark.parametrize(
@@ -53,11 +51,12 @@ def test_export(tmp_path):
     assert all(p.suffix == ".md" for p in tmp_path.rglob("*") if p.is_file())
 
 
-def test_native_cli_signal_stops_child_and_removes_output(tmp_path):
+def test_cli_signal_stops_preview_without_build_output(tmp_path):
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
     log_path = tmp_path / "preview.log"
+    stream = None
     with log_path.open("w") as log:
         process = subprocess.Popen(
             [sys.executable, "-m", "automata.apps.skill_builder.cli", "serve",
@@ -74,11 +73,12 @@ def test_native_cli_signal_stops_child_and_removes_output(tmp_path):
                     assert process.poll() is None, log_path.read_text()
                     time.sleep(.1)
             else:
-                pytest.fail("Native CLI did not become ready")
-            command = shlex.split(log_path.read_text().splitlines()[0])
-            assert command[1:4] == ["-m", "engrave.main", "server"]
-            output = Path(command[5])
-            assert (output / "skills/message-router/SKILL.md").is_file()
+                pytest.fail("FastAPI CLI did not become ready")
+            assert "engrave.main" not in log_path.read_text()
+            stream = urllib.request.urlopen(
+                f"http://127.0.0.1:{port}/__skill_builder/events", timeout=5
+            )
+            assert stream.readline().startswith(b": connected")
         finally:
             process.terminate()
             try:
@@ -86,9 +86,11 @@ def test_native_cli_signal_stops_child_and_removes_output(tmp_path):
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
-                pytest.fail("CLI signal cleanup did not finish")
-    assert process.returncode == 0
-    assert not output.exists()
+                pytest.fail("CLI signal cleanup did not finish with an open SSE stream")
+            finally:
+                if stream is not None:
+                    stream.close()
+    assert process.returncode in (0, -15)
     with socket.socket() as sock:
         assert sock.connect_ex(("127.0.0.1", port)) != 0
 

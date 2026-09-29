@@ -1,4 +1,4 @@
-// Native Engrave SSE reports completed builds; no router or external requests.
-const events = new EventSource('/__engrave/watch');
+// One app-owned source watcher emits changes; requests always read canonical files.
+const events = new EventSource('/__skill_builder/events');
 events.addEventListener('change', () => location.reload());
 addEventListener('pagehide', () => events.close(), { once: true });

@@ -1,4 +1,4 @@
-// Enhance native Engrave/Mistune output; never parse Markdown or evaluate snippets.
+// Enhance Mistune output; never parse Markdown or evaluate snippets.
 export function enhanceMarkdown(article) {
   for (const code of article.querySelectorAll('pre > code')) {
     const pre = code.parentElement;

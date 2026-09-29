@@ -112,6 +112,7 @@ footer { border-top: 1px solid var(--aui-border); padding-top: 1rem; color: var(
   #applyTheme() {
     this.dataset.theme = this.#preference === 'system'
       ? (this.#system.matches ? 'dark' : 'light') : this.#preference;
+    document.documentElement.dataset.theme = this.dataset.theme;
     document.dispatchEvent(new CustomEvent('webref-theme-change'));
   }
 }

@@ -22,6 +22,7 @@ SkillInstallResult = DirectoryInstallResult
 # Keep this explicit: custom source roots retain directory-name discovery only.
 BUNDLED_SKILL_ALIASES = {
     "automata-message-router": "apps/skill_builder/skills/message-router",
+    "automata-plan": "apps/skill_builder/skills/plan",
 }
 
 

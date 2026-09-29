@@ -34,8 +34,8 @@ class CatalogPage extends ReferencePage {
       if (target.origin !== location.origin || target.username || target.password) {
         throw new Error('Not a local catalog entry');
       }
-      // Native Engrave does not promise HEAD support. Read status only; never
-      // follow a redirect or probe anything beyond the maintained entry URL.
+      // Read GET status only; never follow a redirect or probe anything
+      // beyond the discovered entry URL.
       const response = await fetch(target.href, {
         method: 'GET', mode: 'same-origin', credentials: 'same-origin',
         redirect: 'error', cache: 'no-store',

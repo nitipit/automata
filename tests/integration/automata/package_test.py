@@ -145,6 +145,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "runtimes/pi/skills/automata-codex-imagegen/SKILL.md",
         "runtimes/pi/skills/automata-skill-activity/SKILL.md",
         "apps/skill_builder/skills/message-router/SKILL.md",
+        "apps/skill_builder/skills/plan/SKILL.md",
         "skills/core/automata-storage/SKILL.md",
     }
     with zipfile.ZipFile(wheel) as archive:
@@ -176,7 +177,11 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         assert all(path.endswith('.md') for path in finished_skill)
         assert 'apps/skill_builder/templates/lib/mermaid.js' in paths
         assert 'apps/skill_builder/templates/lib/prism.js' in paths
-        assert 'apps/skill_builder/templates/index.html' in paths
+        assert 'apps/skill_builder/templates/catalog.html' in paths
+        assert 'apps/skill_builder/templates/skill.html' in paths
+        assert 'apps/skill_builder/templates/index.html' not in paths
+        assert 'skills/core/automata-plan/SKILL.md' not in paths
+        assert not any(path.startswith('apps/skill_builder/message-router/') for path in paths)
         assert 'apps/skill_builder/index.html' not in paths
         assert 'apps/skill_builder/templates/lib/highlight.js' not in paths
         assert 'apps/skill_builder/templates/licenses/prism-LICENSE.txt' in paths
@@ -217,10 +222,12 @@ assert all(path.is_relative_to(site) for path in sources.values())
 assert len(sources) == 41
 canonical = site / 'automata/apps/skill_builder/skills/message-router'
 assert sources['automata-message-router'] == canonical
+assert sources['automata-plan'] == site / 'automata/apps/skill_builder/skills/plan'
 assert not any(name in sys.modules for name in ('engrave', 'mistune', 'playwright'))
 results = install_skills(target_root=work / 'skills')
 assert {result.name for result in results} == set(sources)
-for name in ('automata-storage', 'automata-context-status', 'automata-message-router'):
+for name in ('automata-storage', 'automata-context-status',
+             'automata-message-router', 'automata-plan'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
 router_skill = work / 'skills/automata-message-router'
 assert {path.name for path in router_skill.iterdir()} == {'SKILL.md', 'references'}

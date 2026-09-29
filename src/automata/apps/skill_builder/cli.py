@@ -15,12 +15,11 @@ def serve(
     all_: Annotated[bool, Parameter(name="--all", help="Serve the app skill catalog.")] = False,
     port: Annotated[int, Parameter(help="Loopback HTTP port.")] = 8788,
 ) -> None:
-    """Launch native Engrave CLI watching/SSE; never export or sync.
+    """Serve shared FastAPI/Jinja views with one watcher and SSE reload.
 
-    Exactly one skill or --all is required. SKILL.md is shown as exact source;
-    references use native trusted Markdown/Jinja rendering. Canonical edits refresh
-    live; changing selection, links or shared templates needs restart.
-    Requires cached Engrave 3.2.6. Binds only http://127.0.0.1:PORT.
+    Exactly one skill or --all is required. SKILL.md is exact literal source;
+    references are Markdown, never Jinja templates. Canonical content and shared
+    template edits refresh live. Binds only http://127.0.0.1:PORT; no install/sync.
     """
     try:
         if not 1 <= port <= 65535:
