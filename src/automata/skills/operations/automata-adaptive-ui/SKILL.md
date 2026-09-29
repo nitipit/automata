@@ -20,11 +20,13 @@ silently abandoning it.
 
 ## Reuse and locate
 
-Reuse and reconnect to a matching session before creating another. Discover its
-website root from existing setup; for new roots, consult the build tool's defaults
-and any applicable agent-data convention. Revalidate browser/server identities
-before reuse. Keep credentials, profiles, build workspaces, and private operational
-state outside the public website root.
+Reuse a matching UI and reconnect to its preview before creating another. Follow
+`automata-task-space` for generated UI source and task assets; reuse the established
+task area rather than creating a session-specific directory. For an existing
+application, keep changes in its maintained source. Discover an existing website
+root from setup, or select a public-safe root within the task area—not the whole
+task space. Revalidate browser/server identities before reuse. Keep credentials,
+profiles, build workspaces, and private operational state outside the served root.
 
 Consult saved recipes before rediscovery. When setup requires discovery, save verified
 build/preview commands with required paths, inputs, checks and cleanup in approved
@@ -85,14 +87,15 @@ fetching missing assets or installing runtimes.
 Use `scripts/build.py --help` for build options, prerequisites, runtime layout,
 preview commands, and recovery. Build a missing or stale library only when needed
 and authorized; do not run internal build tasks in installed source. Share the
-built library across session pages; choose a separate website root for experiments
-that must not affect existing sessions.
+built library across pages within a website root; choose a separate website root
+for experiments that must not affect existing previews. Builder output defaults
+do not determine where task-specific UI source belongs.
 
 Serve only public-safe assets on loopback. Verify the rendered UI and relevant
 interactions, including keyboard navigation, focus feedback, labels, responsive
 layout, and compatible Form draft preservation—not just server startup or HTTP
 success. Preserve existing work when updating: full reloads do not guarantee
-transient-state preservation. Reflect accepted changes in session source rather
+transient-state preservation. Reflect accepted changes in UI source rather
 than leaving browser-only probes.
 
 ## Lifecycle
@@ -100,12 +103,12 @@ than leaving browser-only probes.
 Establish process ownership and cleanup before leaving a browser or server running.
 Stopping activity does not authorize deleting pages, histories, or evidence.
 
-Keep generated UI source with its session. Promote reusable components only with
+Keep generated UI source with its task. Promote reusable components only with
 user approval into maintained product source, with appropriate review, schemas,
 and tests—not by patching installed copies.
 
 ## Boundaries
 
-This skill owns UI composition and session lifecycle, not general browser control,
-installation, image generation, or transport. Arrow and Shadow DOM are not security
+This skill owns UI composition and preview lifecycle, not task-space placement,
+general browser control, installation, image generation, or transport. Arrow and Shadow DOM are not security
 sandboxes. The builder owns defaults and build mechanics; components own exact APIs.

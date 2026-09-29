@@ -37,10 +37,12 @@ Paths and updates:
   and the served tree, then use --source-root and a separate --runtime-root.
 
 Website and preview:
-  One website root shares lib/adaptive-ui.js across sessions/<name>/ pages.
-  Adapt a shipped example into sessions/<name>/index.html; session assets may
-  use relative URLs. There is no mandatory public/ folder or per-session server.
-  Import /lib/adaptive-ui.js; do not copy the bundle into individual sessions.
+  Follow automata-task-space to locate generated UI source and task assets.
+  Choose a public-safe website root within that task area, not the whole task
+  space. The builder's default output location is not a UI source convention.
+  Adapt a shipped example into index.html or an appropriate page in that root;
+  assets may use relative URLs. No fixed directory layout is required.
+  Import /lib/adaptive-ui.js; pages in one root share that bundle.
   A shared rebuild affects all pages on their next reload. Automatic and
   agent-triggered reloads are full reloads, not transient-state preservation.
   Everything under the served root must be public-safe; keep credentials,
@@ -48,13 +50,13 @@ Website and preview:
   Any suitable loopback static server can serve an already built website.
   The bundled server below requires Deno but no external dependencies.
 
-Examples (replace <skill-directory>, <name>, and <port>):
-  RUNTIME_ROOT="$PWD/.agents/var/skills/automata-adaptive-ui"
-  python <skill-directory>/scripts/build.py --runtime-root "$RUNTIME_ROOT"
-  python <skill-directory>/scripts/build.py --runtime-root "$RUNTIME_ROOT" --check --validate
-  deno run --no-config --no-lock --allow-net=127.0.0.1 --allow-read="$RUNTIME_ROOT" \
-    <skill-directory>/lib/src/server.ts --root="$RUNTIME_ROOT" --port=<port>
-  Visit http://127.0.0.1:<port>/sessions/<name>/.
+Examples (replace <skill-directory>, <absolute-public-safe-root>, and <port>):
+  WEBSITE_ROOT="<absolute-public-safe-root>"
+  python <skill-directory>/scripts/build.py --runtime-root "$WEBSITE_ROOT"
+  python <skill-directory>/scripts/build.py --runtime-root "$WEBSITE_ROOT" --check --validate
+  deno run --no-config --no-lock --allow-net=127.0.0.1 --allow-read="$WEBSITE_ROOT" \
+    <skill-directory>/lib/src/server.ts --root="$WEBSITE_ROOT" --port=<port>
+  For index.html at the root, visit http://127.0.0.1:<port>/.
 
   This builder does not start a server or browser. Establish process ownership
   and cleanup before leaving either running; validate actual rendering and
@@ -67,7 +69,8 @@ Examples (replace <skill-directory>, <name>, and <port>):
         type=Path,
         default=Path(".agents/var/skills/automata-adaptive-ui"),
         help="Website root (default: .agents/var/skills/automata-adaptive-ui "
-        "under invocation CWD). Writes lib/adaptive-ui.js, never sessions/.",
+        "under invocation CWD). Writes only lib/adaptive-ui.js, not UI source; "
+        "pass the task's public-safe website root explicitly for previews.",
     )
     parser.add_argument(
         "--source-root",
