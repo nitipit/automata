@@ -1,5 +1,11 @@
 # Workspace concept
 
+The previous implementation was retired because its code organization did not
+meet the project's maintainability standard. This concept remains valid, but no
+replacement implementation is approved. Existing private conversations, webboards
+and runtime data are retained separately; retirement does not authorize deleting
+or replaying them.
+
 Workspace is a flexible place for humans and agents to work together, not a fixed
 workflow. These are development principles, not a finished architecture or a
 claim about what the current prototype supports.

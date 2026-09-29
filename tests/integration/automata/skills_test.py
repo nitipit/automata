@@ -69,6 +69,7 @@ REQUIRED_SKILLS = {
 }
 RETIRED_SKILLS = {
     "automata-workspace",
+    "automata-workspace-app",
     "automata-pc-ui-control",
     "automata-agent-router",
     "automata-runtime-status",

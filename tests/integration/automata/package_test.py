@@ -40,6 +40,12 @@ def test_package_excludes_removed_jev_capability() -> None:
     assert not package_root.joinpath("skills", "operations", "automata-jev").exists()
 
 
+def test_package_excludes_retired_workspace_implementation() -> None:
+    package_root = files("automata")
+    assert not package_root.joinpath("apps", "workspace").exists()
+    assert not package_root.joinpath("skills", "core", "automata-workspace-app").exists()
+
+
 def adaptive_ui_source():
     return files("automata").joinpath("skills", "operations", "automata-adaptive-ui", "lib")
 

@@ -150,6 +150,6 @@ ANATOMY_EVIDENCE=/absolute/task/evidence/fresh-run \
 navigation, rendered guides/assets/diagrams, URL restoration, pause/poll lifecycle,
 charts, validation/outage recovery, desktop/mobile, keyboard and themes. Temporary
 browsers always close. Screenshots supplement assertions and should be reviewed
-for teaching clarity, not just SVG counts. No live router/Workspace service is
+for teaching clarity, not just SVG counts. No live router service is
 contacted; protocol examples are checked against shipped implementation, not
 claimed as live end-to-end delivery tests.

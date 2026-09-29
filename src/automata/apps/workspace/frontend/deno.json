@@ -1,1 +1,0 @@
-{"tasks":{"build":"deno run --no-config --no-lock --allow-env=WORKSPACE_RUNTIME_ROOT --allow-read=../web,../../../../../.agents/tools/message-router/browser --allow-write build.ts"}}

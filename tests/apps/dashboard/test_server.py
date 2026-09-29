@@ -44,7 +44,7 @@ def test_foreign_access_rejected(client, headers):
 
 
 @pytest.mark.parametrize("path", [
-    "/.agents/var/private.json", "/src/automata/apps/workspace/README.md",
+    "/.agents/var/private.json", "/src/automata/apps/dashboard/README.md",
     "/api/state", "/api/conversations", "/server.py", "/lib/../private.json",
     "/%2e%2e/%2e%2e/private.json", "/docs", "/openapi.json",
     "/workspace-view.js", "/workspace", "/api/router", "/lib/mermaid/package.json",
