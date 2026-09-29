@@ -21,7 +21,7 @@ SkillInstallResult = DirectoryInstallResult
 def bundled_skill_root() -> Path:
     """Return the single bundled catalog shared by viewer and installer."""
 
-    return Path(str(files("automata").joinpath("apps", "skill_builder", "skills")))
+    return Path(str(files("automata").joinpath("skills", "bundled")))
 
 
 def bundled_skill_roots() -> tuple[Path, ...]:

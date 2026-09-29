@@ -1,6 +1,6 @@
 # Skill Builder
 
-All 41 bundled skills live in `skills/automata-*/`. Discovery follows each
+All 41 bundled skills live in `bundled/automata-*/`. Discovery follows each
 `SKILL.md` and linked Markdown under `references/` or `templates/`.
 There are no per-skill HTML wrappers, generated entry files or build output.
 Shared Jinja templates render each request directly from canonical Markdown.
@@ -13,7 +13,7 @@ With the dependencies already cached (no network needed):
 PYTHONPATH=src uv run --offline --no-project \
   --with fastapi==0.141.1 --with jinja2==3.1.6 --with mistune==3.3.4 \
   --with watchfiles==1.3.0 --with uvicorn==0.54.0 --with cyclopts==4.25.3 \
-  python -m automata.apps.skill_builder.cli serve --port 8788
+  python -m automata.skills.cli serve --port 8788
 ```
 
 `serve` always includes all discovered skills. Open `http://127.0.0.1:8788/`.
@@ -62,7 +62,7 @@ full navigation; no Swup dependency or per-skill client templates are needed.
 
 ## Live authoring and lifecycle
 
-One `watchfiles` watcher watches only `skills/` and `templates/`. Its bounded SSE
+One `watchfiles` watcher watches only `bundled/` and `templates/`. Its bounded SSE
 subscribers receive change events at `/__skill_builder/events`; the browser reloads
 and requests fresh source. Markdown edits, template edits and new discovered skills
 need no build or source synchronization. Python or port changes require a server

@@ -8,7 +8,7 @@ Licensed under the [MIT License](LICENSE).
 
 ## What is included
 
-- All bundled skills under `src/automata/apps/skill_builder/skills/`
+- All bundled skills under `src/automata/skills/bundled/`
 - Packaged character components under `src/automata/character/`
 - Bundled repo-local tools under `src/automata/tools/`
 - Bundled Pi extensions under `src/automata/runtimes/pi/extensions/`
@@ -40,7 +40,7 @@ A model/provider name does not determine the host runtime: `codex-bridge` is a P
 extension, not a Codex integration. Codex runtime support is deferred.
 
 Default skill installation and selected-skill plugin export use the single canonical
-catalog at `src/automata/apps/skill_builder/skills/`. Duplicate names are errors,
+catalog at `src/automata/skills/bundled/`. Duplicate names are errors,
 not implicit overrides. An explicit custom skill source is exclusive; it never
 falls back to bundled skills.
 
@@ -60,7 +60,7 @@ objectives.
 - Keep guidance focused and easy to use at startup and handoff, with clear
   activation, boundaries, and enough direction for a useful first action.
   Generalize reusable behavior rather than encoding one-off session details;
-  see [skill design](src/automata/apps/skill_builder/skills/automata-skill-design/SKILL.md).
+  see [skill design](src/automata/skills/bundled/automata-skill-design/SKILL.md).
 - Make consequential actions controllable across digital and physical
   environments. Expose permissions, confirmation boundaries, observable outcomes,
   and practical recovery paths proportionate to the impact.
@@ -77,12 +77,12 @@ permission to use a capability. It does not redirect ordinary user-task research
 into Automata development or authorize adoption.
 
 Its purpose and assessment guidance live directly in
-[`SKILL.md`](src/automata/apps/skill_builder/skills/automata-capability-research/SKILL.md),
+[`SKILL.md`](src/automata/skills/bundled/automata-capability-research/SKILL.md),
 without a separate goal document or runtime notes.
 
 ## Model selection
 
-[`automata-model-selection`](src/automata/apps/skill_builder/skills/automata-model-selection/SKILL.md)
+[`automata-model-selection`](src/automata/skills/bundled/automata-model-selection/SKILL.md)
 helps choose AI models for tasks, plans and solo/team assignments using existing
 comparative knowledge and approved preferences. It recommends a fit and tradeoff;
 teamwork design owns assignments and planning owns decomposition. Research fills
@@ -102,7 +102,7 @@ without deleting its operational data; installers do not remove old names.
 
 ## Runtime environment discovery
 
-[`automata-runtime-environment`](src/automata/apps/skill_builder/skills/automata-runtime-environment/SKILL.md)
+[`automata-runtime-environment`](src/automata/skills/bundled/automata-runtime-environment/SKILL.md)
 helps an agent discover only the runtime and execution-environment facts needed
 for its task. It supports unfamiliar harnesses through targeted evidence and
 retains useful verified inspection recipes outside the package, revalidating
@@ -116,7 +116,7 @@ removing operational data. Existing installations are not migrated automatically
 
 ## Git worktrees
 
-[`automata-git-worktree`](src/automata/apps/skill_builder/skills/automata-git-worktree/SKILL.md)
+[`automata-git-worktree`](src/automata/skills/bundled/automata-git-worktree/SKILL.md)
 guides task-owned checkout isolation, placement, reuse, integration and safe
 retirement. It follows established location conventions, checks whether a nested
 task workspace is safe, and retains useful setup recipes outside the package.
@@ -126,11 +126,11 @@ ignored files and unpreserved commits. Ordinary coding needs no worktree ceremon
 
 ## Storage
 
-[`automata-storage`](src/automata/apps/skill_builder/skills/automata-storage/SKILL.md) guides
+[`automata-storage`](src/automata/skills/bundled/automata-storage/SKILL.md) guides
 placement, ownership, retention, and cleanup of capability-owned operational data
 under `.agents/var/skills/`, `.agents/var/tools/`, and `.agents/var/apps/`.
 
-[`automata-task-space`](src/automata/apps/skill_builder/skills/automata-task-space/SKILL.md) guides
+[`automata-task-space`](src/automata/skills/bundled/automata-task-space/SKILL.md) guides
 task workspace reuse, organization, continuation, promotion, and safe cleanup.
 It retains `.agents/var/workspace/<task-name>/` as an optional repository-local
 fallback. Neither skill requires moving existing data.
@@ -337,7 +337,7 @@ applying the limit. Existing project-local records are not migrated automaticall
 The bundled CLI provides only `record` and `list`; it is not a general database API.
 No instruction bodies or conversations are stored. Dependency preparation may
 need downloads; the observer itself runs offline. See the
-[skill-activity skill](src/automata/apps/skill_builder/skills/automata-skill-activity/SKILL.md)
+[skill-activity skill](src/automata/skills/bundled/automata-skill-activity/SKILL.md)
 for discoverable query guidance, the data contract, and coverage limits.
 
 Install the context-status runtime extension:
@@ -526,7 +526,7 @@ separate whole-agent behavioral evaluation.
 For an explicit developer build and frontend validation, choose a runtime root outside source:
 
 ```bash
-python src/automata/apps/skill_builder/skills/automata-adaptive-ui/scripts/build.py \
+python src/automata/skills/bundled/automata-adaptive-ui/scripts/build.py \
   --runtime-root .agents/var/skills/automata-adaptive-ui --validate
 ```
 
@@ -559,7 +559,7 @@ description: Use when an agent needs the example workflow.
 ```
 
 All bundled skills live in the flat canonical catalog at
-`src/automata/apps/skill_builder/skills/`, including skills with Pi-specific usage
+`src/automata/skills/bundled/`, including skills with Pi-specific usage
 requirements. Tools and Pi extensions retain their separate owner locations. The
 installer discovers `SKILL.md` files in the catalog and installs each directory with
 its supporting assets. An explicit `--source-root` selects only that directory.

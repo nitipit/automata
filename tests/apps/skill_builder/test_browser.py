@@ -10,7 +10,7 @@ import urllib.request
 import pytest
 from playwright.sync_api import expect, sync_playwright
 
-from automata.apps.skill_builder.content import SOURCE
+from automata.skills.content import SOURCE
 
 from .browser_assertions import assert_line_numbers
 
@@ -21,7 +21,7 @@ def site(tmp_path, request):
     shutil.copytree(SOURCE, root, ignore=shutil.ignore_patterns("__pycache__"))
     selection = getattr(request, "param", None)
     if selection is not None:
-        for directory in (root / "skills").iterdir():
+        for directory in (root / "bundled").iterdir():
             if directory.name not in selection:
                 shutil.rmtree(directory)
     with socket.socket() as sock:
@@ -29,7 +29,7 @@ def site(tmp_path, request):
         port = sock.getsockname()[1]
     url = f"http://127.0.0.1:{port}"
     command = [sys.executable, "-c", (
-        "import sys,uvicorn; from automata.apps.skill_builder.server import create_app; "
+        "import sys,uvicorn; from automata.skills.server import create_app; "
         "uvicorn.run(create_app(root=sys.argv[1]), "
         "host='127.0.0.1', port=int(sys.argv[2]))"
     ), str(root), str(port)]
@@ -78,7 +78,7 @@ def test_catalog_sources_references_and_sse(site):
                 expect(page.locator("article h1")).to_have_text("SKILL.md")
                 raw = page.locator("article code-example code")
                 source_name = slug if slug.startswith("automata-") else f"automata-{slug}"
-                source = (root / f"skills/{source_name}/SKILL.md").read_text()
+                source = (root / f"bundled/{source_name}/SKILL.md").read_text()
                 expect(raw.locator(".token").first).to_be_attached()
                 assert raw.text_content() == source
                 assert source.startswith("---\n")
@@ -87,7 +87,7 @@ def test_catalog_sources_references_and_sse(site):
                     expect(page.locator("nav a")).to_have_count(1)
             # The page must reload itself: no page.reload/goto after this source edit.
             page.evaluate("window.__beforeSourceEdit = true")
-            source = root / "skills/automata-plan/SKILL.md"
+            source = root / "bundled/automata-plan/SKILL.md"
             source.write_text(source.read_text() + "\nSSE-CANONICAL-EDIT-PROOF\n")
             expect(page.locator("article code-example code")).to_contain_text(
                 "SSE-CANONICAL-EDIT-PROOF", timeout=15000

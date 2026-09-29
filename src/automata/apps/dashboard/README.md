@@ -48,11 +48,11 @@ For the optional guide, run a separate owned process using cached dependencies:
 PYTHONPATH=src uv run --offline --no-project \
   --with fastapi==0.141.1 --with jinja2==3.1.6 --with mistune==3.3.4 \
   --with watchfiles==1.3.0 --with uvicorn==0.54.0 --with cyclopts==4.25.3 \
-  python -m automata.apps.skill_builder.cli serve message-router --port 8788
+  python -m automata.skills.cli serve --port 8788
 ```
 
 This command serves and watches canonical Markdown directly; no website build,
-per-skill HTML wrapper or agent export is needed. See [Skill Builder](../skill_builder/README.md)
+per-skill HTML wrapper or agent export is needed. See [Skill Builder](../../skills/README.md)
 for catalog mode, restart boundaries and Markdown-only agent export. Anatomy's
 link targets default port 8788; open a custom skill-site port directly.
 
@@ -65,9 +65,9 @@ link targets default port 8788; open a custom skill-site port directly.
 - `templates/base.html`: private monitor inheritance.
 - `templates/automata/index.html` and matching `index.css.js`: monitor page;
   `components/monitor.js`, `monitor-state.js`, `activity-chart.js` own its lifecycle.
-- `../skill_builder/skills/automata-message-router/`: canonical `SKILL.md` and linked
+- `../../skills/bundled/automata-message-router/`: canonical `SKILL.md` and linked
   `references/*.md`, shared by agents and the human website.
-- `../skill_builder/templates/`: shared website templates, components, reviewed
+- `../../skills/templates/`: shared website templates, components, reviewed
   libraries and notices. Native Engrave output lives in owned temporary storage,
   never in the installed agent skill or dashboard templates.
 - `templates/shared/theme.js` and `shared/components/anatomy-nav.js`: shared

@@ -11,7 +11,7 @@ NAME = "automata-model-selection"
 
 def source_bytes() -> bytes:
     return files("automata").joinpath(
-        "apps", "skill_builder", "skills", NAME, "SKILL.md"
+        "skills", "bundled", NAME, "SKILL.md"
     ).read_bytes()
 
 

@@ -5,8 +5,8 @@ import shutil
 import pytest
 from fastapi.testclient import TestClient
 
-from automata.apps.skill_builder.content import SKILLS, SOURCE, discover, export_agent
-from automata.apps.skill_builder.server import create_app
+from automata.skills.content import SKILLS, SOURCE, discover, export_agent
+from automata.skills.server import create_app
 from automata.install.skills import install_skills
 
 
@@ -97,7 +97,7 @@ def test_public_routes_and_allowed_roots(tmp_path):
 def test_references_never_evaluate_jinja_or_authored_html(tmp_path):
     root = tmp_path / "source"
     shutil.copytree(SOURCE, root)
-    reference = root / "skills/automata-message-router/references/connect.md"
+    reference = root / "bundled/automata-message-router/references/connect.md"
     reference.write_text('# Connect\n\n```jinja\n{{ missing }} {% unknown %}\n```\n'
                          '\n<script>window.authored = true;</script>\n')
     with TestClient(create_app(root=root)) as client:
