@@ -103,6 +103,18 @@ def test_engrave_filter_keeps_template_syntax_and_html_literal_in_code(tmp_path)
     assert parser.text == code
 
 
+def test_mermaid_fence_is_escaped_text_not_executable_html():
+    import mistune
+
+    render = mistune.create_markdown(renderer=ReferenceRenderer(escape=False))
+    source = 'flowchart LR\nA["{{ literal }} <script>unsafe</script>"] --> B\n'
+    result = render(f"```mermaid\n{source}```\n")
+    assert '<pre class="diagram-source" hidden>' in result
+    assert "&lt;script&gt;" in result and "<script>" not in result
+    assert "{{ literal }}" in result
+    assert "<code-example>" not in result
+
+
 def test_authoring_content_is_markdown_not_duplicate_html_pages():
     assert len(list((SOURCE / "content").glob("*.md"))) == 6
     assert {p.name for p in (SOURCE / "site").glob("*.html")} == {"_base.html", "page.html"}

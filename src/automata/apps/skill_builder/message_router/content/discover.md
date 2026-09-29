@@ -4,7 +4,15 @@
 
 `desk.status()` returns desk's configured destinations and their current connection presence. It is not a global participant directory or a reverse-permission query.
 
-<protocol-diagram data-diagram="discover" aria-label="Allowed-destination view for desk only: viewer and worker. These arrows are grants, not physical transport. Presence here assumes both are connected."></protocol-diagram>
+<protocol-diagram aria-label="Allowed-destination view for desk only: viewer and worker. These arrows are grants, not physical transport. Presence here assumes both are connected.">
+
+```mermaid
+flowchart LR
+    desk[desk] -->|allowed · connected| viewer[viewer]
+    desk -->|allowed · connected| worker[worker]
+```
+
+</protocol-diagram>
 
 ```
 // After the Connect page's desk.connect(...) has completed:

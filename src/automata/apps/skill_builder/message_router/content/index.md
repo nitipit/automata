@@ -11,7 +11,17 @@ It is transport—not an agent launcher, a task manager, a shared transcript, or
 proof that a recipient acted. Components and agents own the meaning of the payload
 and the authority to act on it.
 
-<protocol-diagram data-diagram="connections" aria-label="Physical connections: desk and viewer pages, worker and reviewer agents each connect to one central Router service. The service is not a participant."></protocol-diagram>
+<protocol-diagram aria-label="Physical connections: desk and viewer pages, worker and reviewer agents each connect to one central Router service. The service is not a participant.">
+
+```mermaid
+flowchart LR
+    desk[desk · page] --- router[Router service]
+    viewer[viewer · page] --- router
+    router --- worker[worker · agent]
+    router --- reviewer[reviewer · agent]
+```
+
+</protocol-diagram>
 
 </section>
 
@@ -24,7 +34,17 @@ initiate toward everyone else. A directed grant says who may **start** a message
 toward whom. Here desk may start toward viewer or worker; worker and reviewer may
 each start toward the other.
 
-<protocol-diagram data-diagram="grants" aria-label="Initiation grants only, not physical connections: desk may start toward viewer and worker; worker and reviewer may start toward each other."></protocol-diagram>
+<protocol-diagram aria-label="Initiation grants only, not physical connections: desk may start toward viewer and worker; worker and reviewer may start toward each other.">
+
+```mermaid
+flowchart LR
+    desk[desk · page] -->|may start| viewer[viewer · page]
+    desk -->|may start| worker[worker · agent]
+    worker -->|may start| reviewer[reviewer · agent]
+    reviewer -->|may start| worker
+```
+
+</protocol-diagram>
 
 A reply uses a capability tied to an existing request and its connections. It does
 not require a reverse initiation grant and does not create one.

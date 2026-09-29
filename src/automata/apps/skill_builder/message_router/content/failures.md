@@ -4,7 +4,18 @@
 
 worker may reply to a desk request, but cannot start a new worker → desk message under this configuration.
 
-<protocol-diagram data-diagram="rejected" aria-label="worker tries to initiate to desk; router rejects forbidden before forwarding."></protocol-diagram>
+<protocol-diagram aria-label="worker tries to initiate to desk; router rejects forbidden before forwarding.">
+
+```mermaid
+sequenceDiagram
+    participant W as worker
+    participant R as Router service
+    W->>R: send desk (no grant)
+    R-->>W: rejected: forbidden
+    Note over W,R: Nothing forwarded
+```
+
+</protocol-diagram>
 
 ```
 try {
@@ -53,7 +64,22 @@ Expected rejection: `error.message === "offline"`. No durable queue retains the 
 
 For this example, temporarily use a worker handler that logs but does not respond. Cancel only after the request has an acknowledged route ID and while it is still pending.
 
-<protocol-diagram data-diagram="cancel" aria-label="After forwarding, desk cancels via its request ID; router removes the reply capability but does not retract the worker's work."></protocol-diagram>
+<protocol-diagram aria-label="After forwarding, desk cancels via its request ID; router removes the reply capability but does not retract the worker's work.">
+
+```mermaid
+sequenceDiagram
+    participant D as desk
+    participant R as Router service
+    participant W as worker
+    D->>R: send worker
+    R->>W: message delivered
+    R-->>D: forwarded
+    D->>R: cancel(request.id) via client
+    R-->>D: canceled
+    Note over R,W: Capability removed, recipient effects are not undone
+```
+
+</protocol-diagram>
 
 ```
 const request = desk.send("worker", {question: "Check this outline?"});

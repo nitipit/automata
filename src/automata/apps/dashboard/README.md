@@ -80,7 +80,7 @@ Old generated SPA files remain unreachable. Reload after monitor JS/template edi
 rebuild after guide authoring edits; restart after Python route changes. Keep
 profiles, credentials and evidence outside public assets.
 
-Mermaid receives only the closed authored diagram registry, in strict mode with
+Mermaid receives only authored diagram blocks from built Markdown, in strict mode with
 HTML labels disabled. No user/URL/API content enters its SVG sink. Themes use
 semantic Adaptive UI tokens; diagrams follow the theme. Flowcharts become vertical
 on narrow pages; sequence diagrams retain readable width with a keyboard-focusable

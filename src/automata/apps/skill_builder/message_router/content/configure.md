@@ -4,7 +4,17 @@
 
 Each participant has a private token and a directed `allow` list. desk may start toward viewer or worker. worker and reviewer may each start toward the other. No one may initiate toward desk. A reply to desk is still possible.
 
-<protocol-diagram data-diagram="grants" aria-label="Permission diagram only: desk may initiate to viewer and worker; worker and reviewer may initiate to each other. These arrows are not physical connections."></protocol-diagram>
+<protocol-diagram aria-label="Permission diagram only: desk may initiate to viewer and worker; worker and reviewer may initiate to each other. These arrows are not physical connections.">
+
+```mermaid
+flowchart LR
+    desk[desk · page] -->|may start| viewer[viewer · page]
+    desk -->|may start| worker[worker · agent]
+    worker -->|may start| reviewer[reviewer · agent]
+    reviewer -->|may start| worker
+```
+
+</protocol-diagram>
 
 ### Prepare a private example router
 

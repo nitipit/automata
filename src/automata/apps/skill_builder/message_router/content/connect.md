@@ -4,7 +4,17 @@
 
 After [Configure](./configure.html), authenticate each participant separately. These lines show WebSocket connections, not grants. An authenticated connection proves neither permission to every destination nor application readiness.
 
-<protocol-diagram data-diagram="connections" aria-label="Transport connections: desk, viewer, worker and reviewer each connect to the central Router service; no direct peer connections."></protocol-diagram>
+<protocol-diagram aria-label="Transport connections: desk, viewer, worker and reviewer each connect to the central Router service; no direct peer connections.">
+
+```mermaid
+flowchart LR
+    desk[desk · page] --- router[Router service]
+    viewer[viewer · page] --- router
+    router --- worker[worker · agent]
+    router --- reviewer[reviewer · agent]
+```
+
+</protocol-diagram>
 
 </section>
 

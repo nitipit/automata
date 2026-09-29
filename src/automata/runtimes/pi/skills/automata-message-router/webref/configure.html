@@ -26,7 +26,16 @@
 
 <h2>Grant the right to start—not a physical connection</h2>
 <p>Each participant has a private token and a directed <code>allow</code> list. desk may start toward viewer or worker. worker and reviewer may each start toward the other. No one may initiate toward desk. A reply to desk is still possible.</p>
-<p><protocol-diagram data-diagram="grants" aria-label="Permission diagram only: desk may initiate to viewer and worker; worker and reviewer may initiate to each other. These arrows are not physical connections."></protocol-diagram></p>
+<protocol-diagram aria-label="Permission diagram only: desk may initiate to viewer and worker; worker and reviewer may initiate to each other. These arrows are not physical connections.">
+
+<pre class="diagram-source" hidden>flowchart LR
+    desk[desk · page] --&gt;|may start| viewer[viewer · page]
+    desk --&gt;|may start| worker[worker · agent]
+    worker --&gt;|may start| reviewer[reviewer · agent]
+    reviewer --&gt;|may start| worker
+</pre>
+</protocol-diagram>
+
 <h3>Prepare a private example router</h3>
 <p>Run from a source checkout with the router's documented Python dependencies already available. The commands below are manual setup instructions—not actions taken by this guide. Use a new private directory, outside every public root. Setup refuses to overwrite an existing config.</p>
 <code-example><pre tabindex="0"><code># From the repository root; keep this shell's PRIVATE value for serve.

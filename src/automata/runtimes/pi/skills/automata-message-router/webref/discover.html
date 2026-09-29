@@ -26,7 +26,14 @@
 
 <h2>Ask what <em>this client</em> may address</h2>
 <p><code>desk.status()</code> returns desk's configured destinations and their current connection presence. It is not a global participant directory or a reverse-permission query.</p>
-<p><protocol-diagram data-diagram="discover" aria-label="Allowed-destination view for desk only: viewer and worker. These arrows are grants, not physical transport. Presence here assumes both are connected."></protocol-diagram></p>
+<protocol-diagram aria-label="Allowed-destination view for desk only: viewer and worker. These arrows are grants, not physical transport. Presence here assumes both are connected.">
+
+<pre class="diagram-source" hidden>flowchart LR
+    desk[desk] --&gt;|allowed · connected| viewer[viewer]
+    desk --&gt;|allowed · connected| worker[worker]
+</pre>
+</protocol-diagram>
+
 <code-example><pre tabindex="0"><code>// After the Connect page's desk.connect(...) has completed:
 const status = await desk.status();
 console.log(status);

@@ -7,7 +7,20 @@ First [configure the grants](./configure.html) and [connect the clients](./conne
 
 **worker → reviewer** is an explicit grant. Either agent can start independently because the reverse grant is also configured. A connection alone would not permit this.
 
-<protocol-diagram data-diagram="initiate" aria-label="New-message transport: worker to router service to reviewer; the service returns a forwarding receipt."></protocol-diagram>
+<protocol-diagram aria-label="New-message transport: worker to router service to reviewer; the service returns a forwarding receipt.">
+
+```mermaid
+sequenceDiagram
+    participant W as worker
+    participant R as Router service
+    participant V as reviewer
+    W->>R: send reviewer, new payload
+    R->>V: message, expectReply true
+    R-->>W: accepted: forwarded
+    Note over W,V: reviewer may also start independently (own grant)
+```
+
+</protocol-diagram>
 
 ```
 // worker context — default expectReply is true
@@ -43,7 +56,22 @@ console.log(await separate.accepted);
 
 **desk → worker** allows the request. worker can respond through its connection-bound return capability even though **worker → desk** is not a grant.
 
-<protocol-diagram data-diagram="reply" aria-label="Request passes through the router to worker; the optional response returns through the router using the received message ID."></protocol-diagram>
+<protocol-diagram aria-label="Request passes through the router to worker; the optional response returns through the router using the received message ID.">
+
+```mermaid
+sequenceDiagram
+    participant D as desk
+    participant R as Router service
+    participant W as worker
+    D->>R: send worker (request.id)
+    R->>W: message (message.id)
+    R-->>D: forwarded (routeId = message.id)
+    W->>R: respond(message.id, payload)
+    R-->>D: response (requestId = request.id)
+    Note over D,W: Return capability, not worker → desk initiation permission
+```
+
+</protocol-diagram>
 
 ```
 // Register this handler when creating worker, BEFORE connecting it:
@@ -94,7 +122,19 @@ The diagram shows one possible order, not an ordering guarantee. To initiate a s
 
 Send **desk → viewer** with `expectReply: false` when the receiving page needs only a notification.
 
-<protocol-diagram data-diagram="oneway" aria-label="One-way notification from desk through router service to viewer. There is no response path."></protocol-diagram>
+<protocol-diagram aria-label="One-way notification from desk through router service to viewer. There is no response path.">
+
+```mermaid
+sequenceDiagram
+    participant D as desk
+    participant R as Router service
+    participant V as viewer
+    D->>R: send viewer, expectReply false
+    R->>V: message, no reply capability
+    R-->>D: accepted: forwarded
+```
+
+</protocol-diagram>
 
 ```
 // viewer's onMessage handler may display message.payload; do not respond.

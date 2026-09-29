@@ -103,14 +103,27 @@ def main():
                     expect(page.locator(".skip-link")).to_be_focused()
                     page.keyboard.press("Enter")
                     expect(page.locator("#content")).to_be_focused()
+                    diagram_svg = page.locator("protocol-diagram svg").first
                     for theme in ("dark", "light", "system"):
+                        previous_svg = diagram_svg.get_attribute("id")
                         page.locator("#theme").select_option(theme)
+                        expect(page.locator("protocol-diagram svg").first).not_to_have_attribute(
+                            "id", previous_svg,
+                        )
                         expect(page.locator("#theme")).to_have_value(theme)
                         expect(page.locator("protocol-diagram svg")).to_have_count(2)
                         if theme != "system":
                             expect(page.locator("message-router-page")).to_have_attribute(
                                 "data-theme", theme,
                             )
+                    previous_svg = page.locator("protocol-diagram svg").first.get_attribute("id")
+                    page.locator("protocol-diagram").first.evaluate("""node => {
+                      const parent = node.parentNode, next = node.nextSibling;
+                      node.remove(); parent.insertBefore(node, next);
+                    }""")
+                    expect(page.locator("protocol-diagram svg").first).not_to_have_attribute(
+                        "id", previous_svg,
+                    )
                     page.locator("#theme").select_option("dark")
                     page.get_by_role("link", name="Send", exact=True).first.click()
                     expect(page.locator("#theme")).to_have_value("dark")
@@ -127,7 +140,8 @@ def main():
                                    "local diagrams", "theme persistence", "relative prefix",
                                    "canonical skill body without frontmatter",
                                    "rebased skill links and focusable code",
-                                   "Adapter page wrapper, adopted stylesheets, scoped themes"],
+                                   "Adapter page wrapper, adopted stylesheets, scoped themes",
+                                   "Markdown Mermaid source survives theme change and reconnect"],
                     }, indent=2))
                     print(f"Verified six static pages under /{prefix}/; evidence: {evidence}")
                 finally:

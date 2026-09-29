@@ -38,9 +38,13 @@ test('failure examples preserve uncertainty and cancellation race', () => {
   for (const word of ['forbidden','offline','unknown_route','peer_disconnected','canceled','uncertain']) assert.ok(source.includes(word));
   assert.match(source, /cancel\(request.id\)/); assert.match(source, /no retraction/);
 });
-test('diagrams consume a fixed authored registry, never supplied text', () => {
+test('diagrams render authored Markdown blocks, not a JavaScript content registry', () => {
   const source = readFileSync('src/automata/apps/skill_builder/message_router/site/components/protocol-diagram.js', 'utf8');
-  assert.match(source, /securityLevel:'strict'/); assert.match(source, /htmlLabels:false/);
-  assert.match(source, /diagrams\[this.dataset.diagram\]/);
-  assert.doesNotMatch(source, /WebSocket|location.search|fetch\(/);
+  assert.match(source, /securityLevel: 'strict'/); assert.match(source, /htmlLabels: false/);
+  assert.match(source, /querySelector\('\.diagram-source'\)\?\.textContent/);
+  assert.doesNotMatch(source, /Object.freeze|dataset.diagram|WebSocket|location.search|fetch\(/);
+  assert.doesNotMatch(source, /participant W as worker|desk\[desk/);
+  for (const [name, count] of Object.entries({index: 2, configure: 1, connect: 1, discover: 1, send: 3, failures: 2})) {
+    assert.equal((page(name).match(/```mermaid\n/g) || []).length, count);
+  }
 });

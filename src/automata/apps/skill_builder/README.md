@@ -73,6 +73,13 @@ removed from the HTML view in Overview's expandable agent-instructions section.
 Relative `webref/` links are rebased for that HTML view, not changed in the skill.
 Authored Markdown is trusted repository content, not a renderer for user input.
 
+Mermaid source lives in fenced `mermaid` blocks in `content/*.md`, beside the
+explanation. Wrap each block in `<protocol-diagram aria-label="...">` with blank
+lines around the fence. The build escapes the source into a hidden text block;
+the component only renders it with Mermaid strict mode. JavaScript contains no
+diagram-content registry. The descriptive label remains the accessible caption,
+and captured source survives theme changes and component reconnection.
+
 ## Libraries and repeatability
 
 The default input is `.agents/var/apps/dashboard/public/lib`. Builds verify the

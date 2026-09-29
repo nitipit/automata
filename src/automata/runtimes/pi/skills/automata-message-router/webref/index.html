@@ -32,7 +32,16 @@ message to that connected participant.</p>
 <p>It is transport—not an agent launcher, a task manager, a shared transcript, or
 proof that a recipient acted. Components and agents own the meaning of the payload
 and the authority to act on it.</p>
-<p><protocol-diagram data-diagram="connections" aria-label="Physical connections: desk and viewer pages, worker and reviewer agents each connect to one central Router service. The service is not a participant."></protocol-diagram></p>
+<protocol-diagram aria-label="Physical connections: desk and viewer pages, worker and reviewer agents each connect to one central Router service. The service is not a participant.">
+
+<pre class="diagram-source" hidden>flowchart LR
+    desk[desk · page] --- router[Router service]
+    viewer[viewer · page] --- router
+    router --- worker[worker · agent]
+    router --- reviewer[reviewer · agent]
+</pre>
+</protocol-diagram>
+
 </section>
 
 <section class="lesson">
@@ -42,7 +51,16 @@ and the authority to act on it.</p>
 initiate toward everyone else. A directed grant says who may <strong>start</strong> a message
 toward whom. Here desk may start toward viewer or worker; worker and reviewer may
 each start toward the other.</p>
-<p><protocol-diagram data-diagram="grants" aria-label="Initiation grants only, not physical connections: desk may start toward viewer and worker; worker and reviewer may start toward each other."></protocol-diagram></p>
+<protocol-diagram aria-label="Initiation grants only, not physical connections: desk may start toward viewer and worker; worker and reviewer may start toward each other.">
+
+<pre class="diagram-source" hidden>flowchart LR
+    desk[desk · page] --&gt;|may start| viewer[viewer · page]
+    desk --&gt;|may start| worker[worker · agent]
+    worker --&gt;|may start| reviewer[reviewer · agent]
+    reviewer --&gt;|may start| worker
+</pre>
+</protocol-diagram>
+
 <p>A reply uses a capability tied to an existing request and its connections. It does
 not require a reverse initiation grant and does not create one.</p>
 </section>

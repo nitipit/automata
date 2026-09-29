@@ -29,7 +29,19 @@
 <h2 id="initiate-heading">A new message needs no earlier request</h2>
 
 <p><strong>worker → reviewer</strong> is an explicit grant. Either agent can start independently because the reverse grant is also configured. A connection alone would not permit this.</p>
-<p><protocol-diagram data-diagram="initiate" aria-label="New-message transport: worker to router service to reviewer; the service returns a forwarding receipt."></protocol-diagram></p>
+<protocol-diagram aria-label="New-message transport: worker to router service to reviewer; the service returns a forwarding receipt.">
+
+<pre class="diagram-source" hidden>sequenceDiagram
+    participant W as worker
+    participant R as Router service
+    participant V as reviewer
+    W-&gt;&gt;R: send reviewer, new payload
+    R-&gt;&gt;V: message, expectReply true
+    R--&gt;&gt;W: accepted: forwarded
+    Note over W,V: reviewer may also start independently (own grant)
+</pre>
+</protocol-diagram>
+
 <code-example><pre tabindex="0"><code>// worker context — default expectReply is true
 const request = worker.send(&quot;reviewer&quot;, {question: &quot;Check this outline?&quot;});
 console.log(await request.accepted);
@@ -59,7 +71,21 @@ console.log(await separate.accepted);
 <h2 id="reply-heading">Reply to the received message—not to a participant name</h2>
 
 <p><strong>desk → worker</strong> allows the request. worker can respond through its connection-bound return capability even though <strong>worker → desk</strong> is not a grant.</p>
-<p><protocol-diagram data-diagram="reply" aria-label="Request passes through the router to worker; the optional response returns through the router using the received message ID."></protocol-diagram></p>
+<protocol-diagram aria-label="Request passes through the router to worker; the optional response returns through the router using the received message ID.">
+
+<pre class="diagram-source" hidden>sequenceDiagram
+    participant D as desk
+    participant R as Router service
+    participant W as worker
+    D-&gt;&gt;R: send worker (request.id)
+    R-&gt;&gt;W: message (message.id)
+    R--&gt;&gt;D: forwarded (routeId = message.id)
+    W-&gt;&gt;R: respond(message.id, payload)
+    R--&gt;&gt;D: response (requestId = request.id)
+    Note over D,W: Return capability, not worker → desk initiation permission
+</pre>
+</protocol-diagram>
+
 <code-example><pre tabindex="0"><code>// Register this handler when creating worker, BEFORE connecting it:
 const worker = createMessageRouterClient({
   onMessage: async message =&gt; {
@@ -103,7 +129,18 @@ console.log(await request.accepted); // transport receipt only
 <h2 id="oneway-heading">No reply requested, no return capability</h2>
 
 <p>Send <strong>desk → viewer</strong> with <code>expectReply: false</code> when the receiving page needs only a notification.</p>
-<p><protocol-diagram data-diagram="oneway" aria-label="One-way notification from desk through router service to viewer. There is no response path."></protocol-diagram></p>
+<protocol-diagram aria-label="One-way notification from desk through router service to viewer. There is no response path.">
+
+<pre class="diagram-source" hidden>sequenceDiagram
+    participant D as desk
+    participant R as Router service
+    participant V as viewer
+    D-&gt;&gt;R: send viewer, expectReply false
+    R-&gt;&gt;V: message, no reply capability
+    R--&gt;&gt;D: accepted: forwarded
+</pre>
+</protocol-diagram>
+
 <code-example><pre tabindex="0"><code>// viewer's onMessage handler may display message.payload; do not respond.
 const notification = desk.send(&quot;viewer&quot;, {notice: &quot;Outline changed&quot;}, {
   expectReply: false

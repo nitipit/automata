@@ -26,7 +26,16 @@
 
 <h2>Every client connects to the router, not its peer</h2>
 <p>After <a href="./configure.html">Configure</a>, authenticate each participant separately. These lines show WebSocket connections, not grants. An authenticated connection proves neither permission to every destination nor application readiness.</p>
-<p><protocol-diagram data-diagram="connections" aria-label="Transport connections: desk, viewer, worker and reviewer each connect to the central Router service; no direct peer connections."></protocol-diagram></p>
+<protocol-diagram aria-label="Transport connections: desk, viewer, worker and reviewer each connect to the central Router service; no direct peer connections.">
+
+<pre class="diagram-source" hidden>flowchart LR
+    desk[desk · page] --- router[Router service]
+    viewer[viewer · page] --- router
+    router --- worker[worker · agent]
+    router --- reviewer[reviewer · agent]
+</pre>
+</protocol-diagram>
+
 </section>
 
 <section class="lesson">

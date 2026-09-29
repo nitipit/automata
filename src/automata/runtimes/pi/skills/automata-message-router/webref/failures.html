@@ -26,7 +26,17 @@
 
 <h2>Forbidden: no grant in this direction</h2>
 <p>worker may reply to a desk request, but cannot start a new worker → desk message under this configuration.</p>
-<p><protocol-diagram data-diagram="rejected" aria-label="worker tries to initiate to desk; router rejects forbidden before forwarding."></protocol-diagram></p>
+<protocol-diagram aria-label="worker tries to initiate to desk; router rejects forbidden before forwarding.">
+
+<pre class="diagram-source" hidden>sequenceDiagram
+    participant W as worker
+    participant R as Router service
+    W-&gt;&gt;R: send desk (no grant)
+    R--&gt;&gt;W: rejected: forbidden
+    Note over W,R: Nothing forwarded
+</pre>
+</protocol-diagram>
+
 <code-example><pre tabindex="0"><code>try {
   await worker.send(&quot;desk&quot;, {question: &quot;New request&quot;}).accepted;
 } catch (error) {
@@ -66,7 +76,21 @@ try {
 
 <h2>Cancel correlation, not recipient actions</h2>
 <p>For this example, temporarily use a worker handler that logs but does not respond. Cancel only after the request has an acknowledged route ID and while it is still pending.</p>
-<p><protocol-diagram data-diagram="cancel" aria-label="After forwarding, desk cancels via its request ID; router removes the reply capability but does not retract the worker's work."></protocol-diagram></p>
+<protocol-diagram aria-label="After forwarding, desk cancels via its request ID; router removes the reply capability but does not retract the worker's work.">
+
+<pre class="diagram-source" hidden>sequenceDiagram
+    participant D as desk
+    participant R as Router service
+    participant W as worker
+    D-&gt;&gt;R: send worker
+    R-&gt;&gt;W: message delivered
+    R--&gt;&gt;D: forwarded
+    D-&gt;&gt;R: cancel(request.id) via client
+    R--&gt;&gt;D: canceled
+    Note over R,W: Capability removed, recipient effects are not undone
+</pre>
+</protocol-diagram>
+
 <code-example><pre tabindex="0"><code>const request = desk.send(&quot;worker&quot;, {question: &quot;Check this outline?&quot;});
 const accepted = await request.accepted;
 if (accepted.status === &quot;forwarded&quot;) {

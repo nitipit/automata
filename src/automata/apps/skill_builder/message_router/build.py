@@ -1,6 +1,7 @@
 """Build the complete Message Router skill with Engrave and reviewed local bundles."""
 import hashlib
 import shutil
+from html import escape
 from pathlib import Path
 
 import mistune
@@ -36,6 +37,8 @@ class ReferenceRenderer(mistune.HTMLRenderer):
     """Keep Markdown code blocks keyboard-accessible in the shared UI component."""
 
     def block_code(self, code: str, info: str | None = None) -> str:
+        if info and info.strip() == "mermaid":
+            return f'<pre class="diagram-source" hidden>{escape(code)}</pre>\n'
         rendered = super().block_code(code, info).replace("<pre>", '<pre tabindex="0">', 1)
         return f"<code-example>{rendered}</code-example>\n"
 
