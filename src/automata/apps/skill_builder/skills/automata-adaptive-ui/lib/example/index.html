@@ -4,70 +4,50 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Adaptive UI catalog</title>
-    <style>
-      body {
-        margin: 0;
-      }
-    </style>
-    <script type="module">
-      import { Base, Button, Card, Chat } from "/lib/adaptive-ui.js";
-
-      class CatalogPage extends Base {
-        static {
-          this.css = `
-            min-height: 100vh;
-            display: grid;
-            place-items: center;
-            box-sizing: border-box;
-            padding: 2rem;
-            color-scheme: light;
-            background: #f8fafc;
-            color: #0f172a;
-            font-family: system-ui, sans-serif;
-            line-height: 1.5;
-
-            main {
-              width: min(36rem, 100%);
-            }
-
-            h1,
-            p {
-              margin: 0;
-            }
-
-            p {
-              color: #334155;
-            }
-          `;
-        }
-      }
-
-      CatalogPage.define("aui-catalog-page");
-      Card.define("aui-card");
-      // Chat composes the catalog Button; register it before Chat.
-      Button.define("aui-button");
-      Chat.define("aui-chat");
-    </script>
+    <link rel="icon" href="./catalog.svg" type="image/svg+xml" />
+    <script type="module" src="./index.js"></script>
   </head>
   <body>
-    <aui-catalog-page>
-      <main>
-        <aui-card variant="surface" padding="lg">
-          <h1>Adaptive UI catalog</h1>
-          <p>Card, Button, and Chat compose from one browser bundle.</p>
-          <aui-button
-            label="Continue"
-            tone="primary"
-            type="button"
-          ></aui-button>
-        </aui-card>
+    <main class="catalog">
+      <header class="catalog-heading">
+        <img src="./catalog.svg" width="64" height="64" alt="" />
+        <h1>Adaptive UI catalog</h1>
+        <p>Shared components, page-local files, and two styling scopes.</p>
+      </header>
+      <div class="catalog-content">
+        <section class="catalog-overview" aria-label="Composition examples">
+          <aui-card variant="surface" padding="lg">
+            <example-note>
+              <h2>Page styles</h2>
+              <p>
+                The sibling CSS-in-JS module owns the document theme and layout.
+              </p>
+            </example-note>
+            <example-note>
+              <h2>Component styles</h2>
+              <p>This shared note owns its typography through Base.css.</p>
+            </example-note>
+            <aui-button
+              id="open-reactive"
+              label="Explore reactive example"
+              tone="primary"
+              type="button"
+            ></aui-button>
+          </aui-card>
+          <example-note>
+            <h2>Local composition</h2>
+            <p>
+              The chat is a presentation example, not connected to an agent.
+            </p>
+          </example-note>
+        </section>
         <aui-chat
           id="catalog-chat"
           title="Chat example"
           agent-label="Assistant"
           user-label="Visitor"
         ></aui-chat>
-      </main>
-    </aui-catalog-page>
+      </div>
+    </main>
   </body>
 </html>
