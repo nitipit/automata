@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import Prism from '../../../src/automata/apps/skill_builder/templates/lib/prism.js';
-import lineNumbersCSS from '../../../src/automata/apps/skill_builder/templates/components/prism-line-numbers.css.js';
+import Prism from '../../../src/automata/skills/templates/lib/prism.js';
+import lineNumbersCSS from '../../../src/automata/skills/templates/components/prism-line-numbers.css.js';
 
-const root = 'src/automata/apps/skill_builder/templates/';
+const root = 'src/automata/skills/templates/';
 const digest = path => createHash('sha256').update(readFileSync(root + path)).digest('hex');
 
 test('pinned Prism bundle includes reviewed grammars and exact official plugin CSS', () => {

@@ -66,7 +66,7 @@ def test_list_skill_dirs_rejects_duplicate_names(tmp_path: Path) -> None:
 def test_default_sources_share_one_flat_canonical_root() -> None:
     (root,) = bundled_skill_roots()
     sources = skill_sources()
-    assert root.name == "skills"
+    assert root.name == "bundled"
     assert len(sources) == 41
     assert all(source == root / name for name, source in sources.items())
 
@@ -131,7 +131,7 @@ def test_duplicate_names_across_bundled_roots_fail_before_install(
 @pytest.mark.parametrize("mode", ["copy", "symlink"])
 def test_canonical_router_preserves_install_name(tmp_path: Path, mode: str) -> None:
     source = skill_sources()["automata-message-router"]
-    assert source.parts[-4:] == ("apps", "skill_builder", "skills", "automata-message-router")
+    assert source.parts[-4:] == ("automata", "skills", "bundled", "automata-message-router")
     target = tmp_path / "installed"
     install_skills(target_root=target, skill_names=["automata-message-router"], mode=mode)
     installed = target / "automata-message-router"

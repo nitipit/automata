@@ -10,7 +10,7 @@ import yaml
 from automata.install.skills import install_skills, skill_sources
 
 PACKAGE_ROOT = Path(__file__).parents[3] / "src" / "automata"
-SKILLS_ROOT = PACKAGE_ROOT / "apps" / "skill_builder" / "skills"
+SKILLS_ROOT = PACKAGE_ROOT / "skills" / "bundled"
 SKILL_ROOTS = (SKILLS_ROOT,)
 PI_SKILL_NAMES = {
     "automata-context-compaction",

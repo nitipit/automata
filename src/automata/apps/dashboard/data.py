@@ -10,7 +10,7 @@ from .activity import activity, make_window
 ROOT = Path(__file__).resolve().parents[4]
 HOME = Path.home()
 SKILL_ROOTS = [
-    ("bundled", ROOT / "src/automata/apps/skill_builder/skills"),
+    ("bundled", ROOT / "src/automata/skills/bundled"),
     ("global", HOME / ".agents/skills"),
     ("project", ROOT / ".agents/skills"),
 ]

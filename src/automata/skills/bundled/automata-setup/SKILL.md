@@ -53,7 +53,7 @@ remote sources, first obtain a confirmed local source; the installer does not fe
 remote repositories.
 
 Default skill discovery uses the single bundled
-`apps/skill_builder/skills/` catalog, including Pi-specific usage guidance.
+`skills/bundled/` catalog, including Pi-specific usage guidance.
 Pi extension sources live under `runtimes/pi/extensions/`; installed destinations
 above are unchanged. An explicit skill `--source-root` is exclusive and never adds
 bundled skills as a fallback. Discovery finds `SKILL.md` recursively and installs

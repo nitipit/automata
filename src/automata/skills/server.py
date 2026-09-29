@@ -27,7 +27,7 @@ def create_app(root=SOURCE):
     This is a local development preview, not a production hosting boundary.
     """
     root = Path(root).resolve()
-    skills, templates = root / "skills", root / "templates"
+    skills, templates = root / "bundled", root / "templates"
     if any(not directory.resolve().is_relative_to(root) for directory in (skills, templates)):
         raise ValueError("Content directory escapes app root")
     discover(skills, None, True)  # Fail discovery errors before startup.

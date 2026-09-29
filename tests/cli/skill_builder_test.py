@@ -8,12 +8,12 @@ import urllib.request
 
 import pytest
 
-from automata.apps.skill_builder.content import SKILLS, body
+from automata.skills.content import SKILLS, body
 
 
 def cli(*args):
     return subprocess.run(
-        [sys.executable, "-m", "automata.apps.skill_builder.cli", *map(str, args)],
+        [sys.executable, "-m", "automata.skills.cli", *map(str, args)],
         capture_output=True,
         text=True,
     )
@@ -21,6 +21,12 @@ def cli(*args):
 
 def test_help():
     assert "export-agent" in cli("--help").stdout
+    public = subprocess.run(
+        [sys.executable, "-c", "from automata.cli import app; app()", "skill-builder", "--help"],
+        capture_output=True, text=True,
+    )
+    assert public.returncode == 0, public.stdout + public.stderr
+    assert "export-agent" in public.stdout and "serve" in public.stdout
     result = cli("serve", "--help")
     assert result.returncode == 0
     assert "--port" in result.stdout and "--all" not in result.stdout
@@ -42,8 +48,8 @@ def test_errors_are_bounded(args):
 
 
 def test_serve_defaults(monkeypatch):
-    from automata.apps.skill_builder import cli as commands
-    from automata.apps.skill_builder import server
+    from automata.skills import cli as commands
+    from automata.skills import server
 
     calls = []
     monkeypatch.setattr(server, 'serve', lambda **kwargs: calls.append(kwargs))
@@ -53,7 +59,11 @@ def test_serve_defaults(monkeypatch):
 
 
 def test_export(tmp_path):
-    result = cli("export-agent", "automata-message-router", "--output", tmp_path)
+    result = subprocess.run(
+        [sys.executable, "-c", "from automata.cli import app; app()",
+         "skill-builder", "export-agent", "automata-message-router", "--output", str(tmp_path)],
+        capture_output=True, text=True,
+    )
     assert result.returncode == 0, result.stdout + result.stderr
     assert {p.name for p in tmp_path.iterdir()} == {"SKILL.md", "references"}
     assert (tmp_path / "SKILL.md").read_bytes() == (
@@ -70,7 +80,7 @@ def test_cli_signal_stops_preview_without_build_output(tmp_path):
     stream = None
     with log_path.open("w") as log:
         process = subprocess.Popen(
-            [sys.executable, "-m", "automata.apps.skill_builder.cli", "serve",
+            [sys.executable, "-c", "from automata.cli import app; app()", "skill-builder", "serve",
              "--port", str(port)], stdout=log, stderr=log,
         )
         try:
