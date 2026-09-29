@@ -23,17 +23,16 @@ def test_help():
     assert "export-agent" in cli("--help").stdout
     result = cli("serve", "--help")
     assert result.returncode == 0
-    assert "--all" in result.stdout and "--port" in result.stdout
+    assert "--port" in result.stdout and "--all" not in result.stdout
     assert "FastAPI" in result.stdout
 
 
 @pytest.mark.parametrize(
     "args",
     [
-        ("serve", "automata-message-router", "--all"),
-        ("serve", "../private"),
-        ("serve", "missing"),
-        ("serve", "automata-message-router", "--port", "0"),
+        ("serve", "--all"),
+        ("serve", "automata-message-router"),
+        ("serve", "--port", "0"),
     ],
 )
 def test_errors_are_bounded(args):
@@ -42,27 +41,24 @@ def test_errors_are_bounded(args):
     assert "Traceback" not in result.stdout + result.stderr
 
 
-@pytest.mark.parametrize(
-    ('skill', 'all_', 'expected'),
-    [(None, False, (None, True, 8788)),
-     ('automata-plan', False, ('automata-plan', False, 8788)),
-     (None, True, (None, True, 8788))],
-)
-def test_serve_selection_defaults(monkeypatch, skill, all_, expected):
+def test_serve_defaults(monkeypatch):
     from automata.apps.skill_builder import cli as commands
     from automata.apps.skill_builder import server
 
     calls = []
-    monkeypatch.setattr(server, 'serve', lambda *args: calls.append(args))
-    commands.serve(skill, all_=all_)
-    assert calls == [expected]
+    monkeypatch.setattr(server, 'serve', lambda **kwargs: calls.append(kwargs))
+    commands.serve()
+    commands.serve(port=8799)
+    assert calls == [{'port': 8788}, {'port': 8799}]
 
 
 def test_export(tmp_path):
     result = cli("export-agent", "automata-message-router", "--output", tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
     assert {p.name for p in tmp_path.iterdir()} == {"SKILL.md", "references"}
-    assert (tmp_path / "SKILL.md").read_bytes() == (SKILLS / "automata-message-router/SKILL.md").read_bytes()
+    assert (tmp_path / "SKILL.md").read_bytes() == (
+        SKILLS / "automata-message-router/SKILL.md"
+    ).read_bytes()
     assert all(p.suffix == ".md" for p in tmp_path.rglob("*") if p.is_file())
 
 
@@ -75,7 +71,7 @@ def test_cli_signal_stops_preview_without_build_output(tmp_path):
     with log_path.open("w") as log:
         process = subprocess.Popen(
             [sys.executable, "-m", "automata.apps.skill_builder.cli", "serve",
-             "automata-message-router", "--port", str(port)], stdout=log, stderr=log,
+             "--port", str(port)], stdout=log, stderr=log,
         )
         try:
             for _ in range(100):

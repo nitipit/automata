@@ -30,7 +30,7 @@ def site(tmp_path, request):
     url = f"http://127.0.0.1:{port}"
     command = [sys.executable, "-c", (
         "import sys,uvicorn; from automata.apps.skill_builder.server import create_app; "
-        "uvicorn.run(create_app(all_skills=True, root=sys.argv[1]), "
+        "uvicorn.run(create_app(root=sys.argv[1]), "
         "host='127.0.0.1', port=int(sys.argv[2]))"
     ), str(root), str(port)]
     with (tmp_path / "preview.log").open("w") as log:
@@ -38,7 +38,7 @@ def site(tmp_path, request):
         try:
             for _ in range(100):
                 try:
-                    urllib.request.urlopen(url + "/templates/index.html", timeout=.5).close()
+                    urllib.request.urlopen(url + "/", timeout=.5).close()
                     break
                 except OSError:
                     assert process.poll() is None, "Preview exited before readiness"
@@ -70,7 +70,7 @@ def test_catalog_sources_references_and_sse(site):
             for slug, title in [("message-router", "Automata Message Router"),
                                 ("automata-storage", "Automata Storage"),
                                 ("plan", "Automata Plan")]:
-                page.goto(url + "/templates/index.html")
+                page.goto(url + "/")
                 assert page.locator(".skill-card").count() == 41
                 link = page.get_by_role("link", name=title, exact=True)
                 expect(link).to_have_attribute("href", f"/{slug}/")

@@ -16,16 +16,14 @@ PYTHONPATH=src uv run --offline --no-project \
   python -m automata.apps.skill_builder.cli serve --port 8788
 ```
 
-`serve` defaults to all skills; `--all` remains an optional compatibility alias.
-Use `serve automata-message-router` or `serve automata-plan` to select one.
-Open `http://127.0.0.1:8788/templates/index.html`. The catalog discovers all 41 skills;
-its existing bounded same-origin availability checks enable only served entries.
-Checks run once per connection, time out after five seconds, do not follow redirects,
-and report failures as “Unavailable in this preview.” Reload to retry; no polling.
+`serve` always includes all discovered skills. Open `http://127.0.0.1:8788/`.
+The catalog lists all 41 skills with immediate links and a client-side search over
+skill names, titles and descriptions. Search leaves the complete static catalog usable
+without JavaScript.
 
 Public views:
 
-- `/templates/index.html`: catalog; `/` remains unassigned.
+- `/`: catalog; `/templates/index.html` redirects to `/` for compatibility.
 - `/templates/skill.html?name=automata-message-router` (or `name=automata-plan`): source view.
 - `/templates/reference.html?name=automata-message-router&reference=references/connect.md`:
   rendered reference view.
@@ -48,7 +46,7 @@ are not public viewer routes. Assets remain together in `templates/components`, 
 `templates/licenses`, and the two CSSJS files. Shared views are rendered, never
 returned as HTML source. Private base/includes, Python, arbitrary Markdown, outside
 paths and symlink escapes are denied. The optional raw `skills/<name>/SKILL.md`
-route returns only selected canonical source. FastAPI API-documentation routes
+route returns canonical source for discovered skills. FastAPI API-documentation routes
 are disabled. This loopback-only development server is not production hosting:
 there is no authentication, strict Host/Origin policy or production deployment setup.
 
@@ -58,17 +56,18 @@ Early theme CSS avoids an unstyled first paint. Undefined page components remain
 hidden until registration, with a four-second reveal fallback if modules fail.
 Internal page links use a small fetch-and-swap layer with native 180ms View
 Transitions when supported; reduced-motion preferences skip the animation.
-Back/Forward and normal modified clicks remain available. Failed enhancement falls
-back to full navigation; no Swup dependency or per-skill client templates are needed.
+Back/Forward and normal modified clicks remain available. Redirected navigation
+uses the final canonical URL in browser history. Failed enhancement falls back to
+full navigation; no Swup dependency or per-skill client templates are needed.
 
 ## Live authoring and lifecycle
 
 One `watchfiles` watcher watches only `skills/` and `templates/`. Its bounded SSE
 subscribers receive change events at `/__skill_builder/events`; the browser reloads
 and requests fresh source. Markdown edits, template edits and new discovered skills
-need no build or source synchronization. Python changes, selection or port changes
-require a server restart. SSE reload resets transient page state. If watched roots
-are removed or the watcher fails, restore them and restart the preview.
+need no build or source synchronization. Python or port changes require a server
+restart. SSE reload resets transient page state. If watched roots are removed or the
+watcher fails, restore them and restart the preview.
 
 Serving writes neither the package/source tree nor generated output, so it does not
 require writable installed sources. Authoring naturally requires write access to
@@ -96,5 +95,5 @@ live skills; agents read canonical files, not human-rendered output.
 reference Jinja/HTML literal handling, and disposable installation of both
 identities. `test_browser.py` covers opening both catalog entries with exact numbered
 source, Message Router reference diagrams, and one source edit reloading via SSE.
-Catalog lifecycle, CLI and package-resource tests have been adjusted to the direct
-serving contract; running the focused proof does not claim the broader suite passed.
+Catalog search/navigation and CLI tests cover the direct serving contract;
+running focused checks does not claim the broader suite passed.

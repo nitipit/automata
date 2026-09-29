@@ -20,6 +20,8 @@ async function navigate(url, { pop = false } = {}) {
         !response.headers.get('content-type')?.includes('text/html')) {
       throw new Error('Use normal navigation');
     }
+    const finalUrl = new URL(response.url);
+    finalUrl.hash ||= new URL(url).hash;
     const next = new DOMParser().parseFromString(await response.text(), 'text/html');
     const page = next.querySelector(selector);
     if (!page || !modules[page.localName]) throw new Error('Not a skill page');
@@ -32,8 +34,10 @@ async function navigate(url, { pop = false } = {}) {
       if (!current) throw new Error('No current page');
       current.replaceWith(document.importNode(page, true));
       document.title = next.title;
-      if (!pop) history.pushState(null, '', url);
-      const hash = new URL(url).hash;
+      if (pop) {
+        if (location.href !== finalUrl.href) history.replaceState(null, '', finalUrl.href);
+      } else history.pushState(null, '', finalUrl.href);
+      const hash = finalUrl.hash;
       const target = hash ? document.getElementById(decodeURIComponent(hash.slice(1))) : null;
       if (target) target.scrollIntoView();
       else window.scrollTo(0, 0);
