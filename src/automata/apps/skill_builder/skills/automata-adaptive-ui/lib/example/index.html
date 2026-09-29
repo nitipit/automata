@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Adaptive UI catalog</title>
+    <link rel="icon" href="./catalog.svg" type="image/svg+xml" />
+    <script type="module" src="./index.js"></script>
+  </head>
+  <body>
+    <main class="catalog">
+      <header class="catalog-heading">
+        <img src="./catalog.svg" width="64" height="64" alt="" />
+        <h1>Adaptive UI catalog</h1>
+        <p>Shared components, page-local files, and two styling scopes.</p>
+      </header>
+      <div class="catalog-content">
+        <section class="catalog-overview" aria-label="Composition examples">
+          <aui-card variant="surface" padding="lg">
+            <example-note>
+              <h2>Page styles</h2>
+              <p>
+                The sibling CSS-in-JS module owns the document theme and layout.
+              </p>
+            </example-note>
+            <example-note>
+              <h2>Component styles</h2>
+              <p>This shared note owns its typography through Base.css.</p>
+            </example-note>
+            <aui-button
+              id="open-reactive"
+              label="Explore reactive example"
+              tone="primary"
+              type="button"
+            ></aui-button>
+          </aui-card>
+          <example-note>
+            <h2>Local composition</h2>
+            <p>
+              The chat is a presentation example, not connected to an agent.
+            </p>
+          </example-note>
+        </section>
+        <aui-chat
+          id="catalog-chat"
+          title="Chat example"
+          agent-label="Assistant"
+          user-label="Visitor"
+        ></aui-chat>
+      </div>
+    </main>
+  </body>
+</html>

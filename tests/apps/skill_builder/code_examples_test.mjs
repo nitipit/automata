@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-const page = name => readFileSync(`src/automata/apps/skill_builder/skills/message-router/references/${name}.md`, 'utf8');
+const page = name => readFileSync(`src/automata/apps/skill_builder/skills/automata-message-router/references/${name}.md`, 'utf8');
 
 test('send teaches distinct independent, reply and one-way flows', () => {
   const source = page('send');
@@ -44,7 +44,7 @@ test('diagrams render authored Markdown blocks, not a JavaScript content registr
   assert.match(source, /querySelector\('\.diagram-source'\)\?\.textContent/);
   assert.doesNotMatch(source, /Object.freeze|dataset.diagram|WebSocket|location.search|fetch\(/);
   assert.doesNotMatch(source, /participant W as worker|desk\[desk/);
-  const landing = readFileSync('src/automata/apps/skill_builder/skills/message-router/SKILL.md', 'utf8');
+  const landing = readFileSync('src/automata/apps/skill_builder/skills/automata-message-router/SKILL.md', 'utf8');
   assert.equal((landing.match(/```mermaid\n/g) || []).length, 2);
   assert.doesNotMatch(landing, /references\/overview\.md/);
   for (const [name, count] of Object.entries({configure: 1, connect: 1, discover: 1, send: 3, failures: 2})) {

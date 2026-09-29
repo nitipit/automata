@@ -18,35 +18,20 @@ from automata.install.directory import (
 SkillInstallError = DirectoryInstallError
 SkillInstallResult = DirectoryInstallResult
 
-# Public install identity is independent of the human site's short URL slug.
-# Keep this explicit: custom source roots retain directory-name discovery only.
-BUNDLED_SKILL_ALIASES = {
-    "automata-message-router": "apps/skill_builder/skills/message-router",
-    "automata-plan": "apps/skill_builder/skills/plan",
-}
-
-
 def bundled_skill_root() -> Path:
-    """Return the runtime-independent skill root, not the combined catalog."""
+    """Return the single bundled catalog shared by viewer and installer."""
 
-    return Path(str(files("automata").joinpath("skills")))
+    return Path(str(files("automata").joinpath("apps", "skill_builder", "skills")))
 
 
 def bundled_skill_roots() -> tuple[Path, ...]:
-    """Preserve the bundled Pi catalog while keeping its sources separate."""
+    """Compatibility accessor for callers expecting a sequence of roots."""
 
-    return (
-        bundled_skill_root(),
-        Path(str(files("automata").joinpath("runtimes", "pi", "skills"))),
-    )
+    return (bundled_skill_root(),)
 
 
 def skill_sources(source_root: str | Path | None = None) -> dict[str, Path]:
-    """Resolve a unique catalog; an explicit source never adds bundled skills.
-
-    Reject collisions across shared/Pi roots and canonical app sources rather than
-    silently choosing an override. Resolve the complete selection before writing.
-    """
+    """Discover one bundled catalog or an isolated explicit custom source."""
 
     roots = (
         (resolve_source_root(source_root),)
@@ -62,17 +47,6 @@ def skill_sources(source_root: str | Path | None = None) -> dict[str, Path]:
                     f"Duplicate skill name found: {name}: {sources[name]} and {path.parent}"
                 )
             sources[name] = path.parent
-    if source_root is None:
-        package = files("automata")
-        for name, relative in BUNDLED_SKILL_ALIASES.items():
-            path = resolve_source_root(Path(str(package.joinpath(relative))))
-            if not (path / "SKILL.md").is_file():
-                raise SkillInstallError(f"Source skill directory does not exist: {path}")
-            if name in sources:
-                raise SkillInstallError(
-                    f"Duplicate skill name found: {name}: {sources[name]} and {path}"
-                )
-            sources[name] = path
     return dict(sorted(sources.items()))
 
 

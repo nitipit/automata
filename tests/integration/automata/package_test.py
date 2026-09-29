@@ -112,10 +112,11 @@ def test_package_excludes_adaptive_ui_generated_trees_from_sdists_and_wheels() -
     config = tomllib.loads((project_root / "pyproject.toml").read_text())
 
     assert config["tool"]["uv"]["build-backend"]["source-exclude"] == [
-        "src/automata/skills/operations/automata-adaptive-ui/lib/dist",
-        "src/automata/skills/operations/automata-adaptive-ui/lib/dist/**",
-        "src/automata/skills/operations/automata-adaptive-ui/lib/node_modules",
-        "src/automata/skills/operations/automata-adaptive-ui/lib/node_modules/**",
+        "src/automata/apps/skill_builder/skills/automata-adaptive-ui/lib/dist",
+        "src/automata/apps/skill_builder/skills/automata-adaptive-ui/lib/dist/**",
+        "src/automata/apps/skill_builder/skills/automata-adaptive-ui/lib/node_modules",
+        "src/automata/apps/skill_builder/skills/automata-adaptive-ui/lib/node_modules/**",
+        "src/automata/apps/skill_builder/skills/**/__pycache__/**",
     ]
 
 
@@ -139,14 +140,16 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "runtimes/pi/extensions/context-status.ts",
         "runtimes/pi/extensions/message-timestamps.ts",
         "runtimes/pi/extensions/message-router/index.ts",
-        "runtimes/pi/skills/automata-context-status/SKILL.md",
-        "runtimes/pi/skills/automata-context-compaction/SKILL.md",
-        "runtimes/pi/skills/automata-pi-sessions/SKILL.md",
-        "runtimes/pi/skills/automata-codex-imagegen/SKILL.md",
-        "runtimes/pi/skills/automata-skill-activity/SKILL.md",
-        "apps/skill_builder/skills/message-router/SKILL.md",
-        "apps/skill_builder/skills/plan/SKILL.md",
-        "skills/core/automata-storage/SKILL.md",
+        "apps/skill_builder/skills/automata-context-status/SKILL.md",
+        "apps/skill_builder/skills/automata-context-compaction/SKILL.md",
+        "apps/skill_builder/skills/automata-pi-sessions/SKILL.md",
+        "apps/skill_builder/skills/automata-codex-imagegen/SKILL.md",
+        "apps/skill_builder/skills/automata-skill-activity/SKILL.md",
+        "apps/skill_builder/skills/automata-message-router/SKILL.md",
+        "apps/skill_builder/skills/automata-plan/SKILL.md",
+        "apps/skill_builder/skills/automata-storage/SKILL.md",
+        "apps/skill_builder/skills/automata-adaptive-ui/scripts/build.py",
+        "apps/skill_builder/skills/automata-agent-evaluation/templates/evaluation-record.json",
     }
     with zipfile.ZipFile(wheel) as archive:
         wheel_paths = {
@@ -160,14 +163,20 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
             for member in archive.getmembers()
             if member.isfile() and "/src/automata/" in member.name
         }
-    webref_prefix = "apps/skill_builder/skills/message-router/"
+    webref_prefix = "apps/skill_builder/skills/automata-message-router/"
     source_skill = root / "src/automata" / webref_prefix
     finished_skill = {
         webref_prefix + path.relative_to(source_skill).as_posix()
         for path in source_skill.rglob("*") if path.is_file()
     }
+    source_catalog = root / "src/automata/apps/skill_builder/skills"
+    catalog_files = {
+        "apps/skill_builder/skills/" + path.relative_to(source_catalog).as_posix()
+        for path in source_catalog.rglob("*") if path.is_file() and "__pycache__" not in path.parts
+    }
     for paths in (wheel_paths, sdist_paths):
         assert expected <= paths
+        assert catalog_files <= paths
         assert {path for path in paths if path.startswith(webref_prefix)} == finished_skill
         assert webref_prefix + "references/overview.md" not in paths
         assert not any(
@@ -181,6 +190,8 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         assert 'apps/skill_builder/templates/skill.html' in paths
         assert 'apps/skill_builder/templates/index.html' not in paths
         assert 'skills/core/automata-plan/SKILL.md' not in paths
+        assert not any('/node_modules/' in path or '/lib/dist/' in path
+                       or '/__pycache__/' in path for path in paths)
         assert not any(path.startswith('apps/skill_builder/message-router/') for path in paths)
         assert 'apps/skill_builder/index.html' not in paths
         assert 'apps/skill_builder/templates/lib/highlight.js' not in paths
@@ -220,9 +231,10 @@ assert Path(automata.__file__).is_relative_to(site)
 sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
 assert len(sources) == 41
-canonical = site / 'automata/apps/skill_builder/skills/message-router'
+assert all(path.name == name for name, path in sources.items())
+canonical = site / 'automata/apps/skill_builder/skills/automata-message-router'
 assert sources['automata-message-router'] == canonical
-assert sources['automata-plan'] == site / 'automata/apps/skill_builder/skills/plan'
+assert sources['automata-plan'] == site / 'automata/apps/skill_builder/skills/automata-plan'
 assert not any(name in sys.modules for name in ('engrave', 'mistune', 'playwright'))
 results = install_skills(target_root=work / 'skills')
 assert {result.name for result in results} == set(sources)

@@ -6,11 +6,11 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 from watchfiles import awatch
 
-from .content import SOURCE, discover, lookup, render_markdown
+from .content import SOURCE, discover, lookup, render_markdown, url_slug
 
 BUNDLES = {
     "prism.js": "db64933eccbb6f8edb10f1d0e0a94c1d5d4889fbc1c3705096a17dad9ffef8a2",
@@ -19,7 +19,7 @@ BUNDLES = {
 }
 
 
-def create_app(selector=None, all_skills=False, root=SOURCE):
+def create_app(root=SOURCE):
     """Read canonical content on requests; never write source or build output.
 
     Only discovered documents and explicit shared assets are public. Templates
@@ -30,7 +30,7 @@ def create_app(selector=None, all_skills=False, root=SOURCE):
     skills, templates = root / "skills", root / "templates"
     if any(not directory.resolve().is_relative_to(root) for directory in (skills, templates)):
         raise ValueError("Content directory escapes app root")
-    discover(skills, selector, all_skills)  # Fail selection errors before startup.
+    discover(skills, None, True)  # Fail discovery errors before startup.
     for name, digest in BUNDLES.items():
         bundle = (templates / "lib" / name).resolve()
         if not bundle.is_relative_to(templates.resolve()):
@@ -104,11 +104,13 @@ def create_app(selector=None, all_skills=False, root=SOURCE):
             if any(not directory.resolve().is_relative_to(root)
                    for directory in (skills, templates)):
                 raise HTTPException(404, "Not found")
-            pages = discover(skills, selector, all_skills)
+            pages = discover(skills, None, True)
             if path == "templates/index.html":
+                return RedirectResponse("/", status_code=307)
+            if path == "":
                 return render(
                     "templates/catalog.html",
-                    landings=[p for p in discover(skills, None, True) if p.document == "SKILL.md"],
+                    landings=[p for p in pages if p.document == "SKILL.md"],
                 )
             page = None
             if path == "templates/skill.html":
@@ -126,14 +128,15 @@ def create_app(selector=None, all_skills=False, root=SOURCE):
                 return render(
                     "templates/skill.html", skill=page.skill, title=page.title,
                     document=page.document,
-                    navigation=[(p.url.removeprefix(f"/{page.skill}/"), p.title)
+                    navigation=[(p.url, p.title)
                                 for p in pages if p.skill == page.skill],
                     raw_source=page.source.read_text(encoding="utf-8"),
                     reference_html=render_markdown(page) if page.document != "SKILL.md" else "",
                 )
             # Retain the canonical raw-source URL, not arbitrary Markdown access.
             raw = next((p for p in pages if p.document == "SKILL.md"
-                        and path == f"skills/{p.skill}/SKILL.md"), None)
+                        and path in (f"skills/{p.skill}/SKILL.md",
+                                     f"skills/{url_slug(p.skill)}/SKILL.md")), None)
             if raw:
                 return FileResponse(safe_file(raw.source, skills / raw.skill),
                                     media_type="text/plain; charset=utf-8",
@@ -156,10 +159,10 @@ def create_app(selector=None, all_skills=False, root=SOURCE):
     return app
 
 
-def serve(selector=None, all_skills=False, port=8788, root=SOURCE):
+def serve(port=8788, root=SOURCE):
     import uvicorn
 
     uvicorn.run(
-        create_app(selector, all_skills, root), host="127.0.0.1", port=port,
+        create_app(root), host="127.0.0.1", port=port,
         timeout_graceful_shutdown=3,  # Bound shutdown even with an open SSE tab.
     )

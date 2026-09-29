@@ -8,6 +8,11 @@ from urllib.parse import unquote, urljoin, urlsplit
 
 SOURCE = Path(__file__).resolve().parent
 SKILLS = SOURCE / "skills"
+LEGACY_URL_SLUGS = {"automata-message-router": "message-router", "automata-plan": "plan"}
+
+
+def url_slug(skill: str) -> str:
+    return LEGACY_URL_SLUGS.get(skill, skill)
 
 
 def body(text: str) -> str:
@@ -53,6 +58,9 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
         raise ValueError("Choose exactly one skill name or --all")
     if selector and not re.fullmatch(r"[a-z0-9][a-z0-9-]*", selector):
         raise ValueError("Invalid skill name")
+    if selector and not (skills / selector).is_dir():
+        selector = next((name for name, slug in LEGACY_URL_SLUGS.items()
+                         if slug == selector), selector)
     roots = sorted(skills.iterdir()) if all_skills else [skills / selector]
     pages = []
     for root in roots:
@@ -60,7 +68,8 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
             continue
         if not root.resolve().is_relative_to(skills.resolve()):
             raise ValueError("Skill directory escapes app skills root")
-        pending, visited = [root / "SKILL.md"], set()
+        pending = [root / "SKILL.md", *sorted((root / "references").rglob("*.md"))]
+        visited = set()
         while pending:
             source = pending.pop(0).resolve()
             if source in visited:
@@ -68,8 +77,9 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
             if not source.is_relative_to(root.resolve()) or source.suffix != ".md":
                 raise ValueError("Markdown reference escapes its skill")
             relative = source.relative_to(root.resolve())
-            if relative != Path("SKILL.md") and relative.parts[0] != "references":
-                raise ValueError("References must live in references/")
+            if (relative != Path("SKILL.md")
+                    and relative.parts[0] not in ("references", "templates")):
+                raise ValueError("Linked Markdown must live in references/ or templates/")
             text = source.read_text(encoding="utf-8")
             stripped = body(text)
             import mistune
@@ -84,10 +94,11 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
                 if heading
                 else source.stem.replace("-", " ").title()
             )
+            slug = url_slug(root.name)
             url = (
-                f"/{root.name}/"
+                f"/{slug}/"
                 if relative == Path("SKILL.md")
-                else f"/{root.name}/{relative.with_suffix('.html').as_posix()}"
+                else f"/{slug}/{relative.with_suffix('.html').as_posix()}"
             )
             paragraph = next((node for node in ast if node['type'] == 'paragraph'), None)
 
@@ -110,7 +121,7 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
 def lookup(pages: list[Page], skill: str, document: str = "SKILL.md") -> Page:
     """Accept only a document reached through canonical discovery, never a file path."""
     for page in pages:
-        if page.skill == skill and page.document == document:
+        if skill in (page.skill, url_slug(page.skill)) and page.document == document:
             return page
     raise ValueError("Unknown skill document")
 
@@ -123,8 +134,8 @@ def render_markdown(page: Page) -> str:
         def link(self, text, url, title=None):
             parsed = urlsplit(url)
             if not parsed.scheme and not parsed.netloc and parsed.path.endswith(".md"):
-                target = urlsplit(urljoin(f"/skills/{page.skill}/{page.document}", url))
-                path = target.path.removeprefix("/skills")
+                target = urlsplit(urljoin(f"/{url_slug(page.skill)}/{page.document}", url))
+                path = target.path
                 path = (path.removesuffix("SKILL.md") if path.endswith("/SKILL.md")
                         else path[:-3] + ".html")
                 url = target._replace(path=path).geturl()
@@ -136,10 +147,12 @@ def render_markdown(page: Page) -> str:
 
 
 def export_agent(selector: str, output: Path, skills: Path = SKILLS) -> None:
-    """Copy only canonical Markdown, never browser assets or private state."""
+    """Copy the complete canonical skill, including supporting nonpublic assets."""
     pages = discover(skills, selector, False)
-    root = (skills / selector).resolve()
-    files = {p.source.relative_to(root): p.source for p in pages}
+    root = (skills / pages[0].skill).resolve()
+    files = {p.relative_to(root): p for p in root.rglob("*") if p.is_file()}
+    if any(not path.resolve().is_relative_to(root) for path in files.values()):
+        raise ValueError("Skill asset escapes its source directory")
     if output.exists():
         existing = {p.relative_to(output) for p in output.rglob("*") if p.is_file()}
         if existing - files.keys():

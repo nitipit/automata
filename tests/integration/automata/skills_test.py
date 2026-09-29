@@ -10,10 +10,8 @@ import yaml
 from automata.install.skills import install_skills, skill_sources
 
 PACKAGE_ROOT = Path(__file__).parents[3] / "src" / "automata"
-SKILLS_ROOT = PACKAGE_ROOT / "skills"
-PI_SKILLS_ROOT = PACKAGE_ROOT / "runtimes" / "pi" / "skills"
-CANONICAL_ROUTER = PACKAGE_ROOT / "apps/skill_builder/skills/message-router"
-SKILL_ROOTS = (SKILLS_ROOT, PI_SKILLS_ROOT, CANONICAL_ROUTER)
+SKILLS_ROOT = PACKAGE_ROOT / "apps" / "skill_builder" / "skills"
+SKILL_ROOTS = (SKILLS_ROOT,)
 PI_SKILL_NAMES = {
     "automata-context-compaction",
     "automata-context-status",
@@ -121,12 +119,11 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
         assert not [path for root in SKILL_ROOTS for path in root.rglob(name)], name
 
 
-def test_pi_skills_have_one_flat_source_and_no_shared_duplicates() -> None:
-    assert {path.name for path in PI_SKILLS_ROOT.iterdir()} == PI_SKILL_NAMES
+def test_pi_skills_share_one_flat_source_with_all_skills() -> None:
+    assert len(list(SKILLS_ROOT.glob("*/SKILL.md"))) == 41
     for name in PI_SKILL_NAMES:
-        assert (PI_SKILLS_ROOT / name / "SKILL.md").is_file()
-        assert not (PI_SKILLS_ROOT / name).is_symlink()
-        assert not list(SKILLS_ROOT.rglob(name)), name
+        assert (SKILLS_ROOT / name / "SKILL.md").is_file()
+        assert not (SKILLS_ROOT / name).is_symlink()
 
 
 def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
@@ -157,7 +154,7 @@ def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
 
 def test_declared_skill_asset_references_exist() -> None:
     for asset in (
-        "skill-ops/automata-agent-evaluation/references/scoring.md",
+        "automata-agent-evaluation/references/scoring.md",
     ):
         assert (SKILLS_ROOT / asset).is_file(), asset
     # Check actual package paths, not prose, example commands, or runtime destinations.
@@ -181,7 +178,7 @@ def test_bundled_skills_exclude_runtime_and_provider_state() -> None:
     assert not (TOOLS_ROOT / "ui-channel").exists()
     assert not (PACKAGE_ROOT / "runtimes/pi/extensions/ui-channel.ts").exists()
     assert not (
-        SKILLS_ROOT / "operations/automata-adaptive-ui/references/build-and-preview.md"
+        SKILLS_ROOT / "automata-adaptive-ui/references/build-and-preview.md"
     ).exists()
 
 
@@ -217,7 +214,7 @@ def test_selected_skill_installs_only_its_packaged_files(tmp_path: Path, skill_f
 
 
 def test_journal_template_metadata_supports_discovery() -> None:
-    path = SKILLS_ROOT / "core/automata-journal/templates/entry.md"
+    path = SKILLS_ROOT / "automata-journal/templates/entry.md"
     metadata = parse_frontmatter(path)
     for field in ("id", "created", "kind", "title", "summary"):
         assert isinstance(metadata[field], str) and metadata[field].strip(), field
@@ -230,14 +227,14 @@ def test_journal_template_metadata_supports_discovery() -> None:
 
 def test_journal_and_cue_do_not_name_other_skills() -> None:
     for name in ("automata-journal", "automata-cue"):
-        root = SKILLS_ROOT / "core" / name
+        root = SKILLS_ROOT / name
         for path in root.rglob("*.md"):
             names = set(re.findall(r"automata-[a-z0-9]+(?:-[a-z0-9]+)*", path.read_text()))
             assert names <= {name}, (path, names)
 
 
 def test_evaluation_record_example_is_internally_consistent() -> None:
-    path = SKILLS_ROOT / "skill-ops/automata-agent-evaluation/templates/evaluation-record.json"
+    path = SKILLS_ROOT / "automata-agent-evaluation/templates/evaluation-record.json"
     data = json.loads(path.read_text())
     assert data["schema_version"] == 1
     for field in ("run_id", "subject", "runtime", "evaluator", "rubric", "scenario"):

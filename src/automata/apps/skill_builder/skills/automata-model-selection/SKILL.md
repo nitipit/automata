@@ -1,6 +1,6 @@
 ---
 name: automata-model-selection
-description: Use when choosing or comparing AI models for a task, planning model use, or designing solo/team model assignments; also when consulting model preferences or researching evidence that could change a choice.
+description: Use when recommending model use for a task or solo/team work proposal, including whether to retain the current session's model; also when comparing models, consulting model preferences, or researching evidence that could change a choice.
 ---
 
 # Automata Model Selection
@@ -10,6 +10,11 @@ with a compact comparative guide, not a model encyclopedia or fixed routing tabl
 Research supports selection; it is not a prerequisite for every choice.
 
 ## Choose for the work
+
+Recommending that the current session do the work is a model-use choice too,
+including in a solo proposal with no workers or model switch. Assess that choice
+before presenting it as a recommendation. Merely continuing an authorized task
+with unchanged settings does not require a new selection exercise.
 
 Start with the task demands and relevant existing selection guidance and approved
 preferences, using the record locations below when that context is not already
@@ -25,8 +30,9 @@ cost include briefing, review and correction effort, not just token prices.
 Give a brief recommendation and its main tradeoff for the plan or assignment.
 Reuse sufficient evidence without fresh research. If an uncertainty could change
 the choice, resolve it through a focused evidence check or user clarification;
-otherwise state the limitation without blocking the work. A plan with no model
-choice does not need a model-selection exercise.
+otherwise state the limitation without blocking the work. Planning task steps
+without recommending who or which model should execute them does not activate
+this skill by itself.
 
 ## Research what could change the choice
 
@@ -81,13 +87,11 @@ rather than appending release news indefinitely; retain still-useful version
 comparisons and do not delete unique evidence merely because it is old.
 
 Keep mutable records outside the skill package. Use
-`~/.agents/var/skills/automata-model-research/selection-guide.md` for reusable
+`~/.agents/var/skills/automata-model-selection/selection-guide.md` for reusable
 cross-project knowledge and `preferences.md` beside it for approved preferences.
 Project-specific observations and explicit overrides use the corresponding files
-under `.agents/var/skills/automata-model-research/`, relative to the project, not
-the installed skill. These legacy `automata-model-research` data paths remain
-canonical after the skill rename; do not migrate or duplicate records merely to
-match the new name. Read relevant existing records before writing. Create only
+under `.agents/var/skills/automata-model-selection/`, relative to the project, not
+the installed skill. Read relevant existing records before writing. Create only
 useful records within authorized storage scope, not empty scaffolding. Keep
 private project evidence local unless sharing it more broadly is authorized.
 

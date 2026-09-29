@@ -63,13 +63,12 @@ def test_list_skill_dirs_rejects_duplicate_names(tmp_path: Path) -> None:
         list_skill_dirs(source_root)
 
 
-def test_default_sources_include_shared_and_pi_skills_without_shadowing() -> None:
-    shared, pi = bundled_skill_roots()
+def test_default_sources_share_one_flat_canonical_root() -> None:
+    (root,) = bundled_skill_roots()
     sources = skill_sources()
-    assert shared.name == "skills" and pi.name == "skills"
-    assert sources["automata-storage"].is_relative_to(shared)
-    assert sources["automata-context-status"] == pi / "automata-context-status"
-    assert len(sources) == len(set(sources))
+    assert root.name == "skills"
+    assert len(sources) == 41
+    assert all(source == root / name for name, source in sources.items())
 
 
 def test_install_skills_selects_shared_and_pi_skills_together(tmp_path: Path) -> None:
@@ -130,9 +129,9 @@ def test_duplicate_names_across_bundled_roots_fail_before_install(
 
 
 @pytest.mark.parametrize("mode", ["copy", "symlink"])
-def test_canonical_router_alias_preserves_install_name(tmp_path: Path, mode: str) -> None:
+def test_canonical_router_preserves_install_name(tmp_path: Path, mode: str) -> None:
     source = skill_sources()["automata-message-router"]
-    assert source.parts[-4:] == ("apps", "skill_builder", "skills", "message-router")
+    assert source.parts[-4:] == ("apps", "skill_builder", "skills", "automata-message-router")
     target = tmp_path / "installed"
     install_skills(target_root=target, skill_names=["automata-message-router"], mode=mode)
     installed = target / "automata-message-router"
@@ -141,17 +140,15 @@ def test_canonical_router_alias_preserves_install_name(tmp_path: Path, mode: str
     assert all(path.suffix == ".md" for path in installed.rglob("*") if path.is_file())
 
 
-def test_canonical_alias_rejects_collision_before_writing(tmp_path, monkeypatch) -> None:
+def test_explicit_same_name_is_isolated_from_bundled_source(tmp_path) -> None:
     source = tmp_path / "source"
     make_skill(source / "automata-message-router")
-    skills_module = import_module("automata.install.skills")
-    monkeypatch.setattr(skills_module, "bundled_skill_roots", lambda: (source,))
-    target = tmp_path / "target"
-    with pytest.raises(SkillInstallError, match="Duplicate skill name.*automata-message-router"):
-        install_skills(target_root=target)
-    assert not target.exists()
-    # Explicit sources do not apply the bundled alias, including the same name.
     assert skill_sources(source) == {"automata-message-router": source / "automata-message-router"}
+    target = tmp_path / "target"
+    install_skills(source_root=source, target_root=target)
+    assert (target / "automata-message-router/SKILL.md").read_bytes() == (
+        source / "automata-message-router/SKILL.md"
+    ).read_bytes()
 
 
 def test_install_skills_copies_bundled_storage_skill(tmp_path: Path) -> None:

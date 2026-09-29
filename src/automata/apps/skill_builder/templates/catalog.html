@@ -5,7 +5,7 @@
   <a class="skip-link" href="#content">Skip to content</a>
   <main id="content" tabindex="-1">
     <header class="page-head">
-      <a class="brand" href="/templates/index.html">AUTOMATA · SKILLS</a>
+      <a class="brand" href="/">AUTOMATA · SKILLS</a>
       <label>Theme <select id="theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
     </header>
     <section class="catalog-intro" aria-labelledby="catalog-title">
@@ -15,18 +15,24 @@
         Explore the source and follow references when you need more detail.</p>
       <span class="catalog-count">{{ landings|length }} skill{% if landings|length != 1 %}s{% endif %} in the library</span>
     </section>
-    <ul class="skill-grid" aria-label="Skills">
+    <div class="catalog-search">
+      <label for="skill-search">Search skills</label>
+      <div class="search-controls">
+        <input id="skill-search" type="search" autocomplete="off" aria-controls="skill-grid" placeholder="Name or description">
+        <button id="clear-search" type="button" hidden>Clear search</button>
+      </div>
+      <p id="search-count" role="status" aria-live="polite">{{ landings|length }} skill{% if landings|length != 1 %}s{% endif %} shown</p>
+    </div>
+    <p id="search-empty" hidden>No skills match your search.</p>
+    <ul class="skill-grid" id="skill-grid" aria-label="Skills">
       {% for item in landings %}
-      <li class="skill-card">
-        <a class="skill-link" role="link" aria-label="{{ item.title }}"
-           data-catalog-href="{{ item.url }}" aria-disabled="true" tabindex="-1"
-           aria-describedby="availability-{{ loop.index }}">
+      <li class="skill-card" data-name="{{ item.skill }}">
+        <a class="skill-link" href="{{ item.url }}" aria-label="{{ item.title }}">
           <span class="skill-kind">SKILL.md</span>
           <h2>{{ item.title }}</h2>
           <p class="skill-description">{{ item.description }}</p>
           <span class="skill-action">Open skill <span aria-hidden="true">↗</span></span>
         </a>
-        <span class="skill-status" id="availability-{{ loop.index }}" role="status" data-state="checking">Checking…</span>
       </li>
       {% endfor %}
     </ul>
@@ -34,11 +40,7 @@
       <summary>About this library</summary>
       <p>Each skill shows its complete <code>SKILL.md</code>. Reference pages are optional.
         Agents use the same canonical Markdown, without the website assets.</p>
-      <p>Availability is checked once per visit. An unavailable skill may need a
-        different preview selection; run <code>serve</code> to include all skills.
-        A failed check does not identify the cause. Reload to check again.</p>
     </details>
-    <noscript>JavaScript is required to check which catalog entries this preview serves.</noscript>
     <footer>One source for people and agents. Markdown is the source of truth.</footer>
   </main>
 </catalog-page>

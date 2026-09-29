@@ -65,7 +65,7 @@ link targets default port 8788; open a custom skill-site port directly.
 - `templates/base.html`: private monitor inheritance.
 - `templates/automata/index.html` and matching `index.css.js`: monitor page;
   `components/monitor.js`, `monitor-state.js`, `activity-chart.js` own its lifecycle.
-- `../skill_builder/skills/message-router/`: canonical `SKILL.md` and linked
+- `../skill_builder/skills/automata-message-router/`: canonical `SKILL.md` and linked
   `references/*.md`, shared by agents and the human website.
 - `../skill_builder/templates/`: shared website templates, components, reviewed
   libraries and notices. Native Engrave output lives in owned temporary storage,
@@ -82,11 +82,11 @@ Never mount the whole `templates/` tree or repository as a static directory.
 
 The central dependency cache is `.agents/var/apps/dashboard/public/lib`.
 Anatomy exposes only Adaptive UI and ECharts through explicit `/lib/*.js` routes.
-The separate skill site uses native Engrave CLI copy/exclude rules for its local
-Adaptive UI/Mermaid/Prism.js assets under `/templates/` and the public raw
-`SKILL.md` asset. Its native preview HTTP/Markdown semantics differ from Anatomy's
-protections; see the Skill Builder README. Agent export contains Markdown only;
-Anatomy exposes no guide libraries or installed-skill directories.
+The separate skill site explicitly serves reviewed Adaptive UI/Mermaid/Prism.js
+assets under `/templates/` and selected raw `SKILL.md` files. Its loopback
+FastAPI/Jinja preview is distinct from Anatomy's protections; see the Skill Builder
+README. Agent export copies all canonical skill assets; Anatomy exposes no guide
+libraries or installed-skill directories.
 Old generated SPA files remain unreachable. Reload after monitor JS/template edits;
 restart after Python route changes. Keep profiles, credentials and evidence outside
 public assets. Anatomy CSP has no inline scripts, `unsafe-eval`, CDN or additional

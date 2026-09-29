@@ -33,10 +33,11 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-name = "automata"
 source-exclude = [
-    "src/automata/skills/operations/automata-adaptive-ui/lib/dist",
-    "src/automata/skills/operations/automata-adaptive-ui/lib/dist/**",
-    "src/automata/skills/operations/automata-adaptive-ui/lib/node_modules",
-    "src/automata/skills/operations/automata-adaptive-ui/lib/node_modules/**",
+    "src/automata/apps/skill_builder/skills/automata-adaptive-ui/lib/dist",
+    "src/automata/apps/skill_builder/skills/automata-adaptive-ui/lib/dist/**",
+    "src/automata/apps/skill_builder/skills/automata-adaptive-ui/lib/node_modules",
+    "src/automata/apps/skill_builder/skills/automata-adaptive-ui/lib/node_modules/**",
+    "src/automata/apps/skill_builder/skills/**/__pycache__/**",
 ]
 
 [tool.ruff]

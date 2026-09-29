@@ -42,7 +42,8 @@ below against the skill directory, not the shell's working directory.
 Inspect only relevant examples and component contracts, and adapt rather than copy
 blindly:
 
-- `lib/example/index.html`: static composition.
+- `lib/example/index.html` and its companion files: page composition, CSS-in-JS,
+  page-local assets, and internally shared components.
 - `lib/example/reactive-shadow.html`: reactive state and Shadow DOM.
 - `lib/example/chat-with-agent.html`: optional Chat + bridge integration; the
   component owns payload semantics, the page wires transport.
@@ -56,8 +57,10 @@ creating task-local components. `Base` extends Adapter (component-scoped styles,
 registration and `create()`); register with `define(tagName)` before creation or
 mounting templates. Edictor validates catalog data via each component's static
 `validateData`; direct `applyData` callers validate first. Arrow supplies optional
-local reactive state and rendering; keep static content static. Use component CSS
-for component styles and document CSS for page layout.
+local reactive state and rendering; keep static content static. Page CSS owns document
+layout and theme; component CSS owns internals through `Base.css`. The index example
+shows both scopes in companion `.css.js` modules; use `.css.ts` only with an existing
+compilation step, not as a direct browser import.
 
 Public `tokens` exports semantic CSS values (`surface`, `text`, `mutedText`,
 `border`, `action`, `actionHover`, `actionText`, `danger`, `focus`, `status`).

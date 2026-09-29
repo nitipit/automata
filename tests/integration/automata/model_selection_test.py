@@ -7,16 +7,17 @@ from automata.install.skills import install_skills
 from automata.plugin.export import export_plugin
 
 NAME = "automata-model-selection"
-LEGACY_DATA_NAME = "automata-model-research"
 
 
 def source_bytes() -> bytes:
-    return files("automata").joinpath("skills", "core", NAME, "SKILL.md").read_bytes()
+    return files("automata").joinpath(
+        "apps", "skill_builder", "skills", NAME, "SKILL.md"
+    ).read_bytes()
 
 
 def test_selected_install_and_update_preserve_notes_and_other_skills(tmp_path: Path) -> None:
     target = tmp_path / ".agents/skills"
-    data = tmp_path / ".agents/var/skills" / LEGACY_DATA_NAME
+    data = tmp_path / ".agents/var/skills" / NAME
     data.mkdir(parents=True)
     notes = {
         "selection-guide.md": "Existing research evidence",

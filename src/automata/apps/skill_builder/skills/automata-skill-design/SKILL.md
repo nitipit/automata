@@ -44,11 +44,13 @@ announcing modes, checklists, or steps unless that communication serves a real n
 Leave ordinary response style to character guidance.
 
 Each skill should stand independently within its scope and compose through context.
-Make activation cues, inputs, outputs, and ownership boundaries clear. Let the agent
-decide which capabilities to combine; do not make one skill orchestrate its neighbors.
-Require dependencies only where a concrete interface, handoff, or safety boundary
-needs them—not mandatory invocation chains. Avoid fixed actors, topology, timing,
-or message paths when the situation should determine them.
+Make activation cues, inputs, outputs, and ownership boundaries clear. Don't instruct
+the agent to load or invoke another skill by name. Describe the capability, evidence,
+or outcome needed; let the agent choose relevant skills from their activation
+descriptions. Links to documentation or shared interface contracts are not invocation
+instructions. Require dependencies only where a concrete interface, handoff, or safety
+boundary needs them—not mandatory invocation chains. Avoid fixed actors, topology,
+timing, or message paths when the situation should determine them.
 
 ## Supporting Assets
 

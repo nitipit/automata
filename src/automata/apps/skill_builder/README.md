@@ -1,7 +1,7 @@
 # Skill Builder
 
-Two-skill proof: canonical agent content lives in `skills/message-router/` and
-`skills/plan/`. Discovery follows `SKILL.md` and its linked `references/*.md`.
+All 41 bundled skills live in `skills/automata-*/`. Discovery follows each
+`SKILL.md` and linked Markdown under `references/` or `templates/`.
 There are no per-skill HTML wrappers, generated entry files or build output.
 Shared Jinja templates render each request directly from canonical Markdown.
 
@@ -16,18 +16,16 @@ PYTHONPATH=src uv run --offline --no-project \
   python -m automata.apps.skill_builder.cli serve --port 8788
 ```
 
-`serve` defaults to all skills; `--all` remains an optional compatibility alias.
-Use `serve message-router` or `serve plan` to select one.
-Open `http://127.0.0.1:8788/templates/index.html`. The catalog discovers both skills;
-its existing bounded same-origin availability checks enable only served entries.
-Checks run once per connection, time out after five seconds, do not follow redirects,
-and report failures as “Unavailable in this preview.” Reload to retry; no polling.
+`serve` always includes all discovered skills. Open `http://127.0.0.1:8788/`.
+The catalog lists all 41 skills with immediate links and a client-side search over
+skill names, titles and descriptions. Search leaves the complete static catalog usable
+without JavaScript.
 
 Public views:
 
-- `/templates/index.html`: catalog; `/` remains unassigned.
-- `/templates/skill.html?name=message-router` (or `name=plan`): source view.
-- `/templates/reference.html?name=message-router&reference=references/connect.md`:
+- `/`: catalog; `/templates/index.html` redirects to `/` for compatibility.
+- `/templates/skill.html?name=automata-message-router` (or `name=automata-plan`): source view.
+- `/templates/reference.html?name=automata-message-router&reference=references/connect.md`:
   rendered reference view.
 - `/message-router/`, `/message-router/index.html`, and existing
   `/message-router/references/<name>.html`: preserved direct-render aliases.
@@ -42,12 +40,13 @@ Reference Markdown is rendered by Mistune in Python, **never evaluated as Jinja*
 Authored raw HTML is escaped. Local components enhance reference code and diagrams;
 examples are not executed. Relative Markdown links become public view links.
 
-Only exact discovered skill/reference selections and explicitly allowed shared
-assets are served. Assets remain together in `templates/components`, `templates/lib`,
+Only exact discovered skill/linked-Markdown selections and explicitly allowed
+shared assets are served. Other supporting assets install with their skills but
+are not public viewer routes. Assets remain together in `templates/components`, `templates/lib`,
 `templates/licenses`, and the two CSSJS files. Shared views are rendered, never
 returned as HTML source. Private base/includes, Python, arbitrary Markdown, outside
 paths and symlink escapes are denied. The optional raw `skills/<name>/SKILL.md`
-route returns only selected canonical source. FastAPI API-documentation routes
+route returns canonical source for discovered skills. FastAPI API-documentation routes
 are disabled. This loopback-only development server is not production hosting:
 there is no authentication, strict Host/Origin policy or production deployment setup.
 
@@ -57,17 +56,18 @@ Early theme CSS avoids an unstyled first paint. Undefined page components remain
 hidden until registration, with a four-second reveal fallback if modules fail.
 Internal page links use a small fetch-and-swap layer with native 180ms View
 Transitions when supported; reduced-motion preferences skip the animation.
-Back/Forward and normal modified clicks remain available. Failed enhancement falls
-back to full navigation; no Swup dependency or per-skill client templates are needed.
+Back/Forward and normal modified clicks remain available. Redirected navigation
+uses the final canonical URL in browser history. Failed enhancement falls back to
+full navigation; no Swup dependency or per-skill client templates are needed.
 
 ## Live authoring and lifecycle
 
 One `watchfiles` watcher watches only `skills/` and `templates/`. Its bounded SSE
 subscribers receive change events at `/__skill_builder/events`; the browser reloads
 and requests fresh source. Markdown edits, template edits and new discovered skills
-need no build or source synchronization. Python changes, selection or port changes
-require a server restart. SSE reload resets transient page state. If watched roots
-are removed or the watcher fails, restore them and restart the preview.
+need no build or source synchronization. Python or port changes require a server
+restart. SSE reload resets transient page state. If watched roots are removed or the
+watcher fails, restore them and restart the preview.
 
 Serving writes neither the package/source tree nor generated output, so it does not
 require writable installed sources. Authoring naturally requires write access to
@@ -85,14 +85,15 @@ styles are retained.
 
 ## Agent installation and focused verification
 
-`export-agent NAME --output DIR` writes canonical Markdown only, without importing
-FastAPI or a renderer. The normal installer maps `message-router` to
-`automata-message-router`, and `plan` to `automata-plan`. Serving never installs or
-syncs live skills; agents read canonical Markdown, not human-rendered output.
+`export-agent NAME --output DIR` copies the complete canonical skill (including
+references, scripts, libraries and templates) without importing FastAPI or a
+renderer. Use installed names such as `automata-message-router`; only its public
+URL retains the short `/message-router/` alias. Serving never installs or syncs
+live skills; agents read canonical files, not human-rendered output.
 
 `tests/apps/skill_builder/test_build.py` covers direct public views, denial boundaries,
-reference Jinja/HTML literal handling, and disposable Markdown installation of both
+reference Jinja/HTML literal handling, and disposable installation of both
 identities. `test_browser.py` covers opening both catalog entries with exact numbered
 source, Message Router reference diagrams, and one source edit reloading via SSE.
-Catalog lifecycle, CLI and package-resource tests have been adjusted to the direct
-serving contract; running the focused proof does not claim the broader suite passed.
+Catalog search/navigation and CLI tests cover the direct serving contract;
+running focused checks does not claim the broader suite passed.
