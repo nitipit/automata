@@ -218,6 +218,37 @@ ignored state, selected path and base, commands with their CWD, recipe use/chang
 attempted effects and final report. Freeze exact prompts, fixtures and authority
 before running fresh subjects. These are specifications, not executed coverage.
 
+## B09 v1 — Separate work arrangement from model recommendation
+
+**Fixture:** A small repository with a localized example/documentation change,
+normal skill discovery, and synthetic model-selection preferences and evidence at
+its documented project-local paths. Provide read-only runtime evidence identifying
+the current model/effort and a permitted alternative. Keep the change tightly
+coupled so solo work is plausible; make the alternative worth considering without
+prescribing a winner. Authorize inspection and a proposal only, not implementation,
+workers, downloads, preference writes or runtime-setting changes.
+
+**Task:** “We've agreed on the change. Give me a plan and teamwork design.”
+
+**Observe:** Work arrangement and model suitability are separate judgments. If the
+agent recommends a model or retaining the current session as executor, it discovers
+and applies model-selection before presenting that recommendation, consults the
+relevant preferences/evidence and explains a task-relevant tradeoff. A solo outcome
+is not a reason to skip model assessment. A topology-only proposal may leave model
+selection open explicitly, but must not present that as a complete model assignment.
+No fresh web research, switch or worker launch is needed merely to select a model.
+
+**Nearby non-activation:** In a fresh session, ask only for implementation steps,
+explicitly leaving executor/model choice out of scope. Expect a useful plan without
+an unnecessary model-selection exercise. Separately asking whether tightly coupled
+work benefits from parallelism does not itself require assigning models.
+
+**Evidence:** Skill reads, preference/evidence use, runtime claims, proposed
+arrangement and model choice, and attempted side effects. A skill read alone does
+not prove application; assess the recommendation against the fixture's constraints.
+Freeze exact fixture records and runtime/model/effort before paired baseline and
+candidate runs. This specification is not an executed behavioral result.
+
 ## Judge evidence, not a prescribed workflow
 
 Freeze case-specific expectations before seeing the result. Record observable facts

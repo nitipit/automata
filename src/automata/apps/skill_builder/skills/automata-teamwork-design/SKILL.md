@@ -41,11 +41,16 @@ not selection authority: preserve approved model sets and effort choices, and do
 not treat missing permission as unlimited. Match choices to the work, not role
 labels alone.
 
-Reuse relevant model-selection knowledge and approved preferences. Distinguish
-measured results, vendor claims and unknowns; apply preferences within their agreed
-scope without silently relaxing restrictions. Seek focused research only when
-missing or stale evidence could change the choice. Research is neither a mandatory
-phase nor launch authorization. Do not infer model speed from price alone.
+Choosing solo versus team work does not settle model suitability. Recommending
+the current session as executor still needs a model-fit rationale, even without
+workers or a model switch. Ground model assignments in relevant comparative
+evidence and approved preferences, then account for assignment and coordination
+tradeoffs. If the proposal only addresses work arrangement, leave model choice
+explicitly open rather than implying that it has been assessed.
+
+Reuse applicable evidence; research is needed only when uncertainty could change
+the choice. Neither a recommendation nor research authorizes model changes or
+worker launches. Do not infer model speed from price alone.
 
 ## Present the proposal
 
