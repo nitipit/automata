@@ -1,0 +1,38 @@
+Message Router web reference — build and license provenance
+
+The authoring build copies two existing central browser bundles byte-for-byte.
+It does not rebuild their dependency graphs. SHA-256 checks recognize the reviewed
+cached artifacts, not an independently reproducible dependency build or a legal
+audit. HTML and owned modules are reproducible from the authoring tree and those
+same bundle inputs. No source maps, dependency source, or ECharts are shipped.
+
+adaptive-ui.js
+SHA-256 c6642917e2be4da690c8c565d91f12e065c6e10247414bae67f2ca914b3ccc9a
+Central builder: automata-adaptive-ui/scripts/build.py and lib/build.ts.
+The maintained source uses esbuild 0.25.11, browser ESM, target es2022.
+Inputs: Automata Adaptive UI, @arrow-js/core 1.0.6,
+@jsr/devcapsule__adapter 4.0.0, edictor 0.4.0. The cached bundle's source comments
+confirm these dependency versions.
+Notices: automata-LICENSE.txt, arrow-LICENSE.txt, adapter-LICENSE.txt,
+edictor-LICENSE.txt, copied from the repository/exact cached versions.
+
+mermaid.js
+Mermaid 11.12.2 official dist/mermaid.min.js, including its bundled dependencies.
+SHA-256 d0830a6c05546e9edb8fe20a8f545f3e0dc7c4c3134d584bad9c13a99d7a71e0
+Central copy recipe: apps/dashboard/frontend/build.ts; deno.json/deno.lock pin
+Mermaid. The existing cache is .agents/var/apps/dashboard/public/lib.
+The central cached artifact matches the official cached npm dist file exactly.
+Top-level license: mermaid-LICENSE.txt, from the exact cached npm package.
+The official bundle's embedded notices remain intact. Complete package license
+texts are collected in mermaid-dependencies-LICENSE.txt; package/version membership
+comes from the official 11.12.2 mermaid.min.js.map sources list, including upstream
+pnpm build paths. This does not require pnpm for the web reference build.
+
+Most dependency notices came from existing exact-version cached packages. Fourteen
+missing exact-version notices were retrieved with explicit approval on 2026-09-29
+from versioned registry.npmjs.org archives. The notice collection attributes each
+retrieved package/version and URL. Archives were bounded, inspected without
+extractall or code execution, then removed from private temporary storage. Only
+license texts are retained here; no package installation or bundle update occurred.
+Adjacent-version license files were not substituted. The web reference build itself
+is cached-only and performs no network operations.

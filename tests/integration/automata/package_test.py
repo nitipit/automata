@@ -150,16 +150,26 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         wheel_paths = {
             name.removeprefix("automata/")
             for name in archive.namelist()
-            if name.startswith("automata/")
+            if name.startswith("automata/") and not name.endswith('/')
         }
     with tarfile.open(sdist) as archive:
         sdist_paths = {
-            name.split("/src/automata/", 1)[1]
-            for name in archive.getnames()
-            if "/src/automata/" in name
+            member.name.split("/src/automata/", 1)[1]
+            for member in archive.getmembers()
+            if member.isfile() and "/src/automata/" in member.name
         }
+    webref_prefix = "runtimes/pi/skills/automata-message-router/"
+    source_skill = root / "src/automata" / webref_prefix
+    finished_skill = {
+        webref_prefix + path.relative_to(source_skill).as_posix()
+        for path in source_skill.rglob("*") if path.is_file()
+    }
     for paths in (wheel_paths, sdist_paths):
         assert expected <= paths
+        assert {path for path in paths if path.startswith(webref_prefix)} == finished_skill
+        assert webref_prefix + "webref/index.html" in paths
+        assert webref_prefix + "webref/lib/mermaid.js" in paths
+        assert not any(path.endswith((".py", ".ts", ".map")) for path in finished_skill)
         assert not any(path.startswith("extensions/") for path in paths)
         pi_skill_names = (
             "automata-context-status", "automata-context-compaction",
@@ -196,6 +206,13 @@ results = install_skills(target_root=work / 'skills')
 assert {result.name for result in results} == set(sources)
 for name in ('automata-storage', 'automata-context-status', 'automata-message-router'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
+router_skill = work / 'skills/automata-message-router'
+assert {path.name for path in router_skill.iterdir()} == {'SKILL.md', 'webref'}
+for page in ('index', 'configure', 'connect', 'discover', 'send', 'failures'):
+    html = (router_skill / 'webref' / (page + '.html')).read_text()
+    assert '{%' not in html and '{{' not in html
+assert (router_skill / 'webref/lib/adaptive-ui.js').is_file()
+assert (router_skill / 'webref/lib/PROVENANCE.txt').is_file()
 installed = install_pi_extensions(target_root=work / 'extensions')
 assert 'message-router' in {item.name for item in installed}
 assert (work / 'extensions/message-router/index.ts').is_file()

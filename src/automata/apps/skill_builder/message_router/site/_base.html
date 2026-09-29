@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ title }} · Message Router</title>
+  <script type="module" src="./{{ page }}.css.js"></script>
+  <script type="module" src="./components/protocol-diagram.js"></script>
+  <script type="module" src="./components/code-example.js"></script>
+</head>
+<body>
+<message-router-page>
+<a class="skip-link" href="#content">Skip to content</a>
+<main>
+  <header class="page-head">
+    <a class="brand" href="./index.html">AUTOMATA / MESSAGE ROUTER</a>
+    <label>Appearance <select id="theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+  </header>
+  <nav aria-label="Reference pages">{% for slug, info in pages.items() %}
+    <a href="./{{ slug }}.html" {% if page == slug %}aria-current="page"{% endif %}>{{ info[0] }}</a>{% endfor %}
+  </nav>
+  <div id="content" tabindex="-1">
+    <header class="guide-heading">
+      <p class="eyebrow">PROTOCOL REFERENCE / {{ title | upper }}</p>
+      <h1>{{ title }}</h1><p class="goal">{{ goal }}</p>
+    </header>
+    {% if page != 'index' %}<p class="guide-context">One topology throughout: <strong>desk</strong> &amp; <strong>viewer</strong> (pages), <strong>worker</strong> &amp; <strong>reviewer</strong> (agents). Grants: desk → viewer, desk → worker, worker ↔ reviewer. The router service is not a participant.</p>{% endif %}
+    {% block guide %}{% endblock %}
+  </div>
+  <footer>Static reference · Examples are illustrative text, never executed here. No router connection or credentials are needed.</footer>
+</main>
+</message-router-page>
+</body>
+</html>

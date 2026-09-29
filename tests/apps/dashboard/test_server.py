@@ -3,7 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from automata.apps.dashboard import server
-from automata.apps.dashboard.routes import automata
+from automata.apps.dashboard.routes import automata, message_router_guide
 
 
 @pytest.fixture
@@ -60,6 +60,12 @@ def test_only_allowlisted_assets_are_served(client):
         assert response.headers['content-type'].startswith('text/javascript')
         assert "frame-ancestors 'none'" in response.headers['content-security-policy']
     assert client.post('/automata/components/monitor.js', json={}).status_code == 405
+    for name in message_router_guide.MODULES:
+        response = client.get('/message-router/' + name)
+        assert response.status_code == 200, name
+        assert response.content == (message_router_guide.WEBREF / name).read_bytes()
+    for name in message_router_guide.NOTICES:
+        assert client.get('/message-router/lib/' + name).status_code == 200
 
 
 @pytest.mark.parametrize('path', [
@@ -68,6 +74,8 @@ def test_only_allowlisted_assets_are_served(client):
     '/message-router/components/private.json', '/automata/components/monitor.js.map',
     '/lib/mermaid.js.map', '/lib/chunks/private.js', '/theme.js', '/app.js',
     '/router-view.js', '/routes.js', '/layout.css', '/themes.css',
+    '/message-router/build.py', '/message-router/templates/base.html',
+    '/message-router/lib/echarts.js', '/message-router/lib/mermaid.js.map',
 ])
 def test_template_sources_and_retired_spa_are_private(client, path):
     assert client.get(path).status_code == 404
@@ -75,6 +83,7 @@ def test_template_sources_and_retired_spa_are_private(client, path):
 
 @pytest.mark.parametrize('path,title', [
     ('/automata/index.html', 'Automata'),
+    ('/message-router/index.html', 'Overview'),
     ('/message-router/configure.html', 'Configure'),
     ('/message-router/connect.html', 'Connect'),
     ('/message-router/discover.html', 'Discover'),
@@ -85,7 +94,8 @@ def test_rendered_documents_not_template_sources(client, path, title):
     response = client.get(path)
     assert response.status_code == 200
     assert response.headers['content-type'].startswith('text/html')
-    assert title + ' · Anatomy' in response.text
+    site = 'Message Router' if 'message-router' in path else 'Anatomy'
+    assert title + ' · ' + site in response.text
     assert '{%' not in response.text and '{{' not in response.text
     assert 'script-src' in response.headers['content-security-policy']
     assert 'unsafe-eval' not in response.headers['content-security-policy']
@@ -97,7 +107,7 @@ def test_rendered_documents_not_template_sources(client, path, title):
 
 def test_document_aliases(client):
     for source, target in [('/', '/automata/index.html'), ('/automata/', '/automata/index.html'),
-                           ('/message-router/', '/message-router/configure.html')]:
+                           ('/message-router/', '/message-router/index.html')]:
         response = client.get(source, follow_redirects=False)
         assert response.status_code == 302
         assert response.headers['location'] == target

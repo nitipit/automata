@@ -67,25 +67,26 @@ def main():
             monitor_url = page.url
             page.screenshot(path=str(EVIDENCE / "monitor-desktop.png"), full_page=True)
             page.get_by_role("link", name="Message Router guide", exact=True).click()
-            expect(page).to_have_url(URL + "/message-router/configure.html")
+            expect(page).to_have_url(URL + "/message-router/index.html")
             before = api_count
             page.wait_for_timeout(5600)
             assert api_count == before, "No monitor polling while on guide"
             assert page.locator("#dashboard-automata").count() == 0
             results.append("Full document navigation: monitor absent and polling stopped on guide")
 
-            for slug, count in [("configure", 1), ("connect", 1), ("discover", 1),
+            for slug, count in [("index", 2), ("configure", 1), ("connect", 1), ("discover", 1),
                                 ("send", 3), ("failures", 2)]:
                 page.goto(URL + f"/message-router/{slug}.html", wait_until="networkidle")
                 expect(page.locator("protocol-diagram svg")).to_have_count(count)
                 expect(page.locator("protocol-diagram foreignObject")).to_have_count(0)
                 assert "{%" not in page.content() and "{{" not in page.content()
-                assert page.locator('anatomy-nav a[aria-current="page"]').count() == 1
+                assert page.locator('nav a[aria-current="page"]').count() == 1
                 page.screenshot(path=str(EVIDENCE / f"{slug}-desktop.png"), full_page=True)
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
             assert api_count == before
-            results.append("Five server-rendered guides: strict authored diagrams, no API polling")
-            page.get_by_role("link", name="Automata", exact=True).click()
+            results.append("Six finished guides: strict authored diagrams, no API polling")
+            # The portable reference has no host navigation; return via saved URL.
+            page.goto(monitor_url, wait_until="networkidle")
             expect(page).to_have_url(monitor_url)
             expect(page.locator("#statistics")).to_be_visible()
             for key, value in {"range": "custom", "timezone": "UTC", "start": "2026-09-01",
@@ -136,16 +137,18 @@ def main():
             page.locator("#theme").select_option("dark")
             page.screenshot(path=str(EVIDENCE / "monitor-dark.png"), full_page=True)
             page.get_by_role("link", name="Message Router guide", exact=True).click()
-            page.get_by_role("link", name="4. Send", exact=True).click()
+            page.get_by_role("link", name="Send", exact=True).first.click()
+            # The reference owns its preference, independently of the host.
+            page.locator("#theme").select_option("dark")
             expect(page.locator("#theme")).to_have_value("dark")
             expect(page.locator("protocol-diagram svg")).to_have_count(3)
             page.screenshot(path=str(EVIDENCE / "send-dark.png"), full_page=True)
             page.go_back(wait_until="networkidle")
-            expect(page).to_have_url(URL + "/message-router/configure.html")
+            expect(page).to_have_url(URL + "/message-router/index.html")
             page.go_forward(wait_until="networkidle")
             expect(page).to_have_url(URL + "/message-router/send.html")
             page.set_viewport_size({"width": 390, "height": 844})
-            for slug in ["configure", "connect", "discover", "send", "failures"]:
+            for slug in ["index", "configure", "connect", "discover", "send", "failures"]:
                 page.goto(URL + f"/message-router/{slug}.html", wait_until="networkidle")
                 assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), slug
                 page.screenshot(path=str(EVIDENCE / f"{slug}-mobile.png"), full_page=True)
@@ -159,7 +162,7 @@ def main():
             expect(page.locator(".skip-link")).to_be_focused()
             page.keyboard.press("Enter")
             expect(page.locator("#content")).to_be_focused()
-            page.get_by_role("link", name="Automata", exact=True).click()
+            page.goto(monitor_url, wait_until="networkidle")
             expect(page.locator("#auto")).not_to_be_checked()
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
             page.screenshot(path=str(EVIDENCE / "monitor-mobile.png"), full_page=True)

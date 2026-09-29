@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Handle failures · Message Router</title>
+  <script type="module" src="./failures.css.js"></script>
+  <script type="module" src="./components/protocol-diagram.js"></script>
+  <script type="module" src="./components/code-example.js"></script>
+</head>
+<body>
+<message-router-page>
+<a class="skip-link" href="#content">Skip to content</a>
+<main>
+  <header class="page-head">
+    <a class="brand" href="./index.html">AUTOMATA / MESSAGE ROUTER</a>
+    <label>Appearance <select id="theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+  </header>
+  <nav aria-label="Reference pages">    <a href="./index.html" >Overview</a>    <a href="./configure.html" >Configure</a>    <a href="./connect.html" >Connect</a>    <a href="./discover.html" >Discover</a>    <a href="./send.html" >Send</a>    <a href="./failures.html" aria-current="page">Handle failures</a>  </nav>
+  <div id="content" tabindex="-1">
+    <header class="guide-heading">
+      <p class="eyebrow">PROTOCOL REFERENCE / HANDLE FAILURES</p>
+      <h1>Handle failures</h1><p class="goal">Distinguish rejection from uncertain delivery.</p>
+    </header>
+<p class="guide-context">One topology throughout: <strong>desk</strong> &amp; <strong>viewer</strong> (pages), <strong>worker</strong> &amp; <strong>reviewer</strong> (agents). Grants: desk → viewer, desk → worker, worker ↔ reviewer. The router service is not a participant.</p><section class="lesson">
+
+<h2>Forbidden: no grant in this direction</h2>
+<p>worker may reply to a desk request, but cannot start a new worker → desk message under this configuration.</p>
+<p><protocol-diagram data-diagram="rejected" aria-label="worker tries to initiate to desk; router rejects forbidden before forwarding."></protocol-diagram></p>
+<code-example><pre tabindex="0"><code>try {
+  await worker.send(&quot;desk&quot;, {question: &quot;New request&quot;}).accepted;
+} catch (error) {
+  console.log(error.message); // &quot;forbidden&quot;
+}
+</code></pre>
+</code-example>
+<div class="result">
+
+<p>The client rejects <code>accepted</code> with an Error. The underlying wire result is <code>{&quot;v&quot;:2,&quot;type&quot;:&quot;result&quot;,&quot;requestId&quot;:&quot;&lt;ID&gt;&quot;,&quot;status&quot;:&quot;rejected&quot;,&quot;error&quot;:&quot;forbidden&quot;}</code>. No forwarding occurs. A return capability does not change the grant.</p>
+</div>
+
+</section>
+
+<section class="lesson">
+
+<h2>Offline: allowed, but no current recipient connection</h2>
+<p>Close the separately owned viewer client first. desk → viewer is still permitted, but not currently deliverable.</p>
+<code-example><pre tabindex="0"><code>// In viewer's context:
+viewer.close();
+// After the router has observed that disconnect, in desk's context:
+try {
+  await desk.send(&quot;viewer&quot;, {notice: &quot;Outline changed&quot;}, {expectReply:false}).accepted;
+} catch (error) {
+  console.log(error.message); // &quot;offline&quot;
+}
+</code></pre>
+</code-example>
+<div class="result">
+
+<p>Expected rejection: <code>error.message === &quot;offline&quot;</code>. No durable queue retains the message. This assumes disconnect has reached the router; an in-flight emission race can instead be uncertain. status is only a point-in-time observation.</p>
+</div>
+
+</section>
+
+<section class="lesson">
+
+<h2>Cancel correlation, not recipient actions</h2>
+<p>For this example, temporarily use a worker handler that logs but does not respond. Cancel only after the request has an acknowledged route ID and while it is still pending.</p>
+<p><protocol-diagram data-diagram="cancel" aria-label="After forwarding, desk cancels via its request ID; router removes the reply capability but does not retract the worker's work."></protocol-diagram></p>
+<code-example><pre tabindex="0"><code>const request = desk.send(&quot;worker&quot;, {question: &quot;Check this outline?&quot;});
+const accepted = await request.accepted;
+if (accepted.status === &quot;forwarded&quot;) {
+  console.log(await desk.cancel(request.id));
+}
+</code></pre>
+</code-example>
+<div class="result">
+
+<p>Expected while still pending: <code>{&quot;v&quot;:2,&quot;type&quot;:&quot;result&quot;,&quot;requestId&quot;:&quot;&lt;cancel RPC ID&gt;&quot;,&quot;status&quot;:&quot;canceled&quot;}</code>. The argument is the original sender's <code>request.id</code>; the result has a new cancellation RPC ID.</p>
+<p>Cancel sends no retraction or cancellation event to the recipient. A late recipient response is rejected <code>unknown_route</code>. If a final reply wins the race, cancel may instead fail locally with <code>No acknowledged pending route</code> or be rejected <code>unknown_route</code>; do not claim cancellation succeeded without its result.</p>
+</div>
+
+</section>
+
+<section class="lesson">
+
+<h2>Disconnect or uncertain transport: do not auto-resend</h2>
+<code-example><pre tabindex="0"><code>// Register when creating desk (or pass as a send onResponse option):
+onResponse: response =&gt; {
+  if (response.type === &quot;route_closed&quot;) {
+    console.log(response.uncertain, response.reason);
+    // Report uncertainty. Do not automatically retry the application action.
+  }
+}
+// When finished with your own client:
+desk.close();
+</code></pre>
+</code-example>
+<div class="result">
+
+<p>A remote peer disconnect can emit <code>{&quot;v&quot;:2,&quot;type&quot;:&quot;route_closed&quot;,&quot;id&quot;:&quot;&lt;route ID&gt;&quot;,&quot;requestId&quot;:&quot;&lt;sender request ID&gt;&quot;,&quot;reason&quot;:&quot;peer_disconnected&quot;,&quot;uncertain&quot;:true}</code> to the sender. Local <code>close()</code> also invalidates work; its client-generated callbacks have no wire <code>v</code> field and use reason <code>Closed explicitly; delivery uncertain</code>.</p>
+<p>A forwarding result may itself have <code>status: &quot;uncertain&quot;</code> rather than rejecting. Check it; a resolved promise is not necessarily <code>forwarded</code>. Disconnect, timeout, or a failed write cannot prove the recipient did nothing.</p>
+</div>
+
+<p>Reconnect explicitly with the same authorized identity when appropriate; old reply capabilities cannot be recovered. Bounded duplicate detection is not exactly-once execution. The router has no automatic reply expiry: final response, explicit cancel, or either endpoint's disconnect releases correlation.</p>
+</section>
+
+<p><a class="next" href="./configure.html">Return to the configuration and permissions →</a></p>
+
+  </div>
+  <footer>Static reference · Examples are illustrative text, never executed here. No router connection or credentials are needed.</footer>
+</main>
+</message-router-page>
+</body>
+</html>

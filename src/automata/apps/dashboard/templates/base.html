@@ -14,7 +14,7 @@
     <a class="brand" href="/automata/index.html">AUTOMATA <span>/ ANATOMY</span></a>
     <label>Appearance <select id="theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
   </header>
-  <anatomy-nav><nav aria-label="Anatomy"><a data-monitor-link href="/automata/index.html" {% if section == 'automata' %}aria-current="page"{% endif %}>Automata</a><a href="/message-router/configure.html" {% if section == 'message-router' %}aria-current="true"{% endif %}>Message Router guide</a></nav></anatomy-nav>
+  <anatomy-nav><nav aria-label="Anatomy"><a data-monitor-link href="/automata/index.html" {% if section == 'automata' %}aria-current="page"{% endif %}>Automata</a><a href="/message-router/index.html" {% if section == 'message-router' %}aria-current="true"{% endif %}>Message Router guide</a></nav></anatomy-nav>
   <div id="content" tabindex="-1">{% block content %}{% endblock %}</div>
   <footer class="small muted">Local, read-only Anatomy · Guide examples are illustrative text, never executed here.</footer>
 </main>

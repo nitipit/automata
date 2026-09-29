@@ -9,7 +9,7 @@ from .data import ROOT
 from .routes import automata, message_router_guide
 
 SITE = ROOT / ".agents/var/apps/dashboard/public"
-TEMPLATES = message_router_guide.TEMPLATES
+TEMPLATES = automata.TEMPLATES
 app = FastAPI(title="Automata Anatomy", docs_url=None, redoc_url=None, openapi_url=None)
 app.state.port = 8766
 
@@ -38,7 +38,7 @@ def index():
 
 @app.get("/message-router/")
 def guide_index():
-    return RedirectResponse("/message-router/configure.html", status_code=302)
+    return RedirectResponse("/message-router/index.html", status_code=302)
 
 
 app.include_router(automata.router)
@@ -50,9 +50,6 @@ PUBLIC_ASSETS = (
     "automata/index.css.js", "automata/components/monitor.js",
     "automata/components/monitor-state.js",
     "automata/components/activity-chart.js",
-    "message-router/components/protocol-diagram.js",
-    "message-router/components/code-example.js",
-    *(f"message-router/{page}.css.js" for page in message_router_guide.PAGES),
 )
 
 
@@ -66,7 +63,7 @@ def register_asset(url, path):
 
 for asset in PUBLIC_ASSETS:
     register_asset(f"/{asset}", TEMPLATES / asset)
-for library in ("adaptive-ui", "echarts", "mermaid"):
+for library in ("adaptive-ui", "echarts"):
     register_asset(f"/lib/{library}.js", SITE / "lib" / f"{library}.js")
 
 

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Configure · Message Router</title>
+  <script type="module" src="./configure.css.js"></script>
+  <script type="module" src="./components/protocol-diagram.js"></script>
+  <script type="module" src="./components/code-example.js"></script>
+</head>
+<body>
+<message-router-page>
+<a class="skip-link" href="#content">Skip to content</a>
+<main>
+  <header class="page-head">
+    <a class="brand" href="./index.html">AUTOMATA / MESSAGE ROUTER</a>
+    <label>Appearance <select id="theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+  </header>
+  <nav aria-label="Reference pages">    <a href="./index.html" >Overview</a>    <a href="./configure.html" aria-current="page">Configure</a>    <a href="./connect.html" >Connect</a>    <a href="./discover.html" >Discover</a>    <a href="./send.html" >Send</a>    <a href="./failures.html" >Handle failures</a>  </nav>
+  <div id="content" tabindex="-1">
+    <header class="guide-heading">
+      <p class="eyebrow">PROTOCOL REFERENCE / CONFIGURE</p>
+      <h1>Configure</h1><p class="goal">Decide who may start a message.</p>
+    </header>
+<p class="guide-context">One topology throughout: <strong>desk</strong> &amp; <strong>viewer</strong> (pages), <strong>worker</strong> &amp; <strong>reviewer</strong> (agents). Grants: desk → viewer, desk → worker, worker ↔ reviewer. The router service is not a participant.</p><section class="lesson">
+
+<h2>Grant the right to start—not a physical connection</h2>
+<p>Each participant has a private token and a directed <code>allow</code> list. desk may start toward viewer or worker. worker and reviewer may each start toward the other. No one may initiate toward desk. A reply to desk is still possible.</p>
+<p><protocol-diagram data-diagram="grants" aria-label="Permission diagram only: desk may initiate to viewer and worker; worker and reviewer may initiate to each other. These arrows are not physical connections."></protocol-diagram></p>
+<h3>Prepare a private example router</h3>
+<p>Run from a source checkout with the router's documented Python dependencies already available. The commands below are manual setup instructions—not actions taken by this guide. Use a new private directory, outside every public root. Setup refuses to overwrite an existing config.</p>
+<code-example><pre tabindex="0"><code># From the repository root; keep this shell's PRIVATE value for serve.
+umask 077
+PRIVATE=&quot;$(mktemp -d &quot;${TMPDIR:-/tmp}/anatomy-router.XXXXXXXX&quot;)&quot;
+uv run --offline --no-project --script .agents/tools/message-router/message_router.py setup \
+  --config-file &quot;$PRIVATE/router.json&quot; \
+  --page desk --page viewer --agent worker --agent reviewer \
+  --allow desk:viewer --allow desk:worker \
+  --allow worker:reviewer --allow reviewer:worker
+
+uv run --offline --no-project --script .agents/tools/message-router/message_router.py serve \
+  --config-file &quot;$PRIVATE/router.json&quot; --endpoint-dir &quot;$PRIVATE/endpoints&quot; --port 8787
+</code></pre>
+</code-example>
+<div class="result">
+
+<h3>Expected setup</h3>
+<p>Setup creates private configuration with distinct random tokens. Serve binds <code>127.0.0.1:8787</code> and only then writes mode-0600 endpoint records. Setup alone starts no server or clients. Missing offline dependencies are a prerequisite to resolve separately, not permission to download.</p>
+</div>
+
+<details>
+
+<summary>
+
+<p>Configuration shape (placeholders, not working credentials)</p>
+</summary>
+
+<code-example><pre tabindex="0"><code>{
+  &quot;v&quot;: 1,
+  &quot;participants&quot;: {
+    &quot;desk&quot;: {&quot;kind&quot;: &quot;page&quot;, &quot;token&quot;: &quot;&lt;private desk token&gt;&quot;, &quot;allow&quot;: [&quot;viewer&quot;, &quot;worker&quot;]},
+    &quot;viewer&quot;: {&quot;kind&quot;: &quot;page&quot;, &quot;token&quot;: &quot;&lt;private viewer token&gt;&quot;, &quot;allow&quot;: []},
+    &quot;worker&quot;: {&quot;kind&quot;: &quot;agent&quot;, &quot;token&quot;: &quot;&lt;private worker token&gt;&quot;, &quot;allow&quot;: [&quot;reviewer&quot;]},
+    &quot;reviewer&quot;: {&quot;kind&quot;: &quot;agent&quot;, &quot;token&quot;: &quot;&lt;private reviewer token&gt;&quot;, &quot;allow&quot;: [&quot;worker&quot;]}
+  }
+}
+</code></pre>
+</code-example>
+<p>Config version 1 is distinct from wire protocol version 2. Actual tokens must be distinct 32–256-character ASCII strings; use generated tokens, never these placeholders. IDs are 1–128 ASCII letters, digits, underscores or hyphens.</p>
+</details>
+
+</section>
+
+<section class="lesson">
+
+<h2>Keep identity material private</h2>
+<p><code>server.json</code> describes the listener without tokens. Each <code>endpoints/participants/&lt;id&gt;.json</code> contains that participant's credential and URL. Provision only the intended participant's record out of band. Never put the config or endpoint directory under a web root, commit tokens, or hand a page an agent credential.</p>
+<p>Changing a grant is an owner operation: review the configuration and restart the owned router. A client cannot edit its own permissions. The router service itself is not an authenticated participant.</p>
+</section>
+
+<p><a class="next" href="./connect.html">Next: connect the clients →</a></p>
+
+  </div>
+  <footer>Static reference · Examples are illustrative text, never executed here. No router connection or credentials are needed.</footer>
+</main>
+</message-router-page>
+</body>
+</html>

@@ -1,12 +1,14 @@
 # Anatomy (development)
 
-Read-only, loopback-only **FastAPI + Jinja multi-page app**, with Adaptive UI
-components and local ECharts/Mermaid bundles. Normal links load independent
-server-rendered documents. No SPA, router connection, simulator, or code executor.
+Read-only, loopback-only **FastAPI + Jinja monitoring app**, with Adaptive UI
+components and local ECharts. It also serves the finished Message Router skill
+reference through a closed file allowlist. Normal links load independent documents.
+No SPA, router connection, simulator, or code executor.
 
 ## Pages
 
 - `/automata/index.html`: Identity, Capabilities and Statistics local tabs.
+- `/message-router/index.html`: portable reference Overview.
 - `/message-router/configure.html`: directed permissions and private setup CLI.
 - `/message-router/connect.html`: authentic browser/Node client setup; generic
   agent-kind clients are explicitly distinct from the native Pi adapter.
@@ -32,6 +34,9 @@ From the repository root, with Python/Deno and pinned dependencies already cache
 python .agents/skills/automata-adaptive-ui/scripts/build.py \
   --runtime-root .agents/var/apps/dashboard/public
 (cd src/automata/apps/dashboard/frontend && deno task build)
+# After editing guide authoring, render the ready-made skill reference:
+PYTHONPATH=src uv run --offline --no-project --with engrave==3.2.6 \
+  python -m automata.apps.skill_builder.cli message-router
 
 PYTHONPATH="$PWD/src" uv run --offline --no-project \
   --with fastapi==0.141.1 --with uvicorn==0.53.0 --with jinja2==3.1.6 \
@@ -49,12 +54,14 @@ The Deno task uses `--cached-only`, pinned ECharts 6.0.0 and Mermaid 11.12.2.
 
 - `server.py`: FastAPI, loopback Host/Origin/CSP protections and closed asset list.
 - `routes/automata.py`: monitor document and compatible `/api/anatomy` endpoint.
-- `routes/message_router_guide.py`: guide rendering only, not transport.
-- `templates/base.html`, `templates/message-router/base.html`: private inheritance.
+- `routes/message_router_guide.py`: closed allowlist serving the finished skill
+  reference, not transport or template rendering.
+- `templates/base.html`: private monitor inheritance.
 - `templates/automata/index.html` and matching `index.css.js`: monitor page;
   `components/monitor.js`, `monitor-state.js`, `activity-chart.js` own its lifecycle.
-- `templates/message-router/*.html` and matching `*.css.js`: guide pages;
-  `components/protocol-diagram.js` and `code-example.js` extend Adaptive UI Base.
+- `../skill_builder/message_router/`: sole skill/guide authoring and licenses;
+  see `../skill_builder/README.md` for the Engrave CLI recipe and provenance. Generated pages live in
+  `runtimes/pi/skills/automata-message-router/webref/`, not dashboard templates.
 - `templates/shared/theme.js` and `shared/components/anatomy-nav.js`: shared
   semantic tokens/theme preference, catalog registration and normal document links.
 
@@ -65,13 +72,13 @@ Only explicitly registered JS files are public. Templates render through Jinja;
 base templates, arbitrary files, source maps and dependency source are denied.
 Never mount the whole `templates/` tree or repository as a static directory.
 
-Only generated third-party bundles/notices live in
-`.agents/var/apps/dashboard/public/lib`, exposed at the three explicit `/lib/*.js`
-routes. Old generated SPA files may remain in an existing build directory but
-are unreachable; the build no longer copies them. The retired maintained `web/`
-SPA is replaced by templates. Reload after JS/template edits; restart after Python
-route changes; rebuild only when dependency bundles change. Keep profiles,
-credentials and evidence outside public assets.
+The central dependency cache is `.agents/var/apps/dashboard/public/lib`.
+Anatomy exposes only Adaptive UI and ECharts through explicit `/lib/*.js` routes.
+The portable reference carries its own reviewed copies of Adaptive UI and Mermaid,
+plus notices, under `/message-router/lib/`. No ECharts is shipped in the reference.
+Old generated SPA files remain unreachable. Reload after monitor JS/template edits;
+rebuild after guide authoring edits; restart after Python route changes. Keep
+profiles, credentials and evidence outside public assets.
 
 Mermaid receives only the closed authored diagram registry, in strict mode with
 HTML labels disabled. No user/URL/API content enters its SVG sink. Themes use
@@ -83,8 +90,9 @@ CSP has no inline scripts, `unsafe-eval`, CDN or additional connection destinati
 ## Monitoring and navigation contract
 
 `/` and `/automata/` redirect to `/automata/index.html`; `/message-router/` redirects
-to Configure. Old hash-only SPA bookmarks are intentionally retired: the root
-redirect reaches the default monitor, and any retained fragment has no routing
+to Overview at `/message-router/index.html`. All five existing lesson URLs remain.
+Old hash-only SPA bookmarks are intentionally retired: the root redirect reaches
+the default monitor, and any retained fragment has no routing
 meaning. There is no hash router or arbitrary redirect input.
 
 Monitoring retains 5-second polling, pause/manual refresh, timezone/custom dates,
@@ -96,10 +104,12 @@ values use documented UI defaults; live invalid form selections still receive
 readable API errors and never silently replace last-good data. Dates outside the
 API's permitted window remain API validation errors.
 
-A same-tab return link remembers only these query parameters in sessionStorage;
-it never stores data snapshots or arbitrary destinations. If storage is disabled,
-back/forward and bookmarked monitor URLs still restore state. A return loads one
-initial snapshot even when paused, but **does not re-enable periodic polling**.
+The host navigation remembers only these query parameters in sessionStorage;
+it never stores data snapshots or arbitrary destinations. The portable reference
+intentionally has no Anatomy return link or shared theme preference. Return via
+browser Back or a bookmarked monitor URL; both restore state even if storage is
+disabled. A return loads one initial snapshot even when paused, but **does not
+re-enable periodic polling**.
 On page unload timers stop and in-flight fetches abort. Guide documents mount no
 monitor and make no API requests. Back-forward cache restoration reloads the saved
 URL to establish a fresh, owned lifecycle. Theme preference alone uses localStorage.
@@ -134,7 +144,7 @@ are nested inside `activity`. The reader remains serialized and errors are bound
 PYTHONPATH=src uv run --offline --no-project \
   --with fastapi==0.141.1 --with uvicorn==0.53.0 --with jinja2==3.1.6 \
   --with shelfdb==3.0.2 --with dictify==5.0.2 --with pyyaml==6.0.3 \
-  --with pytest --with httpx pytest -q tests/apps/dashboard
+  --with engrave==3.2.6 --with pytest --with httpx pytest -q tests/apps/dashboard
 node --test tests/apps/dashboard/*_test.mjs
 uv run --offline --no-project --with ruff ruff check \
   src/automata/apps/dashboard tests/apps/dashboard

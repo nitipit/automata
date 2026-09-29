@@ -1,12 +1,16 @@
 """Monitoring document and compatible read-only aggregate API."""
+from pathlib import Path
 from threading import Lock
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from fastapi.templating import Jinja2Templates
 
 from ..activity import make_window
 from ..data import snapshot
-from .message_router_guide import templates
+
+TEMPLATES = Path(__file__).resolve().parents[1] / "templates"
+templates = Jinja2Templates(directory=TEMPLATES)
 
 router = APIRouter()
 snapshot_lock = Lock()
