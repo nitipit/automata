@@ -1,13 +1,14 @@
 ---
 name: automata-task-space
-description: Use when choosing, organizing, sharing, resuming, or cleaning up a task-specific working area.
+description: Use when choosing locations for delegated-agent work, Git worktrees, experiments, or temporary project copies; also when organizing, sharing, resuming, or cleaning up a task-specific working area.
 ---
 
 # Automata Task Space
 
 A task space holds task-specific drafts, experiments, temporary dependencies,
 outputs, and evidence. Keep reusable capability state with its owner, not copied
-into each task.
+into each task. Task-space guidance owns placement; Git-worktree guidance owns
+creating and managing an isolated checkout at the chosen location.
 
 ## Choose and use
 
