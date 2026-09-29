@@ -81,13 +81,11 @@ rather than appending release news indefinitely; retain still-useful version
 comparisons and do not delete unique evidence merely because it is old.
 
 Keep mutable records outside the skill package. Use
-`~/.agents/var/skills/automata-model-research/selection-guide.md` for reusable
+`~/.agents/var/skills/automata-model-selection/selection-guide.md` for reusable
 cross-project knowledge and `preferences.md` beside it for approved preferences.
 Project-specific observations and explicit overrides use the corresponding files
-under `.agents/var/skills/automata-model-research/`, relative to the project, not
-the installed skill. These legacy `automata-model-research` data paths remain
-canonical after the skill rename; do not migrate or duplicate records merely to
-match the new name. Read relevant existing records before writing. Create only
+under `.agents/var/skills/automata-model-selection/`, relative to the project, not
+the installed skill. Read relevant existing records before writing. Create only
 useful records within authorized storage scope, not empty scaffolding. Keep
 private project evidence local unless sharing it more broadly is authorized.
 
