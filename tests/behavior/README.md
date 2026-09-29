@@ -17,7 +17,7 @@ not by itself show which skill caused success.
 Use disposable owned resources and synthetic data. Commit reusable scenarios and
 safe fixtures here; keep private run evidence in an approved location outside the
 tracked test tree. There is no new runner or mandatory model campaign. Follow the
-existing [agent-evaluation guidance](../../src/automata/skills/skill-ops/automata-agent-evaluation/SKILL.md)
+existing [agent-evaluation guidance](../../src/automata/apps/skill_builder/skills/automata-agent-evaluation/SKILL.md)
 when executing a case, and the [testing guide](../README.md) when reporting evidence.
 
 ## B01 v1 — Recommend before acting

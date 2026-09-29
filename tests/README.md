@@ -73,7 +73,7 @@ usually needs structural checks and semantic review—not paid agent experiments
 When activation, judgment, safety, recovery, or user-visible behavior changes,
 select relevant [behavioral scenarios](behavior/README.md). Do not run every skill
 or launch a team as a ceremony. Follow the existing
-[agent-evaluation guidance](../src/automata/skills/skill-ops/automata-agent-evaluation/SKILL.md)
+[agent-evaluation guidance](../src/automata/apps/skill_builder/skills/automata-agent-evaluation/SKILL.md)
 for authorization, isolation, runtime verification, budget, and cleanup.
 
 1. Freeze the claim, fixture, natural task, allowed effects, failure conditions and

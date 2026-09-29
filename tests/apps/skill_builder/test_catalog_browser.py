@@ -2,14 +2,16 @@
 
 import shutil
 
+import pytest
 from playwright.sync_api import expect, sync_playwright
 
-# Reuse the disposable two-skill fixture, not the user preview.
+# Reuse the disposable fixture, selecting two skills for bounded failure checks.
 from . import test_browser
 
 site = test_browser.site
 
 
+@pytest.mark.parametrize("site", [("automata-message-router", "automata-plan")], indirect=True)
 def test_catalog_checks_are_local_bounded_and_disconnect_safe(site):
     url, _, _, _ = site
     with sync_playwright() as playwright:

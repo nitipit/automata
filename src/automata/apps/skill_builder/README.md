@@ -1,7 +1,7 @@
 # Skill Builder
 
-Two-skill proof: canonical agent content lives in `skills/message-router/` and
-`skills/plan/`. Discovery follows `SKILL.md` and its linked `references/*.md`.
+All 41 bundled skills live in `skills/automata-*/`. Discovery follows each
+`SKILL.md` and linked Markdown under `references/` or `templates/`.
 There are no per-skill HTML wrappers, generated entry files or build output.
 Shared Jinja templates render each request directly from canonical Markdown.
 
@@ -17,8 +17,8 @@ PYTHONPATH=src uv run --offline --no-project \
 ```
 
 `serve` defaults to all skills; `--all` remains an optional compatibility alias.
-Use `serve message-router` or `serve plan` to select one.
-Open `http://127.0.0.1:8788/templates/index.html`. The catalog discovers both skills;
+Use `serve automata-message-router` or `serve automata-plan` to select one.
+Open `http://127.0.0.1:8788/templates/index.html`. The catalog discovers all 41 skills;
 its existing bounded same-origin availability checks enable only served entries.
 Checks run once per connection, time out after five seconds, do not follow redirects,
 and report failures as “Unavailable in this preview.” Reload to retry; no polling.
@@ -26,8 +26,8 @@ and report failures as “Unavailable in this preview.” Reload to retry; no po
 Public views:
 
 - `/templates/index.html`: catalog; `/` remains unassigned.
-- `/templates/skill.html?name=message-router` (or `name=plan`): source view.
-- `/templates/reference.html?name=message-router&reference=references/connect.md`:
+- `/templates/skill.html?name=automata-message-router` (or `name=automata-plan`): source view.
+- `/templates/reference.html?name=automata-message-router&reference=references/connect.md`:
   rendered reference view.
 - `/message-router/`, `/message-router/index.html`, and existing
   `/message-router/references/<name>.html`: preserved direct-render aliases.
@@ -42,8 +42,9 @@ Reference Markdown is rendered by Mistune in Python, **never evaluated as Jinja*
 Authored raw HTML is escaped. Local components enhance reference code and diagrams;
 examples are not executed. Relative Markdown links become public view links.
 
-Only exact discovered skill/reference selections and explicitly allowed shared
-assets are served. Assets remain together in `templates/components`, `templates/lib`,
+Only exact discovered skill/linked-Markdown selections and explicitly allowed
+shared assets are served. Other supporting assets install with their skills but
+are not public viewer routes. Assets remain together in `templates/components`, `templates/lib`,
 `templates/licenses`, and the two CSSJS files. Shared views are rendered, never
 returned as HTML source. Private base/includes, Python, arbitrary Markdown, outside
 paths and symlink escapes are denied. The optional raw `skills/<name>/SKILL.md`
@@ -85,13 +86,14 @@ styles are retained.
 
 ## Agent installation and focused verification
 
-`export-agent NAME --output DIR` writes canonical Markdown only, without importing
-FastAPI or a renderer. The normal installer maps `message-router` to
-`automata-message-router`, and `plan` to `automata-plan`. Serving never installs or
-syncs live skills; agents read canonical Markdown, not human-rendered output.
+`export-agent NAME --output DIR` copies the complete canonical skill (including
+references, scripts, libraries and templates) without importing FastAPI or a
+renderer. Use installed names such as `automata-message-router`; only its public
+URL retains the short `/message-router/` alias. Serving never installs or syncs
+live skills; agents read canonical files, not human-rendered output.
 
 `tests/apps/skill_builder/test_build.py` covers direct public views, denial boundaries,
-reference Jinja/HTML literal handling, and disposable Markdown installation of both
+reference Jinja/HTML literal handling, and disposable installation of both
 identities. `test_browser.py` covers opening both catalog entries with exact numbered
 source, Message Router reference diagrams, and one source edit reloading via SSE.
 Catalog lifecycle, CLI and package-resource tests have been adjusted to the direct

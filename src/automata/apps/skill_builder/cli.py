@@ -1,4 +1,4 @@
-"""Render canonical skill Markdown for people, or export Markdown for agents."""
+"""Render canonical skill Markdown for people, or export full skills for agents."""
 
 from pathlib import Path
 from typing import Annotated
@@ -36,9 +36,9 @@ def serve(
 def export_agent(
     skill: str,
     *,
-    output: Annotated[Path, Parameter(help="Agent skill directory; receives Markdown only.")],
+    output: Annotated[Path, Parameter(help="Agent skill directory; receives all canonical files.")],
 ) -> None:
-    """Copy SKILL.md and linked references; no HTML, libraries, install or sync."""
+    """Copy the complete canonical skill; no viewer HTML, install or sync."""
     try:
         from .content import export_agent as export
 
@@ -46,7 +46,7 @@ def export_agent(
     except (ImportError, OSError, ValueError) as error:
         app.console.print(f"Export failed: {error}", markup=False)
         raise SystemExit(1) from error
-    print(f"Exported agent Markdown: {output}")
+    print(f"Exported agent skill: {output}")
 
 
 if __name__ == "__main__":

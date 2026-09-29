@@ -17,7 +17,8 @@ def snapshot(root):
 
 def test_export_and_installer_preserve_both_identities(tmp_path):
     for slug, identity in [
-        ("message-router", "automata-message-router"), ("plan", "automata-plan")
+        ("automata-message-router", "automata-message-router"),
+        ("automata-plan", "automata-plan")
     ]:
         export_agent(slug, tmp_path / slug)
         package = SKILLS / slug
@@ -25,14 +26,19 @@ def test_export_and_installer_preserve_both_identities(tmp_path):
         assert all(p.endswith(".md") for p in snapshot(package))
         install_skills(target_root=tmp_path / "installed", skill_names=[identity])
         assert snapshot(tmp_path / "installed" / identity) == snapshot(package)
-    assert len(discover(SKILLS, "plan", False)) == 1
-    assert len(discover(SKILLS, "message-router", False)) == 6
+    assert len(discover(SKILLS, "automata-plan", False)) == 1
+    assert len(discover(SKILLS, "automata-message-router", False)) == 6
+    assert len([p for p in discover(SKILLS, None, True) if p.document == "SKILL.md"]) == 41
+    export_agent("automata-adaptive-ui", tmp_path / "adaptive")
+    assert snapshot(tmp_path / "adaptive") == snapshot(SKILLS / "automata-adaptive-ui")
+    assert (tmp_path / "adaptive/scripts/build.py").is_file()
+    assert (tmp_path / "adaptive/lib/package.json").is_file()
 
 
 def test_export_refuses_stale_files(tmp_path):
     (tmp_path / "private.txt").write_text("keep")
     with pytest.raises(ValueError, match="noncanonical"):
-        export_agent("message-router", tmp_path)
+        export_agent("automata-message-router", tmp_path)
 
 
 def test_public_routes_and_allowed_roots(tmp_path):
@@ -43,8 +49,8 @@ def test_public_routes_and_allowed_roots(tmp_path):
     (root / "templates/components/escape.js").symlink_to(outside)
     (root / "templates/components/base.js").symlink_to(root / "templates/base.html")
     with TestClient(create_app(all_skills=True, root=root)) as client:
-        for path in ["/templates/index.html", "/templates/skill.html?name=plan",
-                     "/templates/reference.html?name=message-router&reference=references/connect.md",
+        for path in ["/templates/index.html", "/templates/skill.html?name=automata-plan",
+                     "/templates/reference.html?name=automata-message-router&reference=references/connect.md",
                      "/message-router/", "/message-router/index.html", "/plan/"]:
             response = client.get(path)
             assert response.status_code == 200, path
@@ -53,15 +59,18 @@ def test_public_routes_and_allowed_roots(tmp_path):
                      "/templates/components/escape.js", "/templates/components/base.js",
                      "/templates/../server.py",
                      "/%2e%2e/private.txt", "/templates/skill.html?name=../private",
-                     "/templates/reference.html?name=message-router&reference=../../private.txt",
+                     "/templates/reference.html?name=automata-message-router&reference=../../private.txt",
                      "/skills/message-router/references/connect.md", "/docs", "/openapi.json"]:
             response = client.get(path)
             assert response.status_code == 404, (path, response.text)
             assert "must not leak" not in response.text
         assert client.get("/skills/plan/SKILL.md").content == (
-            SKILLS / "plan/SKILL.md"
+            SKILLS / "automata-plan/SKILL.md"
         ).read_bytes()
-    with TestClient(create_app("message-router", root=root)) as client:
+        assert client.get("/automata-journal/templates/entry.html").status_code == 200
+        assert client.get("/automata-agent-evaluation/references/scoring.html").status_code == 200
+        assert client.get("/automata-adaptive-ui/lib/package.json").status_code == 404
+    with TestClient(create_app("automata-message-router", root=root)) as client:
         assert client.get("/plan/").status_code == 404
         assert client.get("/skills/plan/SKILL.md").status_code == 404
 
@@ -69,7 +78,7 @@ def test_public_routes_and_allowed_roots(tmp_path):
 def test_references_never_evaluate_jinja_or_authored_html(tmp_path):
     root = tmp_path / "source"
     shutil.copytree(SOURCE, root)
-    reference = root / "skills/message-router/references/connect.md"
+    reference = root / "skills/automata-message-router/references/connect.md"
     reference.write_text('# Connect\n\n```jinja\n{{ missing }} {% unknown %}\n```\n'
                          '\n<script>window.authored = true;</script>\n')
     with TestClient(create_app(all_skills=True, root=root)) as client:

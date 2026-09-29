@@ -6,7 +6,7 @@ import { enhanceMarkdown } from './components/markdown-content.js';
 class SkillPage extends ReferencePage {
   static {
     this.css = `
-      article.lesson { max-width: 80ch; margin: 2rem auto; }
+      article.lesson { max-width: 100ch; margin: 2rem auto; }
       article h2 { margin-top: 2rem; }
       article h3 { margin-top: 1.5rem; }
       article :not(pre) > code {

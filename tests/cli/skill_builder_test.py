@@ -30,10 +30,10 @@ def test_help():
 @pytest.mark.parametrize(
     "args",
     [
-        ("serve", "message-router", "--all"),
+        ("serve", "automata-message-router", "--all"),
         ("serve", "../private"),
         ("serve", "missing"),
-        ("serve", "message-router", "--port", "0"),
+        ("serve", "automata-message-router", "--port", "0"),
     ],
 )
 def test_errors_are_bounded(args):
@@ -45,7 +45,7 @@ def test_errors_are_bounded(args):
 @pytest.mark.parametrize(
     ('skill', 'all_', 'expected'),
     [(None, False, (None, True, 8788)),
-     ('plan', False, ('plan', False, 8788)),
+     ('automata-plan', False, ('automata-plan', False, 8788)),
      (None, True, (None, True, 8788))],
 )
 def test_serve_selection_defaults(monkeypatch, skill, all_, expected):
@@ -59,10 +59,10 @@ def test_serve_selection_defaults(monkeypatch, skill, all_, expected):
 
 
 def test_export(tmp_path):
-    result = cli("export-agent", "message-router", "--output", tmp_path)
+    result = cli("export-agent", "automata-message-router", "--output", tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
     assert {p.name for p in tmp_path.iterdir()} == {"SKILL.md", "references"}
-    assert (tmp_path / "SKILL.md").read_bytes() == (SKILLS / "message-router/SKILL.md").read_bytes()
+    assert (tmp_path / "SKILL.md").read_bytes() == (SKILLS / "automata-message-router/SKILL.md").read_bytes()
     assert all(p.suffix == ".md" for p in tmp_path.rglob("*") if p.is_file())
 
 
@@ -75,7 +75,7 @@ def test_cli_signal_stops_preview_without_build_output(tmp_path):
     with log_path.open("w") as log:
         process = subprocess.Popen(
             [sys.executable, "-m", "automata.apps.skill_builder.cli", "serve",
-             "message-router", "--port", str(port)], stdout=log, stderr=log,
+             "automata-message-router", "--port", str(port)], stdout=log, stderr=log,
         )
         try:
             for _ in range(100):

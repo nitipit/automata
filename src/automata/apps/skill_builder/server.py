@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 from watchfiles import awatch
 
-from .content import SOURCE, discover, lookup, render_markdown
+from .content import SOURCE, discover, lookup, render_markdown, url_slug
 
 BUNDLES = {
     "prism.js": "db64933eccbb6f8edb10f1d0e0a94c1d5d4889fbc1c3705096a17dad9ffef8a2",
@@ -126,14 +126,15 @@ def create_app(selector=None, all_skills=False, root=SOURCE):
                 return render(
                     "templates/skill.html", skill=page.skill, title=page.title,
                     document=page.document,
-                    navigation=[(p.url.removeprefix(f"/{page.skill}/"), p.title)
+                    navigation=[(p.url.removeprefix(f"/{url_slug(page.skill)}/"), p.title)
                                 for p in pages if p.skill == page.skill],
                     raw_source=page.source.read_text(encoding="utf-8"),
                     reference_html=render_markdown(page) if page.document != "SKILL.md" else "",
                 )
             # Retain the canonical raw-source URL, not arbitrary Markdown access.
             raw = next((p for p in pages if p.document == "SKILL.md"
-                        and path == f"skills/{p.skill}/SKILL.md"), None)
+                        and path in (f"skills/{p.skill}/SKILL.md",
+                                     f"skills/{url_slug(p.skill)}/SKILL.md")), None)
             if raw:
                 return FileResponse(safe_file(raw.source, skills / raw.skill),
                                     media_type="text/plain; charset=utf-8",

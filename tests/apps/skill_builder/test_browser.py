@@ -16,9 +16,14 @@ from .browser_assertions import assert_line_numbers
 
 
 @pytest.fixture
-def site(tmp_path):
+def site(tmp_path, request):
     root = tmp_path / "source"
     shutil.copytree(SOURCE, root, ignore=shutil.ignore_patterns("__pycache__"))
+    selection = getattr(request, "param", None)
+    if selection is not None:
+        for directory in (root / "skills").iterdir():
+            if directory.name not in selection:
+                shutil.rmtree(directory)
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
@@ -63,14 +68,17 @@ def test_catalog_sources_references_and_sse(site):
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.on("request", lambda request: requests.append(request.url))
             for slug, title in [("message-router", "Automata Message Router"),
+                                ("automata-storage", "Automata Storage"),
                                 ("plan", "Automata Plan")]:
                 page.goto(url + "/templates/index.html")
+                assert page.locator(".skill-card").count() == 41
                 link = page.get_by_role("link", name=title, exact=True)
                 expect(link).to_have_attribute("href", f"/{slug}/")
                 link.click()
                 expect(page.locator("article h1")).to_have_text("SKILL.md")
                 raw = page.locator("article code-example code")
-                source = (root / f"skills/{slug}/SKILL.md").read_text()
+                source_name = slug if slug.startswith("automata-") else f"automata-{slug}"
+                source = (root / f"skills/{source_name}/SKILL.md").read_text()
                 expect(raw.locator(".token").first).to_be_attached()
                 assert raw.text_content() == source
                 assert source.startswith("---\n")
@@ -79,13 +87,16 @@ def test_catalog_sources_references_and_sse(site):
                     expect(page.locator("nav a")).to_have_count(1)
             # The page must reload itself: no page.reload/goto after this source edit.
             page.evaluate("window.__beforeSourceEdit = true")
-            source = root / "skills/plan/SKILL.md"
+            source = root / "skills/automata-plan/SKILL.md"
             source.write_text(source.read_text() + "\nSSE-CANONICAL-EDIT-PROOF\n")
             expect(page.locator("article code-example code")).to_contain_text(
                 "SSE-CANONICAL-EDIT-PROOF", timeout=15000
             )
             assert page.evaluate("window.__beforeSourceEdit === undefined")
             assert page.locator("article code-example code").text_content() == source.read_text()
+            page.goto(url + "/automata-agent-evaluation/references/scoring.html")
+            expect(page.locator("article h1")).to_have_count(1)
+            expect(page.locator("article")).to_contain_text("scor")
             for slug, diagrams in [("configure", 1), ("connect", 1), ("discover", 1),
                                    ("send", 3), ("failures", 2)]:
                 page.goto(url + f"/message-router/references/{slug}.html")
