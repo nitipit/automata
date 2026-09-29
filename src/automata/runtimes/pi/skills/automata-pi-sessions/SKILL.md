@@ -1,6 +1,6 @@
 ---
 name: automata-pi-sessions
-description: Use when discovering, copying or recoverably trashing Pi sessions for the current directory, another exact directory, or the default global store, including missing-directory review.
+description: Use when discovering, inspecting an inactive session's visible status, copying or recoverably trashing Pi sessions, including exact-directory/global discovery and missing-directory review.
 ---
 
 # Automata Pi Sessions
@@ -55,6 +55,35 @@ that page. The next page supersedes previous receipts. Review across pages if ne
 then re-list the page containing the confirmed full IDs before acting. Do not rely
 on row numbers from a reordered listing. Receipts are evidence of selection, not
 user permission.
+
+## Inspect an inactive session without a model turn
+
+Listing metadata is not conversation context. For an authorized session, establish
+its exact identity, storage location and inactivity from ownership/lifecycle evidence,
+not age. Never resume a live agent or unrelated history to inspect it. If the path
+is unknown, use the recorded full ID with the matching CWD/store; do not scan raw
+session files or use `--continue`, which may select different history.
+
+An owned detached tmux session can run `pi --session <full-id>` from that CWD,
+with `--session-dir <store>` when needed. Supply no positional prompt, `@file`,
+piped input or submitted editor text. Capture only the needed visible pane/status
+lines, without attaching or changing the user's layout. Do not send a prompt or
+run compaction merely to obtain a fresher context number.
+
+Resume is not read-only: Pi can write session/settings state, migrate history and
+run extension startup hooks with external effects. Review the startup profile first.
+For an isolated inspection, `--offline --no-extensions` limits startup networking
+and discovered extensions; explicit `-e` still loads code, and offline is not a
+model-call sandbox. Disabling resources can change the displayed status and future
+context, so report those differences rather than claiming an identical environment.
+
+Separate saved transcript, visible footer and reconstructed model context. The
+footer may use persisted usage plus estimates, or show unknown usage (for example,
+after compaction without a later response). A rounded percentage is not an exact
+fresh measurement; visible history is not proof of what the next request contains.
+Current resources and extension context transformations may differ on resume.
+Record the observed model/status and limitations. Stop owned probe processes and
+verify closure; retain history unless separately authorized for recoverable trash.
 
 ## Copy selected sessions
 
