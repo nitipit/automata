@@ -269,7 +269,7 @@ assert (work / 'plugin/skills/automata-context-status/SKILL.md').is_file()
     assert smoke.returncode == 0, smoke.stdout + smoke.stderr
 
 
-def test_package_uses_only_pi_runtime_roots_for_pi_resources() -> None:
+def test_package_separates_pi_extensions_from_bundled_skills() -> None:
     package = files("automata")
     assert not package.joinpath("extensions").exists()
     pi = package.joinpath(*PI_RUNTIME)

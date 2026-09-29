@@ -60,8 +60,8 @@ def test_serve_defaults(monkeypatch):
 
 def test_export(tmp_path):
     result = subprocess.run(
-        [sys.executable, "-c", "from automata.cli import app; app()", "skill-builder", "export-agent",
-         "automata-message-router", "--output", str(tmp_path)],
+        [sys.executable, "-c", "from automata.cli import app; app()",
+         "skill-builder", "export-agent", "automata-message-router", "--output", str(tmp_path)],
         capture_output=True, text=True,
     )
     assert result.returncode == 0, result.stdout + result.stderr

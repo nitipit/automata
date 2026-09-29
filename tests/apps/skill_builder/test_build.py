@@ -5,9 +5,9 @@ import shutil
 import pytest
 from fastapi.testclient import TestClient
 
+from automata.install.skills import install_skills
 from automata.skills.content import SKILLS, SOURCE, discover, export_agent
 from automata.skills.server import create_app
-from automata.install.skills import install_skills
 
 
 def snapshot(root):
