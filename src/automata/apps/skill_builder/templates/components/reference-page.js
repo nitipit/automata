@@ -38,12 +38,12 @@ export class ReferencePage extends Base {
   display: block;
   min-height: 100vh;
   margin: 0;
-  padding: clamp(1rem, 3vw, 2.5rem);
+  padding: clamp(1rem, 3vw, 2.5rem) 0;
   background: var(--webref-bg);
   color: var(--aui-text);
   font: 16px/1.6 system-ui, sans-serif;
 }
-main { max-width: 1080px; margin: auto; }
+main { width: 90%; max-width: 1200px; margin: auto; }
 h1, h2, h3, p { margin-top: 0; }
 h1 { font-size: clamp(2rem, 4vw, 2.8rem); line-height: 1.15; margin-bottom: .6rem; }
 h2 { font-size: 1.4rem; line-height: 1.3; }

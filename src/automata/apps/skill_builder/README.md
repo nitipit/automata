@@ -13,10 +13,11 @@ With the dependencies already cached (no network needed):
 PYTHONPATH=src uv run --offline --no-project \
   --with fastapi==0.141.1 --with jinja2==3.1.6 --with mistune==3.3.4 \
   --with watchfiles==1.3.0 --with uvicorn==0.54.0 --with cyclopts==4.25.3 \
-  python -m automata.apps.skill_builder.cli serve --all --port 8788
+  python -m automata.apps.skill_builder.cli serve --port 8788
 ```
 
-Use `serve message-router` or `serve plan` instead of `serve --all` to select one.
+`serve` defaults to all skills; `--all` remains an optional compatibility alias.
+Use `serve message-router` or `serve plan` to select one.
 Open `http://127.0.0.1:8788/templates/index.html`. The catalog discovers both skills;
 its existing bounded same-origin availability checks enable only served entries.
 Checks run once per connection, time out after five seconds, do not follow redirects,

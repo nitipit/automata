@@ -40,11 +40,11 @@ def test_catalog_checks_are_local_bounded_and_disconnect_safe(site):
                 second = page.get_by_role('link', name='Automata Plan', exact=True)
                 expect(selected).to_have_attribute('href', '/message-router/')
                 expect(second.locator('..').get_by_role('status')).to_have_text(
-                    'Unavailable in this preview.', timeout=7000
+                    'Unavailable', timeout=7000
                 )
                 assert second.evaluate('el => !el.hasAttribute("href") && el.tabIndex === -1')
                 expect(second).to_have_attribute('aria-disabled', 'true')
-                assert 'Unavailable in this preview.' in second.locator('..').aria_snapshot()
+                assert 'Unavailable' in second.locator('..').aria_snapshot()
                 page.wait_for_timeout(150)
                 checks = requests[start:]
                 assert checks.count(url + '/message-router/') == 1
@@ -60,7 +60,7 @@ def test_catalog_checks_are_local_bounded_and_disconnect_safe(site):
                   const parent = el.parentNode; el.remove(); parent.append(el);
                 }''', target)
                 expect(second.locator('..').get_by_role('status')).to_have_text(
-                    'Unavailable in this preview.'
+                    'Unavailable'
                 )
                 expect(selected).to_have_attribute('href', '/message-router/')
                 assert requests[start:] == [url + '/message-router/']
@@ -91,7 +91,7 @@ def test_catalog_checks_are_local_bounded_and_disconnect_safe(site):
             }''')
             assert outcome == {
                 'aborted': True, 'count': 4, 'disabled': True,
-                'statuses': ['Unavailable in this preview.'] * 2,
+                'statuses': ['Unavailable'] * 2,
             }
         finally:
             browser.close()

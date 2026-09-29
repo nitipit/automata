@@ -29,6 +29,7 @@ class Page:
     url: str
     title: str
     document: str
+    description: str = ""
 
 
 
@@ -88,7 +89,14 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
                 if relative == Path("SKILL.md")
                 else f"/{root.name}/{relative.with_suffix('.html').as_posix()}"
             )
-            pages.append(Page(root.name, source, url, title, relative.as_posix()))
+            paragraph = next((node for node in ast if node['type'] == 'paragraph'), None)
+
+            def plain_text(nodes):
+                return ''.join(plain_text(node['children']) if 'children' in node
+                               else node.get('raw', ' ') for node in nodes)
+
+            description = ' '.join(plain_text(paragraph['children']).split()) if paragraph else ''
+            pages.append(Page(root.name, source, url, title, relative.as_posix(), description))
             visited.add(source)
             for link in markdown_links(text):
                 parsed = urlsplit(link)

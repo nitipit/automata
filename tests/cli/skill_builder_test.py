@@ -30,7 +30,6 @@ def test_help():
 @pytest.mark.parametrize(
     "args",
     [
-        ("serve",),
         ("serve", "message-router", "--all"),
         ("serve", "../private"),
         ("serve", "missing"),
@@ -41,6 +40,22 @@ def test_errors_are_bounded(args):
     result = cli(*args)
     assert result.returncode != 0
     assert "Traceback" not in result.stdout + result.stderr
+
+
+@pytest.mark.parametrize(
+    ('skill', 'all_', 'expected'),
+    [(None, False, (None, True, 8788)),
+     ('plan', False, ('plan', False, 8788)),
+     (None, True, (None, True, 8788))],
+)
+def test_serve_selection_defaults(monkeypatch, skill, all_, expected):
+    from automata.apps.skill_builder import cli as commands
+    from automata.apps.skill_builder import server
+
+    calls = []
+    monkeypatch.setattr(server, 'serve', lambda *args: calls.append(args))
+    commands.serve(skill, all_=all_)
+    assert calls == [expected]
 
 
 def test_export(tmp_path):
