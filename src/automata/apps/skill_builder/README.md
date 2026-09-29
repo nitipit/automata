@@ -16,8 +16,18 @@ PYTHONPATH=src uv run --offline --no-project --with engrave==3.2.6 \
 ```
 
 Open `http://127.0.0.1:8788/message-router/`; references have ordinary `.html` URLs.
-Use `serve --all` for the catalog at `/`. Single mode exposes only the selected
-skill, not the root catalog. `server.py` checks reviewed bundles, prints the exact
+The home catalog is `/templates/index.html` in both single-skill and `--all`
+modes; there is no root entry or redirect. Single mode still exposes only the
+selected skill's content. The maintained catalog checks each listed URL once per
+connection using a same-origin GET with a five-second timeout and no redirects.
+Only successful entries become keyboard-accessible links. Non-OK, network and
+timeout results read “Unavailable in this preview,” without claiming a cause;
+reload to retry. Pending/unavailable links have no `href`, are `aria-disabled`, and
+have an associated status. Disconnect aborts checks and ignores stale responses.
+No polling, service discovery, additional content exposure or selection changes
+occur. JavaScript is required to enable catalog links.
+
+`server.py` checks reviewed bundles, prints the exact
 native command and owns its subprocess/temporary output. It contains no renderer,
 HTTP proxy, private factory hooks or custom watcher. Anatomy links this separate
 site and never starts it.
@@ -30,7 +40,7 @@ OUTPUT="$(mktemp -d)"
 trap 'rm -r -- "$OUTPUT"' EXIT
 PAGES='(configure|connect|discover|send|failures)'
 ASSETS='templates/((components|lib)/[^/]+\.js|[^/]+\.css\.js|licenses/[^/]+\.txt)'
-PUBLIC="(index\.html|message-router/(|index\.html|references/$PAGES\.html)|skills/message-router/(SKILL\.md|references/$PAGES\.md)|$ASSETS)"
+PUBLIC="(templates/index\.html|message-router/(|index\.html|references/$PAGES\.html)|skills/message-router/(SKILL\.md|references/$PAGES\.md)|$ASSETS)"
 uv run --offline --no-project --with engrave==3.2.6 engrave server "$SOURCE" "$OUTPUT" \
   --host 127.0.0.1 --port 8788 \
   --copy "^($ASSETS|skills/message-router/SKILL\.md)\Z" --exclude "^(?!$PUBLIC\Z)"
@@ -66,11 +76,20 @@ root or place private files in the public asset directories.
   body edits and copied assets refresh natively. A failed native rebuild may stop
   its watcher: fix the source and restart. Keep output temporary and loopback-only.
 
-All three reviewed local bundles (Adaptive UI, Mermaid, Highlight.js) and exact
+All three reviewed local bundles (Adaptive UI, Mermaid, Prism.js) and exact
 notices ship in `templates/lib` and `templates/licenses`; serving needs no download.
-The Highlight.js subset, license, hashes and rebuild recipe are recorded in
-[its provenance](templates/licenses/highlightjs-PROVENANCE.txt). Only supported
-reference fences are highlighted; unknown languages and inline code stay literal.
+The pinned Prism 1.30.0 grammars, official line-numbers plugin, license, hashes and
+rebuild recipe are recorded in
+[its provenance](templates/licenses/prism-PROVENANCE.txt). JS/JSON/Bash/Python/YAML
+fences and aliases, plus the full Markdown source view, are highlighted. Unknown
+languages remain literal but receive the same official line-number gutter. Inline
+code and rendered Mermaid diagrams are not numbered. Numbers are CSS counters in
+an `aria-hidden`, unselectable gutter; native code selection remains unchanged.
+Code uses horizontal scrolling (no wrapping), preserving tabs and final newlines.
+Plugin CSS belongs to the CodeExample Adapter stylesheet, not a head style/CDN.
+Reconnect and asynchronous source updates reset tokens/gutters before highlighting.
+If Prism changes whitespace (notably NBSP), that block falls back to exact literal
+text with official line numbers rather than changing the authored source.
 
 `export-agent NAME --output DIR` writes Markdown only. The normal installer maps
 canonical `skills/message-router` to `automata-message-router` directly, without

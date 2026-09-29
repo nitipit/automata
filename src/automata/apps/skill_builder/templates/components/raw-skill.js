@@ -28,6 +28,7 @@ class RawSkill extends Base {
       .then(text => {
         if (request.signal.aborted) return;
         code.textContent = text;
+        code.closest('code-example').highlight();
         status.hidden = true;
       })
       .catch(error => {

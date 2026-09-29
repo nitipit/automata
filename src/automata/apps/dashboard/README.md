@@ -81,7 +81,7 @@ Never mount the whole `templates/` tree or repository as a static directory.
 The central dependency cache is `.agents/var/apps/dashboard/public/lib`.
 Anatomy exposes only Adaptive UI and ECharts through explicit `/lib/*.js` routes.
 The separate skill site uses native Engrave CLI copy/exclude rules for its local
-Adaptive UI/Mermaid/Highlight.js assets under `/templates/` and the public raw
+Adaptive UI/Mermaid/Prism.js assets under `/templates/` and the public raw
 `SKILL.md` asset. Its native preview HTTP/Markdown semantics differ from Anatomy's
 protections; see the Skill Builder README. Agent export contains Markdown only;
 Anatomy exposes no guide libraries or installed-skill directories.

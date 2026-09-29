@@ -58,6 +58,10 @@ def test_native_build_has_only_public_outputs_and_exact_raw_landing(tmp_path):
     raw = output / "skills/message-router/SKILL.md"
     assert raw.read_bytes() == (SKILLS / "message-router/SKILL.md").read_bytes()
     assert not (output / "skills/message-router/references/connect.md").exists()
+    assert not (SOURCE / 'index.html').exists()
+    assert not (output / 'index.html').exists()
+    assert (output / 'templates/index.html').exists()
+    assert sorted(p.name for p in (output / 'templates').glob('*.html')) == ['index.html']
     assert not (output / "templates/skill.html").exists()
     assert not (output / "message-router/_layout.html").exists()
     assert not (output / "server.py").exists()
@@ -72,10 +76,10 @@ def test_native_build_has_only_public_outputs_and_exact_raw_landing(tmp_path):
 def test_bundle_tampering_and_missing_entry_fail_before_cli(tmp_path):
     root = tmp_path / "source"
     shutil.copytree(SOURCE, root)
-    (root / "templates/lib/highlight.js").write_text("unreviewed")
+    (root / "templates/lib/prism.js").write_text("unreviewed")
     with pytest.raises(ValueError, match="Unreviewed local bundle"):
         native_command("build", tmp_path / "output", all_skills=True, root=root)
-    shutil.copyfile(SOURCE / "templates/lib/highlight.js", root / "templates/lib/highlight.js")
+    shutil.copyfile(SOURCE / "templates/lib/prism.js", root / "templates/lib/prism.js")
     (root / "message-router/references/connect.html").unlink()
     with pytest.raises(ValueError, match="Missing native entry"):
         native_command("build", tmp_path / "output", all_skills=True, root=root)

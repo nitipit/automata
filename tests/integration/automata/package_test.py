@@ -175,8 +175,12 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         assert webref_prefix + "references/connect.md" in paths
         assert all(path.endswith('.md') for path in finished_skill)
         assert 'apps/skill_builder/templates/lib/mermaid.js' in paths
-        assert 'apps/skill_builder/templates/lib/highlight.js' in paths
-        assert 'apps/skill_builder/templates/licenses/highlightjs-LICENSE.txt' in paths
+        assert 'apps/skill_builder/templates/lib/prism.js' in paths
+        assert 'apps/skill_builder/templates/index.html' in paths
+        assert 'apps/skill_builder/index.html' not in paths
+        assert 'apps/skill_builder/templates/lib/highlight.js' not in paths
+        assert 'apps/skill_builder/templates/licenses/prism-LICENSE.txt' in paths
+        assert 'apps/skill_builder/templates/licenses/highlightjs-LICENSE.txt' not in paths
         assert 'apps/skill_builder/templates/licenses/PROVENANCE.txt' in paths
         assert not any(path.startswith("extensions/") for path in paths)
         pi_skill_names = (

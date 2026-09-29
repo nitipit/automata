@@ -18,7 +18,7 @@ CODE_SAMPLES = {
     "jinja": "Unsupported grammar remains plain text.\n",
     "unknown-language": "<b>literal & unchanged</b>\n",
 }
-LITERAL_LANGUAGES = {"plaintext", "html", "jinja", "unknown-language"}
+LITERAL_LANGUAGES = {"plaintext", "jinja", "unknown-language"}
 FIXTURE_MARKDOWN = (
     "\n\n## Synthetic code fixtures\n\nInline `const plain = true;` stays literal.\n\n"
 )
@@ -34,7 +34,7 @@ def assert_centered(page):
           const rect = el.getBoundingClientRect();
           const style = getComputedStyle(el);
           return {left: rect.left, right: rect.right, width: rect.width,
-                  viewport: innerWidth, align: style.textAlign};
+                  viewport: document.documentElement.clientWidth, align: style.textAlign};
         }"""
     )
     assert abs((rect["left"] + rect["right"]) / 2 - rect["viewport"] / 2) < 1, rect
@@ -43,13 +43,41 @@ def assert_centered(page):
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
 
 
+def assert_line_numbers(code, raw):
+    rows = code.locator(':scope > .line-numbers-rows')
+    expect(rows).to_have_count(1)
+    expect(rows).to_have_attribute('aria-hidden', 'true')
+    assert rows.locator(':scope > span').count() == len(raw.removesuffix('\n').split('\n'))
+    assert rows.text_content() == ''
+    assert rows.evaluate('el => getComputedStyle(el).userSelect') == 'none'
+    geometry = rows.evaluate('''el => {
+      const children = el.children;
+      return {distance: children[children.length - 1].getBoundingClientRect().top -
+                        children[0].getBoundingClientRect().top,
+              lineHeight: parseFloat(getComputedStyle(el).lineHeight), count: children.length};
+    }''')
+    assert abs(geometry['distance'] - geometry['lineHeight'] * (geometry['count'] - 1)) < 2
+    selected = code.evaluate('''el => {
+      const selection = getSelection();
+      const range = document.createRange(); range.selectNodeContents(el);
+      selection.removeAllRanges(); selection.addRange(range);
+      const actual = selection.toString(); selection.removeAllRanges();
+      const plain = el.cloneNode(false); plain.textContent = el.textContent;
+      el.parentNode.append(plain); range.selectNodeContents(plain); selection.addRange(range);
+      const expected = selection.toString(); selection.removeAllRanges(); plain.remove();
+      return {actual, expected};
+    }''')
+    assert selected['actual'] == selected['expected']
+
+
 def assert_highlighting(page):
     for language, raw in CODE_SAMPLES.items():
         code = page.locator(f"code-example code.language-{language}").last
         if language in LITERAL_LANGUAGES:
-            expect(code.locator("span")).to_have_count(0)
+            expect(code.locator(".token")).to_have_count(0)
         else:
-            expect(code.locator("span").first).to_be_attached()
+            expect(code.locator(".token").first).to_be_attached()
+        assert_line_numbers(code, raw)
         assert code.text_content() == raw
         selection = code.evaluate(
             """el => {
@@ -71,9 +99,10 @@ def assert_highlighting(page):
         assert selection["highlighted"] == selection["literal"], (language, selection)
         assert selection["highlighted"] == raw.removesuffix("\n"), (language, selection)
     assert page.locator("article p > code span").count() == 0
-    unlabelled = page.locator("code-example code:not([class])").last
+    unlabelled = page.locator("code-example code.language-none").last
     assert unlabelled.text_content() == "No language: <b>literal</b>\n"
-    assert unlabelled.locator("span").count() == 0
+    assert unlabelled.locator(".token").count() == 0
+    assert_line_numbers(unlabelled, "No language: <b>literal</b>\n")
     assert page.locator("code-example img, code-example script").count() == 0
     assert page.evaluate("window.__snippetExecuted === undefined")
     code = page.locator("code-example code.language-javascript").last
@@ -89,7 +118,7 @@ def assert_highlighting(page):
 
 
 def assert_token_contrast(page):
-    ratios = page.locator("code-example span[class^='hljs-']").evaluate_all(
+    ratios = page.locator("code-example .token").evaluate_all(
         """elements => {
           const luminance = color => {
             const channels = color.match(/[\\d.]+/g).slice(0, 3).map(Number)

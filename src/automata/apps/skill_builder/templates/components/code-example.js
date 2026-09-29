@@ -1,5 +1,6 @@
 import { Base } from '../lib/adaptive-ui.js';
-import hljs from '../lib/highlight.js';
+import Prism from '../lib/prism.js';
+import lineNumbersCSS from './prism-line-numbers.css.js';
 
 class CodeExample extends Base {
   static {
@@ -15,44 +16,46 @@ class CodeExample extends Base {
         background: var(--webref-bg);
         color: var(--aui-text);
         overflow: auto;
+        white-space: pre;
         font: .82rem/1.65 ui-monospace, monospace;
         tab-size: 2;
       }
-      code { white-space: pre; overflow-wrap: normal; }
-      .hljs-comment, .hljs-quote { color: var(--aui-muted-text); font-style: italic; }
-      .hljs-keyword, .hljs-selector-tag, .hljs-meta {
-        color: light-dark(#6d28d9, #c4b5fd);
-      }
-      .hljs-string, .hljs-regexp, .hljs-addition { color: light-dark(#166534, #86efac); }
-      .hljs-number, .hljs-literal, .hljs-symbol, .hljs-bullet {
-        color: light-dark(#9a3412, #fdba74);
-      }
-      .hljs-title, .hljs-built_in, .hljs-type { color: var(--aui-action); }
-      .hljs-attr, .hljs-attribute, .hljs-variable, .hljs-template-variable {
-        color: light-dark(#9d174d, #f9a8d4);
-      }
-      .hljs-emphasis { font-style: italic; }
-      .hljs-strong { font-weight: 700; }
+      code { white-space: inherit; overflow-wrap: normal; }
+      ${lineNumbersCSS}
+      .line-numbers-rows { border-color: var(--aui-border); }
+      .line-numbers-rows > span::before { color: var(--aui-muted-text); }
+      .token.comment, .token.prolog { color: var(--aui-muted-text); font-style: italic; }
+      .token.keyword, .token.atrule { color: light-dark(#6d28d9, #c4b5fd); }
+      .token.string, .token.regex { color: light-dark(#166534, #86efac); }
+      .token.number, .token.boolean { color: light-dark(#9a3412, #fdba74); }
+      .token.function, .token.class-name { color: var(--aui-action); }
+      .token.property, .token.variable, .token.tag { color: light-dark(#9d174d, #f9a8d4); }
+      .token.italic { font-style: italic; }
+      .token.bold { font-weight: 700; }
     `;
+  }
+
+  highlight() {
+    for (const code of this.querySelectorAll('pre > code')) {
+      if (code.classList.contains('language-mermaid')) continue;
+      const raw = code.textContent;
+      // Reset previous tokens/gutter on reconnect or a new raw-source response.
+      code.textContent = raw;
+      code.parentElement.classList.add('line-numbers');
+      Prism.highlightElement(code);
+      // Prism normalizes NBSP. Preserve authored whitespace even for that case:
+      // fall back to literal text and invoke the official numbering hook only.
+      if (code.textContent !== raw) {
+        code.textContent = raw;
+        Prism.hooks.run('complete', { element: code, code: raw });
+      }
+    }
   }
 
   connectedCallback() {
     super.connectedCallback();
-    // Let the current attachment finish; reconnect highlights from text, not old spans.
     queueMicrotask(() => {
-      if (!this.isConnected) return;
-      for (const code of this.querySelectorAll('pre > code')) {
-        const language = [...code.classList].find(name => name.startsWith('language-'))
-          ?.slice('language-'.length).toLowerCase();
-        // No auto-detection: unknown/plain fences stay literal; Mermaid has its own owner.
-        if (!language || language === 'mermaid' || !hljs.getLanguage(language)) continue;
-        const raw = code.textContent;
-        const fragment = document.createElement('template');
-        fragment.innerHTML = hljs.highlight(raw, { language, ignoreIllegals: true }).value;
-        // Highlight.js escapes source; insert only its output, never authored HTML.
-        // Fail closed if a grammar ever changes the exact selection/copy text.
-        if (fragment.content.textContent === raw) code.replaceChildren(fragment.content);
-      }
+      if (this.isConnected) this.highlight();
     });
   }
 }

@@ -4,6 +4,10 @@
 <catalog-page><main>
   <header class="page-head"><h1>Automata skills</h1><label>Theme <select id="theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></header>
   <p>Human-readable views of the same Markdown used by agents.</p>
-  <ul>{% for item in landings %}<li><a href="{{ item.url }}">{{ item.title }}</a></li>{% endfor %}</ul>
+  <p>Availability is checked once when this page opens. Unavailable entries may
+    require a different skill selection or <code>serve --all</code>; a failed check
+    does not identify the cause. Reload to check again.</p>
+  <ul>{% for item in landings %}<li><a role="link" data-catalog-href="{{ item.url }}" aria-disabled="true" tabindex="-1" aria-describedby="availability-{{ loop.index }}">{{ item.title }}</a><span id="availability-{{ loop.index }}" role="status">Checking availability in this preview…</span></li>{% endfor %}</ul>
+  <noscript>JavaScript is required to check which catalog entries this preview serves.</noscript>
 </main></catalog-page>
 {% endblock %}

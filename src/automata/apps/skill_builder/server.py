@@ -18,7 +18,7 @@ from pathlib import Path
 from .content import SOURCE, discover
 
 BUNDLES = {
-    "highlight.js": "6cc987718bc54f43b77072a60595d88b8aa3a915edf8c5d2cb59bdb3994e98ba",
+    "prism.js": "db64933eccbb6f8edb10f1d0e0a94c1d5d4889fbc1c3705096a17dad9ffef8a2",
     "adaptive-ui.js": "c6642917e2be4da690c8c565d91f12e065c6e10247414bae67f2ca914b3ccc9a",
     "mermaid.js": "d0830a6c05546e9edb8fe20a8f545f3e0dc7c4c3134d584bad9c13a99d7a71e0",
 }
@@ -61,8 +61,7 @@ def native_command(action, output, selector=None, all_skills=False, port=8788, r
             raise ValueError("Entry template escapes app root")
         allowed.update((page.template_name, page.url.lstrip("/")))
         allowed.add(page.source.relative_to(root).as_posix())
-    if all_skills:
-        allowed.update(("", "index.html"))
+    allowed.add("templates/index.html")
     allow_pattern = "(?:" + "|".join(re.escape(path) for path in sorted(allowed)) + ")"
     command = [
         sys.executable, "-m", "engrave.main", action, str(root), str(output),
