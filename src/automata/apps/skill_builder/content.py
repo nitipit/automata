@@ -58,6 +58,9 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
         raise ValueError("Choose exactly one skill name or --all")
     if selector and not re.fullmatch(r"[a-z0-9][a-z0-9-]*", selector):
         raise ValueError("Invalid skill name")
+    if selector and not (skills / selector).is_dir():
+        selector = next((name for name, slug in LEGACY_URL_SLUGS.items()
+                         if slug == selector), selector)
     roots = sorted(skills.iterdir()) if all_skills else [skills / selector]
     pages = []
     for root in roots:
@@ -74,7 +77,8 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
             if not source.is_relative_to(root.resolve()) or source.suffix != ".md":
                 raise ValueError("Markdown reference escapes its skill")
             relative = source.relative_to(root.resolve())
-            if relative != Path("SKILL.md") and relative.parts[0] not in ("references", "templates"):
+            if (relative != Path("SKILL.md")
+                    and relative.parts[0] not in ("references", "templates")):
                 raise ValueError("Linked Markdown must live in references/ or templates/")
             text = source.read_text(encoding="utf-8")
             stripped = body(text)
@@ -117,7 +121,7 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
 def lookup(pages: list[Page], skill: str, document: str = "SKILL.md") -> Page:
     """Accept only a document reached through canonical discovery, never a file path."""
     for page in pages:
-        if page.skill == skill and page.document == document:
+        if skill in (page.skill, url_slug(page.skill)) and page.document == document:
             return page
     raise ValueError("Unknown skill document")
 
@@ -144,8 +148,8 @@ def render_markdown(page: Page) -> str:
 
 def export_agent(selector: str, output: Path, skills: Path = SKILLS) -> None:
     """Copy the complete canonical skill, including supporting nonpublic assets."""
-    discover(skills, selector, False)
-    root = (skills / selector).resolve()
+    pages = discover(skills, selector, False)
+    root = (skills / pages[0].skill).resolve()
     files = {p.relative_to(root): p for p in root.rglob("*") if p.is_file()}
     if any(not path.resolve().is_relative_to(root) for path in files.values()):
         raise ValueError("Skill asset escapes its source directory")

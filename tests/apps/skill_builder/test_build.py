@@ -35,6 +35,22 @@ def test_export_and_installer_preserve_both_identities(tmp_path):
     assert (tmp_path / "adaptive/lib/package.json").is_file()
 
 
+def test_legacy_selectors_and_navigation(tmp_path):
+    for slug in ('plan', 'message-router'):
+        export_agent(slug, tmp_path / slug)
+        assert snapshot(tmp_path / slug) == snapshot(SKILLS / f'automata-{slug}')
+    with TestClient(create_app('message-router')) as client:
+        source = client.get('/message-router/').text
+        assert 'href="/message-router/references/connect.html"' in source
+        assert 'href="/message-router/"' in source
+        assert 'href="/automata-message-router/' not in source
+        assert client.get('/templates/skill.html?name=message-router').status_code == 200
+        assert client.get('/templates/reference.html?name=message-router'
+                          '&reference=references/connect.md').status_code == 200
+    with TestClient(create_app('plan')) as client:
+        assert client.get('/templates/skill.html?name=plan').status_code == 200
+
+
 def test_export_refuses_stale_files(tmp_path):
     (tmp_path / "private.txt").write_text("keep")
     with pytest.raises(ValueError, match="noncanonical"):

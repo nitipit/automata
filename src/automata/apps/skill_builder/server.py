@@ -126,7 +126,7 @@ def create_app(selector=None, all_skills=False, root=SOURCE):
                 return render(
                     "templates/skill.html", skill=page.skill, title=page.title,
                     document=page.document,
-                    navigation=[(p.url.removeprefix(f"/{url_slug(page.skill)}/"), p.title)
+                    navigation=[(p.url, p.title)
                                 for p in pages if p.skill == page.skill],
                     raw_source=page.source.read_text(encoding="utf-8"),
                     reference_html=render_markdown(page) if page.document != "SKILL.md" else "",

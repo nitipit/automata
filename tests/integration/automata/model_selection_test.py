@@ -10,7 +10,9 @@ NAME = "automata-model-selection"
 
 
 def source_bytes() -> bytes:
-    return files("automata").joinpath("skills", "core", NAME, "SKILL.md").read_bytes()
+    return files("automata").joinpath(
+        "apps", "skill_builder", "skills", NAME, "SKILL.md"
+    ).read_bytes()
 
 
 def test_selected_install_and_update_preserve_notes_and_other_skills(tmp_path: Path) -> None:
