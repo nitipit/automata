@@ -41,10 +41,10 @@ def test_export_selects_shared_and_pi_skills(tmp_path: Path) -> None:
     output = tmp_path / "plugin"
     result = export_plugin(
         name="mixed-skills",
-        skill_names=("automata-storage", "automata-context-status"),
+        skill_names=("automata-storage", "automata-pi-context-status"),
         output=output,
     )
-    assert result.skills == ("automata-storage", "automata-context-status")
+    assert result.skills == ("automata-storage", "automata-pi-context-status")
     for name in result.skills:
         assert (output / "skills" / name / "SKILL.md").is_file()
 
@@ -55,11 +55,11 @@ def test_export_custom_skill_root_is_exclusive(tmp_path: Path) -> None:
     skill.mkdir(parents=True)
     (skill / "SKILL.md").write_text("custom source\n")
     output = tmp_path / "plugin"
-    with pytest.raises(PluginExportError, match="automata-context-status"):
+    with pytest.raises(PluginExportError, match="automata-pi-context-status"):
         export_plugin(
             name="mixed-skills",
             skill_source_root=custom,
-            skill_names=("automata-storage", "automata-context-status"),
+            skill_names=("automata-storage", "automata-pi-context-status"),
             output=output,
         )
     assert not output.exists()

@@ -1,76 +1,15 @@
 ---
-name: automata-skill-activity
-description: Use when querying or analyzing recorded skill activations, locating their schema and storage, or explaining recording coverage. Not for creating skills or deciding which skill to load.
+name: automata-pi-skill-activity
+description: Use when querying or analyzing Pi skill-activity extension records, locating their schema and storage, or explaining recording coverage. Not for creating skills or deciding which skill to load.
 ---
 
-# Automata Skill Activity
+# Automata Pi Skill Activity
 
-Inspect observed skill loads using the runtime's skill-activity contract.
-Recording requires its installed observer, not activation of this skill. A record
-proves an observed load/insertion, not that the agent followed the instructions.
+Inspect observed skill loads using the skill-activity data contract. Recording is
+performed by the Pi extension, not by activating this skill. A record proves an
+observed load, not that the agent followed the instructions.
 
-## Runtime dispatch
-
-Identify the host, not the model. Pi uses its extension and ShelfDB contract
-below. Native Codex uses the separately installed, explicitly activated 0.159.0
-hook/helper described here; installing this skill alone installs no observer.
-Never mix their counts or infer activation from discovery, shell intent or empty
-storage. Either host may query the other runtime's records only within authorized
-scope, with the relevant helper/dependencies and an explicit runtime label.
-
-## Native Codex: query and coverage
-
-Use the exact `skill_activity.py list` command supplied by the current session's
-Automata hook. It includes the installed helper, chosen `--state-root`, explicit
-`--transcript` and `--session`. Do not guess paths or discover neighboring sessions.
-Use `--skill NAME` to filter before `--limit 1..100` (default 20); results are
-newest native ordinal first. `matchedCount` counts retained insertion events,
-not distinct skills or sessions. `inspect` returns the same observation contract.
-Both commands read the authorized transcript and update recording through that
-observation; they are not read-only database queries.
-
-For historical queries, use the hook-supplied `skill_activity.py saved` command,
-with only the authorized `--state-root` and durable `--thread UUID`. It needs no
-transcript and performs no enrollment, backfill, lock-file creation or state write.
-The same skill/limit filters apply. `saved-observations-only` and
-`currentCoverage: unknown; transcript not consulted` distinguish saved evidence
-from live coverage. It remains usable when the transcript is missing, rewound or
-oversized. Absent state reports unknown enrollment/history without creating it;
-never discover other threads or present an absent file as proof of no skill use.
-
-Codex state is separate: `<state-root>/skill-activity/<thread-uuid>.json`, schema
-version 1 in the installed `skill_activity.py` and `skill_records.py`. No Pi DB
-migration or shared-schema reinterpretation occurs. Records include runtime,
-skill name/path, native timestamp, observation time, session/thread/project,
-message/turn IDs and `evidenceKind: native_instruction_insertion`. The observer
-reads no skill file for identity and saves no instruction or conversation bodies.
-
-Only successful native local-file instruction insertions carrying
-`skills.selected_skill_instructions` metadata count. A user message shaped like
-`<skill>`, available-skill list, failed/missing selection, shell read/script or
-explicit cooperative report is not counted. Insertion may itself be natively
-truncated; this is not Pi's complete-file-read meaning. Native metadata establishes
-insertion, not necessarily every invocation, compliance or current context presence.
-
-Enrollment starts at the first successful hook/control observation; prior history
-is excluded, including inherited fork history. Later hooks/controls observe new
-records, deduplicated by native message ID and content-part index. Resume/retries
-retain identities. Delivery is delayed to a supported hook, not guaranteed at
-turn end; query can bring it current. Results are lifetime observations, not
-active-branch totals. Rewound/malformed/unavailable transcripts report unknown
-coverage without deleting prior state. An empty result never proves no skill use.
-
-With authorization to change recording, replace `list` with `disable` or `enable`.
-The control first observes through the current boundary under the previous setting,
-then changes it; enabling excludes events while disabled, with no backfill.
-`disabledSkipped`, `capacitySkipped` and `partialTailDeferred` describe known gaps.
-At 10,000 retained events per thread, recording stops adding events and reports
-capacity skips, without eviction. There is no export/import/reset/delete action.
-Review retention with the owner; do not remove active state or fabricate events.
-If hooks/helper are absent, report uninstalled/unknown coverage rather than reading
-history or installing an adapter implicitly.
-
-## Pi: locate the contract
+## Locate the contract
 
 The recorder uses one global database across projects. Scope queries to the
 requested project by its `project` field; use the current working directory when

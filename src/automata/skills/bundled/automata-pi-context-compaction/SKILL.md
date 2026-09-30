@@ -1,32 +1,13 @@
 ---
-name: automata-context-compaction
-description: Use when an agent or user is considering intentional context compaction after context-pressure observations, long-running work, or a stable task boundary.
+name: automata-pi-context-compaction
+description: Use when an agent or user is considering intentional Pi context compaction after context-pressure observations, long-running work, or a stable task boundary.
 ---
 
-# Automata Context Compaction
+# Automata Pi Context Compaction
 
-Choose when to compact and preserve continuity. Do not change automatic-compaction
-settings without approval or make compaction a task-completion requirement.
-
-## Runtime dispatch
-
-Identify the host from its exposed interfaces, not the model/provider name.
-
-- **Pi with `context_compact`:** use the workflow below, including its deferred
-  request, summary-model preferences and continuation contract.
-- **Native Codex CLI:** Automata does not provide `context_compact`. Preserve
-  authorized task state before context loss; let Codex own automatic compaction
-  and continuation. This already supplies useful context relief without a wrapper.
-  For an intentional compact, the human can use native `/compact`. Do not inject
-  that command through shell, tmux or a user message. Pi's selected summary model,
-  thinking, `customInstructions` and `resumeMessage` are not native CLI promises;
-  do not translate those preferences into config changes or a wrapper invocation.
-  A gated native `new_context` resets without summarizing; it is not a drop-in
-  continuity-preserving compact. Use only actually exposed interfaces.
-- **Other or unavailable interface:** report the limitation; do not invent a tool
-  or treat an unknown reading as a compaction trigger.
-
-The remaining workflow is for Pi. Native controls are alternatives, not parity.
+Choose when to compact, preserve continuity and request deferred native summarization
+through `context_compact`. Pi owns automatic compaction; do not change its settings
+without approval or make compaction a task-completion requirement.
 
 ## When to compact
 
@@ -47,11 +28,18 @@ setup questionnaire is needed within these rules.
 
 ## Select model and thinking
 
+This workflow requires Pi's exposed `context_compact` extension tool. Installing
+this skill does not install or activate that extension. If it is unavailable,
+report the missing capability rather than inventing a call or injecting a command.
+
 Apply explicit current instructions, then project preferences, global preferences,
 and finally session defaults. Consult existing preferences at:
 
 - Project: `.agents/var/skills/automata-context-compaction/preferences.md`
 - Global: `~/.agents/var/skills/automata-context-compaction/preferences.md`
+
+These existing preference paths are retained across the skill rename; do not
+move or duplicate saved choices merely to match the new skill name.
 
 Pass a selected `model` as `provider/model`. Omission captures the current model
 when queued. Pass an explicit `thinking` level when selected: `off`, `minimal`,

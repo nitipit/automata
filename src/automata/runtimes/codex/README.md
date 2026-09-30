@@ -13,13 +13,19 @@ and appended to that file. Compatibility with newer writers is not assumed.
 
 ## Native and shared workflows
 
-Use the actual exposed native collaboration tools for native colleagues and read
-results rather than treating a submitted message as completed work. For external
-browser requests, the shared router's generic Node client can run in an owned
-interactive shell process; its task-local recipe ships with the message-router
-skill. This requires authorized loopback, credentials, a live connection and an
-active/resumed agent. It does not provide unsolicited model wakeups or durability.
-No extra router code or client service is installed by this awareness bundle.
+Reuse the existing tmux collaboration workflow for independently owned Pi and
+Codex processes. Native collaboration is optional, not the default replacement.
+Verify receiver identity and delivery state; sending terminal input is not proof
+of receipt or completed work. Existing model-level collaboration evidence does
+not certify another CLI's busy-state or queued-input behavior. Live-agent trials
+remain separate from source guidance and installation.
+
+For external browser requests, the shared router's generic Node client can run in
+an owned interactive shell process. Its task-local recipe is installed with the
+message-router tool at `docs/node-client.md`. This requires authorized loopback,
+credentials, a live connection and an active/resumed agent; it does not provide
+unsolicited model wakeups or durability. No extra router code or client service
+is installed by this awareness bundle.
 
 Let native automatic compaction preserve useful continuation; human `/compact`
 can request context relief. Do not port Pi's optional summary settings or treat
@@ -31,6 +37,11 @@ context metrics nor stale rate snapshots prove fresh account identity or quota.
 No autonomous fresh account reader is established by this bundle.
 
 ## Install and activate explicitly
+
+See [setup and support](setup.md) for skill selection and runtime-specific setup.
+Shared skills stay portable; `automata-pi-*` contracts require their Pi extensions
+and are not substitutes for these Codex hooks or shell controls. The separate
+`automata-codex-sessions` skill covers this runtime's session-management helper.
 
 From an Automata environment, with confirmed destinations and copy/replace/symlink
 mode:
@@ -44,7 +55,8 @@ uv run --offline automata codex install \
 The existing `token-awareness` bundle name is retained. It installs
 `token_awareness.py`, `token_records.py`, `context_awareness.py`,
 `context_records.py`, `skill_activity.py`, `skill_records.py`, the explicit
-`session_management.py` control and its `session_*.py` modules, `README.md`, and a
+`session_management.py` control and its `session_*.py` modules, `README.md`,
+`setup.md`, and a
 generated `hooks.json` fragment. It does NOT edit existing Codex config,
 trust commands, start sessions, create mutable state, or install duplicate skills.
 State must remain outside the replaceable bundle. Symlink mode links script/docs

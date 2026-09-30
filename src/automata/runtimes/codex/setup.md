@@ -34,9 +34,14 @@ Codex can discover same-name skills from both repository and global roots; it do
 not promise nearest-wins precedence. Legacy Codex skill roots or plugin copies can
 add another exposure. Do not duplicate an installed skill merely to enable Codex,
 remove existing assets without permission, or assume an installer collision check
-resolves runtime ambiguity. Pi-specific skills may remain in a shared installation;
-`automata-pi-sessions` is explicitly for Pi. The additive
-`automata-codex-sessions` skill covers native Codex's separate bounded contract.
+resolves runtime ambiguity. Select portable skills plus the runtime-specific
+contracts actually needed. `automata-pi-context-compaction`,
+`automata-pi-context-status`, `automata-pi-skill-activity` and
+`automata-pi-sessions` require their Pi extensions; they do not describe these
+Codex hooks. `automata-codex-sessions` covers native Codex's separate bounded
+contract. Native observation/helper details belong in the installed README,
+not runtime branches inside portable skills. Full-catalog installation remains
+explicitly available; the installer does not auto-detect the host or filter it.
 
 ## Direct shared installation (recommended)
 
@@ -233,7 +238,7 @@ human effort controls and launch-time selection remain.
 | Context status | Optional hooks and `context` helper: labelled last-known estimates, raw pressure, input anchor/wall elapsed | `context_status` request-local pressure and task telemetry |
 | Compaction | Native automatic compaction/continuation and human `/compact`; no wrapper needed | `context_compact`, including summary-only effort |
 | Skill activity | Optional native insertion observer + session-scoped query/control; explicit coverage, separate state | Existing Pi observer/database |
-| Collaboration and external exchange | Exposed native colleague tools; shared browser/Node client through an owned active shell process for external replies | Native/shared workflows plus `message_router`, Pi admission and pending context |
+| Collaboration and external exchange | Reused tmux collaboration; native colleague tools optional; shared Node client for external replies | Reused tmux collaboration plus `message_router`, Pi admission and pending context |
 | Token awareness | Optional version-pinned hooks/helper above; delayed, coverage-labelled snapshots | Pi branch accounting and request-local annotations |
 | Message timestamps | Optional bounded native item-ID/lifecycle-time packets; no body rewriting | Pi historical model-only annotations |
 | Session copy/trash | Explicit-store helper: receipt-scoped independent copy or linked fork, bounded OS-trash/native restore; no blanket Pi parity | `pi_session_*` tools |
@@ -255,15 +260,22 @@ fails rather than regenerating. Availability is model/provider/account/feature
 conditional. One-image consent is guidance in Codex, not Pi's bridge confirmation
 gate. Offline mock-image success does not prove live entitlement or image quality.
 
-For native colleagues, use the collaboration tools actually exposed. In 0.159.0,
-V1 `send_input` submits work; V2 `send_message` queues without starting an idle
-target, while `followup_task` requests a turn. Native waits/completion notifications
-help obtain results, but submission or mailbox activity is not completed work.
-Do not infer reachability or authority over arbitrary external agents. For external
-browser requests, the existing generic Node client can run in an owned interactive
-shell process: see the [task-local recipe](../../automata-message-router/references/node-client.md).
-It needs a live connection and an active/resumed agent, not a new polling service.
-No automatic model wakeup, durable inbox or Pi delivery modes are promised.
+Reuse the existing tmux skills and tool for cross-runtime collaboration. Keep
+process ownership, exact receiver identity and acknowledgements explicit; verify
+CLI-specific busy/queued-input behavior rather than repeating model collaboration
+tests. This preference does not certify live Codex input delivery.
+
+Native collaboration remains optional when actually exposed. In 0.159.0, V1
+`send_input` submits work; V2 `send_message` queues without starting an idle target,
+while `followup_task` requests a turn. Native waits/completion notifications help
+obtain results, but submission or mailbox activity is not completed work. Do not
+infer reachability or authority over arbitrary external agents.
+
+For browser requests, use the existing generic Node client in an owned interactive
+shell process. The message-router tool ships the task-local recipe at
+`docs/node-client.md`; its README links it. It needs a live connection and an
+active/resumed agent, not a new polling service. No automatic model wakeup,
+durable inbox or Pi delivery modes are promised.
 
 Native automatic compaction already supports continued work; human `/compact`
 provides intentional context relief. Preserve material task state rather than

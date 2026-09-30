@@ -16,7 +16,6 @@ from pathlib import Path
 
 import pytest
 
-from automata.install.skills import install_skills
 from automata.install.tools import install_tools
 
 
@@ -30,9 +29,7 @@ def check_node_reply_recipe(tmp_path, node, tool_root, endpoints, page):
     """Exercise installed Markdown example over a real PTY, not a model mock."""
     import pty
 
-    skills = tmp_path / "skills"
-    install_skills(target_root=skills, skill_names=["automata-message-router"])
-    recipe = (skills / "automata-message-router/references/node-client.md").read_text()
+    recipe = (tool_root / "message-router/docs/node-client.md").read_text()
     script = tmp_path / "reply.mjs"
     script.write_text(recipe.split("```js\n", 1)[1].split("\n```", 1)[0])
     master, slave = pty.openpty()

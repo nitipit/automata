@@ -2,8 +2,9 @@
 
 Use this when an active agent needs to read a browser request and answer it using
 an existing authorized router. This is a short task-specific example, not a new
-service, model host or automatic inbox adapter. Native collaborators should use
-available native collaboration tools instead.
+service, model host or automatic inbox adapter. It complements existing tmux
+collaboration when browser or other external request/reply is needed; it does not
+replace agent process management or establish authority to delegate.
 
 ## Prerequisites
 

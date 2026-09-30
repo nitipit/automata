@@ -102,11 +102,11 @@ def test_cli_installs_shared_and_pi_skills_without_source_root(
     with pytest.raises(SystemExit) as exc_info:
         app([
             "skills", "install", "--target-root", str(target),
-            "--skill", "automata-storage,automata-context-status",
+            "--skill", "automata-storage,automata-pi-context-status",
         ])
     assert exc_info.value.code == 0
     output = capsys.readouterr().out
-    for name in ("automata-storage", "automata-context-status"):
+    for name in ("automata-storage", "automata-pi-context-status"):
         assert f"Installed {name}" in output
         assert (target / name / "SKILL.md").is_file()
 

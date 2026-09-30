@@ -142,14 +142,15 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "runtimes/pi/extensions/message-timestamps.ts",
         "runtimes/pi/extensions/token-awareness.ts",
         "runtimes/pi/extensions/message-router/index.ts",
-        "skills/bundled/automata-context-status/SKILL.md",
-        "skills/bundled/automata-context-compaction/SKILL.md",
+        "skills/bundled/automata-pi-context-status/SKILL.md",
+        "skills/bundled/automata-pi-context-compaction/SKILL.md",
         "skills/bundled/automata-pi-sessions/SKILL.md",
-        "skills/bundled/automata-codex-imagegen/SKILL.md",
-        "skills/bundled/automata-skill-activity/SKILL.md",
+        "skills/bundled/automata-imagegen/SKILL.md",
+        "skills/bundled/automata-pi-skill-activity/SKILL.md",
         "skills/bundled/automata-message-router/SKILL.md",
-        "skills/bundled/automata-message-router/references/node-client.md",
+        "tools/message-router/docs/node-client.md",
         "runtimes/codex/README.md",
+        "runtimes/codex/setup.md",
         "runtimes/codex/token_awareness.py",
         "runtimes/codex/session_management.py",
         "skills/bundled/automata-plan/SKILL.md",
@@ -213,9 +214,9 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         assert 'skills/templates/licenses/PROVENANCE.txt' in paths
         assert not any(path.startswith("extensions/") for path in paths)
         pi_skill_names = (
-            "automata-context-status", "automata-context-compaction",
-            "automata-pi-sessions", "automata-codex-imagegen",
-            "automata-skill-activity", "automata-message-router",
+            "automata-pi-context-status", "automata-pi-context-compaction",
+            "automata-pi-sessions", "automata-imagegen",
+            "automata-pi-skill-activity", "automata-message-router",
         )
         assert not any(
             path.startswith("skills/core/") and path.endswith(f"{name}/SKILL.md")
@@ -255,12 +256,12 @@ assert sources['automata-plan'] == site / 'automata/skills/bundled/automata-plan
 assert not any(name in sys.modules for name in ('engrave', 'mistune', 'playwright'))
 results = install_skills(target_root=work / 'skills')
 assert {result.name for result in results} == set(sources)
-for name in ('automata-storage', 'automata-context-status',
+for name in ('automata-storage', 'automata-pi-context-status',
              'automata-message-router', 'automata-plan'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
 router_skill = work / 'skills/automata-message-router'
 assert {path.name for path in router_skill.iterdir()} == {'SKILL.md', 'references'}
-for page in ('configure', 'connect', 'discover', 'send', 'failures', 'node-client'):
+for page in ('configure', 'connect', 'discover', 'send', 'failures'):
     assert (router_skill / 'references' / (page + '.md')).is_file()
 assert all(path.suffix == '.md' for path in router_skill.rglob('*') if path.is_file())
 assert '(references/connect.md)' in (router_skill / 'SKILL.md').read_text()
@@ -278,8 +279,8 @@ assert (work / 'extensions/message-router/index.ts').is_file()
 assert (work / 'extensions/skill-activity/store.py').is_file()
 assert (work / 'extensions/token-awareness.ts').is_file()
 export_plugin(name='wheel-smoke', output=work / 'plugin',
-              skill_names=['automata-storage', 'automata-context-status'])
-assert (work / 'plugin/skills/automata-context-status/SKILL.md').is_file()
+              skill_names=['automata-storage', 'automata-pi-context-status'])
+assert (work / 'plugin/skills/automata-pi-context-status/SKILL.md').is_file()
 # Both runtime asset paths and the existing shared tools survive wheel installation.
 from automata.install.codex import install_codex
 from automata.install.tools import install_tools
@@ -289,6 +290,7 @@ install_codex(target_root=work / 'codex', state_root=state)
 bundle = work / 'codex/token-awareness'
 assert (bundle / 'session_management.py').is_file()
 assert (bundle / 'README.md').is_file()
+assert (bundle / 'setup.md').is_file()
 hooks = json.loads((bundle / 'hooks.json').read_text())['hooks']
 assert set(hooks) == {'SessionStart', 'UserPromptSubmit', 'PreCompact', 'PostCompact'}
 assert all(len(groups[0]['hooks']) == 2 for groups in hooks.values())
@@ -297,6 +299,7 @@ assert not (work / 'codex/config.toml').exists()
 shared = install_tools(target_root=work / 'tools')
 assert {item.name for item in shared} == {'line', 'message-router', 'timer', 'tmux-message'}
 assert (work / 'tools/message-router/browser/client.js').is_file()
+assert (work / 'tools/message-router/docs/node-client.md').is_file()
 """, str(site), str(tmp_path / "installed")],
         cwd=tmp_path, capture_output=True, text=True, timeout=30, check=False,
     )
@@ -308,8 +311,8 @@ def test_package_separates_pi_extensions_from_bundled_skills() -> None:
     assert not package.joinpath("extensions").exists()
     pi = package.joinpath(*PI_RUNTIME)
     for name in (
-        "automata-context-compaction", "automata-context-status", "automata-pi-sessions",
-        "automata-codex-imagegen", "automata-skill-activity",
+        "automata-pi-context-compaction", "automata-pi-context-status", "automata-pi-sessions",
+        "automata-imagegen", "automata-pi-skill-activity",
     ):
         assert package.joinpath(*PI_SKILLS, name, "SKILL.md").is_file()
         assert not pi.joinpath("skills", name).exists()
@@ -363,7 +366,7 @@ def test_package_includes_bundled_context_status_pi_extension() -> None:
 def test_package_includes_context_compaction_extension_and_skill() -> None:
     package_root = files("automata")
     extension = package_root.joinpath(*PI_EXTENSIONS, "context-compaction.ts")
-    skill = package_root.joinpath(*PI_SKILLS, "automata-context-compaction", "SKILL.md")
+    skill = package_root.joinpath(*PI_SKILLS, "automata-pi-context-compaction", "SKILL.md")
 
     assert extension.is_file()
     assert skill.is_file()

@@ -38,7 +38,7 @@ console.log(await separate.accepted);
 }
 ```
 
-`forwarded` means the router emitted the message to the current recipient connection. It does not establish handling, Pi admission, or a model answer. A reply-enabled request remains pending until final response, cancel, or disconnect.
+`forwarded` means the router emitted the message to the current recipient connection. It does not establish handling, agent admission, or a model answer. A reply-enabled request remains pending until final response, cancel, or disconnect.
 
 ## Reply to the received message—not to a participant name
 
@@ -129,6 +129,6 @@ console.log(await notification.accepted); // status: "forwarded", not "handled"
 }
 ```
 
-No reply capability is allocated. **The current Pi adapter ignores one-way notifications.** Use reply-enabled requests for Pi agents; a router forwarding receipt alone still does not prove Pi admission.
+No reply capability is allocated. **Some agent adapters ignore one-way notifications.** Verify the intended recipient's contract and use reply-enabled requests when required; a forwarding receipt alone does not prove admission.
 
 [Next: distinguish failures and uncertainty →](./failures.md)

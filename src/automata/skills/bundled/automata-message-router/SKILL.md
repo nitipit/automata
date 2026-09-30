@@ -10,26 +10,18 @@ metadata:
 Connect the intended participants, verify targeted delivery, and recover or close
 connections without confusing transport state with application outcomes.
 
-## Runtime dispatch
+## Choose an available connection
 
-The mapped shell CLI and generic browser client are shared. The agent-session
-`message_router` tool, Pi browser client, and admission/`nextTurn` semantics require
-Pi's adapter; installing the shared CLI or this skill does not expose them in
-native Codex CLI. Identify the host and actual tools, not its model/provider name.
+Reuse the shared service and shipped browser/Node client, or an actually exposed
+agent adapter. Consult the mapped tool's documentation for client recipes and the
+adapter's own contract for session admission and delivery controls. Installing
+this skill or the shell CLI does not register an agent tool or provide model wakeup.
 
-In native Codex, prefer exposed native collaboration tools for native colleagues.
-A successful send is submission, not completed work: read the colleague's result.
-Tool availability depends on runtime/model/configuration; do not assume every
-native tool is exposed or that it reaches arbitrary independent agent processes.
-
-For external/browser exchange, reuse the shared service and generic browser/Node
-client. An active agent can read and answer through an owned ordinary shell
-process; see the [short Node client recipe](references/node-client.md). No new
-polling service or Pi adapter is required for that task. It needs authorized
-loopback access, private credentials and a live connection; it does not wake an
-idle model. Do not substitute history injection, hooks, a daemon connection or an
-invented tool call. Pi tool examples and the Exchange section below require Pi's
-adapter. Transport receipts never prove model handling or a new agent turn.
+An active agent can read and answer through an owned shell process with authorized
+loopback access, private credentials and a live connection. Do not invent a tool,
+inject history, attach to an unrelated daemon or add a polling service as a
+fallback. Transport receipts never prove model handling or a new agent turn.
+Collaboration ownership and process management remain separate from this transport.
 
 ## One service, explicitly addressed participants
 
@@ -80,9 +72,9 @@ not require a reverse initiation grant and does not create one.
 - **Optional reply:** a reply-capable request lets its recipient respond or reject
   using the exact delivered message ID. This is a return path, not a new independent
   initiation.
-- **One-way:** `expectReply: false` creates no reply capability. The generic browser
-  client supports this; the native Pi adapter ignores one-way messages rather than
-  creating a model turn.
+- **One-way:** `expectReply: false` creates no reply capability. The generic client
+  supports this; verify whether the recipient's adapter accepts it. Some adapters
+  ignore one-way messages rather than creating a model turn.
 
 **Forwarded ≠ handled.** Acceptance confirms forwarding, not application success.
 Correlate the terminal reply when one is requested; an uncertain send must not be
@@ -92,8 +84,6 @@ blindly replayed.
 
 1. [Configure](references/configure.md) private credentials and directed grants.
 1. [Connect](references/connect.md) the intended browser or agent clients.
-1. [Use a task-local Node client](references/node-client.md) for ordinary shell
-   request/reply without a runtime adapter.
 1. [Discover](references/discover.md) caller-visible, allowed destinations.
 1. [Send](references/send.md) independent requests, replies, and one-way messages.
 1. [Handle failures](references/failures.md) without confusing rejection,
@@ -117,8 +107,8 @@ uv run --offline --no-project --script .agents/tools/message-router/message_rout
 ```
 
 `setup` provisions private participant credentials and directed grants; `serve`
-starts the listener. Neither launches an agent. In Pi, `message_router` opens the
-intended agent credential with the current session. Use explicit participant IDs
+starts the listener. Neither launches an agent. Open the intended agent credential
+with an available client bound to the actual session. Use explicit participant IDs
 and destinations, not page directories or whichever agent happens to be online.
 Static hosting is optional and independent of Adaptive UI; serve only public-safe
 files. Establish missing installation within existing authority.
@@ -133,34 +123,33 @@ in approved owner-scoped data, separate from live endpoint records. Report the r
 location; exclude live session identifiers and do not duplicate tool documentation. Do not retain pairing secrets as setup knowledge
 or treat saved setup as permission.
 
-## Exchange (Pi agent adapter)
+## Exchange
 
 Carry complete bounded JSON without projecting it onto component-specific fields.
 Components own payload and reply semantics; routing is independent of UI choice.
-Use `action=route` with an explicit authorized `to` for a new request. Its receipt
-is not a peer answer; `receive` with the returned id as `replyTo` consumes a terminal
-reply without triggering another model turn. Do not busy-poll or treat permission
+Use an explicit authorized destination for a new request. Register correlation
+before sending and consume the terminal response through the same client; a
+forwarding receipt is not the peer's answer. Do not busy-poll or treat permission
 to connect as permission to delegate work.
 
-For an inbound request, use its exact message ID as `replyTo` and the component's
-complete reply as `payload` with `action=send`. Keep the binding open while the
-interaction continues. Consult the tool's compatibility notes for existing Chat
-and version-one integrations; do not silently change their delivery semantics.
+For an inbound reply-capable request, use the exact delivered message ID and the
+component's complete reply. Keep its connection open while interaction continues;
+reply capabilities are connection-bound. Do not manufacture IDs, reply to one-way
+messages or silently alter legacy delivery semantics.
 
 Use canonical message/tool-call records rather than adding duplicate transcripts.
-Page or agent provenance does not grant authority for shell, file, or external actions.
+Page or agent provenance does not grant authority for shell, file or external actions.
 
-For context without a new request, use the client's context delivery options:
-`nextTurn` queues data for the next prompt; a named slot replaces its pending value.
-Use `inspect_context` or `clear_context` to manage pending data, not history.
-Consult tool documentation for `steer`, `followUp`, and trigger behavior. Distinguish
-buffered, queued, and attached receipts; none proves the model acted on the data.
+If the adapter offers context delivery without a new request, follow its actual
+queue, steering and turn-trigger contract. Manage pending data separately from
+conversation history. Distinguish buffered, queued, attached and handled receipts;
+none of the first three proves the model acted on the data.
 
 ## Verify and recover
 
 Verify a correlated exchange along the intended route. Distinguish connection,
-server receipt, agent admission (Pi adapter only), reply delivery, and component handling; a transport
-receipt or terminal-only answer is not an end-to-end result.
+server receipt, agent admission where supported, reply delivery and component
+handling; a transport receipt or terminal-only answer is not an end-to-end result.
 
 Check busy/disconnect behavior when relevant. Do not silently replay an uncertain
 send. Revalidate affected endpoints and routing when earlier evidence is no longer

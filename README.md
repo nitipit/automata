@@ -34,7 +34,8 @@ Maintain application source under `src/automata/apps/<app-name>/` and generated
 builds or runtime data under `.agents/var/apps/<app-name>/`, outside source control.
 Each application determines its own internal layout.
 
-Shared skills distinguish Pi integrations from ordinary Codex CLI capabilities.
+Portable skills stay brand-neutral. Runtime-specific skills explicitly identify
+the extension or native interface they require; installation does not expose it.
 Pi retains context compaction/status, session tools, the Codex
 image-generation bridge, skill recording and the message-router session adapter.
 The router CLI stays shared under `tools/message-router/`. A model/provider name
@@ -42,12 +43,13 @@ does not determine the host runtime: `codex-bridge` is a Pi extension, not a Cod
 integration.
 
 Native Codex CLI can use the same skill catalog, character content and shell tools.
-See [Codex setup and support](src/automata/skills/bundled/automata-setup/references/codex.md)
+See [Codex setup and support](src/automata/runtimes/codex/setup.md)
 for direct-install commands, instruction surfaces, optional plugin packaging and
-explicit remaining gaps. Native collaboration, automatic/human compaction,
-image generation and human account/status inspection count as useful support;
+explicit remaining gaps. Reuse tmux collaboration across both runtimes; native
+collaboration is optional. Automatic/human compaction, image generation and human
+account/status inspection count as useful support;
 matching Pi tool names is not the goal. External browser exchange can use the
-[existing Node client recipe](src/automata/skills/bundled/automata-message-router/references/node-client.md)
+[existing Node client recipe](src/automata/tools/message-router/docs/node-client.md)
 from an owned active shell process, with permitted loopback and private grants.
 No automatic model wakeup or autonomous fresh quota query is promised.
 No wrapper or custom host is required. Optional
@@ -74,10 +76,16 @@ catalog at `src/automata/skills/bundled/`. Duplicate names are errors,
 not implicit overrides. An explicit custom skill source is exclusive; it never
 falls back to bundled skills.
 
-This is source organization, not installation or data migration. Skill names and
-flat installed directories remain unchanged, as do Pi extension destinations,
-credentials, and owner-scoped operational state. In particular, historical
-router state remains under `.agents/var/tools/agent-router`.
+This is source organization, not installation or data migration. The extension-bound
+skills are now `automata-pi-context-compaction`, `automata-pi-context-status` and
+`automata-pi-skill-activity`; portable image guidance is `automata-imagegen`.
+Select matching runtime-specific skills explicitly; full-catalog installation does
+not filter by host. Installers do not remove old skill names. Retire old copies
+only during an authorized sync, after reviewing local changes, to avoid duplicate
+activation guidance. Extension destinations, credentials and operational state
+remain unchanged, including existing `automata-context-compaction` preference
+paths, skill-activity databases and `.agents/var/tools/agent-router` router state.
+Historical audits retain the names and evidence from their original checkpoints.
 
 ## Design principles
 
@@ -364,9 +372,9 @@ Install the skill-load recorder globally, with its skill in repository and globa
 uv run automata pi-extension install \
   --target-root ~/.pi/agent/extensions --extension skill-activity --mode copy
 uv run automata skills install \
-  --target-root .agents/skills --skill automata-skill-activity --mode copy
+  --target-root .agents/skills --skill automata-pi-skill-activity --mode copy
 uv run automata skills install \
-  --target-root ~/.agents/skills --skill automata-skill-activity --mode copy
+  --target-root ~/.agents/skills --skill automata-pi-skill-activity --mode copy
 uv run --no-project --script ~/.pi/agent/extensions/skill-activity/store.py --help
 ```
 
@@ -378,7 +386,7 @@ applying the limit. Existing project-local records are not migrated automaticall
 The bundled CLI provides only `record` and `list`; it is not a general database API.
 No instruction bodies or conversations are stored. Dependency preparation may
 need downloads; the observer itself runs offline. See the
-[skill-activity skill](src/automata/skills/bundled/automata-skill-activity/SKILL.md)
+[skill-activity skill](src/automata/skills/bundled/automata-pi-skill-activity/SKILL.md)
 for discoverable query guidance, the data contract, and coverage limits.
 
 Install the context-status runtime extension:
@@ -483,7 +491,7 @@ uv run automata pi-extension install \
   --mode copy
 uv run automata skills install \
   --target-root ~/.agents/skills \
-  --skill automata-context-compaction \
+  --skill automata-pi-context-compaction \
   --mode copy
 ```
 
@@ -512,7 +520,7 @@ Install the focused image-generation guidance alongside the extension:
 ```bash
 uv run automata skills install \
   --target-root ~/.agents/skills \
-  --skill automata-codex-imagegen \
+  --skill automata-imagegen \
   --mode copy
 ```
 

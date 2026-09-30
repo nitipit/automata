@@ -80,7 +80,7 @@ For viewer, use a separate page/context and replace `desk` with `viewer` in the 
 
 The browser Origin must match the router by default. For a separately hosted frontend, explicitly authorize its exact origin with `--origin http://127.0.0.1:3000` and copy/bundle the browser modules into that frontend. This guide's own CSP and permissions remain unchanged; it never connects.
 
-## Node: a generic agent-kind client, not a Pi agent
+## Node: a generic agent-kind client
 
 Use a Node runtime with built-in WebSocket (for example Node 22+) and run from the checkout root. Save this as a private `.mjs` file in that root or adjust the import path. Set `WORKER_ENDPOINT` to the private worker endpoint file emitted by your owned router.
 
@@ -110,17 +110,14 @@ Expected: `{"v":2,"type":"hello_ack","participant":"worker","kind":"agent"}`. Ag
 
 Run the private file with `WORKER_ENDPOINT=/your/private/endpoints/participants/worker.json node worker-example.mjs`. For reviewer, make a separate copy: rename the `worker`/`workerCredentials` variables to `reviewer`/`reviewerCredentials`, use `REVIEWER_ENDPOINT` pointing at `reviewer.json`, and change the session ID to `reviewer-example`. Keep both processes connected for the independent initiation lesson.
 
-**This generic JavaScript handler does not launch Pi, a model turn, or another agent.** It simply receives JSON and emits JSON. The Send page's worker/reviewer examples use these generic clients.
+**This generic JavaScript handler does not launch a model turn or another agent.** It simply receives JSON and emits JSON. The Send page's worker/reviewer examples use these generic clients.
 
-## Native Pi adapter: an alternative owner of the agent identity
+## An available agent adapter is an alternative owner of the identity
 
-If using Pi instead, install/configure its shipped message-router extension through the approved setup process. In an existing authorized Pi session, open that agent's private endpoint:
-
-```javascript
-// message_router tool arguments inside the intended Pi session
-{"action":"open", "endpoint":"/private/example/endpoints/participants/worker.json"}
-```
-
-`open` binds the current Pi session; it starts neither router nor agent. Do not simultaneously connect the Node worker with the same identity. Pi admission and delivery options are separate from router forwarding. A tool reply uses `action: "send"` and the exact pending inbound ID as `replyTo`; outbound tool requests use `action: "route"`. The current adapter ignores one-way notifications.
+Use only an installed, exposed adapter with its documented session binding and
+admission contract. Consult the mapped tool's adapter documentation for exact
+calls and supported delivery modes. Opening a client launches neither a router
+nor an agent. Do not also connect the generic Node client with the same identity;
+a forwarding receipt alone does not establish admission or model handling.
 
 [Next: inspect permitted destinations →](./discover.md)

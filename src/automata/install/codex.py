@@ -51,6 +51,7 @@ def install_codex(
         "session_copy.py",
         "session_management.py",
         "README.md",
+        "setup.md",
     ):
         if mode == "symlink":
             (target / name).symlink_to((source / name).resolve())
