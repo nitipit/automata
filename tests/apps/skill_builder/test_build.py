@@ -28,7 +28,7 @@ def test_export_and_installer_preserve_both_identities(tmp_path):
         assert snapshot(tmp_path / "installed" / identity) == snapshot(package)
     assert len(discover(SKILLS, "automata-plan", False)) == 1
     assert len(discover(SKILLS, "automata-message-router", False)) == 6
-    assert len([p for p in discover(SKILLS, None, True) if p.document == "SKILL.md"]) == 40
+    assert len([p for p in discover(SKILLS, None, True) if p.document == "SKILL.md"]) == 41
     export_agent("automata-adaptive-ui", tmp_path / "adaptive")
     assert snapshot(tmp_path / "adaptive") == snapshot(SKILLS / "automata-adaptive-ui")
     assert (tmp_path / "adaptive/scripts/build.py").is_file()

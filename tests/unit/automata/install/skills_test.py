@@ -67,7 +67,8 @@ def test_default_sources_share_one_flat_canonical_root() -> None:
     (root,) = bundled_skill_roots()
     sources = skill_sources()
     assert root.name == "bundled"
-    assert len(sources) == 40
+    assert len(sources) == 41
+    assert {'automata-pi-sessions', 'automata-codex-sessions'} <= sources.keys()
     assert all(source == root / name for name, source in sources.items())
 
 

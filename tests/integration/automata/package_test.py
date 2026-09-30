@@ -239,7 +239,8 @@ from automata.plugin import export_plugin
 assert Path(automata.__file__).is_relative_to(site)
 sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
-assert len(sources) == 40
+assert len(sources) == 41
+assert {'automata-pi-sessions', 'automata-codex-sessions'} <= sources.keys()
 assert 'automata-time-awareness' not in sources
 assert 'automata-timer' in sources
 assert all(path.name == name for name, path in sources.items())

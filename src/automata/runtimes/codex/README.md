@@ -1,4 +1,4 @@
-# Codex awareness and skill activity (0.159.0, Linux/POSIX)
+# Codex awareness, skill activity and sessions (0.159.0, Linux/POSIX)
 
 A small ordinary CLI hook/helper integration, not a custom Codex launcher.
 Requires Python 3.12+ and a local Codex 0.159.0 transcript. Pi is unchanged.
@@ -19,7 +19,8 @@ uv run --offline automata codex install \
 
 The existing `token-awareness` bundle name is retained. It installs
 `token_awareness.py`, `token_records.py`, `context_awareness.py`,
-`context_records.py`, `skill_activity.py`, `skill_records.py`, `README.md`, and a
+`context_records.py`, `skill_activity.py`, `skill_records.py`, the explicit
+`session_management.py` control and its `session_*.py` modules, `README.md`, and a
 generated `hooks.json` fragment. It does NOT edit existing Codex config,
 trust commands, start sessions, create mutable state, or install duplicate skills.
 State must remain outside the replaceable bundle. Symlink mode links script/docs
@@ -34,8 +35,9 @@ context metadata, timestamps and native skill-insertion metadata to the chosen
 state root. The skill recorder separately enrolls at the first successful
 observation; it does not backfill earlier skill events. Each event group has two
 commands; review both when updating an existing installation. Neither installer
-nor helper scans session directories or
-attaches to a daemon. Changed commands need native trust review again.
+nor awareness hook scans session directories or attaches to a daemon. The separate
+session-management control below has its own explicit store/selection authority;
+installing it or trusting awareness hooks does not authorize session management. Changed commands need native trust review again.
 
 ## What the model receives
 
@@ -183,6 +185,100 @@ The chosen root can accumulate multiple enrolled threads: review retention with
 the owner. No automatic expiry, deletion, migration, export or backfill exists.
 Do not delete active state; authorized removal loses enrollment/dedup evidence.
 Zero events or missing hooks never establish that no skills were used.
+
+## Explicit native session management
+
+`session_management.py` is a shell control, never an automatic hook. It requires
+Python 3.12+, a trusted local **Codex 0.159.0** binary and Linux `bwrap` for mutations;
+trash also needs `gio`. No unsandboxed or permanent-delete fallback exists. It
+starts short-lived native app-server stdio processes with private networking,
+synthesized HOME/config, disabled hooks/goals/plugins/memories, and no model-turn
+RPC. It does not attach to a running daemon or read real auth/config contents.
+
+Use only authorized explicit roots; management state must be outside both the
+native store and replaceable assets. These example variables are approved paths,
+not implicit defaults:
+
+```bash
+HELPER=/absolute/assets/token-awareness/session_management.py
+STORE=/explicit/authorized/codex-store
+STATE=/absolute/project/.agents/var/codex-sessions
+python3 "$HELPER" list --store-root "$STORE" --state-root "$STATE" \
+  --cwd /exact/project --limit 20
+```
+
+`--all-projects` replaces `--cwd` only with broader discovery authority within
+that store. `--cursor TOKEN` continues a page without filters. Listing is bounded
+native-index metadata, not conversation previews or unindexed rollout discovery.
+It checks indexed rollout headers (64 MiB file / 8 MiB record limits), and reports
+missing roots/cwds and unavailable entries. Scope is capped at 10,000 indexed
+sessions; pages at 100, default20. Native RPC responses are capped at16 MiB.
+Missing directories do not authorize deletion.
+
+Each page issues separate `copyReceipt`, `forkReceipt`, `trashReceipt`, valid for
+five minutes and bound to store identity, caller, selected file/row snapshot and
+that page. New listings/pages supersede old receipts; mutation consumes its action
+receipt. Keep `CODEX_THREAD_ID` or supply known `--current-thread UUID` for listing
+and mutation. Never hide the current session. All mutations require explicit
+`--binary /absolute/native/codex --ids UUID ... --inactive-owned`; the latter
+attests previously established ownership/inactivity, not a liveness detector.
+Only a genuinely outside-session caller may use `--outside-session` instead.
+
+| Action | Additional arguments | Result |
+| --- | --- | --- |
+| `copy` | `--receipt COPY_RECEIPT --target-cwd EXISTING_DIR` | Fresh independent materialized session in the same store; source intact |
+| `fork` | `--receipt FORK_RECEIPT --target-cwd EXISTING_DIR` | Explicit linked native fork, not independent copy |
+| `trash` | `--receipt TRASH_RECEIPT --xdg-data-home AUTHORIZED_XDG_DATA_HOME` | Verified OS-trash recovery package, then selected native removal |
+| `restore` | `--recovery-id RECOVERY_UUID` | Exact selected original paths/IDs restored and natively verified |
+
+For example, after selecting an inactive owned session from the current page:
+
+```bash
+python3 "$HELPER" copy --store-root "$STORE" --state-root "$STATE" \
+  --binary "$NATIVE_CODEX" --current-thread "$CURRENT_THREAD" --inactive-owned \
+  --receipt "$COPY_RECEIPT" --ids "$SELECTED_UUID" --target-cwd "$DESTINATION"
+```
+
+Destination must exist, differ from source cwd, and neither contain nor be within
+the store. No project files, external assets or historical path rewriting. Copy
+uses a byte-identical private source snapshot, a native-generated fresh header
+(identity/cwd/provenance), and the original exact record tail instead of native
+reference backing. Source-free native hydration and full canonical history digest
+must match before exclusive publication; the published native history is checked
+again. Plain native fork remains linked and is never substituted for copying.
+
+Copy/trash support only materialized paginated history with no unresolved
+`history_base`. Archived/pinned/project/section/agent-enriched state and ancillary
+goals, queues, memories, attachments or dynamic tools lack certified recovery and
+are rejected. Trash checks both spawn edges and actual history references across
+**all indexed headers in the selected store**, even outside the listing cwd.
+Unknown unrelated schema/header data can conservatively block removal. Unselected
+dependents always reject; fully selected dependency groups are also unsupported.
+A provenance-only `forked_from_id` on a materialized copy is not a data reference.
+
+Recovery stages only selected rollouts/metadata/signatures, fsyncs them, and
+verifies genuine `gio trash` contents plus `.trashinfo` before native deletion.
+The chosen XDG trash and staging must share a filesystem; unsupported layouts
+fail without fallback. Restore refuses path/row collisions, checks bundle hashes,
+reinstates the exact original path, then uses targeted native resume to rebuild
+SQLite/history projections. Original thread/turn/item IDs, name, full canonical
+turn/item content digest and original rollout-byte prefix are verified. No fields
+are excluded from that digest. A JSONL-only copy-back is not a usable restore.
+Operational logs/caches, external assets and arbitrary runtime state are excluded.
+
+Results are per ID: success, failure or not-attempted. Stop on partial/unknown
+outcomes; do not retry automatically or delete a partially published destination.
+The helper's namespace lock does not establish other-process inactivity. Receipt
+validation and source rechecks reduce stale selections, not concurrent-writer
+risk: callers must establish inactivity before mutation.
+
+State contains private metadata snapshots/locks, `copies/<new-id>.json` provenance,
+`recoveries/<recovery-id>.json` journals, and staging/recovery locations. Recovery
+packages contain selected original conversation records; signatures store only
+SHA256 plus counts, not an extra raw history dump. Temporary native/copy-validation
+stores are disposed; successful restore retains the OS-trash package. Retention
+may grow across operations. Owner approval is required before removing recovery
+state/packages; no automatic expiry or trash-emptying is provided.
 
 ## Honest token accounting and recovery
 

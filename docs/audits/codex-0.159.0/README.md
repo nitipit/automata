@@ -147,6 +147,12 @@ landmark continuity remain untested.
   Archive is a native alternative, not deletion or verified backup. Do not map
   Pi trash to Codex permanent delete or infer inactivity from session metadata.
 
+Subsequent [CX-007 session evidence](session-management-port.md) establishes a
+separate bounded implementation: explicit-store receipts, independently
+materialized copies distinct from linked fork, and genuine OS-trash packaging
+before native removal with verified native restore. It does not relax the
+inactivity/authorization limits or promise general Pi parity.
+
 ### Communication, hooks and tool authorization
 
 Shared message-router service and generic browser client are runtime-independent.

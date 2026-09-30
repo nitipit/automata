@@ -5,7 +5,8 @@ wrapper, custom app-server host, Pi extension or separate Codex catalog is neede
 Identify the host, not the model name: Pi running a Codex model is still Pi.
 
 These instructions describe shared support and the optional token/context/timestamp
-and skill-activity integration checked against Codex **0.159.0**. Native discovery and token hook
+and skill-activity integration, plus explicit session management, checked against
+Codex **0.159.0**. Native discovery and token hook
 acquisition/delivery were verified offline with a controlled mock provider;
 live agent behavior and native image generation were not tested. Recheck version-dependent controls if your
 installed Codex differs; do not silently transfer compatibility claims.
@@ -32,7 +33,8 @@ not promise nearest-wins precedence. Legacy Codex skill roots or plugin copies c
 add another exposure. Do not duplicate an installed skill merely to enable Codex,
 remove existing assets without permission, or assume an installer collision check
 resolves runtime ambiguity. Pi-specific skills may remain in a shared installation;
-`automata-pi-sessions` is explicitly for Pi, not Codex session management.
+`automata-pi-sessions` is explicitly for Pi. The additive
+`automata-codex-sessions` skill covers native Codex's separate bounded contract.
 
 ## Direct shared installation (recommended)
 
@@ -140,6 +142,34 @@ reported without eviction. Review retention with the owner; no automatic deletio
 or cross-project query is provided. Missing hooks or zero records mean incomplete
 coverage, never proof of no skill use. Other integration behaviors remain below.
 
+## Optional explicit session management
+
+The same approved asset installation includes `session_management.py` and its
+modules under `token-awareness/`; it adds no hook actions or activation. Review
+its installed README. The shell control uses explicit native-store and private
+management-state roots, exact-cwd or authorized all-projects metadata listing,
+page-bound one-use receipts, selected IDs, and established inactivity/ownership.
+State must be outside the native store and replaceable bundle. No implicit global
+store or real configuration/credential access is used.
+
+On Linux with `bwrap`, the pinned binary provides short-lived isolated management
+RPC without model turns. `copy` produces a verified independent materialized
+history in the same store with fresh identity/destination cwd; explicit `fork`
+remains linked and is not a copy substitute. Both preserve source records and
+historical paths, and copy no project files. `trash` requires `gio` and an approved
+XDG data home; a genuine OS-trash recovery package is verified before native
+delete. `restore` rebuilds native history projections and verifies complete
+history content/IDs, name and original byte prefix, not just JSONL presence.
+
+Before removal, dependency checks inspect other indexed headers in the selected
+store; authority to mutate still covers only receipt-selected IDs. Unselected
+dependents, selected dependency groups, archived/enriched/ancillary state and
+unknown schema fail closed. Caller attestation is not other-process liveness
+proof. Partial outcomes require review without automatic retry or cleanup;
+recovery packages remain until separately approved retention cleanup. This is a
+narrow native contract, not Pi parity. The `automata-codex-sessions` guidance is
+part of the single shared skill catalog, with no duplicate Codex catalog.
+
 ## Character content, distinct instruction surfaces
 
 Compose once for review using the chosen character components:
@@ -195,7 +225,7 @@ installed by this route. Avoid selecting the same skill through both mechanisms.
 | Router | Shared service and generic browser clients; no Codex agent adapter | `message_router`, Pi admission and pending context |
 | Token awareness | Optional version-pinned hooks/helper above; delayed, coverage-labelled snapshots | Pi branch accounting and request-local annotations |
 | Message timestamps | Optional bounded native item-ID/lifecycle-time packets; no body rewriting | Pi historical model-only annotations |
-| Session copy/trash | Native resume/fork are different; no Pi receipt/copy/trash parity | `pi_session_*` tools |
+| Session copy/trash | Explicit-store helper: receipt-scoped independent copy or linked fork, bounded OS-trash/native restore; no blanket Pi parity | `pi_session_*` tools |
 
 Do not call absent Pi tools, attach to an existing Codex daemon, inject history,
 trust hooks, or build an adapter as an implicit fallback. Native controls do not

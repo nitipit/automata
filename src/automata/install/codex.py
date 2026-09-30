@@ -1,4 +1,4 @@
-"""Install version-pinned Codex awareness hooks without activating trust/config."""
+"""Install pinned awareness hooks/session controls without activating trust/config."""
 
 from __future__ import annotations
 
@@ -43,6 +43,13 @@ def install_codex(
         "context_awareness.py",
         "skill_records.py",
         "skill_activity.py",
+        "session_native.py",
+        "session_store.py",
+        "session_receipts.py",
+        "session_recovery.py",
+        "session_operations.py",
+        "session_copy.py",
+        "session_management.py",
         "README.md",
     ):
         if mode == "symlink":
