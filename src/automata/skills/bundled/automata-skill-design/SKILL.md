@@ -27,6 +27,12 @@ directory. Check likely collisions with existing skills and runtime commands.
 
 ## Instructions and Composition
 
+Keep skills agent-CLI-brand-neutral, including names, activation descriptions,
+instructions and supporting references. Do not name agent CLI products or branch
+workflows by host. Describe capabilities, decisions and required outcomes instead.
+Runtime-specific bindings, configuration and installation details belong in
+runtime or tool documentation outside the skill package.
+
 For judgment, establish orientation, useful decisions, and authority boundaries;
 let the agent adapt. Require fixed procedures only for concrete mechanical,
 interoperability, or safety needs. Every instruction should affect behavior.
