@@ -47,6 +47,13 @@ def test_package_excludes_retired_workspace_implementation() -> None:
     assert not package_root.joinpath("skills", "core", "automata-workspace-app").exists()
 
 
+def test_package_excludes_native_codex_runtime() -> None:
+    package_root = files("automata")
+    assert not package_root.joinpath("runtimes", "codex").exists()
+    assert not package_root.joinpath("install", "codex.py").exists()
+    assert not package_root.joinpath("skills", "bundled", "automata-codex-sessions").exists()
+
+
 def adaptive_ui_source():
     return files("automata").joinpath("skills", "bundled", "automata-adaptive-ui", "lib")
 
@@ -149,10 +156,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "skills/bundled/automata-pi-skill-activity/SKILL.md",
         "skills/bundled/automata-message-router/SKILL.md",
         "tools/message-router/docs/node-client.md",
-        "runtimes/codex/README.md",
-        "runtimes/codex/setup.md",
-        "runtimes/codex/token_awareness.py",
-        "runtimes/codex/session_management.py",
+        "runtimes/pi/extensions/codex-bridge.ts",
         "skills/bundled/automata-plan/SKILL.md",
         "skills/bundled/automata-storage/SKILL.md",
         "skills/bundled/automata-adaptive-ui/scripts/build.py",
@@ -171,6 +175,10 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
             if member.isfile() and "/src/automata/" in member.name
         }
     for paths in (wheel_paths, sdist_paths):
+        assert not any(path.startswith("runtimes/codex/") for path in paths)
+        assert "install/codex.py" not in paths
+        assert not any(path.startswith("skills/bundled/automata-codex-sessions/")
+                       for path in paths)
         assert "skills/bundled/automata-time-awareness/SKILL.md" not in paths
         assert "skills/bundled/automata-timer/SKILL.md" in paths
     webref_prefix = "skills/bundled/automata-message-router/"
@@ -244,9 +252,12 @@ from automata.plugin import export_plugin
 assert Path(automata.__file__).is_relative_to(site)
 sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
-assert len(sources) == 40
+assert len(sources) == 39
 assert 'automata-thinking-control' not in sources
-assert {'automata-pi-sessions', 'automata-codex-sessions'} <= sources.keys()
+assert 'automata-pi-sessions' in sources
+assert 'automata-codex-sessions' not in sources
+assert not (site / 'automata/runtimes/codex').exists()
+assert not (site / 'automata/install/codex.py').exists()
 assert 'automata-time-awareness' not in sources
 assert 'automata-timer' in sources
 assert all(path.name == name for name, path in sources.items())
@@ -281,22 +292,9 @@ assert (work / 'extensions/token-awareness.ts').is_file()
 export_plugin(name='wheel-smoke', output=work / 'plugin',
               skill_names=['automata-storage', 'automata-pi-context-status'])
 assert (work / 'plugin/skills/automata-pi-context-status/SKILL.md').is_file()
-# Both runtime asset paths and the existing shared tools survive wheel installation.
-from automata.install.codex import install_codex
+# Pi runtime assets and the existing shared tools survive wheel installation.
+assert (work / 'extensions/codex-bridge.ts').is_file()
 from automata.install.tools import install_tools
-import json
-state = work / 'private-codex-state'
-install_codex(target_root=work / 'codex', state_root=state)
-bundle = work / 'codex'
-assert not (bundle / 'token-awareness').exists()
-assert (bundle / 'session_management.py').is_file()
-assert (bundle / 'README.md').is_file()
-assert (bundle / 'setup.md').is_file()
-hooks = json.loads((bundle / 'hooks.json').read_text())['hooks']
-assert set(hooks) == {'SessionStart', 'UserPromptSubmit', 'PreCompact', 'PostCompact'}
-assert all(len(groups[0]['hooks']) == 2 for groups in hooks.values())
-assert not state.exists()  # Placing assets does not activate observers.
-assert not (work / 'codex/config.toml').exists()
 shared = install_tools(target_root=work / 'tools')
 assert {item.name for item in shared} == {'line', 'message-router', 'timer', 'tmux-message'}
 assert (work / 'tools/message-router/browser/client.js').is_file()

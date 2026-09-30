@@ -10,8 +10,7 @@ from typing import Annotated
 from cyclopts import App, Parameter
 
 from automata.character import CharacterError, compose_character, list_character_components
-from automata.install.codex import install_codex
-from automata.install.directory import DirectoryInstallError, InstallMode
+from automata.install.directory import InstallMode
 from automata.install.pi_extensions import (
     PiExtensionInstallError,
     install_pi_extensions,
@@ -44,8 +43,6 @@ plugin_app = App(help="Build Agent Plugin packages from Automata assets.")
 app.command(plugin_app, name="plugin")
 pi_extension_app = App(help="Install bundled or local Pi extension files.")
 app.command(pi_extension_app, name="pi-extension")
-codex_app = App(help="Install Codex awareness/session helpers (activation is separate).")
-app.command(codex_app, name="codex")
 
 DEFAULT_AGENT_INSTRUCTIONS_PATH = Path(".agents/var/skills/automata-agents-md")
 
@@ -203,26 +200,6 @@ def install_pi_extensions_command(
         raise SystemExit(str(exc)) from exc
 
     print_install_results(results, json_output=json_output)
-
-
-@codex_app.command(name="install")
-def install_codex_command(
-    *,
-    target_root: Path,
-    state_root: Path,
-    mode: InstallMode = "copy",
-    json_output: Annotated[bool, Parameter(name="--json")] = False,
-) -> None:
-    """Install Codex helpers directly into target-root; no config/trust changes.
-
-    Copy/symlink require absent managed files. Replace updates only managed
-    filenames, preserving unrelated contents. State must be outside target-root.
-    """
-    try:
-        result = install_codex(target_root=target_root, state_root=state_root, mode=mode)
-    except DirectoryInstallError as exc:
-        raise SystemExit(str(exc)) from exc
-    print_install_results((result,), json_output=json_output)
 
 
 @tools_app.command(name="install")
