@@ -13,12 +13,10 @@ PACKAGE_ROOT = Path(__file__).parents[3] / "src" / "automata"
 SKILLS_ROOT = PACKAGE_ROOT / "skills" / "bundled"
 SKILL_ROOTS = (SKILLS_ROOT,)
 PI_SKILL_NAMES = {
-    "automata-context-compaction",
-    "automata-context-status",
+    "automata-pi-context-compaction",
+    "automata-pi-context-status",
     "automata-pi-sessions",
-    "automata-codex-imagegen",
-    "automata-skill-activity",
-    "automata-thinking-control",
+    "automata-pi-skill-activity",
 }
 TOOLS_ROOT = PACKAGE_ROOT / "tools"
 SOURCES = skill_sources()
@@ -33,13 +31,12 @@ REQUIRED_SKILLS = {
     "automata-browser-use",
     "automata-line-use",
     "automata-message-router",
-    "automata-codex-imagegen",
+    "automata-imagegen",
     "automata-question",
-    "automata-context-status",
-    "automata-context-compaction",
-    "automata-thinking-control",
+    "automata-pi-context-status",
+    "automata-pi-context-compaction",
     "automata-pi-sessions",
-    "automata-skill-activity",
+    "automata-pi-skill-activity",
     "automata-delegation",
     "automata-cue",
     "automata-journal",
@@ -66,6 +63,11 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-context-compaction",
+    "automata-context-status",
+    "automata-skill-activity",
+    "automata-codex-imagegen",
+    "automata-thinking-control",
     "automata-time-awareness",
     "automata-workspace",
     "automata-workspace-app",
@@ -124,6 +126,24 @@ def test_pi_skills_share_one_flat_source_with_all_skills() -> None:
     for name in PI_SKILL_NAMES:
         assert (SKILLS_ROOT / name / "SKILL.md").is_file()
         assert not (SKILLS_ROOT / name).is_symlink()
+
+
+def test_changed_portable_guidance_keeps_runtime_details_external() -> None:
+    for name in ("automata-imagegen", "automata-message-router", "automata-setup",
+                 "automata-skill-design"):
+        for path in SOURCES[name].rglob("*.md"):
+            assert not re.search(r"\b(?:Pi|Codex)\b", path.read_text()), path
+    assert (PACKAGE_ROOT / "runtimes/codex/setup.md").is_file()
+    assert (TOOLS_ROOT / "message-router/docs/node-client.md").is_file()
+    assert not (SOURCES["automata-setup"] / "references/codex.md").exists()
+    assert not (SOURCES["automata-message-router"] / "references/node-client.md").exists()
+
+
+def test_renamed_pi_compaction_preserves_preference_paths() -> None:
+    text = (SOURCES["automata-pi-context-compaction"] / "SKILL.md").read_text()
+    assert "`.agents/var/skills/automata-context-compaction/preferences.md`" in text
+    assert "`~/.agents/var/skills/automata-context-compaction/preferences.md`" in text
+    assert "var/skills/automata-pi-context-compaction" not in text
 
 
 def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
@@ -187,6 +207,7 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
     results = install_skills(target_root=target)
     expected = set(SOURCES)
     assert len(expected) == 40
+    assert {'automata-pi-sessions', 'automata-codex-sessions'} <= expected
     assert {result.name for result in results} == expected
     assert {path.name for path in target.iterdir()} == expected
     assert all((target / name / "SKILL.md").is_file() for name in expected)

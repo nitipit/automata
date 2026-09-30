@@ -23,8 +23,9 @@ src/automata/
 ├── tools/                  # Shared shell-invoked CLI tools
 ├── apps/                   # Maintained application source and canonical skills
 ├── runtimes/
-│   └── pi/
-│       └── extensions/     # Pi APIs, event handlers, and session integrations
+│   ├── pi/
+│   │   └── extensions/     # Pi APIs, event handlers, and session integrations
+│   └── codex/             # Optional native CLI awareness/session helpers
 ├── install/                # Asset discovery and installation
 └── plugin/                 # Selected-asset package export
 ```
@@ -33,21 +34,58 @@ Maintain application source under `src/automata/apps/<app-name>/` and generated
 builds or runtime data under `.agents/var/apps/<app-name>/`, outside source control.
 Each application determines its own internal layout.
 
-Pi-specific skills cover context compaction, context status, thinking control, Pi
-sessions, the Codex image-generation bridge, skill activity, and the message-router
-session integration. The router CLI stays shared under `tools/message-router/`.
-A model/provider name does not determine the host runtime: `codex-bridge` is a Pi
-extension, not a Codex integration. Codex runtime support is deferred.
+Portable skills stay brand-neutral. Runtime-specific skills explicitly identify
+the extension or native interface they require; installation does not expose it.
+Pi retains context compaction/status, session tools, the Codex
+image-generation bridge, skill recording and the message-router session adapter.
+The router CLI stays shared under `tools/message-router/`. A model/provider name
+does not determine the host runtime: `codex-bridge` is a Pi extension, not a Codex
+integration.
+
+Native Codex CLI can use the same skill catalog, character content and shell tools.
+See [Codex setup and support](src/automata/runtimes/codex/setup.md)
+for direct-install commands, instruction surfaces, optional plugin packaging and
+explicit remaining gaps. Reuse tmux collaboration across both runtimes; native
+collaboration is optional. Automatic/human compaction, image generation and human
+account/status inspection count as useful support;
+matching Pi tool names is not the goal. External browser exchange can use the
+[existing Node client recipe](src/automata/tools/message-router/docs/node-client.md)
+from an owned active shell process, with permitted loopback and private grants.
+No automatic model wakeup or autonomous fresh quota query is promised.
+No wrapper or custom host is required. Optional
+`automata codex install --target-root <assets> --state-root <state>` packages the
+[Codex awareness/skill-activity hooks and session controls](src/automata/runtimes/codex/README.md); config/trust
+activation and current-session transcript reading require explicit consent.
+Native 0.159.0 mock-provider tests prove sequence-linked token acquisition,
+context estimates, native item timestamps, automatic selected-skill insertion
+recording, delayed delivery, controls and scoped recovery—not live model judgment
+or identical Pi branch semantics. Explicit session controls separately support
+scoped metadata receipts, verified independent materialized copies (not linked
+native forks), and bounded genuine OS-trash/native restore. They require selected
+store/IDs, established inactivity and their own authorization; no automatic hook
+mutation or global activation. The
+[audit](docs/audits/codex-0.159.0/README.md) and
+[token slice proof](docs/audits/codex-0.159.0/token-sequence-port.md) and
+[context/timestamp proof](docs/audits/codex-0.159.0/context-timestamps-port.md) and
+[skill-activity proof](docs/audits/codex-0.159.0/skill-activity-port.md) and
+[session-management proof](docs/audits/codex-0.159.0/session-management-port.md) separate
+evidence from remaining runtime work.
 
 Default skill installation and selected-skill plugin export use the single canonical
 catalog at `src/automata/skills/bundled/`. Duplicate names are errors,
 not implicit overrides. An explicit custom skill source is exclusive; it never
 falls back to bundled skills.
 
-This is source organization, not installation or data migration. Skill names and
-flat installed directories remain unchanged, as do Pi extension destinations,
-credentials, and owner-scoped operational state. In particular, historical
-router state remains under `.agents/var/tools/agent-router`.
+This is source organization, not installation or data migration. The extension-bound
+skills are now `automata-pi-context-compaction`, `automata-pi-context-status` and
+`automata-pi-skill-activity`; portable image guidance is `automata-imagegen`.
+Select matching runtime-specific skills explicitly; full-catalog installation does
+not filter by host. Installers do not remove old skill names. Retire old copies
+only during an authorized sync, after reviewing local changes, to avoid duplicate
+activation guidance. Extension destinations, credentials and operational state
+remain unchanged, including existing `automata-context-compaction` preference
+paths, skill-activity databases and `.agents/var/tools/agent-router` router state.
+Historical audits retain the names and evidence from their original checkpoints.
 
 ## Design principles
 
@@ -141,6 +179,12 @@ remove old installed names; retire the old skill package during an authorized sy
 without removing its operational data.
 
 ## Usage
+
+Shared installation examples below apply to Pi and Codex CLI. Sections that
+install Pi extensions or expose Pi tools remain Pi-only; they do not register
+Codex tools. Choose either direct skill installation or plugin exposure for each
+skill rather than duplicating it across roots/mechanisms. Codex can retain
+same-name skills from multiple roots; do not assume nearest-wins precedence.
 
 List packaged character components:
 
@@ -302,6 +346,11 @@ Skills are exported to the standard `skills/` directory. Selected tools are pack
 Automata's `me.umlab.automata` metadata namespace and remain shell-invoked CLI tools;
 export does not register them with an agent runtime.
 
+### Pi integrations
+
+The remaining extension examples in this section are for Pi, including when Pi
+uses a Codex model. They are not native Codex CLI setup steps.
+
 Install the Codex account-status extension globally for all Pi sessions:
 
 ```bash
@@ -324,9 +373,9 @@ Install the skill-load recorder globally, with its skill in repository and globa
 uv run automata pi-extension install \
   --target-root ~/.pi/agent/extensions --extension skill-activity --mode copy
 uv run automata skills install \
-  --target-root .agents/skills --skill automata-skill-activity --mode copy
+  --target-root .agents/skills --skill automata-pi-skill-activity --mode copy
 uv run automata skills install \
-  --target-root ~/.agents/skills --skill automata-skill-activity --mode copy
+  --target-root ~/.agents/skills --skill automata-pi-skill-activity --mode copy
 uv run --no-project --script ~/.pi/agent/extensions/skill-activity/store.py --help
 ```
 
@@ -338,7 +387,7 @@ applying the limit. Existing project-local records are not migrated automaticall
 The bundled CLI provides only `record` and `list`; it is not a general database API.
 No instruction bodies or conversations are stored. Dependency preparation may
 need downloads; the observer itself runs offline. See the
-[skill-activity skill](src/automata/skills/bundled/automata-skill-activity/SKILL.md)
+[skill-activity skill](src/automata/skills/bundled/automata-pi-skill-activity/SKILL.md)
 for discoverable query guidance, the data contract, and coverage limits.
 
 Install the context-status runtime extension:
@@ -443,7 +492,7 @@ uv run automata pi-extension install \
   --mode copy
 uv run automata skills install \
   --target-root ~/.agents/skills \
-  --skill automata-context-compaction \
+  --skill automata-pi-context-compaction \
   --mode copy
 ```
 
@@ -452,29 +501,27 @@ one intentional request, waits for `agent_settled`, and then calls Pi's native
 compaction API. It does not turn context signals into automatic actions or route
 built-in commands through tmux or injected messages.
 
-Install native session thinking-effort control:
+Choose the approved model and supported effort at launch, using the runtime's
+own options: Pi `--model <provider/id> --thinking <level>`; Codex
+`--model <model> -c 'model_reasoning_effort="medium"'`. Pi can clamp a requested
+level to the model's capabilities: verify the effective startup setting rather
+than treating the command line as proof. Native human Pi `/model` and `/thinking`,
+and Codex `/model`, remain available.
 
-```bash
-uv run automata pi-extension install \
-  --target-root ~/.pi/agent/extensions --extension thinking-control --mode copy
-uv run automata skills install \
-  --target-root ~/.agents/skills --skill automata-thinking-control --mode copy
-```
-
-`thinking_control` inspects or changes this session's supported effort without
-changing the model or global defaults. It affects the next model request, never
-reasoning already in flight. To ask an owned agent to change effort, use existing
-authorized tmux communication; the target checks authority, applies its local tool,
-and replies with the effective setting. Forwarding is not application. There is no
-remote control API or grant system. See the [thinking-control documentation](src/automata/runtimes/pi/extensions/thinking-control/README.md)
-for local use and verification boundaries.
+Automata's dynamic `thinking_control` tool and dedicated skill are retired; its
+Codex port is stopped. This does not remove compaction-specific effort, imagegen
+settings or other independent effort parameters. Source installers no longer
+ship the retired assets but do not uninstall existing user copies or change
+active sessions. Any installed removal/reload requires separate authorization.
+See the [retirement decision](docs/audits/codex-0.159.0/thinking-control-retirement.md)
+for evidence, limits and the eight retained capabilities.
 
 Install the focused image-generation guidance alongside the extension:
 
 ```bash
 uv run automata skills install \
   --target-root ~/.agents/skills \
-  --skill automata-codex-imagegen \
+  --skill automata-imagegen \
   --mode copy
 ```
 

@@ -23,10 +23,13 @@ Define the smallest sufficient contract:
 - Next meaningful evidence and deadline; intermediate milestones for longer work.
 - Recovery, escalation, cancellation and cleanup conditions.
 
-Resolve model choices before dispatch and verify exact runtime identifiers when
-availability is uncertain. Confirm the launched model and supported thinking level
-match the assignment. Report mismatches; do not substitute outside agreed choices
-without approval.
+Resolve model and supported effort choices before dispatch; select them through
+native launch options and verify exact runtime identifiers when uncertain. Confirm
+the effective launched settings match the assignment; requested flags alone may
+not prove this if the runtime clamps values. Report unknowns or mismatches; do not
+substitute outside agreed choices or rely on a worker self-changing its effort.
+Any later change must stay within the approved scope and use native human controls
+or relaunch, rather than an assumed agent-side setter.
 
 Put task-specific decisions, interfaces, dependencies and expected evidence in the
 brief, not the entire conversation. Keep durable policy in `AGENTS.md`. Include

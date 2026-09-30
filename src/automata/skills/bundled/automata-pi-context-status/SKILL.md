@@ -1,9 +1,13 @@
 ---
-name: automata-context-status
-description: Use when interpreting runtime context signals or checking context pressure, elapsed time, or model-token usage.
+name: automata-pi-context-status
+description: Use when interpreting Pi context-status extension signals or checking its context pressure, elapsed time, or model-token usage.
 ---
 
-# Automata Context Status
+# Automata Pi Context Status
+
+This contract requires Pi's context-status extension. Installing the skill does
+not expose its diagnostic or signals. If the extension is unavailable, report
+that limitation rather than inventing measurements or a tool call.
 
 The runtime silently creates a task checkpoint at the start of a user-driven agent run.
 It anchors time and model-usage telemetry to the latest Pi input message, including

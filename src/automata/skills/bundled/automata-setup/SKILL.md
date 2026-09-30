@@ -1,6 +1,6 @@
 ---
 name: automata-setup
-description: Use when installing, exposing, or updating skills from bundled or custom sources, installing Automata tools or Pi extensions, or preparing a global or repo-local agent environment for use.
+description: Use when installing, exposing, or updating skills from bundled or custom sources, installing Automata tools or runtime integrations, or preparing a global or repo-local agent environment for use.
 ---
 
 # Automata Setup
@@ -17,15 +17,23 @@ Resolve whether assets belong in the global agent environment or the current rep
 Reuse explicit scope and replacement approval; ask only for missing choices. Use these
 default roots unless the user chooses custom paths:
 
-| scope | skills | tools | Pi extensions |
-| --- | --- | --- | --- |
-| global | `~/.agents/skills` | `~/.agents/tools` | `~/.pi/agent/extensions` |
-| repository | `.agents/skills` | `.agents/tools` | `.pi/extensions` |
+| scope | skills | tools |
+| --- | --- | --- |
+| global | `~/.agents/skills` | `~/.agents/tools` |
+| repository | `.agents/skills` | `.agents/tools` |
 
-For general setup, offer skills, tools, and Pi extensions together; respect an
-explicit skills-only or other narrower request. Confirm selected assets before
-making changes. Keep character composition separate: it renders
-instructions rather than installing assets and needs its own confirmed configuration.
+Identify the intended runtime from user intent and environment evidence, not its
+model/provider name. Use the package's runtime documentation and CLI help for
+supported integrations, native discovery paths, configuration and exact install
+commands. Offer only relevant, supported integrations alongside shared skills and
+tools. Asset placement does not activate hooks, grant trust or register tools.
+Observers that read session transcripts or persist metadata need explicit scope
+and state-root consent. Do not infer native discovery or runtime precedence from
+successful installation.
+
+Respect skills-only or other narrower requests. Confirm selected assets before
+making changes. Keep character composition separate: it renders instructions rather
+than installing assets and needs its own confirmed configuration.
 
 For a ready-to-use environment, identify the capabilities the user intends to use;
 ask only if that is unclear. Offer relevant environment-dependent setup, not every
@@ -53,11 +61,14 @@ remote sources, first obtain a confirmed local source; the installer does not fe
 remote repositories.
 
 Default skill discovery uses the single bundled
-`skills/bundled/` catalog, including Pi-specific usage guidance.
-Pi extension sources live under `runtimes/pi/extensions/`; installed destinations
-above are unchanged. An explicit skill `--source-root` is exclusive and never adds
+`skills/bundled/` catalog. Runtime-specific bindings and setup documentation live
+outside skill packages under `runtimes/`; shared tool contracts live under `tools/`. An explicit skill `--source-root` is exclusive and never adds
 bundled skills as a fallback. Discovery finds `SKILL.md` recursively and installs
-each containing directory by its directory name. Duplicate names are errors. Keep this a copy/exposure operation, not a
+each containing directory by its directory name. Duplicate source names are errors.
+This installer check is not runtime precedence: a runtime may discover same-name
+skills from multiple roots. Do not promise nearest-wins behavior. Choose one exposure for
+each selected skill (direct install or plugin), inspecting relevant existing roots
+before adding another copy. Keep installation a copy/exposure operation, not a
 skill-content review or extra package-structure audit.
 
 ## Capability Readiness
@@ -116,12 +127,8 @@ Install or update all bundled tools:
 uv run automata tools install --target-root <tools-root> --mode <mode>
 ```
 
-Install or update all bundled Pi extensions:
-
-```bash
-uv run automata pi-extension install --target-root <extensions-root> --mode <mode>
-```
-
+For a runtime integration, select its documented installer command and confirmed
+asset/state roots. Do not replace it with the runtime's unrelated package manager.
 Run only commands for confirmed resource types. A symlinked asset reflects source
 changes, so do not replace it merely to refresh content.
 
@@ -131,6 +138,5 @@ changes, so do not replace it merely to refresh content.
   resources, and mode.
 - Do not edit `AGENTS.md`, compose character instructions, or modify installed asset
   contents as part of setup.
-- Do not use `pi install`; that manages Pi packages, not Automata's local asset layout.
 - Do not infer global versus repository scope from convenience; ask the user.
 - Skill authoring and review belong to `automata-skill-design`, not installation.

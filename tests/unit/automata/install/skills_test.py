@@ -68,6 +68,7 @@ def test_default_sources_share_one_flat_canonical_root() -> None:
     sources = skill_sources()
     assert root.name == "bundled"
     assert len(sources) == 40
+    assert {'automata-pi-sessions', 'automata-codex-sessions'} <= sources.keys()
     assert all(source == root / name for name, source in sources.items())
 
 
@@ -75,10 +76,10 @@ def test_install_skills_selects_shared_and_pi_skills_together(tmp_path: Path) ->
     target = tmp_path / "skills"
     results = install_skills(
         target_root=target,
-        skill_names=["automata-storage", "automata-context-status"],
+        skill_names=["automata-storage", "automata-pi-context-status"],
     )
-    assert [result.name for result in results] == ["automata-storage", "automata-context-status"]
-    for name in ("automata-storage", "automata-context-status"):
+    assert [result.name for result in results] == ["automata-storage", "automata-pi-context-status"]
+    for name in ("automata-storage", "automata-pi-context-status"):
         assert (target / name / "SKILL.md").is_file()
 
 
@@ -86,14 +87,14 @@ def test_explicit_skill_source_is_exclusive_and_recurses(tmp_path: Path) -> None
     source = tmp_path / "custom"
     make_grouped_skill(source, "nested", "automata-storage")
     assert skill_sources(source)["automata-storage"] == source / "nested" / "automata-storage"
-    assert "automata-context-status" not in skill_sources(source)
+    assert "automata-pi-context-status" not in skill_sources(source)
     assert "automata-message-router" not in skill_sources(source)
     target = tmp_path / "dest"
-    with pytest.raises(SkillInstallError, match="automata-context-status"):
+    with pytest.raises(SkillInstallError, match="automata-pi-context-status"):
         install_skills(
             source_root=source,
             target_root=target,
-            skill_names=["automata-storage", "automata-context-status"],
+            skill_names=["automata-storage", "automata-pi-context-status"],
         )
     assert not target.exists()
 

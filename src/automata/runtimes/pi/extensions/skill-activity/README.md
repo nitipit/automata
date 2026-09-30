@@ -2,7 +2,7 @@
 
 A Pi read-event observer with a bundled ShelfDB/Dictify CLI. Agent-facing data
 access and interpretation guidance lives in the discoverable
-`automata-skill-activity` skill (installed separately), not this developer README. The authoritative schemas remain in `store.py`.
+`automata-pi-skill-activity` skill (installed separately), not this developer README. The authoritative schemas remain in `store.py`.
 
 ## Storage
 

@@ -1,9 +1,9 @@
 ---
-name: automata-context-compaction
+name: automata-pi-context-compaction
 description: Use when an agent or user is considering intentional Pi context compaction after context-pressure observations, long-running work, or a stable task boundary.
 ---
 
-# Automata Context Compaction
+# Automata Pi Context Compaction
 
 Choose when to compact, preserve continuity and request deferred native summarization
 through `context_compact`. Pi owns automatic compaction; do not change its settings
@@ -28,11 +28,18 @@ setup questionnaire is needed within these rules.
 
 ## Select model and thinking
 
+This workflow requires Pi's exposed `context_compact` extension tool. Installing
+this skill does not install or activate that extension. If it is unavailable,
+report the missing capability rather than inventing a call or injecting a command.
+
 Apply explicit current instructions, then project preferences, global preferences,
 and finally session defaults. Consult existing preferences at:
 
 - Project: `.agents/var/skills/automata-context-compaction/preferences.md`
 - Global: `~/.agents/var/skills/automata-context-compaction/preferences.md`
+
+These existing preference paths are retained across the skill rename; do not
+move or duplicate saved choices merely to match the new skill name.
 
 Pass a selected `model` as `provider/model`. Omission captures the current model
 when queued. Pass an explicit `thinking` level when selected: `off`, `minimal`,

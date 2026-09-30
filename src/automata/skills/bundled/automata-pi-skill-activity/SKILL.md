@@ -1,9 +1,9 @@
 ---
-name: automata-skill-activity
-description: Use when querying or analyzing recorded skill activations, locating their schema and storage, or explaining recording coverage. Not for creating skills or deciding which skill to load.
+name: automata-pi-skill-activity
+description: Use when querying or analyzing Pi skill-activity extension records, locating their schema and storage, or explaining recording coverage. Not for creating skills or deciding which skill to load.
 ---
 
-# Automata Skill Activity
+# Automata Pi Skill Activity
 
 Inspect observed skill loads using the skill-activity data contract. Recording is
 performed by the Pi extension, not by activating this skill. A record proves an

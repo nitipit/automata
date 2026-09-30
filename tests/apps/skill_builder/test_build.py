@@ -80,7 +80,10 @@ def test_public_routes_and_allowed_roots(tmp_path):
                      "/templates/../server.py",
                      "/%2e%2e/private.txt", "/templates/skill.html?name=../private",
                      "/templates/reference.html?name=automata-message-router&reference=../../private.txt",
-                     "/skills/message-router/references/connect.md", "/docs", "/openapi.json"]:
+                     "/skills/message-router/references/connect.md", "/docs", "/openapi.json",
+                     "/automata-thinking-control/",
+                     "/templates/skill.html?name=automata-thinking-control",
+                     "/skills/automata-thinking-control/SKILL.md"]:
             response = client.get(path)
             assert response.status_code == 404, (path, response.text)
             assert "must not leak" not in response.text

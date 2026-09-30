@@ -60,6 +60,10 @@ but still require credentials. The listener binds only `127.0.0.1`.
 
 ## Browser / Node client
 
+For an active agent using ordinary process tools, see the installed
+[task-local Node request/reply recipe](docs/node-client.md). It reuses this client,
+not a new service, and does not wake an idle model.
+
 Import `createMessageRouterClient` from `browser/client.js` (or `/assets/client.js`
 when served here). Provide the intended participant's credential out of band;
 never embed credentials in public assets or fetch private endpoint files through

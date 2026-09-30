@@ -24,6 +24,12 @@ only uncertainties that could change the choice. Otherwise state the limitation
 without blocking work. Keep preferences, permission and verified availability
 separate; missing records establish none of them.
 
+Choose a supported effort level alongside the model before launch. Distinguish
+requested launch settings from verified effective settings; runtimes may clamp
+unsupported levels. Native human controls remain available, but do not assume an
+agent-callable dynamic effort setter. Separate per-operation settings, such as
+compaction-summary effort, are not changes to the working session's effort.
+
 ## Check decision-relevant evidence
 
 Prefer primary sources for model identity, releases and supported features, and

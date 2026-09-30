@@ -39,7 +39,7 @@ Destinations are sorted by ID. reviewer is absent because desk has no grant to r
 
 ## Presence is a snapshot, not a delivery guarantee
 
-- `connected` describes a current authenticated router connection, not handler readiness, Pi availability, or model activity. The peer may disconnect before your next send.
+- `connected` describes a current authenticated router connection, not handler readiness, agent-runtime availability, or model activity. The peer may disconnect before your next send.
 - `pending` counts active reply capabilities involving this connection as sender *or* recipient—not queued messages, unread messages, or durable work.
 - No tokens, global topology, other participants' grant lists, or history are returned.
 
