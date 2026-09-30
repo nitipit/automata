@@ -19,6 +19,15 @@ universal runtime behavior.
   inventing measurements or scanning private session histories. Native context
   estimates and usage totals are not Pi input-anchored or branch-landmark totals.
   Do not apply Pi cache normalization to them or infer active-work duration.
+  If the optional Automata Codex token hook is explicitly installed/activated,
+  its checkpoint is a delayed observation through the stated response ID, not
+  current context pressure or exact whole-thread usage. Repeated checkpointId
+  means replay, not new consumption. Its lifetime observed-record ledger is not
+  active-branch accounting after rollback; mixed/compaction turns and unavailable
+  inherited records are excluded with coverage labels. Use the exact session-local
+  inspect/set helper command supplied in hook context when useful; never discover
+  other transcripts or treat shell access as permission to read histories.
+  Changing its threshold retains accrued usage and waits for a hook boundary.
 - **Other hosts:** use only a documented, available diagnostic and state its
   coverage. A signal is an observation, not new authority to compact or delegate.
 

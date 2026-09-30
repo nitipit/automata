@@ -25,8 +25,10 @@ default roots unless the user chooses custom paths:
 Identify the intended host from the user's request or runtime evidence, not its
 model/provider name. For **Pi** setup, offer skills, tools and Pi extensions
 together. For **native Codex CLI**, offer shared skills and shell tools, not Pi
-extensions; see [Codex setup and support](references/codex.md) for exact commands,
-instruction surfaces, direct-install/plugin choices and support limits. For other
+extensions. Offer the optional version-pinned token hook only when token awareness
+is wanted, with explicit session-local transcript-reading and state-root consent;
+asset installation does not activate it. See [Codex setup and support](references/codex.md)
+for commands, instruction surfaces, direct-install/plugin choices and support limits. For other
 hosts, establish discovery support before promising integration.
 
 Respect skills-only or other narrower requests. Confirm selected assets before

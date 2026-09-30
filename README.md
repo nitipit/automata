@@ -42,11 +42,17 @@ integration.
 
 Native Codex CLI can use the same skill catalog, character content and shell tools.
 See [Codex setup and support](src/automata/skills/bundled/automata-setup/references/codex.md)
-for exact direct-install commands, instruction surfaces, optional plugin packaging
-and explicit Pi-only gaps. No wrapper, custom host, hook/MCP adapter or global
-configuration change is required by this slice. Native 0.159.0 discovery is verified;
-agent behavior is not certified by discovery. The
-[audit and proof boundaries](docs/audits/codex-0.159.0/README.md) document the evidence.
+for direct-install commands, instruction surfaces, optional plugin packaging and
+explicit remaining gaps. No wrapper or custom host is required. Optional
+`automata codex install --target-root <assets> --state-root <state>` packages the
+[Codex token hook/helper](src/automata/runtimes/codex/README.md); config/trust
+activation and current-session transcript reading require explicit consent.
+Native 0.159.0 mock-provider tests prove sequence-linked token acquisition,
+delayed context delivery, inspect/set and scoped recovery—not live model judgment
+or identical Pi branch semantics. The
+[audit](docs/audits/codex-0.159.0/README.md) and
+[token slice proof](docs/audits/codex-0.159.0/token-sequence-port.md) separate evidence
+from remaining runtime work.
 
 Default skill installation and selected-skill plugin export use the single canonical
 catalog at `src/automata/skills/bundled/`. Duplicate names are errors,

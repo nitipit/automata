@@ -5,6 +5,12 @@ Checked 2026-09-30 against native `codex-cli 0.159.0` and public source commit
 `codex-rs/`. This is a blocked implementation finding, not an installed port.
 Pi implementation and the shared skill/tool catalog are unchanged.
 
+**Later CX-004 acceptance change:** the user accepted delayed, sequence-linked
+coverage-labelled snapshots and a version-pinned session-local reader. The
+[working sequence integration](token-sequence-port.md) implements that different
+contract. The strict timing/projection findings below remain valid; they are not
+a blanket statement that useful ordinary CLI integration is impossible.
+
 ## Required behavior
 
 The reference is `src/automata/runtimes/pi/extensions/token-awareness.ts`:
