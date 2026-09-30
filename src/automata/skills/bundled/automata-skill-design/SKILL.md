@@ -27,11 +27,15 @@ directory. Check likely collisions with existing skills and runtime commands.
 
 ## Instructions and Composition
 
-Keep skills agent-CLI-brand-neutral, including names, activation descriptions,
-instructions and supporting references. Do not name agent CLI products or branch
-workflows by host. Describe capabilities, decisions and required outcomes instead.
-Runtime-specific bindings, configuration and installation details belong in
-runtime or tool documentation outside the skill package.
+Keep portable skills agent-CLI-brand-neutral, including names, activation
+descriptions, instructions and supporting references. Describe capabilities,
+decisions and required outcomes rather than branching workflows by host.
+When a skill genuinely requires a particular runtime's extension or interface
+contract, name and scope it explicitly for that runtime. Keep that contract in
+the runtime-specific skill instead of adding host branches to a portable skill;
+do not create counterparts just for symmetry. Shared tool bindings and runtime
+installation details belong in tool or runtime documentation. Installing a skill
+does not install its required extension or establish that its interface is exposed.
 
 For judgment, establish orientation, useful decisions, and authority boundaries;
 let the agent adapt. Require fixed procedures only for concrete mechanical,
