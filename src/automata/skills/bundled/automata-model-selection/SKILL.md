@@ -27,6 +27,12 @@ work's reasoning, context, tool-use and verification needs, not fixed role label
 such as "best for coding". Consider only decision-relevant constraints; speed and
 cost include briefing, review and correction effort, not just token prices.
 
+Choose a supported effort level alongside the model before launch. Distinguish
+requested launch settings from verified effective settings; runtimes may clamp
+unsupported levels. Native human controls remain available, but do not assume an
+agent-callable dynamic effort setter. Separate per-operation settings, such as
+compaction-summary effort, are not changes to the working session's effort.
+
 Give a brief recommendation and its main tradeoff for the plan or assignment.
 Reuse sufficient evidence without fresh research. If an uncertainty could change
 the choice, resolve it through a focused evidence check or user clarification;

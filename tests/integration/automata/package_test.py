@@ -239,7 +239,8 @@ from automata.plugin import export_plugin
 assert Path(automata.__file__).is_relative_to(site)
 sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
-assert len(sources) == 41
+assert len(sources) == 40
+assert 'automata-thinking-control' not in sources
 assert {'automata-pi-sessions', 'automata-codex-sessions'} <= sources.keys()
 assert 'automata-time-awareness' not in sources
 assert 'automata-timer' in sources
@@ -264,7 +265,11 @@ linked = work / 'linked/automata-message-router'
 assert linked.is_symlink() and linked.resolve() == sources['automata-message-router']
 assert (linked / 'SKILL.md').read_bytes() == (router_skill / 'SKILL.md').read_bytes()
 installed = install_pi_extensions(target_root=work / 'extensions')
-assert 'message-router' in {item.name for item in installed}
+assert {item.name for item in installed} == {
+    'codex-bridge', 'context-compaction', 'context-status', 'message-router',
+    'message-timestamps', 'pi-sessions', 'skill-activity', 'token-awareness',
+}
+assert not (work / 'extensions/thinking-control').exists()
 assert (work / 'extensions/message-router/index.ts').is_file()
 assert (work / 'extensions/skill-activity/store.py').is_file()
 assert (work / 'extensions/token-awareness.ts').is_file()

@@ -24,7 +24,7 @@ def test_catalog_search_and_navigation(site):
             page.goto(url + '/templates/index.html')
             expect(page).to_have_url(url + '/')
             cards = page.locator('.skill-card:visible')
-            expect(cards).to_have_count(41)
+            expect(cards).to_have_count(40)
             assert url + '/message-router/' not in requests  # No availability probes.
             search = page.get_by_role('searchbox', name='Search skills')
             search.fill('Automata Message Router')
@@ -49,7 +49,7 @@ def test_catalog_search_and_navigation(site):
             page.get_by_role('button', name='Clear search').click()
             expect(search).to_be_focused()
             expect(search).to_have_value('')
-            expect(cards).to_have_count(41)
+            expect(cards).to_have_count(40)
             expect(page.get_by_role('button', name='Clear search')).to_be_hidden()
             search.press('Tab')
             first_link = page.get_by_role('link', name='Automata Adaptive UI', exact=True)
@@ -66,16 +66,16 @@ def test_catalog_search_and_navigation(site):
             expect(page).to_have_url(url + '/plan/')
             page.evaluate('history.back()')
             expect(page).to_have_url(url + '/')
-            expect(cards).to_have_count(41)  # A new catalog has no stale search state.
+            expect(cards).to_have_count(40)  # A new catalog has no stale search state.
             # Exercise fetch-and-swap when the legacy URL is reached through an internal link.
             page.locator('.brand').evaluate("el => el.href = '/templates/index.html'")
             page.locator('.brand').click()
             expect(page).to_have_url(url + '/')
-            expect(cards).to_have_count(41)
+            expect(cards).to_have_count(40)
             assert errors == []
             no_js = browser.new_context(java_script_enabled=False).new_page()
             no_js.goto(url + '/')
-            expect(no_js.locator('.skill-card')).to_have_count(41)
+            expect(no_js.locator('.skill-card')).to_have_count(40)
             expect(no_js.get_by_role('link', name='Automata Plan')).to_have_attribute(
                 'href', '/plan/'
             )

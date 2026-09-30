@@ -214,18 +214,32 @@ installed by this route. Avoid selecting the same skill through both mechanisms.
 
 ## Support boundaries
 
-| Capability | Ordinary Codex CLI path | Pi remains unchanged |
+Of the original nine runtime capabilities, eight are retained and five have
+verified offline Codex evidence: token awareness, context status, message
+timestamps, skill activity and session management. Dynamic thinking control is
+retired, not ported. Native human effort controls and launch-time selection remain.
+
+| Capability | Ordinary Codex CLI path | Pi support |
 | --- | --- | --- |
 | Shared skills and character | Native discovery/instruction surfaces; agent judgment not certified | Existing discovery and surfaces |
 | Shell tools / browser UI assets | Shared files, subject to dependencies and sandbox permissions | Existing CLI/assets |
 | Image generation | Exposed native interface only; no API-key fallback | `codex_imagegen` bridge with confirmation and saved workspace path |
 | Context status | Optional hooks and `context` helper: labelled last-known estimates, raw pressure, input anchor/wall elapsed | `context_status` request-local pressure and task telemetry |
-| Effort / compact | Native human `/model`, `/compact`; not Pi tool contracts | `thinking_control`, `context_compact` |
+| Compaction | Native human `/compact`; not Pi tool contract | `context_compact`, including summary-only effort |
 | Skill activity | Optional native insertion observer + session-scoped query/control; explicit coverage, separate state | Existing Pi observer/database |
 | Router | Shared service and generic browser clients; no Codex agent adapter | `message_router`, Pi admission and pending context |
 | Token awareness | Optional version-pinned hooks/helper above; delayed, coverage-labelled snapshots | Pi branch accounting and request-local annotations |
 | Message timestamps | Optional bounded native item-ID/lifecycle-time packets; no body rewriting | Pi historical model-only annotations |
 | Session copy/trash | Explicit-store helper: receipt-scoped independent copy or linked fork, bounded OS-trash/native restore; no blanket Pi parity | `pi_session_*` tools |
+
+Choose supported effort at launch. Codex uses
+`--model <model> -c 'model_reasoning_effort="medium"'`; Pi uses
+`--model <provider/id> --thinking <level>`. Verify effective settings; Pi can
+clamp unsupported levels.
+Native human Codex `/model` and Pi `/model`/`/thinking` are unchanged. Automata's
+retired thinking-control extension and dedicated skill are no longer bundled;
+installation does not remove existing copies or reload active sessions. Such
+migration requires separate authorization. Other effort parameters remain useful.
 
 Do not call absent Pi tools, attach to an existing Codex daemon, inject history,
 trust hooks, or build an adapter as an implicit fallback. Native controls do not

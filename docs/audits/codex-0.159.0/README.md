@@ -5,6 +5,10 @@ Checked 2026-09-29 against Automata baseline `37acc95`, installed Codex CLI
 `687a119f0fcaace47e1f1abcc77cec6c813fd6da`). This is an audit and offline proof,
 **not activation, a migration, or a claim of behavioral usability**.
 
+Subsequent decision: [CX-008R thinking-control retirement](thinking-control-retirement.md)
+revises the original parity scope to eight retained capabilities. The original
+findings and recommendations below remain historical, not the current inventory.
+
 ## Recommendation
 
 Support ordinary Codex CLI first: retain the single flat skill catalog, shared

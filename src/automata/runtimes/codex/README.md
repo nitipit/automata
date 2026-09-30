@@ -1,7 +1,11 @@
 # Codex awareness, skill activity and sessions (0.159.0, Linux/POSIX)
 
 A small ordinary CLI hook/helper integration, not a custom Codex launcher.
-Requires Python 3.12+ and a local Codex 0.159.0 transcript. Pi is unchanged.
+Requires Python 3.12+ and a local Codex 0.159.0 transcript. These integrations do
+not change their Pi counterparts. Dynamic thinking control is separately retired:
+eight runtime capabilities remain in scope, five verified offline here (token
+awareness, context status, timestamps, skill activity and sessions). No agent effort
+setter is provided. Launch-time effort and native human controls remain available.
 Check `codex --version` before activation and revalidate after upgrades. Transcript
 metadata records creation version; it does not prove which binary later resumed
 and appended to that file. Compatibility with newer writers is not assumed.

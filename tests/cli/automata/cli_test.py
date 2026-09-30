@@ -207,6 +207,19 @@ def test_cli_installs_bundled_codex_bridge_extension(
     assert (target_root / "codex-bridge.ts").is_file()
 
 
+@pytest.mark.parametrize("command,flag,name", [
+    ("pi-extension", "--extension", "thinking-control"),
+    ("skills", "--skill", "automata-thinking-control"),
+])
+def test_cli_rejects_retired_bundled_assets(tmp_path: Path, command, flag, name) -> None:
+    target = tmp_path / "install"
+    with pytest.raises(SystemExit) as error:
+        app([command, "install", "--target-root", str(target), flag, name])
+    assert error.value.code != 0
+    assert name in str(error.value)
+    assert not target.exists()
+
+
 def test_cli_exports_json_summary(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
     output = tmp_path / "automata-core"
 

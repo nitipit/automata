@@ -28,7 +28,7 @@ def test_export_and_installer_preserve_both_identities(tmp_path):
         assert snapshot(tmp_path / "installed" / identity) == snapshot(package)
     assert len(discover(SKILLS, "automata-plan", False)) == 1
     assert len(discover(SKILLS, "automata-message-router", False)) == 6
-    assert len([p for p in discover(SKILLS, None, True) if p.document == "SKILL.md"]) == 41
+    assert len([p for p in discover(SKILLS, None, True) if p.document == "SKILL.md"]) == 40
     export_agent("automata-adaptive-ui", tmp_path / "adaptive")
     assert snapshot(tmp_path / "adaptive") == snapshot(SKILLS / "automata-adaptive-ui")
     assert (tmp_path / "adaptive/scripts/build.py").is_file()
@@ -80,7 +80,10 @@ def test_public_routes_and_allowed_roots(tmp_path):
                      "/templates/../server.py",
                      "/%2e%2e/private.txt", "/templates/skill.html?name=../private",
                      "/templates/reference.html?name=automata-message-router&reference=../../private.txt",
-                     "/skills/message-router/references/connect.md", "/docs", "/openapi.json"]:
+                     "/skills/message-router/references/connect.md", "/docs", "/openapi.json",
+                     "/automata-thinking-control/",
+                     "/templates/skill.html?name=automata-thinking-control",
+                     "/skills/automata-thinking-control/SKILL.md"]:
             response = client.get(path)
             assert response.status_code == 404, (path, response.text)
             assert "must not leak" not in response.text

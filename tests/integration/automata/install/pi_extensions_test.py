@@ -1,6 +1,13 @@
 from pathlib import Path
 
-from automata.install.pi_extensions import bundled_pi_extension_root, install_pi_extensions
+import pytest
+
+from automata.install.pi_extensions import (
+    PiExtensionInstallError,
+    bundled_pi_extension_root,
+    install_pi_extensions,
+    list_pi_extensions,
+)
 
 
 def test_bundled_pi_extension_root_is_under_pi_runtime() -> None:
@@ -84,15 +91,36 @@ def test_install_pi_extensions_copies_bundled_message_router(tmp_path: Path) -> 
     assert not (tmp_path / ".agents" / "var").exists()
 
 
-def test_install_pi_extensions_copies_bundled_thinking_control(tmp_path: Path) -> None:
-    target_root = tmp_path / ".pi/extensions"
-    results = install_pi_extensions(target_root=target_root, extension_names=["thinking-control"])
+def test_default_install_excludes_retired_control_without_uninstalling(tmp_path: Path) -> None:
+    target = tmp_path / "extensions"
+    retired = target / "thinking-control" / "index.ts"
+    retired.parent.mkdir(parents=True)
+    retired.write_text("// existing user installation\n")
+    expected = {
+        "codex-bridge", "context-compaction", "context-status", "message-router",
+        "message-timestamps", "pi-sessions", "skill-activity", "token-awareness",
+    }
+    assert set(list_pi_extensions(bundled_pi_extension_root())) == expected
+    results = install_pi_extensions(target_root=target)
+    assert {result.name for result in results} == expected
+    assert retired.read_text() == "// existing user installation\n"
+    for result in results:
+        source, installed = Path(result.source), Path(result.target)
+        if source.is_file():
+            assert installed.read_bytes() == source.read_bytes()
+        else:
+            for file in source.rglob("*"):
+                if file.is_file():
+                    assert (installed / file.relative_to(source)).read_bytes() == file.read_bytes()
 
-    assert [result.name for result in results] == ["thinking-control"]
-    for name in ("index.ts", "local.ts", "README.md"):
-        installed = target_root / "thinking-control" / name
-        assert installed.read_bytes() == (Path(results[0].source) / name).read_bytes()
-    assert not (tmp_path / ".agents").exists()
+
+def test_retired_control_selection_fails_before_install(tmp_path: Path) -> None:
+    target = tmp_path / "extensions"
+    with pytest.raises(PiExtensionInstallError, match="Source Pi extension does not exist"):
+        install_pi_extensions(
+            target_root=target, extension_names=["context-compaction", "thinking-control"]
+        )
+    assert not target.exists()
 
 
 def test_install_pi_extensions_copies_bundled_pi_sessions(tmp_path: Path) -> None:

@@ -1,6 +1,6 @@
 # Skill Builder
 
-All 41 bundled skills live in `bundled/automata-*/`. Discovery follows each
+All 40 bundled skills live in `bundled/automata-*/`. Discovery follows each
 `SKILL.md` and linked Markdown under `references/` or `templates/`.
 There are no per-skill HTML wrappers, generated entry files or build output.
 Shared Jinja templates render each request directly from canonical Markdown.
@@ -17,7 +17,7 @@ PYTHONPATH=src uv run --offline --no-project \
 ```
 
 `serve` always includes all discovered skills. Open `http://127.0.0.1:8788/`.
-The catalog lists all 41 skills with immediate links and a client-side search over
+The catalog lists all 40 skills with immediate links and a client-side search over
 skill names, titles and descriptions. Search leaves the complete static catalog usable
 without JavaScript.
 
