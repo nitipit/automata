@@ -5,125 +5,81 @@ description: Use when recommending model use for a task or solo/team work propos
 
 # Automata Model Selection
 
-Choose AI models that fit the work and the user's constraints. Support choices
-with a compact comparative guide, not a model encyclopedia or fixed routing table.
-Research supports selection; it is not a prerequisite for every choice.
+Recommend models that fit the work and user constraints, supported by a compact
+comparative guide—not a model encyclopedia or fixed routing table.
 
 ## Choose for the work
 
-Recommending that the current session do the work is a model-use choice too,
-including in a solo proposal with no workers or model switch. Assess that choice
-before presenting it as a recommendation. Merely continuing an authorized task
-with unchanged settings does not require a new selection exercise.
+Consult relevant existing guidance and approved preferences when not already in
+context. Compare suitable models with a viable alternative against reasoning,
+context, tool-use and verification needs, not fixed role labels. Include briefing,
+review and correction in cost and speed judgments.
 
-Start with the task demands and relevant existing selection guidance and approved
-preferences, using the record locations below when that context is not already
-available. Apply their agreed scope; distinguish permission and preference from
-verified runtime availability. Missing records are unknowns, not an unrestricted
-allowed set.
+Recommending the current session for solo work is a model choice too. Continuing
+an authorized task unchanged needs no new selection exercise; planning steps
+without recommending a model or assignee does not activate this skill.
 
-Compare suitable models against a viable alternative. Match the choice to the
-work's reasoning, context, tool-use and verification needs, not fixed role labels
-such as "best for coding". Consider only decision-relevant constraints; speed and
-cost include briefing, review and correction effort, not just token prices.
+Give a brief recommendation and main tradeoff. Reuse sufficient evidence; research
+only uncertainties that could change the choice. Otherwise state the limitation
+without blocking work. Keep preferences, permission and verified availability
+separate; missing records establish none of them.
 
-Give a brief recommendation and its main tradeoff for the plan or assignment.
-Reuse sufficient evidence without fresh research. If an uncertainty could change
-the choice, resolve it through a focused evidence check or user clarification;
-otherwise state the limitation without blocking the work. Planning task steps
-without recommending who or which model should execute them does not activate
-this skill by itself.
+## Check decision-relevant evidence
 
-## Research what could change the choice
+Prefer primary sources for model identity, releases and supported features, and
+relevant independent evaluations or task observations for practical performance.
+Distinguish vendor claims, measured results and hypotheses. Check task, harness
+and thinking settings before transferring results; neither a benchmark nor one
+failure establishes a general ranking. Resolve conflicting evidence by relevance
+and provenance, not merely by which record is local.
 
-Investigate missing or potentially stale evidence relevant to the decision.
-Compare promising candidates with a current alternative; a new release does not
-automatically deserve an entry or adoption.
+Identify provider and version where known; label moving aliases and unresolved
+mappings. Use the current date to judge freshness. Recheck affected claims after
+release, alias or runtime changes, conflicting experience, or a consequential
+decision. Age alone is not expiry. Do not transfer old-version results to a
+replacement or treat public availability as runtime access.
 
-Prefer primary sources for identity, release changes and supported features.
-Use relevant independent evidence or task observations for practical strengths
-and weaknesses. Distinguish vendor claims, observed results and tentative
-inferences. A benchmark or one failed task is not a general capability ranking;
-check the task, harness and thinking settings before transferring conclusions.
-Weigh conflicting evidence by relevance and provenance, not merely by which file
-is local. Public availability does not establish availability in the user's runtime.
+Separate publication, verification and test dates. Reading documentation is not
+a model trial; update only claims and dates actually rechecked. If verification
+fails, retain uncertainty. Stop when evidence supports the choice or the remaining
+unknowns are clear; do not default to exhaustive surveys or benchmarks.
 
-Stop when the evidence supports the choice, or state what remains unknown and
-whether it matters. Give a brief recommendation, its main tradeoff and useful
-references. Do not run an exhaustive survey or benchmark campaign by default.
+## Keep a small current guide
 
-## Keep evidence fresh
+For each useful model/version record **choose when**, **main tradeoff**, and
+**basis/freshness with a few references**. Label tentative recommendations and
+local tests, retaining setup differences that affect interpretation. Prefer a few
+decision-useful sentences to specification tables or research dumps. Update
+existing entries, remove superseded recommendations, and retain comparisons only
+when they affect current choices.
 
-Use the current date when judging freshness or interpreting relative release
-claims. Identify the provider and exact model/version where known; mark moving
-aliases and unresolved mappings rather than guessing an underlying version.
+Keep mutable records outside the skill package:
 
-Recheck the relevant evidence when a release, alias or runtime change, conflicting
-experience, or an important decision could invalidate the recommendation. Age is
-a signal, not an expiry rule: an old version-pinned observation can remain useful,
-while yesterday's alias-based guidance may already be stale. Refresh only what
-could change the decision. If sources cannot be verified, say so and preserve
-uncertainty instead of presenting old knowledge as current.
+- Global: `~/.agents/var/skills/automata-model-selection/selection-guide.md`,
+  with approved preferences in `preferences.md` beside it.
+- Project observations and explicit overrides: corresponding files under
+  `.agents/var/skills/automata-model-selection/`, relative to the project.
 
-Keep source publication dates separate from when evidence was checked. Checking
-documentation is not testing a model. Update only the dates and claims actually
-rechecked; do not make an entire guide appear fresh after inspecting one entry.
-Do not generalize old-version results to a replacement without evidence.
+Read before updating. Create only useful records within authorized storage scope;
+keep private project evidence local unless broader sharing is authorized.
 
-## Retain a small selection guide
+## Respect preference scope and authority
 
-For each useful model/version, keep a short note with:
+Explain and confirm meaningful preference changes before saving them. Research
+may update recommendations, not permission or preferences. Record only user choices
+and their scope/confirmation date; distinguish exclusive allowed sets from
+favorites when it matters. Absence from a list is neither permission nor a ban.
 
-- **Choose when:** the task conditions where it offers an advantage over an
-  alternative, or a clearly tentative reason to consider it.
-- **Tradeoff:** the main reason to choose something else or investigate further.
-- **Basis and freshness:** what supports the judgment and when it was checked;
-  label actual tests separately and retain relevant setup differences.
-- **References:** a few direct links or evidence anchors for deeper investigation.
+Apply current instructions within their scope, explicit project overrides next,
+and global preferences otherwise. Do not relax prohibitions through ambiguous
+overrides, turn task exceptions into global preferences, or overwrite another
+capability's settings; resolve material conflicts with the user.
 
-Prefer a few decision-useful sentences over specification tables, scores or raw
-research dumps. Leave unknowns explicit. Update an existing note when appropriate
-rather than appending release news indefinitely. Keep the guide focused on current
-choices; remove superseded recommendations and retain comparisons only when they
-still affect a current decision.
+Saved guidance is not runtime configuration or proof of access. Selection does
+not authorize model/effort changes, paid trials, new agents, private-data transfer,
+installation or scheduled monitoring.
 
-Keep mutable records outside the skill package. Use
-`~/.agents/var/skills/automata-model-selection/selection-guide.md` for reusable
-cross-project knowledge and `preferences.md` beside it for approved preferences.
-Project-specific observations and explicit overrides use the corresponding files
-under `.agents/var/skills/automata-model-selection/`, relative to the project, not
-the installed skill. Read relevant existing records before writing. Create only
-useful records within authorized storage scope, not empty scaffolding. Keep
-private project evidence local unless sharing it more broadly is authorized.
-
-## Discuss preferences without changing authority
-
-Keep recommendations separate from what the user permits or prefers. Explain a
-meaningful proposed change and confirm it before updating durable preferences;
-a request to research a model does not authorize adding it to an allowed list.
-Capture only choices the user makes: permitted, preferred or excluded models,
-task or thinking-level preferences, and constraints when relevant. Clarify whether
-a list is an exclusive allowed set or merely favorites when that changes a choice.
-Absence from a preference list is neither permission nor an automatic prohibition.
-
-Record the agreed scope and confirmation date. Apply explicit current instructions
-within their scope; use project preferences for explicitly overridden choices and
-global preferences for the rest. Do not silently relax a prohibition through an
-ambiguous override. Respect existing capability-specific preferences; resolve
-material conflicts rather than migrating or overwriting another owner's settings.
-Do not promote a one-task exception into a lasting global preference.
-
-Research notes may change with evidence; approved preferences do not change just
-because a better model appears. Saved preferences are guidance, not runtime
-configuration or proof of access. Leave active models and thinking levels alone
-unless a separate authorized action changes them.
-
-## Boundaries
-
-This skill owns model recommendations, comparative knowledge and preference
-discussion. Planning owns decomposition; teamwork design owns task assignments
-and the solo/team arrangement; runtime discovery owns availability checks.
-Compose these capabilities when needed, not as a mandatory invocation chain.
-Selection and research do not authorize paid trials, new agents, private-data
-transfer, installation or runtime configuration changes. Release monitoring and scheduled refreshes require their
-own authorization; on-demand freshness checks are the default.
+This skill owns recommendations, comparative knowledge and preference discussion.
+Planning owns decomposition, teamwork design owns assignments and solo/team
+arrangements, and runtime discovery owns availability checks. Compose as needed,
+not as a mandatory invocation chain.
