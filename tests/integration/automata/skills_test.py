@@ -13,6 +13,7 @@ PACKAGE_ROOT = Path(__file__).parents[3] / "src" / "automata"
 SKILLS_ROOT = PACKAGE_ROOT / "skills" / "bundled"
 SKILL_ROOTS = (SKILLS_ROOT,)
 PI_SKILL_NAMES = {
+    "automata-pi-imagegen",
     "automata-pi-context-compaction",
     "automata-pi-context-status",
     "automata-pi-sessions",
@@ -31,7 +32,7 @@ REQUIRED_SKILLS = {
     "automata-browser-use",
     "automata-line-use",
     "automata-message-router",
-    "automata-imagegen",
+    "automata-pi-imagegen",
     "automata-question",
     "automata-pi-context-status",
     "automata-pi-context-compaction",
@@ -63,6 +64,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-imagegen",
     "automata-context-compaction",
     "automata-context-status",
     "automata-skill-activity",
@@ -129,8 +131,7 @@ def test_pi_skills_share_one_flat_source_with_all_skills() -> None:
 
 
 def test_changed_portable_guidance_keeps_runtime_details_external() -> None:
-    for name in ("automata-imagegen", "automata-message-router", "automata-setup",
-                 "automata-skill-design"):
+    for name in ("automata-message-router", "automata-setup", "automata-skill-design"):
         for path in SOURCES[name].rglob("*.md"):
             assert not re.search(r"\b(?:Pi|Codex)\b", path.read_text()), path
     assert (PACKAGE_ROOT / "runtimes/codex/setup.md").is_file()

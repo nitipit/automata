@@ -145,7 +145,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "skills/bundled/automata-pi-context-status/SKILL.md",
         "skills/bundled/automata-pi-context-compaction/SKILL.md",
         "skills/bundled/automata-pi-sessions/SKILL.md",
-        "skills/bundled/automata-imagegen/SKILL.md",
+        "skills/bundled/automata-pi-imagegen/SKILL.md",
         "skills/bundled/automata-pi-skill-activity/SKILL.md",
         "skills/bundled/automata-message-router/SKILL.md",
         "tools/message-router/docs/node-client.md",
@@ -215,7 +215,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         assert not any(path.startswith("extensions/") for path in paths)
         pi_skill_names = (
             "automata-pi-context-status", "automata-pi-context-compaction",
-            "automata-pi-sessions", "automata-imagegen",
+            "automata-pi-sessions", "automata-pi-imagegen",
             "automata-pi-skill-activity", "automata-message-router",
         )
         assert not any(
@@ -312,7 +312,7 @@ def test_package_separates_pi_extensions_from_bundled_skills() -> None:
     pi = package.joinpath(*PI_RUNTIME)
     for name in (
         "automata-pi-context-compaction", "automata-pi-context-status", "automata-pi-sessions",
-        "automata-imagegen", "automata-pi-skill-activity",
+        "automata-pi-imagegen", "automata-pi-skill-activity",
     ):
         assert package.joinpath(*PI_SKILLS, name, "SKILL.md").is_file()
         assert not pi.joinpath("skills", name).exists()

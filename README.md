@@ -78,7 +78,9 @@ falls back to bundled skills.
 
 This is source organization, not installation or data migration. The extension-bound
 skills are now `automata-pi-context-compaction`, `automata-pi-context-status` and
-`automata-pi-skill-activity`; portable image guidance is `automata-imagegen`.
+`automata-pi-skill-activity`; Pi bridge image guidance is `automata-pi-imagegen`.
+The latter replaces `automata-codex-imagegen` and the intermediate
+`automata-imagegen` name. Native Codex generation needs neither skill.
 Select matching runtime-specific skills explicitly; full-catalog installation does
 not filter by host. Installers do not remove old skill names. Retire old copies
 only during an authorized sync, after reviewing local changes, to avoid duplicate
@@ -521,7 +523,7 @@ Install the focused image-generation guidance alongside the extension:
 ```bash
 uv run automata skills install \
   --target-root ~/.agents/skills \
-  --skill automata-imagegen \
+  --skill automata-pi-imagegen \
   --mode copy
 ```
 
