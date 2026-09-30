@@ -16,6 +16,12 @@ creating and managing an isolated checkout at the chosen location.
   Otherwise, `.agents/var/task-space/<task-name>/` is a repository-local fallback,
   not a mandatory directory for every request. Ask before establishing storage
   outside the authorized scope.
+- Before creating or reusing a location, check existing contents, ownership, and
+  symlink resolution; do not overwrite or take over unrelated work. For a nested
+  location, verify scratch artifacts are ignored by Git and will not be
+  unintentionally built, watched, served, or cleaned by project tooling. An ignore
+  rule alone does not establish tooling safety. If unsuitable, choose another
+  location within approved scope; do not silently change project configuration.
 - A task space belongs to the work, not one agent. Share or hand it over when
   useful; coordinate changes to shared files and avoid duplicate working copies.
 - Use a simple layout that separates user inputs, useful evidence, and disposable
@@ -35,5 +41,8 @@ Review accumulation at natural maintenance boundaries. Completion or age alone
 is not deletion permission. Before authorized cleanup, identify exact owned
 candidates, confirm they are inactive, and preserve valuable edits, evidence, and
 user inputs. Stop owned processes through their responsible interfaces first.
+Retire contained managed resources through their owning mechanisms before removing
+an enclosing directory; for example, remove registered worktrees through Git,
+not generic directory deletion. Each retirement still needs its own authority.
 Prefer recoverable removal; do not touch another owner's data or follow links
 outside the cleanup scope. Ask when authority is unclear.
