@@ -31,7 +31,7 @@ writes or taking over another task's directory.
 
 Consult relevant placement/setup knowledge first. Follow an established project
 or approved user convention. Without one, use a suitable task workspace; the
-repository-local fallback is `.agents/var/workspace/<task-name>/worktree/`, resolved
+repository-local fallback is `task-space/<task-name>/worktree/`, resolved
 from the task's owning repository checkout, not repeatedly from each new worktree.
 Do not put working checkouts in the skill package or recipe directory.
 
