@@ -224,20 +224,22 @@ def child():
         server.shutdown()
 
 
-def main():
+def main(child_runner=child, runner_path=None, support_files=()):
     parser = argparse.ArgumentParser()
     parser.add_argument("--child", action="store_true")
     parser.add_argument("--binary", type=Path)
     parser.add_argument("--state-root", type=Path)
     args = parser.parse_args()
     if args.child:
-        child()
+        child_runner()
         return
     root = args.state_root.resolve()
     root.mkdir(parents=True, exist_ok=False)
     for name in ["home", "codex", "project/.git"]:
         (root / name).mkdir(parents=True)
-    (root / "runner.py").write_text(Path(__file__).read_text())
+    (root / "runner.py").write_text((runner_path or Path(__file__)).read_text())
+    for support in support_files:
+        (root / support.name).write_text(support.read_text())
     source = Path(__file__).resolve().parents[4] / "src"
     sys.path.insert(0, str(source))
     from automata.install.codex import install_codex

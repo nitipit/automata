@@ -1,4 +1,4 @@
-# Codex token/context/timestamp awareness (0.159.0, Linux/POSIX)
+# Codex awareness and skill activity (0.159.0, Linux/POSIX)
 
 A small ordinary CLI hook/helper integration, not a custom Codex launcher.
 Requires Python 3.12+ and a local Codex 0.159.0 transcript. Pi is unchanged.
@@ -19,7 +19,8 @@ uv run --offline automata codex install \
 
 The existing `token-awareness` bundle name is retained. It installs
 `token_awareness.py`, `token_records.py`, `context_awareness.py`,
-`context_records.py`, `README.md`, and a generated `hooks.json` fragment. It does NOT edit existing Codex config,
+`context_records.py`, `skill_activity.py`, `skill_records.py`, `README.md`, and a
+generated `hooks.json` fragment. It does NOT edit existing Codex config,
 trust commands, start sessions, create mutable state, or install duplicate skills.
 State must remain outside the replaceable bundle. Symlink mode links script/docs
 files; the generated fragment still records the chosen absolute destination.
@@ -29,7 +30,11 @@ merge the four event groups into the intended Codex `hooks.json` without
 replacing existing hooks. Use native `/hooks` review to trust those exact commands.
 Do not bypass trust or sandbox settings. Approving activation authorizes reading
 **only the current hook-supplied transcript path** and saving IDs, usage,
-context metadata and timestamps to the chosen state root. Neither installer nor helper scans session directories or
+context metadata, timestamps and native skill-insertion metadata to the chosen
+state root. The skill recorder separately enrolls at the first successful
+observation; it does not backfill earlier skill events. Each event group has two
+commands; review both when updating an existing installation. Neither installer
+nor helper scans session directories or
 attaches to a daemon. Changed commands need native trust review again.
 
 ## What the model receives
@@ -129,6 +134,56 @@ callbacks may append the same bounded packet; history growth is linear in hook
 invocations, not a copy of prior conversation. There is no idle-time wakeup or
 before-every-request pressure barrier.
 
+## Native skill activity
+
+The separate `skill_activity.py` hook scans the same explicit, version-pinned
+transcript at the four supported events. It records only native local-file skill
+instruction insertions tagged `skills.selected_skill_instructions`; no skill files
+are reread. Native message ID + content-part index identify events, with skill
+name/path, turn/thread/session/project, original log timestamp, observation time
+and `evidenceKind: native_instruction_insertion`. Instruction bodies, user text,
+tool output and credentials are not saved. This proves insertion, possibly
+natively truncated, not complete-file reads, compliance or every invocation.
+Discovery, failed/missing selection, ordinary user `<skill>` text, shell commands
+(even successful reads/scripts), resource-backed skills and cooperative reports
+are not counted. Unsupported metadata yields explicit unavailable coverage.
+
+Hooks supply the exact authorized `skill_activity.py list` command. Use `inspect`
+for the same status contract, `--skill NAME` for filtering and `--limit 1..100`
+(default 20) for newest-ordinal-first events. `matchedCount` is the retained count
+after filtering, not distinct sessions. Both controls read the transcript and
+update recording; shell execution permissions remain separate from hook trust.
+No multi-session discovery or implicit cross-project query is offered.
+
+For a read-only historical query, use the hook-supplied `skill_activity.py saved`
+command with `--state-root ROOT --thread UUID`, without transcript/session flags.
+It reads only that authorized saved state file, never enrolls, backfills, creates
+lock files or writes state. Skill/limit filters also apply. Output explicitly says
+`saved-observations-only` and current coverage unknown because no transcript was
+consulted. Missing, rewound or oversized live transcripts do not block this query;
+absent state reports unknown enrollment/history without creating a directory.
+Atomic writer replacement makes each read a coherent (possibly stale) snapshot.
+
+With recording-control approval, `disable` or `enable` first observes through the
+current boundary under the old setting and then changes it. Disabled events are
+not backfilled on enable. First enrollment also excludes all existing history,
+including inherited fork events. Later supported hooks or explicit controls catch
+new insertions; no turn-end/immediate-delivery guarantee or extra model request.
+Same-thread resume/retry deduplicates; counts are lifetime observations rather
+than active-branch projections. Rewound transcript sequence returns unknown
+coverage and retains prior state, not an automatic reset.
+
+State is `<state-root>/skill-activity/<thread-uuid>.json` (version 1), entirely
+separate from Pi's ShelfDB and the existing token ledger. A namespace lock protects
+scan/merge/write against concurrent stale observations; replacement is atomic and
+fsynced. At 10,000 retained events per thread, additional events increment
+`capacitySkipped` without deleting existing records. `disabledSkipped` reports
+known disabled events; `partialTailDeferred` labels incomplete final records.
+The chosen root can accumulate multiple enrolled threads: review retention with
+the owner. No automatic expiry, deletion, migration, export or backfill exists.
+Do not delete active state; authorized removal loses enrollment/dedup evidence.
+Zero events or missing hooks never establish that no skills were used.
+
 ## Honest token accounting and recovery
 
 Only identified `token_usage_record.usage` is counted. Aggregate/replayed
@@ -177,5 +232,8 @@ histories. Actual request bodies establish token-packet delivery; controlled
 usage establishes normalization. `verify_awareness_probe.py` additionally checks
 actual native lifecycle timestamps, context estimates before/after compaction,
 bounded resume replay, fork unknowns and installed `context` inspection. This
-proves integration mechanics, not live provider completeness or model judgment. No global activation is
-implied by the tests.
+proves integration mechanics, not live provider completeness or model judgment.
+`activity_probe.py` plus `verify_activity_probe.py` additionally prove installed
+automatic skill recording, discovery/missing-selection exclusion, stable native
+evidence, restart dedup and enable/disable through seven controlled requests.
+No global activation is implied by the tests.

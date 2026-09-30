@@ -213,7 +213,7 @@ def install_codex_command(
     mode: InstallMode = "copy",
     json_output: Annotated[bool, Parameter(name="--json")] = False,
 ) -> None:
-    """Install token/context/timestamp helpers; do not change Codex config/trust."""
+    """Install awareness/skill-activity helpers; do not change Codex config/trust."""
     try:
         result = install_codex(target_root=target_root, state_root=state_root, mode=mode)
     except DirectoryInstallError as exc:

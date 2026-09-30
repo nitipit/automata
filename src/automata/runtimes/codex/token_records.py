@@ -64,11 +64,13 @@ def counted(usage: dict[str, int]) -> int:
     return usage["input"] + usage["output"] + usage["cacheWrite"]
 
 
-def scan(path: Path, expected_session: str, excluded_turns=()) -> dict:
+def scan(path: Path, expected_session: str, excluded_turns=(), observe_item=None) -> dict:
     """Read only this explicit path, to a fixed byte boundary; defer partial tail.
 
     No inherited history paths are followed. Ordinal is a location, never dedup
     identity. A disappearing/rewritten file fails closed, retaining prior state.
+    Optional observe_item is an in-memory metadata projection, not a side-effect
+    callback: callers must discard it unless the whole scan succeeds.
     """
     expected_session = session_id(expected_session)
     if not path.is_absolute():
@@ -111,6 +113,8 @@ def scan(path: Path, expected_session: str, excluded_turns=()) -> dict:
             last_ordinal = ordinal
             payload = item["payload"]
             context.observe(item)
+            if observe_item is not None:
+                observe_item(item)
             if metadata is None:
                 if item.get("type") != "session_meta" or payload.get("cli_version") != VERSION:
                     raise CoverageError("unsupported Codex transcript version")

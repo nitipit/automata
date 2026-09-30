@@ -5,7 +5,7 @@ wrapper, custom app-server host, Pi extension or separate Codex catalog is neede
 Identify the host, not the model name: Pi running a Codex model is still Pi.
 
 These instructions describe shared support and the optional token/context/timestamp
-integration checked against Codex **0.159.0**. Native discovery and token hook
+and skill-activity integration checked against Codex **0.159.0**. Native discovery and token hook
 acquisition/delivery were verified offline with a controlled mock provider;
 live agent behavior and native image generation were not tested. Recheck version-dependent controls if your
 installed Codex differs; do not silently transfer compatibility claims.
@@ -68,7 +68,7 @@ permissions and any browser/network access remain capability prerequisites.
 Do not loosen sandbox/approval settings to make a tool appear ready. `--help` is
 not a scheduler, browser, messaging or external-effects acceptance test.
 
-## Optional sequence-linked token, context and timestamp awareness
+## Optional sequence-linked awareness and skill activity
 
 With explicit asset/state roots and mode approved:
 
@@ -83,7 +83,10 @@ it does not modify Codex configuration/trust. Review the installed README before
 activation. Separately authorize merging its SessionStart/UserPromptSubmit/
 PreCompact/PostCompact groups into the intended hooks file and reviewing commands
 with native `/hooks`. Activation authorizes reading the current hook-supplied
-session transcript only. No broad history discovery or daemon attachment occurs.
+session transcript only, retaining usage/context/time and native skill-insertion
+metadata, not bodies. Review both commands per event when updating an existing
+installation: the skill recorder is separate and starts enrollment without
+historical backfill. No broad history discovery or daemon attachment occurs.
 
 The agent receives token threshold snapshots linked to response ID/record ordinal,
 and bounded context/timestamp packets, plus exact current-session shell controls:
@@ -117,7 +120,25 @@ This is a tested version-coupled useful equivalent, not full Pi runtime parity o
 certified live-provider usage. Existing token state is preserved when adding the
 context/timestamp module; new fields live in the same atomic state. Review changed
 asset behavior before an approved update, without enabling config implicitly.
-Other integration behaviors remain as below.
+The separate `skill_activity.py` helper automatically records successful native
+local skill instruction insertions using tagged metadata, not shell intent or
+available-skill lists. Hook context provides the current-session `list`/`inspect`
+command; `--skill NAME` and `--limit 1..100` filter bounded results. These controls
+also update the observation. The separate `saved --state-root ROOT --thread UUID`
+query reads only an explicitly authorized saved thread snapshot, with no transcript,
+enrollment or writes, and labels current coverage unknown. Use it for historical
+records even when the live transcript is unavailable. Authorized `disable`/`enable` controls do not backfill
+disabled events. Records carry Codex runtime/provenance, native message/turn IDs,
+name/path/project and original/observation timestamps. They prove insertion, not
+Pi complete-read semantics, every invocation or compliance. Shell reads, scripts,
+resource-backed skills and cooperative reports are not counted.
+
+State is separate under `<state-root>/skill-activity/`, with per-thread enrollment
+and dedup; the Pi database and token ledger are unchanged. First enrollment skips
+existing and inherited history. At 10,000 records per thread, capacity skips are
+reported without eviction. Review retention with the owner; no automatic deletion
+or cross-project query is provided. Missing hooks or zero records mean incomplete
+coverage, never proof of no skill use. Other integration behaviors remain below.
 
 ## Character content, distinct instruction surfaces
 
@@ -170,7 +191,7 @@ installed by this route. Avoid selecting the same skill through both mechanisms.
 | Image generation | Exposed native interface only; no API-key fallback | `codex_imagegen` bridge with confirmation and saved workspace path |
 | Context status | Optional hooks and `context` helper: labelled last-known estimates, raw pressure, input anchor/wall elapsed | `context_status` request-local pressure and task telemetry |
 | Effort / compact | Native human `/model`, `/compact`; not Pi tool contracts | `thinking_control`, `context_compact` |
-| Skill activity | Can query authorized existing Pi observations; no Codex recorder | Existing Pi observer/database |
+| Skill activity | Optional native insertion observer + session-scoped query/control; explicit coverage, separate state | Existing Pi observer/database |
 | Router | Shared service and generic browser clients; no Codex agent adapter | `message_router`, Pi admission and pending context |
 | Token awareness | Optional version-pinned hooks/helper above; delayed, coverage-labelled snapshots | Pi branch accounting and request-local annotations |
 | Message timestamps | Optional bounded native item-ID/lifecycle-time packets; no body rewriting | Pi historical model-only annotations |
@@ -198,5 +219,7 @@ metadata checks do not establish model behavior. The separate
 `verify_sequence_probe.py` prove token acquisition, actual request-body delivery,
 inspect/set, compaction exclusion, restart dedup and unknown fork baseline using
 an installed fixture and mock provider. `verify_awareness_probe.py` adds actual
-native timestamp and context/control/recovery assertions on that fixture. These
-tests do not prove live model judgment.
+native timestamp and context/control/recovery assertions on that fixture.
+`activity_probe.py` and `verify_activity_probe.py` prove automatic installed native
+skill-insertion recording, discovery/missing-selection exclusion, resume dedup and
+recording controls. These tests do not prove live model judgment.

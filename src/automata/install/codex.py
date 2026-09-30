@@ -41,6 +41,8 @@ def install_codex(
         "token_awareness.py",
         "context_records.py",
         "context_awareness.py",
+        "skill_records.py",
+        "skill_activity.py",
         "README.md",
     ):
         if mode == "symlink":
@@ -50,8 +52,18 @@ def install_codex(
     command = shlex.join(
         ["python3", str(target / "token_awareness.py"), "hook", "--state-root", str(state)]
     )
+    activity_command = shlex.join(
+        ["python3", str(target / "skill_activity.py"), "hook", "--state-root", str(state)]
+    )
     hooks = {
-        event: [{"hooks": [{"type": "command", "command": command, "timeout": 10}]}]
+        event: [
+            {
+                "hooks": [
+                    {"type": "command", "command": command, "timeout": 10},
+                    {"type": "command", "command": activity_command, "timeout": 10},
+                ]
+            }
+        ]
         for event in ("SessionStart", "UserPromptSubmit", "PreCompact", "PostCompact")
     }
     (target / "hooks.json").write_text(json.dumps({"hooks": hooks}, indent=2) + "\n")
