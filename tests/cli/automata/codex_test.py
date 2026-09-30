@@ -14,8 +14,10 @@ def test_codex_installer_cli_is_explicit_and_does_not_activate(tmp_path, capsys)
         )
     assert result.value.code == 0
     receipt = json.loads(capsys.readouterr().out)
-    assert receipt[0]["name"] == "token-awareness"
-    assert (target / "token-awareness/hooks.json").is_file()
-    assert (target / "token-awareness/README.md").is_file()
+    assert receipt[0]["name"] == "codex"
+    assert receipt[0]["target"] == str(target)
+    assert (target / "hooks.json").is_file()
+    assert (target / "README.md").is_file()
+    assert not (target / "token-awareness").exists()
     assert not state.exists()
     assert not (tmp_path / "config.toml").exists()

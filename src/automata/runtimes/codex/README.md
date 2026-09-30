@@ -38,7 +38,7 @@ No autonomous fresh account reader is established by this bundle.
 
 ## Install and activate explicitly
 
-See [setup and support](setup.md) for skill selection and runtime-specific setup.
+See the [quickstart](setup.md) for installation and activation boundaries.
 Shared skills stay portable; `automata-pi-*` contracts require their Pi extensions
 and are not substitutes for these Codex hooks or shell controls. The separate
 `automata-codex-sessions` skill covers this runtime's session-management helper.
@@ -49,18 +49,27 @@ mode:
 ```sh
 uv run --offline automata codex install \
   --target-root /absolute/project/.agents/codex \
-  --state-root /absolute/project/.agents/var/codex-token-awareness --mode copy
+  --state-root /absolute/project/.agents/var/tools/codex-token-awareness --mode copy
 ```
 
-The existing `token-awareness` bundle name is retained. It installs
-`token_awareness.py`, `token_records.py`, `context_awareness.py`,
+Files go directly into the selected `--target-root`, with no appended directory.
+It installs `token_awareness.py`, `token_records.py`, `context_awareness.py`,
 `context_records.py`, `skill_activity.py`, `skill_records.py`, the explicit
 `session_management.py` control and its `session_*.py` modules, `README.md`,
 `setup.md`, and a
 generated `hooks.json` fragment. It does NOT edit existing Codex config,
 trust commands, start sessions, create mutable state, or install duplicate skills.
-State must remain outside the replaceable bundle. Symlink mode links script/docs
-files; the generated fragment still records the chosen absolute destination.
+State must remain outside the replaceable bundle. An existing target root is
+allowed: `copy` and `symlink` require all managed filenames to be absent; `replace`
+updates only those filenames and preserves other contents and root permissions.
+Managed-path directory collisions and a symlinked target root are rejected.
+Symlink mode links script/docs files; generated `hooks.json` is a private regular
+file with the chosen absolute destination. All assets are staged before per-file
+publication; a publication failure can leave a partial update, not a bundle rollback.
+Installation does not create backups or migrate legacy `token-awareness/` contents.
+For an approved migration, verify the new flat files before removing selected old
+files; keep unrelated contents and state. Already active hook paths require a
+separately approved configuration/trust update before retiring the old location.
 
 Activation is a separate consent boundary: review the generated commands and
 merge the four event groups into the intended Codex `hooks.json` without
@@ -103,11 +112,11 @@ Use only the current session's explicitly supplied/authorized path and identity;
 do not search for a transcript or guess another session. For example:
 
 ```sh
-python3 /absolute/project/.agents/codex/token-awareness/token_awareness.py inspect \
-  --state-root /absolute/project/.agents/var/codex-token-awareness \
+python3 /absolute/project/.agents/codex/token_awareness.py inspect \
+  --state-root /absolute/project/.agents/var/tools/codex-token-awareness \
   --transcript /explicit/current-session.jsonl --session <current-session-uuid>
-python3 /absolute/project/.agents/codex/token-awareness/token_awareness.py set \
-  --state-root /absolute/project/.agents/var/codex-token-awareness \
+python3 /absolute/project/.agents/codex/token_awareness.py set \
+  --state-root /absolute/project/.agents/var/tools/codex-token-awareness \
   --transcript /explicit/current-session.jsonl --session <current-session-uuid> \
   --threshold 200000
 ```
@@ -236,7 +245,7 @@ native store and replaceable assets. These example variables are approved paths,
 not implicit defaults:
 
 ```bash
-HELPER=/absolute/assets/token-awareness/session_management.py
+HELPER=/absolute/assets/session_management.py
 STORE=/explicit/authorized/codex-store
 STATE=/absolute/project/.agents/var/codex-sessions
 python3 "$HELPER" list --store-root "$STORE" --state-root "$STATE" \

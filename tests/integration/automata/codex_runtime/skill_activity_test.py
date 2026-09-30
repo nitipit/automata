@@ -211,7 +211,7 @@ def test_saved_corruption_not_silently_reset(api, tmp_path):
 
 def test_installed_controls_hooks_and_concurrency(api, tmp_path):
     install_codex(target_root=tmp_path / "assets", state_root=tmp_path / "state")
-    bundle = tmp_path / "assets/token-awareness"
+    bundle = tmp_path / "assets"
     hooks = json.loads((bundle / "hooks.json").read_text())["hooks"]
     assert all(len(groups[0]["hooks"]) == 2 for groups in hooks.values())
     path = save(tmp_path / "owned.jsonl", meta())

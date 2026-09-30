@@ -412,7 +412,7 @@ def test_trash_partial_failure_retains_package_and_reports_unattempted(api, fixt
 def test_installed_list_entrypoint_does_not_start_native(api, fixture, tmp_path):
     fixture.add()
     install_codex(target_root=tmp_path / "assets", state_root=tmp_path / "hook-state")
-    helper = tmp_path / "assets/token-awareness/session_management.py"
+    helper = tmp_path / "assets/session_management.py"
     output = subprocess.check_output(
         [
             sys.executable,

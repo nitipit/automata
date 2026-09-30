@@ -280,6 +280,8 @@ def test_oversized_file_fails_without_reading_body(adapter, tmp_path):
 def test_installer_and_installed_cli(tmp_path):
     result = install_codex(target_root=tmp_path / "assets", state_root=tmp_path / "state")
     target = Path(result.target)
+    assert target == tmp_path / "assets"
+    assert not (target / "token-awareness").exists()
     assert (target / "setup.md").read_bytes() == (RUNTIME / "setup.md").read_bytes()
     hooks = json.loads((target / "hooks.json").read_text())["hooks"]
     assert set(hooks) == {"SessionStart", "UserPromptSubmit", "PreCompact", "PostCompact"}

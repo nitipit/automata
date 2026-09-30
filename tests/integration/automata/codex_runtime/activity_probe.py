@@ -18,7 +18,7 @@ def activity_control(thread, action="list"):
     output = subprocess.check_output(
         [
             "python3",
-            "/probe/integration/token-awareness/skill_activity.py",
+            "/probe/integration/skill_activity.py",
             action,
             "--state-root",
             "/probe/token-state",
@@ -48,7 +48,7 @@ def child():
     )
     (root / "codex/config.toml").write_text(config)
     (root / "codex/hooks.json").write_text(
-        (root / "integration/token-awareness/hooks.json").read_text()
+        (root / "integration/hooks.json").read_text()
     )
     client = base.Client()
     listing = client.request("hooks/list", {"cwds": ["/probe/project"]})

@@ -11,7 +11,7 @@ ordinary Codex CLI 0.159.0 on Linux, not Pi session tools.
 
 ## Establish scope and readiness
 
-Use the approved installation's `token-awareness/session_management.py` and its
+Use `session_management.py` directly under the approved installation root and its
 installed README. The helper is installed with `automata codex install`; it is a
 shell control, not an MCP tool, hook action, chat launcher or persistent host.
 Confirm the existing helper, native binary/version, explicit native store and

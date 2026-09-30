@@ -213,7 +213,11 @@ def install_codex_command(
     mode: InstallMode = "copy",
     json_output: Annotated[bool, Parameter(name="--json")] = False,
 ) -> None:
-    """Install awareness/activity/session helpers; do not change Codex config/trust."""
+    """Install Codex helpers directly into target-root; no config/trust changes.
+
+    Copy/symlink require absent managed files. Replace updates only managed
+    filenames, preserving unrelated contents. State must be outside target-root.
+    """
     try:
         result = install_codex(target_root=target_root, state_root=state_root, mode=mode)
     except DirectoryInstallError as exc:

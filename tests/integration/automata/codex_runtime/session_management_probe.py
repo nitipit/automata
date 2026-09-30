@@ -65,7 +65,7 @@ class Provider(base.Provider):
 def control(action, *arguments, success=True):
     command = [
         "python3",
-        "/probe/integration/token-awareness/session_management.py",
+        "/probe/integration/session_management.py",
         action,
         "--store-root",
         "/probe/codex",
@@ -196,7 +196,7 @@ def child():
             "thread/read", {"threadId": evidence["copy"]["results"][0]["id"], "includeTurns": True}
         )["thread"]
         evidence["copied"] = forked
-        sys.path.insert(0, "/probe/integration/token-awareness")
+        sys.path.insert(0, "/probe/integration")
         from session_native import NativeClient
         from session_recovery import signature
 

@@ -139,7 +139,7 @@ class Provider(http.server.BaseHTTPRequestHandler):
 def control(thread, action, *extra):
     command = [
         "python3",
-        "/probe/integration/token-awareness/token_awareness.py",
+        "/probe/integration/token_awareness.py",
         action,
         "--state-root",
         "/probe/token-state",
@@ -170,7 +170,7 @@ def child():
     )
     (root / "codex/config.toml").write_text(config)
     (root / "codex/hooks.json").write_text(
-        (root / "integration/token-awareness/hooks.json").read_text()
+        (root / "integration/hooks.json").read_text()
     )
     first = Client()
     try:

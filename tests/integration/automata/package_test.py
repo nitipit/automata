@@ -287,7 +287,8 @@ from automata.install.tools import install_tools
 import json
 state = work / 'private-codex-state'
 install_codex(target_root=work / 'codex', state_root=state)
-bundle = work / 'codex/token-awareness'
+bundle = work / 'codex'
+assert not (bundle / 'token-awareness').exists()
 assert (bundle / 'session_management.py').is_file()
 assert (bundle / 'README.md').is_file()
 assert (bundle / 'setup.md').is_file()
