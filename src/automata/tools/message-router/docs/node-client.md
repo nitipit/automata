@@ -15,11 +15,12 @@ replace agent process management or establish authority to delegate.
 - An explicit current session identifier and an owned live execution process.
   Never substitute another participant's credential or expose it through the UI.
 
-In Codex unified exec, start with `exec_command` and **`tty: true`**: pinned
-0.159.0 keeps interactive stdin open only for a PTY. Retain the returned execution
-`session_id`; it is a process handle, not the router session identity. Do not widen
-sandbox/network permissions to make the example work. If the permitted route is
-unavailable, stop and report the prerequisite.
+Use an execution interface that keeps the child process and its stdin open across
+calls; a PTY may be required by the host. Retain its returned process handle,
+separate from the router session identity. A one-shot shell command that closes
+stdin cannot maintain this client. Do not widen sandbox/network permissions to
+make the example work. If the permitted route is unavailable, stop and report the
+prerequisite.
 
 ## Receive and answer on one connection
 
@@ -68,20 +69,20 @@ node /absolute/task/reply.mjs /absolute/tools/message-router/browser/client.js /
 ```
 
 Use a file or `node -e`, **not a source heredoc on stdin**: stdin carries replies.
-After `ready`, `write_stdin` with empty `chars` can wait for output from that same
-execution session. Avoid busy polling. Read the complete `received` packet and
-check its sender and task authority. For a reply-capable request, send a JSON line
-with its exact `packet.id` and the authorized component response, followed by a
-newline, using `write_stdin` on the same execution session. For example the
-`chars` value might be `{"id":"EXACT_RECEIVED_ID","payload":{"answer":"done"}}\n`.
+After `ready`, use the host's process interface to wait for output from that same
+child. Avoid busy polling. Read the complete `received` packet and check its sender
+and task authority. For a reply-capable request, write a JSON line to the same
+child's stdin with its exact `packet.id` and the authorized component response,
+followed by a newline. For example:
+`{"id":"EXACT_RECEIVED_ID","payload":{"answer":"done"}}\n`.
 Never manufacture an ID or reply to `expectReply: false`.
 
 Keep each encoded reply line small (at most 1 KiB for this recipe), below the
 PTY's canonical input-line limit; do not use this example for bulk payloads.
 PTY echo may repeat input. Output can be split across reads: assemble complete
 JSON lines and distinguish output `event` records from echoed reply input. Keep
-`max_output_tokens` sufficient for the agreed small traffic; if output is truncated
-or a packet is incomplete, do not guess or execute it. This example is not a
+the host's output budget sufficient for the agreed small traffic; if output is
+truncated or a packet is incomplete, do not guess or execute it. This example is not a
 lossless queue for arbitrary traffic. For agent-initiated exchange, use the same
 client's documented `send(to, payload)` and `onResponse` APIs with an explicit
 authorized destination; a forwarding acknowledgment is not the answer.
@@ -101,6 +102,6 @@ exactly-once effects or cross-restart process recovery is promised. Keep credent
 and sensitive payloads out of public assets and unrelated logs.
 
 The repository's focused router fixture checks the example's local exchange;
-Codex tool/process integration is source-supported unless separately verified in
-an authorized native fixture. Neither proves live model judgment or grants real
-user network permissions.
+it does not establish that a particular host keeps interactive stdin open or
+handles process output correctly. Verify that execution boundary separately.
+Neither proves live model judgment or grants real user network permissions.

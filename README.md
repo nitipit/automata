@@ -12,7 +12,6 @@ This README is a quick orientation map; follow the relevant source for details.
 | [`src/automata/skills/bundled/`](src/automata/skills/bundled/) | Canonical skills and their supporting assets |
 | [`src/automata/tools/`](src/automata/tools/) | Shared shell-invoked tools |
 | [`src/automata/runtimes/pi/extensions/`](src/automata/runtimes/pi/extensions/) | Pi-native tools and event integrations |
-| [`src/automata/runtimes/codex/`](src/automata/runtimes/codex/) | Codex hooks, helpers and runtime documentation |
 | [`src/automata/apps/`](src/automata/apps/) | Maintained applications |
 | [`src/automata/install/`](src/automata/install/) | Asset discovery and installation |
 | [`src/automata/plugin/`](src/automata/plugin/) | Selected-asset plugin export |
@@ -39,7 +38,6 @@ This README is a quick orientation map; follow the relevant source for details.
 
 - [Skill design](src/automata/skills/bundled/automata-skill-design/SKILL.md): scope, activation and composition.
 - [Setup](src/automata/skills/bundled/automata-setup/SKILL.md): asset selection, install modes and readiness.
-- [Codex setup](src/automata/runtimes/codex/setup.md) and [runtime contract](src/automata/runtimes/codex/README.md): commands, version constraints and activation.
 - [Message router](src/automata/tools/message-router/README.md): shared transport and runtime adapter contracts.
 - [Storage](src/automata/skills/bundled/automata-storage/SKILL.md) and [task spaces](src/automata/skills/bundled/automata-task-space/SKILL.md): ownership, placement and cleanup.
 - [Testing](tests/README.md): test layout and verification scope.
@@ -54,7 +52,6 @@ uv run automata --help
 uv run automata skills install --help
 uv run automata tools install --help
 uv run automata pi-extension install --help
-uv run automata codex install --help
 uv run automata plugin export --help
 ```
 
