@@ -13,7 +13,7 @@ creating and managing an isolated checkout at the chosen location.
 ## Choose and use
 
 - Follow an established location convention and reuse a suitable working area.
-  Otherwise, `task-space/<task-name>/` is a repository-local fallback,
+  Otherwise, `.agents/var/task-space/<task-name>/` is a repository-local fallback,
   not a mandatory directory for every request. Ask before establishing storage
   outside the authorized scope.
 - A task space belongs to the work, not one agent. Share or hand it over when
