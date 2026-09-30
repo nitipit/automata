@@ -12,11 +12,16 @@ product visuals and UI mockups, rather than an API-key script or browser automat
 
 Identify the host from its exposed interfaces, not the model/provider name.
 In **Pi**, the `codex-bridge` extension exposes `codex_imagegen` and returns a saved
-workspace path. In **native Codex CLI**, use its native image-generation interface
-(such as `image_gen`) only when actually exposed, following that interface's schema
-and output contract. Do not call the Pi tool name or launch another Codex process
-as a substitute. Neither a Codex model name nor installed guidance proves imagegen
-is available. If the required native interface is absent, report the blocker.
+workspace path. In **native Codex CLI**, use the exposed `image_gen` interface
+(`image_gen.imagegen` in 0.159.0), following its actual schema. Native generation
+accepts a prompt; successful results normally include a saved path under
+`$CODEX_HOME/generated_images/`, not a workspace destination argument. Copy a
+project-bound result into the authorized workspace with normal filesystem tools,
+preserving the native original. No additional generator or artifact-publisher
+wrapper is needed.
+Do not call the Pi tool name or launch another Codex process as a substitute.
+Neither a model name nor installed guidance proves availability. If the required
+native interface is absent, report the blocker.
 
 ## First Move
 
@@ -33,9 +38,11 @@ user needs deterministic vector or code-native output.
    Never invent authorization or reinterpret a declined confirmation.
 3. Call the available native interface with one complete image prompt. In Pi,
    this is `codex_imagegen`. Include exact text verbatim and important exclusions.
-4. Inspect or integrate the selected image within the authorized scope. Verify its
-   actual saved path before reporting a workspace file. In Pi, the returned
-   workspace path is the source of truth.
+4. Inspect or integrate the selected image within the authorized scope. In Codex,
+   use the actual native saved path and keep the resolved destination, including
+   parent symlinks, inside the workspace. Refuse unintended overwrites (for example,
+   exclusive file creation). Verify the copied file before reporting its workspace
+   path. In Pi, the returned workspace path is the source of truth.
 5. Report the saved path and any meaningful limitation or failed iteration.
 
 ## Boundaries
@@ -49,6 +56,10 @@ user needs deterministic vector or code-native output.
 - Do not overwrite an existing image unless the user explicitly requests it.
 - Treat generation as an external quota-consuming action. Explicit user intent
   authorizes only one image; ambiguous or agent-inferred calls require confirmation.
-  Use Pi's bridge confirmation flow; in Codex, obtain consent before invoking native
-  generation. Do not invent a workspace path when the result has not supplied or
-  saved one.
+  Use Pi's bridge confirmation flow. In Codex, obtain consent before invoking the
+  native tool and make one generation call. This is agent guidance, not a native
+  one-per-turn consent gate equivalent to Pi's bridge.
+- If generation fails, report the failure without silently changing model/provider.
+  If only workspace copying fails, preserve and report the native artifact; repair
+  the copy within scope rather than generating another image. Do not invent a
+  workspace path when the file has not actually been saved there.

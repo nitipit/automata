@@ -223,7 +223,7 @@ retired, not ported. Native human effort controls and launch-time selection rema
 | --- | --- | --- |
 | Shared skills and character | Native discovery/instruction surfaces; agent judgment not certified | Existing discovery and surfaces |
 | Shell tools / browser UI assets | Shared files, subject to dependencies and sandbox permissions | Existing CLI/assets |
-| Account status and image generation | Both retained in scope; exposed native interfaces only, neither Codex implementation claimed complete; no API-key fallback | `codex_account_status` and `codex_imagegen` bridge; image confirmation and saved workspace path |
+| Account status and image generation | Native image invocation and workspace copy verified offline; account status remains separately partial, not a completed bridge capability; no API-key fallback | `codex_account_status` and `codex_imagegen` bridge; image confirmation and saved workspace path |
 | Context status | Optional hooks and `context` helper: labelled last-known estimates, raw pressure, input anchor/wall elapsed | `context_status` request-local pressure and task telemetry |
 | Compaction | Native human `/compact`; not Pi tool contract | `context_compact`, including summary-only effort |
 | Skill activity | Optional native insertion observer + session-scoped query/control; explicit coverage, separate state | Existing Pi observer/database |
@@ -240,6 +240,24 @@ Native human Codex `/model` and Pi `/model`/`/thinking` are unchanged. Automata'
 retired thinking-control extension and dedicated skill are no longer bundled;
 installation does not remove existing copies or reload active sessions. Such
 migration requires separate authorization. Other effort parameters remain useful.
+
+Codex 0.159.0's exposed `image_gen.imagegen` can generate directly; do not install
+a duplicate Pi-style generator. It returns a native saved path, normally under
+`$CODEX_HOME/generated_images/`, not a workspace destination. Use normal filesystem
+copying to a checked, non-overwriting workspace path; retain the original if copying
+fails rather than regenerating. Availability is model/provider/account/feature
+conditional. One-image consent is guidance in Codex, not Pi's bridge confirmation
+gate. Offline mock-image success does not prove live entitlement or image quality.
+
+Account status is a separate requirement. A turn-free native RPC fixture returned
+rate windows to its controller, but the same account server could not initialize
+from the ordinary restricted tool shell because native home writes were required.
+That does not establish a working agent account reader or prove every native
+account interface unavailable. Native rollout rate-limit observations may be
+last-known or absent; do not infer signed-in identity or fresh quota from them.
+No account wrapper, credential-copy workaround or permission relaxation is installed.
+For the bounded evidence and remaining gaps, see the repository audit
+`docs/audits/codex-0.159.0/account-image-native.md`.
 
 Do not call absent Pi tools, attach to an existing Codex daemon, inject history,
 trust hooks, or build an adapter as an implicit fallback. Native controls do not

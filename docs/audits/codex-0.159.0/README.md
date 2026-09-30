@@ -8,6 +8,9 @@ Checked 2026-09-29 against Automata baseline `37acc95`, installed Codex CLI
 Subsequent decision: [CX-008R thinking-control retirement](thinking-control-retirement.md)
 revises the original parity scope to eight retained capabilities. The original
 findings and recommendations below remain historical, not the current inventory.
+[CX-009 native image/account evidence](account-image-native.md) subsequently proves
+an ordinary-CLI image path without a duplicate wrapper; account status remains a
+separate partial result, not a completed combined capability.
 
 ## Recommendation
 
