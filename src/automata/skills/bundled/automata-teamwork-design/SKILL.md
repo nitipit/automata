@@ -22,6 +22,12 @@ Keep implementation and verification together when splitting duplicates reasonin
 separate concerns only when the benefit outweighs handoff and integration costs.
 Delegating execution need not move the coordinator's design context.
 
+When choosing between resuming an agent and starting fresh, weigh retained
+knowledge against context size, likely cache reuse and the cost of loading context
+again. Resuming is not automatically cheaper; cache availability is uncertain.
+Prefer a concise handoff or compaction when obsolete context outweighs useful
+continuity, accounting for the preparation cost and preserving needed state.
+
 Use established user priorities. Clarify deadlines, budget, quality or risk only
 when uncertainty materially changes the design; never silently lower acceptance
 standards. Ordinary context allocation remains an engineering decision within
@@ -59,8 +65,8 @@ lines, not the full working analysis.
   review, corrections and integration. State assumptions and distinguish active
   effort from elapsed time, dependency delays and approval waits.
 - **Tokens:** estimate the whole task across coordinator and workers, including
-  briefing, repeated input, output, review and corrections. Separate input, output
-  and cached input when useful and supported. State the basis, uncertainty and
+  startup/resumption, briefing, repeated input, output, review and corrections.
+  Separate input, output and cached input when useful and supported. State the basis, uncertainty and
   exclusions. Context-window size is not cumulative usage; token estimates are not
   cost quotes. If an estimate is not defensible, offer a bounded first slice to
   calibrate it.
