@@ -95,8 +95,8 @@ and recommend models for its assignments", or "Is this new model worth consideri
 Reusable notes and preferences live under
 `~/.agents/var/skills/automata-model-selection/`, with project-specific observations
 and explicit overrides under `.agents/var/skills/automata-model-selection/`.
-Keep active recommendations separate from historical comparisons and migration
-notes. Updating research does not change approved preferences or runtime settings.
+Keep the guide focused on current choices. Updating research does not change
+approved preferences or runtime settings.
 Installation does not create a model catalog, preferences, or runtime configuration.
 Retire the old `automata-model-research` installed skill during an authorized sync,
 without deleting its operational data; installers do not remove old names.
