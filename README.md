@@ -92,10 +92,11 @@ does not authorize a model switch or expand an allowed list.
 
 Ask, for example, "Which models should we use in this work plan?", "Design a team
 and recommend models for its assignments", or "Is this new model worth considering?"
-Reusable notes and preferences remain under
-`~/.agents/var/skills/automata-model-research/`, with project-specific observations
-and explicit overrides under `.agents/var/skills/automata-model-research/`.
-These legacy data paths remain canonical; the rename does not migrate data.
+Reusable notes and preferences live under
+`~/.agents/var/skills/automata-model-selection/`, with project-specific observations
+and explicit overrides under `.agents/var/skills/automata-model-selection/`.
+Keep active recommendations separate from historical comparisons and migration
+notes. Updating research does not change approved preferences or runtime settings.
 Installation does not create a model catalog, preferences, or runtime configuration.
 Retire the old `automata-model-research` installed skill during an authorized sync,
 without deleting its operational data; installers do not remove old names.

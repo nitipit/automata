@@ -83,8 +83,12 @@ For each useful model/version, keep a short note with:
 
 Prefer a few decision-useful sentences over specification tables, scores or raw
 research dumps. Leave unknowns explicit. Update an existing note when appropriate
-rather than appending release news indefinitely; retain still-useful version
-comparisons and do not delete unique evidence merely because it is old.
+rather than appending release news indefinitely. Keep active recommendations
+separate from historical comparisons and migration notes. When a successor makes
+an older model redundant for current choices, retire the older recommendation
+while retaining unique evidence and compatibility differences in a brief historical
+note. Retirement from recommendations does not prohibit use, change approved
+preferences, or establish provider deprecation.
 
 Keep mutable records outside the skill package. Use
 `~/.agents/var/skills/automata-model-selection/selection-guide.md` for reusable
