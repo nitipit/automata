@@ -8,8 +8,10 @@ These instructions describe shared support and the optional token/context/timest
 and skill-activity integration, plus explicit session management, checked against
 Codex **0.159.0**. Native discovery and token hook
 acquisition/delivery were verified offline with a controlled mock provider;
-live agent behavior and native image generation were not tested. Recheck version-dependent controls if your
-installed Codex differs; do not silently transfer compatibility claims.
+live agent behavior and live image quality/entitlement were not tested. Native
+image invocation and copying were separately verified with a synthetic image.
+Recheck version-dependent controls if your installed Codex differs; do not silently
+transfer compatibility claims.
 
 ## Choose scope and exposure
 
@@ -214,20 +216,24 @@ installed by this route. Avoid selecting the same skill through both mechanisms.
 
 ## Support boundaries
 
-Of the original nine runtime capabilities, eight are retained and five have
-verified offline Codex evidence: token awareness, context status, message
-timestamps, skill activity and session management. Dynamic thinking control is
-retired, not ported. Native human effort controls and launch-time selection remain.
+Assess useful task capacity, not a count of matching Pi extensions. The optional
+hooks/helpers have offline evidence for token awareness, context status, message
+timestamps, skill activity and session management. Native image invocation also
+has offline evidence. Native collaboration, automatic/human compaction and human
+account/status workflows count without duplicate tools; exposure and freshness
+limits still matter. Dynamic thinking control is retired, not ported. Native
+human effort controls and launch-time selection remain.
 
 | Capability | Ordinary Codex CLI path | Pi support |
 | --- | --- | --- |
 | Shared skills and character | Native discovery/instruction surfaces; agent judgment not certified | Existing discovery and surfaces |
 | Shell tools / browser UI assets | Shared files, subject to dependencies and sandbox permissions | Existing CLI/assets |
-| Account status and image generation | Native image invocation and workspace copy verified offline; account status remains separately partial, not a completed bridge capability; no API-key fallback | `codex_account_status` and `codex_imagegen` bridge; image confirmation and saved workspace path |
+| Account/resource inspection | Native login configuration check and human `/status` account/usage display; refresh where supported, autonomous fresh quota unproven | `codex_account_status` bridge |
+| Image generation | Native invocation and workspace copy verified offline; no API-key fallback | `codex_imagegen` bridge with confirmation and saved workspace path |
 | Context status | Optional hooks and `context` helper: labelled last-known estimates, raw pressure, input anchor/wall elapsed | `context_status` request-local pressure and task telemetry |
-| Compaction | Native human `/compact`; not Pi tool contract | `context_compact`, including summary-only effort |
+| Compaction | Native automatic compaction/continuation and human `/compact`; no wrapper needed | `context_compact`, including summary-only effort |
 | Skill activity | Optional native insertion observer + session-scoped query/control; explicit coverage, separate state | Existing Pi observer/database |
-| Router | Shared service and generic browser clients; no Codex agent adapter | `message_router`, Pi admission and pending context |
+| Collaboration and external exchange | Exposed native colleague tools; shared browser/Node client through an owned active shell process for external replies | Native/shared workflows plus `message_router`, Pi admission and pending context |
 | Token awareness | Optional version-pinned hooks/helper above; delayed, coverage-labelled snapshots | Pi branch accounting and request-local annotations |
 | Message timestamps | Optional bounded native item-ID/lifecycle-time packets; no body rewriting | Pi historical model-only annotations |
 | Session copy/trash | Explicit-store helper: receipt-scoped independent copy or linked fork, bounded OS-trash/native restore; no blanket Pi parity | `pi_session_*` tools |
@@ -249,7 +255,31 @@ fails rather than regenerating. Availability is model/provider/account/feature
 conditional. One-image consent is guidance in Codex, not Pi's bridge confirmation
 gate. Offline mock-image success does not prove live entitlement or image quality.
 
-Account status is a separate requirement. A turn-free native RPC fixture returned
+For native colleagues, use the collaboration tools actually exposed. In 0.159.0,
+V1 `send_input` submits work; V2 `send_message` queues without starting an idle
+target, while `followup_task` requests a turn. Native waits/completion notifications
+help obtain results, but submission or mailbox activity is not completed work.
+Do not infer reachability or authority over arbitrary external agents. For external
+browser requests, the existing generic Node client can run in an owned interactive
+shell process: see the [task-local recipe](../../automata-message-router/references/node-client.md).
+It needs a live connection and an active/resumed agent, not a new polling service.
+No automatic model wakeup, durable inbox or Pi delivery modes are promised.
+
+Native automatic compaction already supports continued work; human `/compact`
+provides intentional context relief. Preserve material task state rather than
+recreating Pi's per-call summary-model settings. The gated native `new_context`
+skips summarization and is not a drop-in replacement. Pi preferences stay on Pi.
+
+Account status is distinct from image generation. `codex login status` reports
+configured local auth mode, not fresh identity validation or remaining quota; its
+API-key output can contain a masked key fragment, so do not echo it into reports.
+Human `/status` can display available account/email/plan and usage/reset windows
+and request native refresh where supported. Distinguish fresh observations from
+stale, missing or unavailable snapshots; context token counts are not quota.
+This is useful human-assisted resource inspection, not a proven autonomous fresh
+account query. Do not run real account checks without appropriate authority.
+
+A turn-free native RPC fixture returned
 rate windows to its controller, but the same account server could not initialize
 from the ordinary restricted tool shell because native home writes were required.
 That does not establish a working agent account reader or prove every native

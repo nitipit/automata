@@ -15,11 +15,14 @@ Identify the host from its exposed interfaces, not the model/provider name.
 - **Pi with `context_compact`:** use the workflow below, including its deferred
   request, summary-model preferences and continuation contract.
 - **Native Codex CLI:** Automata does not provide `context_compact`. Preserve
-  authorized task state before context loss; let Codex own automatic compaction.
+  authorized task state before context loss; let Codex own automatic compaction
+  and continuation. This already supplies useful context relief without a wrapper.
   For an intentional compact, the human can use native `/compact`. Do not inject
   that command through shell, tmux or a user message. Pi's selected summary model,
   thinking, `customInstructions` and `resumeMessage` are not native CLI promises;
   do not translate those preferences into config changes or a wrapper invocation.
+  A gated native `new_context` resets without summarizing; it is not a drop-in
+  continuity-preserving compact. Use only actually exposed interfaces.
 - **Other or unavailable interface:** report the limitation; do not invent a tool
   or treat an unknown reading as a compaction trigger.
 

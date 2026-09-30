@@ -17,12 +17,19 @@ The mapped shell CLI and generic browser client are shared. The agent-session
 Pi's adapter; installing the shared CLI or this skill does not expose them in
 native Codex CLI. Identify the host and actual tools, not its model/provider name.
 
-In Codex, authorized service setup and browser-to-browser use can use the shared
-CLI/client. For routing into the current Codex agent, report the missing adapter;
-do not substitute history injection, hooks, a daemon connection or an invented
-tool call. The reference's Pi tool examples and the Exchange section below apply
-only where that Pi adapter is available. Transport receipts never prove model
-admission or a new agent turn in another host.
+In native Codex, prefer exposed native collaboration tools for native colleagues.
+A successful send is submission, not completed work: read the colleague's result.
+Tool availability depends on runtime/model/configuration; do not assume every
+native tool is exposed or that it reaches arbitrary independent agent processes.
+
+For external/browser exchange, reuse the shared service and generic browser/Node
+client. An active agent can read and answer through an owned ordinary shell
+process; see the [short Node client recipe](references/node-client.md). No new
+polling service or Pi adapter is required for that task. It needs authorized
+loopback access, private credentials and a live connection; it does not wake an
+idle model. Do not substitute history injection, hooks, a daemon connection or an
+invented tool call. Pi tool examples and the Exchange section below require Pi's
+adapter. Transport receipts never prove model handling or a new agent turn.
 
 ## One service, explicitly addressed participants
 
@@ -85,6 +92,8 @@ blindly replayed.
 
 1. [Configure](references/configure.md) private credentials and directed grants.
 1. [Connect](references/connect.md) the intended browser or agent clients.
+1. [Use a task-local Node client](references/node-client.md) for ordinary shell
+   request/reply without a runtime adapter.
 1. [Discover](references/discover.md) caller-visible, allowed destinations.
 1. [Send](references/send.md) independent requests, replies, and one-way messages.
 1. [Handle failures](references/failures.md) without confusing rejection,

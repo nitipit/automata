@@ -11,6 +11,10 @@ findings and recommendations below remain historical, not the current inventory.
 [CX-009 native image/account evidence](account-image-native.md) subsequently proves
 an ordinary-CLI image path without a duplicate wrapper; account status remains a
 separate partial result, not a completed combined capability.
+[CX012 practical task-capacity support](task-capacity-support.md) is the current
+checkpoint: native collaboration/compaction/status and the existing generic client
+count without Pi-shaped replacements. The original recommendations below remain
+historical; they are not a new implementation backlog.
 
 ## Recommendation
 

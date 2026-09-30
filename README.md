@@ -23,8 +23,9 @@ src/automata/
 ├── tools/                  # Shared shell-invoked CLI tools
 ├── apps/                   # Maintained application source and canonical skills
 ├── runtimes/
-│   └── pi/
-│       └── extensions/     # Pi APIs, event handlers, and session integrations
+│   ├── pi/
+│   │   └── extensions/     # Pi APIs, event handlers, and session integrations
+│   └── codex/             # Optional native CLI awareness/session helpers
 ├── install/                # Asset discovery and installation
 └── plugin/                 # Selected-asset package export
 ```
@@ -43,7 +44,13 @@ integration.
 Native Codex CLI can use the same skill catalog, character content and shell tools.
 See [Codex setup and support](src/automata/skills/bundled/automata-setup/references/codex.md)
 for direct-install commands, instruction surfaces, optional plugin packaging and
-explicit remaining gaps. No wrapper or custom host is required. Optional
+explicit remaining gaps. Native collaboration, automatic/human compaction,
+image generation and human account/status inspection count as useful support;
+matching Pi tool names is not the goal. External browser exchange can use the
+[existing Node client recipe](src/automata/skills/bundled/automata-message-router/references/node-client.md)
+from an owned active shell process, with permitted loopback and private grants.
+No automatic model wakeup or autonomous fresh quota query is promised.
+No wrapper or custom host is required. Optional
 `automata codex install --target-root <assets> --state-root <state>` packages the
 [Codex awareness/skill-activity hooks and session controls](src/automata/runtimes/codex/README.md); config/trust
 activation and current-session transcript reading require explicit consent.

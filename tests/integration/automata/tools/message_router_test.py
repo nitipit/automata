@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import select
 import shutil
 import signal
 import socket
@@ -15,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from automata.install.skills import install_skills
 from automata.install.tools import install_tools
 
 
@@ -22,6 +24,71 @@ def port_available():
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         return sock.getsockname()[1]
+
+
+def check_node_reply_recipe(tmp_path, node, tool_root, endpoints, page):
+    """Exercise installed Markdown example over a real PTY, not a model mock."""
+    import pty
+
+    skills = tmp_path / "skills"
+    install_skills(target_root=skills, skill_names=["automata-message-router"])
+    recipe = (skills / "automata-message-router/references/node-client.md").read_text()
+    script = tmp_path / "reply.mjs"
+    script.write_text(recipe.split("```js\n", 1)[1].split("\n```", 1)[0])
+    master, slave = pty.openpty()
+    process = subprocess.Popen(
+        [node, str(script), str(tool_root / "message-router/browser/client.js"),
+         str(endpoints / "participants/agent.json"), "synthetic-recipe-session"],
+        stdin=slave, stdout=slave, stderr=slave,
+    )
+    os.close(slave)
+    buffer = b""
+
+    def event(expected):
+        nonlocal buffer
+        deadline = time.monotonic() + 5
+        while True:
+            while b"\n" in buffer:
+                line, buffer = buffer.split(b"\n", 1)
+                record = json.loads(line.strip())
+                # A PTY can echo our reply input; that is not client output.
+                if record.get("event") == expected:
+                    return record
+            remaining = deadline - time.monotonic()
+            assert remaining > 0, (expected, buffer)
+            assert select.select([master], [], [], remaining)[0], expected
+            buffer += os.read(master, 65536)
+
+    def reply(value):
+        os.write(master, json.dumps(value).encode() + b"\n")
+
+    try:
+        event("ready")
+        page.send(json.dumps({"v": 2, "type": "route", "requestId": "recipe",
+                              "to": "agent", "payload": {"question": "hello"}}))
+        assert json.loads(page.recv())["status"] == "forwarded"
+        packet = event("received")["packet"]
+        assert packet["from"] == {"id": "a", "kind": "page"}
+        assert packet["expectReply"] is True
+        reply({"id": "not-a-capability", "payload": None})
+        event("reply_failed_or_uncertain")
+        answer = {"answer": packet["payload"]["question"] + " handled"}
+        reply({"id": packet["id"], "payload": answer})
+        assert event("reply_forwarded")["id"] == packet["id"]
+        received = json.loads(page.recv())
+        assert received["type"] == "response"
+        assert received["id"] == packet["id"]
+        assert received["payload"] == answer
+        reply({"id": packet["id"], "payload": "duplicate"})
+        event("reply_failed_or_uncertain")
+        process.send_signal(signal.SIGINT)
+        assert process.wait(timeout=5) == 0
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=5)
+        os.close(master)
+        page.close()
 
 
 def test_browser_client_contracts():
@@ -263,6 +330,12 @@ def test_installed_router_without_ui_and_private_static_boundaries(tmp_path):
                 time.sleep(0.02)
             node = shutil.which("node")
             if node:
+                if os.name == "posix":
+                    check_node_reply_recipe(tmp_path, node, tool_root, endpoints, connect("a"))
+                    deadline = time.monotonic() + 3
+                    while json.load(urllib.request.urlopen(base + "/health"))["participantsConnected"]:
+                        assert time.monotonic() < deadline
+                        time.sleep(0.02)
                 result = subprocess.run(
                     [
                         node,

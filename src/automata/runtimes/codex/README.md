@@ -3,12 +3,32 @@
 A small ordinary CLI hook/helper integration, not a custom Codex launcher.
 Requires Python 3.12+ and a local Codex 0.159.0 transcript. These integrations do
 not change their Pi counterparts. Dynamic thinking control is separately retired:
-eight runtime capabilities remain in scope, five verified offline here (token
-awareness, context status, timestamps, skill activity and sessions). No agent effort
-setter is provided. Launch-time effort and native human controls remain available.
+this bundle verifies token awareness, context status, timestamps, skill activity
+and sessions offline, not a nine-extension parity layer. Native image generation,
+collaboration, compaction and account/status workflows also provide useful task
+capacity without wrappers. No agent effort setter is provided. Launch-time effort and native human controls remain available.
 Check `codex --version` before activation and revalidate after upgrades. Transcript
 metadata records creation version; it does not prove which binary later resumed
 and appended to that file. Compatibility with newer writers is not assumed.
+
+## Native and shared workflows
+
+Use the actual exposed native collaboration tools for native colleagues and read
+results rather than treating a submitted message as completed work. For external
+browser requests, the shared router's generic Node client can run in an owned
+interactive shell process; its task-local recipe ships with the message-router
+skill. This requires authorized loopback, credentials, a live connection and an
+active/resumed agent. It does not provide unsolicited model wakeups or durability.
+No extra router code or client service is installed by this awareness bundle.
+
+Let native automatic compaction preserve useful continuation; human `/compact`
+can request context relief. Do not port Pi's optional summary settings or treat
+the gated, non-summarizing `new_context` reset as equivalent compaction.
+Native human `/status` provides available account/resource observations and refresh
+where supported. `codex login status` only reports local auth configuration and
+may print a masked key fragment; do not copy that output into reports. Neither
+context metrics nor stale rate snapshots prove fresh account identity or quota.
+No autonomous fresh account reader is established by this bundle.
 
 ## Install and activate explicitly
 

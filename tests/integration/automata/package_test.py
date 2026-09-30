@@ -148,6 +148,10 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "skills/bundled/automata-codex-imagegen/SKILL.md",
         "skills/bundled/automata-skill-activity/SKILL.md",
         "skills/bundled/automata-message-router/SKILL.md",
+        "skills/bundled/automata-message-router/references/node-client.md",
+        "runtimes/codex/README.md",
+        "runtimes/codex/token_awareness.py",
+        "runtimes/codex/session_management.py",
         "skills/bundled/automata-plan/SKILL.md",
         "skills/bundled/automata-storage/SKILL.md",
         "skills/bundled/automata-adaptive-ui/scripts/build.py",
@@ -256,7 +260,7 @@ for name in ('automata-storage', 'automata-context-status',
     assert (work / 'skills' / name / 'SKILL.md').is_file()
 router_skill = work / 'skills/automata-message-router'
 assert {path.name for path in router_skill.iterdir()} == {'SKILL.md', 'references'}
-for page in ('configure', 'connect', 'discover', 'send', 'failures'):
+for page in ('configure', 'connect', 'discover', 'send', 'failures', 'node-client'):
     assert (router_skill / 'references' / (page + '.md')).is_file()
 assert all(path.suffix == '.md' for path in router_skill.rglob('*') if path.is_file())
 assert '(references/connect.md)' in (router_skill / 'SKILL.md').read_text()
@@ -276,6 +280,23 @@ assert (work / 'extensions/token-awareness.ts').is_file()
 export_plugin(name='wheel-smoke', output=work / 'plugin',
               skill_names=['automata-storage', 'automata-context-status'])
 assert (work / 'plugin/skills/automata-context-status/SKILL.md').is_file()
+# Both runtime asset paths and the existing shared tools survive wheel installation.
+from automata.install.codex import install_codex
+from automata.install.tools import install_tools
+import json
+state = work / 'private-codex-state'
+install_codex(target_root=work / 'codex', state_root=state)
+bundle = work / 'codex/token-awareness'
+assert (bundle / 'session_management.py').is_file()
+assert (bundle / 'README.md').is_file()
+hooks = json.loads((bundle / 'hooks.json').read_text())['hooks']
+assert set(hooks) == {'SessionStart', 'UserPromptSubmit', 'PreCompact', 'PostCompact'}
+assert all(len(groups[0]['hooks']) == 2 for groups in hooks.values())
+assert not state.exists()  # Placing assets does not activate observers.
+assert not (work / 'codex/config.toml').exists()
+shared = install_tools(target_root=work / 'tools')
+assert {item.name for item in shared} == {'line', 'message-router', 'timer', 'tmux-message'}
+assert (work / 'tools/message-router/browser/client.js').is_file()
 """, str(site), str(tmp_path / "installed")],
         cwd=tmp_path, capture_output=True, text=True, timeout=30, check=False,
     )
