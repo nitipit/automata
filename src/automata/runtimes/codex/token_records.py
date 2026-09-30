@@ -12,6 +12,8 @@ import stat
 import uuid
 from pathlib import Path
 
+from context_records import ContextRecords
+
 VERSION = "0.159.0"
 MAX_BYTES = 64 * 1024 * 1024
 MAX_LINE = 8 * 1024 * 1024
@@ -82,6 +84,7 @@ def scan(path: Path, expected_session: str, excluded_turns=()) -> dict:
             raise CoverageError("unsupported transcript file or size")
         remaining = before.st_size
         records = {}
+        context = ContextRecords()
         completed_turns = set()
         compacted_turns = set(excluded_turns)
         active_turn = None
@@ -107,6 +110,7 @@ def scan(path: Path, expected_session: str, excluded_turns=()) -> dict:
                 raise CoverageError("unknown transcript sequence")
             last_ordinal = ordinal
             payload = item["payload"]
+            context.observe(item)
             if metadata is None:
                 if item.get("type") != "session_meta" or payload.get("cli_version") != VERSION:
                     raise CoverageError("unsupported Codex transcript version")
@@ -163,6 +167,7 @@ def scan(path: Path, expected_session: str, excluded_turns=()) -> dict:
     return {
         **metadata,
         "records": eligible,
+        "observations": context.result(),
         "partialTail": partial_tail,
         "excludedCompactionRecords": sum(r["turn"] in compacted_turns for r in records.values()),
         "unclassifiedRecords": sum(r["turn"] not in completed_turns for r in records.values()),

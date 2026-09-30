@@ -44,7 +44,7 @@ plugin_app = App(help="Build Agent Plugin packages from Automata assets.")
 app.command(plugin_app, name="plugin")
 pi_extension_app = App(help="Install bundled or local Pi extension files.")
 app.command(pi_extension_app, name="pi-extension")
-codex_app = App(help="Install Codex session-local token hooks (activation is separate).")
+codex_app = App(help="Install Codex session-local awareness hooks (activation is separate).")
 app.command(codex_app, name="codex")
 
 DEFAULT_AGENT_INSTRUCTIONS_PATH = Path(".agents/var/skills/automata-agents-md")
@@ -213,7 +213,7 @@ def install_codex_command(
     mode: InstallMode = "copy",
     json_output: Annotated[bool, Parameter(name="--json")] = False,
 ) -> None:
-    """Install token helper and hooks fragment; do not change Codex config/trust."""
+    """Install token/context/timestamp helpers; do not change Codex config/trust."""
     try:
         result = install_codex(target_root=target_root, state_root=state_root, mode=mode)
     except DirectoryInstallError as exc:

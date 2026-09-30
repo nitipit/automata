@@ -203,6 +203,7 @@ def child():
         controls = {
             "inspect": control(thread, "inspect"),
             "set": control(thread, "set", "--threshold", "1000000"),
+            "contextBeforeRestart": control(thread, "context"),
         }
         events = list(client.events)
         client.close()
@@ -210,9 +211,11 @@ def child():
         resumed = client.request("thread/resume", {"threadId": thread["id"]})["thread"]
         client.turn(resumed["id"], "after owned process restart")
         controls["resume"] = control(resumed, "inspect")
+        controls["contextResume"] = control(resumed, "context")
         forked = client.request("thread/fork", {"threadId": resumed["id"]})["thread"]
         client.turn(forked["id"], "owned fork fixture")
         controls["fork"] = control(forked, "inspect")
+        controls["contextFork"] = control(forked, "context")
         (root / "controls.json").write_text(json.dumps(controls, indent=2))
         (root / "protocol.json").write_text(json.dumps(events + client.events, indent=2))
         (root / "requests.json").write_text(json.dumps(Provider.requests, indent=2))

@@ -1,6 +1,6 @@
 ---
 name: automata-context-status
-description: Use when interpreting runtime context signals or checking context pressure, elapsed time, or model-token usage.
+description: Use when interpreting runtime context or timestamp signals, or checking context pressure, elapsed time, or model-token usage.
 ---
 
 # Automata Context Status
@@ -13,23 +13,46 @@ universal runtime behavior.
 
 - **Pi with `context_status`:** use the optional diagnostic below when it informs
   a decision. Do not call it merely to acknowledge an input or signal.
-- **Native Codex CLI:** no Automata `context_status` or Pi pressure/elapsed signals
-  are installed. Use available native status/context displays with their own
-  labels and scope; if they are not accessible, report unknown rather than
-  inventing measurements or scanning private session histories. Native context
-  estimates and usage totals are not Pi input-anchored or branch-landmark totals.
-  Do not apply Pi cache normalization to them or infer active-work duration.
-  If the optional Automata Codex token hook is explicitly installed/activated,
-  its checkpoint is a delayed observation through the stated response ID, not
-  current context pressure or exact whole-thread usage. Repeated checkpointId
-  means replay, not new consumption. Its lifetime observed-record ledger is not
-  active-branch accounting after rollback; mixed/compaction turns and unavailable
-  inherited records are excluded with coverage labels. Use the exact session-local
-  inspect/set helper command supplied in hook context when useful; never discover
-  other transcripts or treat shell access as permission to read histories.
-  Changing its threshold retains accrued usage and waits for a hook boundary.
+- **Native Codex CLI:** with the optional Automata awareness hooks explicitly
+  installed/activated, use the sequence-linked packets and supplied shell controls
+  below. These are not native functions named `context_status` or Pi request-local
+  pressure signals. Otherwise use native displays with their own labels/scope,
+  reporting inaccessible measurements as unknown rather than searching histories.
 - **Other hosts:** use only a documented, available diagnostic and state its
   coverage. A signal is an observation, not new authority to compact or delegate.
+
+## Codex sequence-linked observations
+
+Treat packet coverage and sequence as authoritative about what was observed, not
+about the current model request. `context` reports native last-usage or recomputed
+context estimates; pressure is a raw tokens/window ratio only with a known positive
+native denominator. It is not cumulative billing, the token checkpoint ledger,
+or Codex UI's baseline-adjusted remaining percentage. Never subtract cache reads
+from context occupancy. Incoming input and later hook text can be absent from the
+estimate. Zero/default telemetry or an unknown denominator does not establish low
+pressure. Use a high last-known reading to consider a safe context boundary, not
+as authority to interrupt, compact or delegate automatically.
+
+The input anchor labels a retained turn-submission observation, or a native user
+item when no hook anchor exists. It is not human typing time. Elapsed is wall time
+at observation/inspection, including idle pauses; no active-work timer is implied.
+`anchorUsage` covers observed completed compaction-free responses in that turn,
+not every response since the wall clock. The separate lifetime token ledger also
+excludes mixed/compaction turns and may retain records removed by rollback.
+
+Recent user/assistant item IDs carry stable native lifecycle and record timestamps
+in ISO8601 with offset. Snapshot `observedAt` is different from those event clocks;
+delivery time is not measured. Repeated `packetId`/`checkpointId` means replay,
+not new work or a new timestamp. Six recent message records and eight hook anchors
+are retained. A turn re-observed after anchor eviction gets a new observation ID.
+Restored facts are labelled last-known, not an active-branch history projection.
+
+Use the exact current-session helper command in hook context: `context` for the
+diagnostic/timestamps, `inspect` for token accounting, or `set --threshold N` for
+future token checkpoints. Calls are optional, only when useful. Shell permission
+still applies; do not discover other transcripts or infer history-reading authority.
+Automatic packets arrive at supported hooks, not before every model request, and
+there is no ten-minute idle wakeup. Unknown coverage stays unknown.
 
 ## Pi checkpoint
 

@@ -45,14 +45,16 @@ See [Codex setup and support](src/automata/skills/bundled/automata-setup/referen
 for direct-install commands, instruction surfaces, optional plugin packaging and
 explicit remaining gaps. No wrapper or custom host is required. Optional
 `automata codex install --target-root <assets> --state-root <state>` packages the
-[Codex token hook/helper](src/automata/runtimes/codex/README.md); config/trust
+[Codex token/context/timestamp hooks](src/automata/runtimes/codex/README.md); config/trust
 activation and current-session transcript reading require explicit consent.
 Native 0.159.0 mock-provider tests prove sequence-linked token acquisition,
-delayed context delivery, inspect/set and scoped recovery—not live model judgment
+context estimates, native item timestamps, delayed delivery, controls and scoped
+recovery—not live model judgment
 or identical Pi branch semantics. The
 [audit](docs/audits/codex-0.159.0/README.md) and
-[token slice proof](docs/audits/codex-0.159.0/token-sequence-port.md) separate evidence
-from remaining runtime work.
+[token slice proof](docs/audits/codex-0.159.0/token-sequence-port.md) and
+[context/timestamp proof](docs/audits/codex-0.159.0/context-timestamps-port.md) separate
+evidence from remaining runtime work.
 
 Default skill installation and selected-skill plugin export use the single canonical
 catalog at `src/automata/skills/bundled/`. Duplicate names are errors,

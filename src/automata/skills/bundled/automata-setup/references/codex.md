@@ -4,7 +4,7 @@ Use ordinary Codex CLI with shared Automata guidance and shell tools. No Automat
 wrapper, custom app-server host, Pi extension or separate Codex catalog is needed.
 Identify the host, not the model name: Pi running a Codex model is still Pi.
 
-These instructions describe shared support and the optional token-awareness
+These instructions describe shared support and the optional token/context/timestamp
 integration checked against Codex **0.159.0**. Native discovery and token hook
 acquisition/delivery were verified offline with a controlled mock provider;
 live agent behavior and native image generation were not tested. Recheck version-dependent controls if your
@@ -68,7 +68,7 @@ permissions and any browser/network access remain capability prerequisites.
 Do not loosen sandbox/approval settings to make a tool appear ready. `--help` is
 not a scheduler, browser, messaging or external-effects acceptance test.
 
-## Optional sequence-linked token awareness
+## Optional sequence-linked token, context and timestamp awareness
 
 With explicit asset/state roots and mode approved:
 
@@ -85,8 +85,9 @@ PreCompact/PostCompact groups into the intended hooks file and reviewing command
 with native `/hooks`. Activation authorizes reading the current hook-supplied
 session transcript only. No broad history discovery or daemon attachment occurs.
 
-The agent receives threshold snapshots linked to response ID and record ordinal,
-plus exact current-session inspect/set shell commands. Delivery is delayed to a
+The agent receives token threshold snapshots linked to response ID/record ordinal,
+and bounded context/timestamp packets, plus exact current-session shell controls:
+`inspect`/`set` for token accounting, `context` for the context/time diagnostic. Delivery is delayed to a
 supported hook boundary; no extra model turn is requested. Default counted
 threshold is 100,000 with Codex cache normalization, not Pi's raw category sum.
 Aggregate snapshots are ignored. Completed compaction-free turns are measured;
@@ -102,8 +103,21 @@ coverage unavailable, retaining previous state. Review ledger retention before
 cleanup; no automatic deletion. Normal shell sandbox permissions still apply to
 agent inspect/set calls even when hook execution is trusted.
 
+Context pressure uses native last-usage/recomputed tokens and its positive window,
+not cumulative billing or the token ledger. Raw occupancy is not Codex UI's
+baseline-adjusted remaining percentage. Missing/default-zero telemetry stays
+unknown. Stable native user/assistant item IDs retain lifecycle/record times;
+current input observations use a separately labelled hook clock. The latest six
+message times and eight input anchors are bounded; replay does not change original
+timestamps or infer active work from wall elapsed. Same-turn steering need not
+receive a separate hook anchor. A re-observation after anchor eviction gets a new
+ID, and restored facts remain explicitly last-known, not a branch projection.
+
 This is a tested version-coupled useful equivalent, not full Pi runtime parity or
-certified live-provider usage. Other integration behaviors remain as below.
+certified live-provider usage. Existing token state is preserved when adding the
+context/timestamp module; new fields live in the same atomic state. Review changed
+asset behavior before an approved update, without enabling config implicitly.
+Other integration behaviors remain as below.
 
 ## Character content, distinct instruction surfaces
 
@@ -154,11 +168,12 @@ installed by this route. Avoid selecting the same skill through both mechanisms.
 | Shared skills and character | Native discovery/instruction surfaces; agent judgment not certified | Existing discovery and surfaces |
 | Shell tools / browser UI assets | Shared files, subject to dependencies and sandbox permissions | Existing CLI/assets |
 | Image generation | Exposed native interface only; no API-key fallback | `codex_imagegen` bridge with confirmation and saved workspace path |
-| Context status / effort / compact | Native human controls such as `/status`, `/model`, `/compact`; not Pi tool contracts | `context_status`, `thinking_control`, `context_compact` |
+| Context status | Optional hooks and `context` helper: labelled last-known estimates, raw pressure, input anchor/wall elapsed | `context_status` request-local pressure and task telemetry |
+| Effort / compact | Native human `/model`, `/compact`; not Pi tool contracts | `thinking_control`, `context_compact` |
 | Skill activity | Can query authorized existing Pi observations; no Codex recorder | Existing Pi observer/database |
 | Router | Shared service and generic browser clients; no Codex agent adapter | `message_router`, Pi admission and pending context |
 | Token awareness | Optional version-pinned hooks/helper above; delayed, coverage-labelled snapshots | Pi branch accounting and request-local annotations |
-| Stable message timestamps | No Automata equivalent installed | Pi historical model-only annotations |
+| Message timestamps | Optional bounded native item-ID/lifecycle-time packets; no body rewriting | Pi historical model-only annotations |
 | Session copy/trash | Native resume/fork are different; no Pi receipt/copy/trash parity | `pi_session_*` tools |
 
 Do not call absent Pi tools, attach to an existing Codex daemon, inject history,
@@ -182,4 +197,6 @@ metadata checks do not establish model behavior. The separate
 `tests/integration/automata/codex_runtime/sequence_probe.py` and
 `verify_sequence_probe.py` prove token acquisition, actual request-body delivery,
 inspect/set, compaction exclusion, restart dedup and unknown fork baseline using
-an installed fixture and mock provider. They do not prove live model judgment.
+an installed fixture and mock provider. `verify_awareness_probe.py` adds actual
+native timestamp and context/control/recovery assertions on that fixture. These
+tests do not prove live model judgment.

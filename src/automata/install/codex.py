@@ -1,4 +1,4 @@
-"""Install the version-pinned Codex token hook without activating trust/config."""
+"""Install version-pinned Codex awareness hooks without activating trust/config."""
 
 from __future__ import annotations
 
@@ -36,7 +36,13 @@ def install_codex(
             raise DirectoryInstallError(f"Destination Codex integration already exists: {target}")
         remove_existing(target)
     target.mkdir(parents=True)
-    for name in ("token_records.py", "token_awareness.py", "README.md"):
+    for name in (
+        "token_records.py",
+        "token_awareness.py",
+        "context_records.py",
+        "context_awareness.py",
+        "README.md",
+    ):
         if mode == "symlink":
             (target / name).symlink_to((source / name).resolve())
         else:

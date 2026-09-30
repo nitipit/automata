@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Session-local Codex hook and explicit inspect/set helper. Standard library only.
+"""Session-local Codex awareness hook with inspect/set/context controls. Stdlib only.
 
 The installer supplies --state-root. Hooks supply transcript_path/session_id; CLI
 controls require both explicitly. No session discovery or daemon access occurs.
@@ -18,6 +18,7 @@ import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
+from context_awareness import update as update_awareness
 from token_records import (
     CATEGORIES,
     MAX_INTEGER,
@@ -183,6 +184,8 @@ def observe(
     action: str,
     threshold: int | None = None,
     compaction_turn: str | None = None,
+    event: str | None = None,
+    turn: str | None = None,
 ) -> dict:
     session = session_id(identity)
     snapshot = scan(transcript, session)
@@ -264,6 +267,9 @@ def observe(
             state["checkpointCounted"] = result["counted"]
         result["pending"] = pending
         result["latestCheckpoint"] = state["latest"]
+        result["contextStatus"] = update_awareness(
+            state, snapshot, state["records"], event, turn, now, inspecting=action != "hook"
+        )
         atomic_write(state_path, state)
         return result
 
@@ -281,7 +287,7 @@ def hook_output(status: dict, event: str) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["hook", "inspect", "set"])
+    parser.add_argument("action", choices=["hook", "inspect", "set", "context"])
     parser.add_argument("--state-root", type=Path, required=True)
     parser.add_argument("--transcript", type=Path)
     parser.add_argument("--session")
@@ -295,7 +301,7 @@ def main() -> int:
                 raise CoverageError("hook payload too large")
             payload = json.loads(raw)
             event = payload.get("hook_event_name")
-            if event not in EVENTS:
+            if not isinstance(event, str) or event not in EVENTS:
                 raise CoverageError("unsupported token hook event")
             if not isinstance(payload.get("transcript_path"), str):
                 raise CoverageError("session-local transcript unavailable")
@@ -317,6 +323,8 @@ def main() -> int:
             "inspect" if event == "PreCompact" else args.action,
             args.threshold,
             compaction_turn,
+            event=event,
+            turn=payload.get("turn_id") if event else None,
         )
         if event == "PreCompact":
             print("{}")  # Provenance only; no pre-compaction prompt insertion.
@@ -336,9 +344,10 @@ def main() -> int:
                 ]
             )
             instructions = (
-                "[Automata token controls, current authorized session only] "
+                "[Automata token/context controls, current authorized session only] "
                 + control
-                + "; use set instead of inspect with --threshold N. "
+                + "; use set instead of inspect with --threshold N, "
+                "or context for context/timestamps. "
                 "No session discovery is authorized."
             )
             if not output:
@@ -350,18 +359,30 @@ def main() -> int:
                 }
             else:
                 output["hookSpecificOutput"]["additionalContext"] += "\n" + instructions
+            awareness = (
+                "[Codex context/timestamp snapshot; sequence-linked, may be replayed]\n"
+                + json.dumps(result["contextStatus"], sort_keys=True)
+            )
+            output["hookSpecificOutput"]["additionalContext"] += "\n" + awareness
             print(json.dumps(output))
         else:
-            print(json.dumps(result))
+            print(json.dumps(result["contextStatus"] if args.action == "context" else result))
         return 0
     except (CoverageError, OSError, ValueError, TypeError, KeyError, AttributeError) as error:
         # Never echo parser exceptions, paths, raw JSON or conversation content.
-        reason = str(error) if isinstance(error, CoverageError) else "token observation unavailable"
+        reason = (
+            str(error) if isinstance(error, CoverageError) else "runtime observation unavailable"
+        )
         if args.action == "hook":
             message = (
-                f"Automata token coverage unavailable: {reason}; prior snapshots are not current."
+                f"Automata token/context coverage unavailable: {reason}; "
+                "prior snapshots are not current."
             )
-            if event in {"SessionStart", "UserPromptSubmit", "PostCompact"}:
+            if isinstance(event, str) and event in {
+                "SessionStart",
+                "UserPromptSubmit",
+                "PostCompact",
+            }:
                 print(
                     json.dumps(
                         {
