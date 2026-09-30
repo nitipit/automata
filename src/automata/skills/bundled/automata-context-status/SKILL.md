@@ -5,7 +5,26 @@ description: Use when interpreting runtime context signals or checking context p
 
 # Automata Context Status
 
-The runtime silently creates a task checkpoint at the start of a user-driven agent run.
+## Runtime dispatch
+
+Identify the host and exposed interfaces, not just its model/provider name.
+The observations below describe Pi's `context-status` extension; they are not
+universal runtime behavior.
+
+- **Pi with `context_status`:** use the optional diagnostic below when it informs
+  a decision. Do not call it merely to acknowledge an input or signal.
+- **Native Codex CLI:** no Automata `context_status` or Pi pressure/elapsed signals
+  are installed. Use available native status/context displays with their own
+  labels and scope; if they are not accessible, report unknown rather than
+  inventing measurements or scanning private session histories. Native context
+  estimates and usage totals are not Pi input-anchored or branch-landmark totals.
+  Do not apply Pi cache normalization to them or infer active-work duration.
+- **Other hosts:** use only a documented, available diagnostic and state its
+  coverage. A signal is an observation, not new authority to compact or delegate.
+
+## Pi checkpoint
+
+The Pi extension silently creates a task checkpoint at the start of a user-driven agent run.
 It anchors time and model-usage telemetry to the latest Pi input message, including
 coordinator or subagent inputs delivered as `role: "user"` messages. The agent does not
 create or inspect that checkpoint automatically.

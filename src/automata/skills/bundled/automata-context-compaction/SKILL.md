@@ -1,13 +1,29 @@
 ---
 name: automata-context-compaction
-description: Use when an agent or user is considering intentional Pi context compaction after context-pressure observations, long-running work, or a stable task boundary.
+description: Use when an agent or user is considering intentional context compaction after context-pressure observations, long-running work, or a stable task boundary.
 ---
 
 # Automata Context Compaction
 
-Choose when to compact, preserve continuity and request deferred native summarization
-through `context_compact`. Pi owns automatic compaction; do not change its settings
-without approval or make compaction a task-completion requirement.
+Choose when to compact and preserve continuity. Do not change automatic-compaction
+settings without approval or make compaction a task-completion requirement.
+
+## Runtime dispatch
+
+Identify the host from its exposed interfaces, not the model/provider name.
+
+- **Pi with `context_compact`:** use the workflow below, including its deferred
+  request, summary-model preferences and continuation contract.
+- **Native Codex CLI:** Automata does not provide `context_compact`. Preserve
+  authorized task state before context loss; let Codex own automatic compaction.
+  For an intentional compact, the human can use native `/compact`. Do not inject
+  that command through shell, tmux or a user message. Pi's selected summary model,
+  thinking, `customInstructions` and `resumeMessage` are not native CLI promises;
+  do not translate those preferences into config changes or a wrapper invocation.
+- **Other or unavailable interface:** report the limitation; do not invent a tool
+  or treat an unknown reading as a compaction trigger.
+
+The remaining workflow is for Pi. Native controls are alternatives, not parity.
 
 ## When to compact
 

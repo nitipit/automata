@@ -10,6 +10,20 @@ metadata:
 Connect the intended participants, verify targeted delivery, and recover or close
 connections without confusing transport state with application outcomes.
 
+## Runtime dispatch
+
+The mapped shell CLI and generic browser client are shared. The agent-session
+`message_router` tool, Pi browser client, and admission/`nextTurn` semantics require
+Pi's adapter; installing the shared CLI or this skill does not expose them in
+native Codex CLI. Identify the host and actual tools, not its model/provider name.
+
+In Codex, authorized service setup and browser-to-browser use can use the shared
+CLI/client. For routing into the current Codex agent, report the missing adapter;
+do not substitute history injection, hooks, a daemon connection or an invented
+tool call. The reference's Pi tool examples and the Exchange section below apply
+only where that Pi adapter is available. Transport receipts never prove model
+admission or a new agent turn in another host.
+
 ## One service, explicitly addressed participants
 
 The Message Router carries bounded JSON between browser pages and agent sessions.
@@ -110,7 +124,7 @@ in approved owner-scoped data, separate from live endpoint records. Report the r
 location; exclude live session identifiers and do not duplicate tool documentation. Do not retain pairing secrets as setup knowledge
 or treat saved setup as permission.
 
-## Exchange
+## Exchange (Pi agent adapter)
 
 Carry complete bounded JSON without projecting it onto component-specific fields.
 Components own payload and reply semantics; routing is independent of UI choice.
@@ -136,7 +150,7 @@ buffered, queued, and attached receipts; none proves the model acted on the data
 ## Verify and recover
 
 Verify a correlated exchange along the intended route. Distinguish connection,
-server receipt, Pi admission, reply delivery, and component handling; a transport
+server receipt, agent admission (Pi adapter only), reply delivery, and component handling; a transport
 receipt or terminal-only answer is not an end-to-end result.
 
 Check busy/disconnect behavior when relevant. Do not silently replay an uncertain

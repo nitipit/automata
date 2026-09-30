@@ -22,10 +22,16 @@ default roots unless the user chooses custom paths:
 | global | `~/.agents/skills` | `~/.agents/tools` | `~/.pi/agent/extensions` |
 | repository | `.agents/skills` | `.agents/tools` | `.pi/extensions` |
 
-For general setup, offer skills, tools, and Pi extensions together; respect an
-explicit skills-only or other narrower request. Confirm selected assets before
-making changes. Keep character composition separate: it renders
-instructions rather than installing assets and needs its own confirmed configuration.
+Identify the intended host from the user's request or runtime evidence, not its
+model/provider name. For **Pi** setup, offer skills, tools and Pi extensions
+together. For **native Codex CLI**, offer shared skills and shell tools, not Pi
+extensions; see [Codex setup and support](references/codex.md) for exact commands,
+instruction surfaces, direct-install/plugin choices and support limits. For other
+hosts, establish discovery support before promising integration.
+
+Respect skills-only or other narrower requests. Confirm selected assets before
+making changes. Keep character composition separate: it renders instructions rather
+than installing assets and needs its own confirmed configuration.
 
 For a ready-to-use environment, identify the capabilities the user intends to use;
 ask only if that is unclear. Offer relevant environment-dependent setup, not every
@@ -57,7 +63,11 @@ Default skill discovery uses the single bundled
 Pi extension sources live under `runtimes/pi/extensions/`; installed destinations
 above are unchanged. An explicit skill `--source-root` is exclusive and never adds
 bundled skills as a fallback. Discovery finds `SKILL.md` recursively and installs
-each containing directory by its directory name. Duplicate names are errors. Keep this a copy/exposure operation, not a
+each containing directory by its directory name. Duplicate source names are errors.
+This installer check is not runtime precedence: Codex can discover same-name skills
+from multiple roots. Do not promise nearest-wins behavior. Choose one exposure for
+each selected skill (direct install or plugin), inspecting relevant existing roots
+before adding another copy. Keep installation a copy/exposure operation, not a
 skill-content review or extra package-structure audit.
 
 ## Capability Readiness

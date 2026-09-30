@@ -9,6 +9,20 @@ Inspect observed skill loads using the skill-activity data contract. Recording i
 performed by the Pi extension, not by activating this skill. A record proves an
 observed load, not that the agent followed the instructions.
 
+## Runtime dispatch
+
+The recording contract below is **Pi-specific**, regardless of which model Pi
+runs. Installing this skill in native Codex CLI does not install an observer:
+Codex skill discovery or loading does not produce these Pi records. Do not claim
+Codex activation counts from an empty database, shell reads or available-skill
+lists, and do not fabricate backfill events.
+
+An agent in either host may query existing Pi records when explicitly within the
+requested scope and the installed helper/dependencies are available. Label the
+results as Pi observations, not current Codex usage. If the request concerns Codex
+recording, report that Automata has no recorder for it in this slice; do not scan
+Codex history or create a hook/adapter as an implicit fallback.
+
 ## Locate the contract
 
 The recorder uses one global database across projects. Scope queries to the

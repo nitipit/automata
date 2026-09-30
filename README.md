@@ -33,11 +33,20 @@ Maintain application source under `src/automata/apps/<app-name>/` and generated
 builds or runtime data under `.agents/var/apps/<app-name>/`, outside source control.
 Each application determines its own internal layout.
 
-Pi-specific skills cover context compaction, context status, thinking control, Pi
-sessions, the Codex image-generation bridge, skill activity, and the message-router
-session integration. The router CLI stays shared under `tools/message-router/`.
-A model/provider name does not determine the host runtime: `codex-bridge` is a Pi
-extension, not a Codex integration. Codex runtime support is deferred.
+Shared skills distinguish Pi integrations from ordinary Codex CLI capabilities.
+Pi retains context compaction/status, thinking control, session tools, the Codex
+image-generation bridge, skill recording and the message-router session adapter.
+The router CLI stays shared under `tools/message-router/`. A model/provider name
+does not determine the host runtime: `codex-bridge` is a Pi extension, not a Codex
+integration.
+
+Native Codex CLI can use the same skill catalog, character content and shell tools.
+See [Codex setup and support](src/automata/skills/bundled/automata-setup/references/codex.md)
+for exact direct-install commands, instruction surfaces, optional plugin packaging
+and explicit Pi-only gaps. No wrapper, custom host, hook/MCP adapter or global
+configuration change is required by this slice. Native 0.159.0 discovery is verified;
+agent behavior is not certified by discovery. The
+[audit and proof boundaries](docs/audits/codex-0.159.0/README.md) document the evidence.
 
 Default skill installation and selected-skill plugin export use the single canonical
 catalog at `src/automata/skills/bundled/`. Duplicate names are errors,
@@ -140,6 +149,12 @@ remove old installed names; retire the old skill package during an authorized sy
 without removing its operational data.
 
 ## Usage
+
+Shared installation examples below apply to Pi and Codex CLI. Sections that
+install Pi extensions or expose Pi tools remain Pi-only; they do not register
+Codex tools. Choose either direct skill installation or plugin exposure for each
+skill rather than duplicating it across roots/mechanisms. Codex can retain
+same-name skills from multiple roots; do not assume nearest-wins precedence.
 
 List packaged character components:
 
@@ -300,6 +315,11 @@ Profiles provide a starting selection; repeat `--skill` or `--tool` to add expli
 Skills are exported to the standard `skills/` directory. Selected tools are packaged under
 Automata's `me.umlab.automata` metadata namespace and remain shell-invoked CLI tools;
 export does not register them with an agent runtime.
+
+### Pi integrations
+
+The remaining extension examples in this section are for Pi, including when Pi
+uses a Codex model. They are not native Codex CLI setup steps.
 
 Install the Codex account-status extension globally for all Pi sessions:
 
