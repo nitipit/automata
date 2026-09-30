@@ -13,8 +13,10 @@ subtree coordination, not individual handoff or transport mechanics.
 Each subtree has a named accountable manager. Manage only direct children; use
 their rollups for deeper descendants. Do not command, reassign or escalate around
 a parent to reach grandchildren. A non-root manager reports to its direct parent;
-only the root sends consolidated status to the user. Never leave work silently
-unowned or treat a status report as acceptance or new authority.
+only the root sends consolidated status to the user. These limits govern management
+and reporting, not authorized peer discussion; the communication graph need not
+mirror the reporting tree. Never leave work silently unowned or treat a status
+report as acceptance or new authority.
 
 Build estimates from child evidence, elapsed work, remaining scope, dependencies
 and uncertainty. Distinguish observations from inferences and active work from
@@ -74,11 +76,13 @@ supplies current evidence and enacts authorized changes. Preserve direct-parent
 accountability, bounded assignments and verified ownership transfers. Delegation
 owns handoff mechanics; keep active work and cleanup accounted for.
 
-Authorized peers may discuss work within scope and isolation boundaries without
-separate approval. Collaboration does not transfer ownership, acceptance rights or
-management authority. Peers cannot assign each other work or expand scope. Surface
-material decisions and unresolved disagreements to the manager; do not contact
-unrelated agents.
+Authorized peers may directly discuss dependencies, design questions, test evidence
+and review findings within scope and isolation boundaries without separate approval
+or routine manager relaying. Discussion does not transfer file ownership, acceptance
+rights or management authority. Peers cannot assign each other work or expand scope.
+Keep completion evidence and reporting obligations with the accountable manager;
+surface material decisions, blockers and unresolved disagreements there. Do not
+contact unrelated agents.
 
 ## Manager unavailable
 

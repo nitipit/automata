@@ -32,8 +32,15 @@ Use established user priorities. Clarify deadlines, budget, quality or risk only
 when uncertainty materially changes the design; never silently lower acceptance
 standards. Ordinary context allocation remains an engineering decision within
 those priorities. Define ownership, dependencies, integration and expected evidence
-for handoff. Peer collaboration must respect scope and isolation; reporting lines
-and dependency arrows do not grant authority.
+for handoff.
+
+Distinguish the communication graph from the reporting and authority tree. Enable
+direct discussion between authorized peers when it reduces relay cost or improves
+shared understanding; do not route every technical exchange through the manager.
+Choose communication paths for the task, not a universal all-to-all topology.
+Respect scope, privacy and isolation. A communication path does not grant assignment,
+editing or acceptance rights; keep accountable owners and reporting obligations
+explicit.
 
 ## Choose models from evidence
 
@@ -56,8 +63,8 @@ Present **team setup, time estimate and token estimate together** before approva
 with the recommendation and main tradeoff. A small solo task may need only a few
 lines, not the full working analysis.
 
-- **Team:** identify roles, ownership, manager/reviewer responsibilities and parallel
-  versus sequential work. Give each agent's model and effort, including the
+- **Team:** identify roles, ownership, manager/reviewer responsibilities, useful
+  peer communication paths, reporting obligations and parallel versus sequential work. Give each agent's model and effort, including the
   coordinator. Distinguish proposed from verified settings; include known inherited
   defaults and label unknown or unsupported settings. Names or a team tree can aid
   discussion but do not replace runtime identities or require extra workers.
