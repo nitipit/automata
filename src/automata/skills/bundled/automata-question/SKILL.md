@@ -1,13 +1,15 @@
 ---
 name: automata-question
-description: Use when a consequential or ambiguous question needs clear choices, consent scope, or stable answer references.
+description: Use before asking the user a task-related question for clarification, preferences, choices, confirmation, permission, or feedback—including simple questions, not only consequential or ambiguous ones. Excludes casual conversation and rhetorical questions.
 ---
 
 # Automata Question
 
-Shape questions so the user can understand what decision is needed and answer with little
-friction. Ask only when the response materially affects the next move; stop once there is
-enough context to use judgment.
+Shape task-related questions before presenting them to the user, including simple
+clarifications and confirmations. Do not wait for a question to seem consequential
+or ambiguous. Make the needed response clear and easy to give. Ask only when the
+response materially affects the next move; stop once there is enough context to
+use judgment.
 
 ## Identify the Response
 
