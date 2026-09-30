@@ -223,7 +223,7 @@ retired, not ported. Native human effort controls and launch-time selection rema
 | --- | --- | --- |
 | Shared skills and character | Native discovery/instruction surfaces; agent judgment not certified | Existing discovery and surfaces |
 | Shell tools / browser UI assets | Shared files, subject to dependencies and sandbox permissions | Existing CLI/assets |
-| Image generation | Exposed native interface only; no API-key fallback | `codex_imagegen` bridge with confirmation and saved workspace path |
+| Account status and image generation | Both retained in scope; exposed native interfaces only, neither Codex implementation claimed complete; no API-key fallback | `codex_account_status` and `codex_imagegen` bridge; image confirmation and saved workspace path |
 | Context status | Optional hooks and `context` helper: labelled last-known estimates, raw pressure, input anchor/wall elapsed | `context_status` request-local pressure and task telemetry |
 | Compaction | Native human `/compact`; not Pi tool contract | `context_compact`, including summary-only effort |
 | Skill activity | Optional native insertion observer + session-scoped query/control; explicit coverage, separate state | Existing Pi observer/database |

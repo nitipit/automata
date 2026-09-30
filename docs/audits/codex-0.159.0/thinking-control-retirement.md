@@ -46,7 +46,7 @@ Eight runtime capabilities remain in scope:
 | Session management | Verified offline, receipt-scoped copy/fork/OS-trash/native restore |
 | Context compaction | Native human alternative; advanced Pi contract not ported |
 | Message routing | Shared service/assets; no Codex agent adapter |
-| Image generation | Exposed native interface only; no claim of Pi bridge parity |
+| Account status and image generation (`codex-bridge`) | Both retained in scope; use exposed native interfaces only, with neither Codex implementation claimed complete |
 
 Five have offline Codex verification, not live behavioral certification. Their
 accepted contracts and the existing Pi implementations are retained unchanged.
