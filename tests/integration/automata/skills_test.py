@@ -29,6 +29,7 @@ REQUIRED_SKILLS = {
     "automata-model-selection",
     "automata-teamwork-design",
     "automata-adaptive-ui",
+    "automata-playspace",
     "automata-browser-use",
     "automata-line-use",
     "automata-message-router",
@@ -125,14 +126,16 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
 
 
 def test_pi_skills_share_one_flat_source_with_all_skills() -> None:
-    assert len(list(SKILLS_ROOT.glob("*/SKILL.md"))) == 39
+    assert len(list(SKILLS_ROOT.glob("*/SKILL.md"))) == 40
     for name in PI_SKILL_NAMES:
         assert (SKILLS_ROOT / name / "SKILL.md").is_file()
         assert not (SKILLS_ROOT / name).is_symlink()
 
 
 def test_changed_portable_guidance_keeps_runtime_details_external() -> None:
-    for name in ("automata-message-router", "automata-setup", "automata-skill-design"):
+    for name in (
+        "automata-message-router", "automata-setup", "automata-skill-design", "automata-playspace"
+    ):
         for path in SOURCES[name].rglob("*.md"):
             assert not re.search(r"\b(?:Pi|Codex)\b", path.read_text()), path
     assert (TOOLS_ROOT / "message-router/docs/node-client.md").is_file()
@@ -207,7 +210,7 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
     target = tmp_path / "skills"
     results = install_skills(target_root=target)
     expected = set(SOURCES)
-    assert len(expected) == 39
+    assert len(expected) == 40
     assert 'automata-pi-sessions' in expected
     assert 'automata-codex-sessions' not in expected
     assert {result.name for result in results} == expected

@@ -18,7 +18,8 @@ def snapshot(root):
 def test_export_and_installer_preserve_both_identities(tmp_path):
     for slug, identity in [
         ("automata-message-router", "automata-message-router"),
-        ("automata-plan", "automata-plan")
+        ("automata-plan", "automata-plan"),
+        ("automata-playspace", "automata-playspace")
     ]:
         export_agent(slug, tmp_path / slug)
         package = SKILLS / slug
@@ -28,7 +29,7 @@ def test_export_and_installer_preserve_both_identities(tmp_path):
         assert snapshot(tmp_path / "installed" / identity) == snapshot(package)
     assert len(discover(SKILLS, "automata-plan", False)) == 1
     assert len(discover(SKILLS, "automata-message-router", False)) == 6
-    assert len([p for p in discover(SKILLS, None, True) if p.document == "SKILL.md"]) == 39
+    assert len([p for p in discover(SKILLS, None, True) if p.document == "SKILL.md"]) == 40
     export_agent("automata-adaptive-ui", tmp_path / "adaptive")
     assert snapshot(tmp_path / "adaptive") == snapshot(SKILLS / "automata-adaptive-ui")
     assert (tmp_path / "adaptive/scripts/build.py").is_file()
@@ -71,7 +72,8 @@ def test_public_routes_and_allowed_roots(tmp_path):
         assert client.get('/templates/index.html').url.path == '/'
         for path in ["/", "/templates/skill.html?name=automata-plan",
                      "/templates/reference.html?name=automata-message-router&reference=references/connect.md",
-                     "/message-router/", "/message-router/index.html", "/plan/"]:
+                     "/message-router/", "/message-router/index.html", "/plan/",
+                     "/automata-playspace/"]:
             response = client.get(path)
             assert response.status_code == 200, path
             assert "{% extends" not in response.text

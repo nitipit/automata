@@ -158,6 +158,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "tools/message-router/docs/node-client.md",
         "runtimes/pi/extensions/codex-bridge.ts",
         "skills/bundled/automata-plan/SKILL.md",
+        "skills/bundled/automata-playspace/SKILL.md",
         "skills/bundled/automata-storage/SKILL.md",
         "skills/bundled/automata-adaptive-ui/scripts/build.py",
         "skills/bundled/automata-agent-evaluation/templates/evaluation-record.json",
@@ -252,9 +253,10 @@ from automata.plugin import export_plugin
 assert Path(automata.__file__).is_relative_to(site)
 sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
-assert len(sources) == 39
+assert len(sources) == 40
 assert 'automata-thinking-control' not in sources
 assert 'automata-pi-sessions' in sources
+assert 'automata-playspace' in sources
 assert 'automata-codex-sessions' not in sources
 assert not (site / 'automata/runtimes/codex').exists()
 assert not (site / 'automata/install/codex.py').exists()
@@ -268,7 +270,7 @@ assert not any(name in sys.modules for name in ('engrave', 'mistune', 'playwrigh
 results = install_skills(target_root=work / 'skills')
 assert {result.name for result in results} == set(sources)
 for name in ('automata-storage', 'automata-pi-context-status',
-             'automata-message-router', 'automata-plan'):
+             'automata-message-router', 'automata-plan', 'automata-playspace'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
 router_skill = work / 'skills/automata-message-router'
 assert {path.name for path in router_skill.iterdir()} == {'SKILL.md', 'references'}

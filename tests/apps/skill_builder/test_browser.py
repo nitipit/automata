@@ -69,9 +69,10 @@ def test_catalog_sources_references_and_sse(site):
             page.on("request", lambda request: requests.append(request.url))
             for slug, title in [("message-router", "Automata Message Router"),
                                 ("automata-storage", "Automata Storage"),
-                                ("plan", "Automata Plan")]:
+                                ("plan", "Automata Plan"),
+                                ("automata-playspace", "Automata Playspace")]:
                 page.goto(url + "/")
-                assert page.locator(".skill-card").count() == 39
+                assert page.locator(".skill-card").count() == 40
                 link = page.get_by_role("link", name=title, exact=True)
                 expect(link).to_have_attribute("href", f"/{slug}/")
                 link.click()

@@ -98,8 +98,10 @@ Serve only public-safe assets on loopback. Verify the rendered UI and relevant
 interactions, including keyboard navigation, focus feedback, labels, responsive
 layout, and compatible Form draft preservation—not just server startup or HTTP
 success. Preserve existing work when updating: full reloads do not guarantee
-transient-state preservation. Reflect accepted changes in UI source rather
-than leaving browser-only probes.
+transient-state preservation. For maintained interfaces, reflect accepted changes
+in UI source rather than leaving browser-only probes. Explicitly temporary
+browser-local experiments may retain drafts in browser storage until approved
+promotion.
 
 ## Lifecycle
 
