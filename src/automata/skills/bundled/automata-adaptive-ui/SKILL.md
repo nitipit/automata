@@ -45,14 +45,12 @@ blindly:
 - `lib/example/index.html` and its companion files: page composition, CSS-in-JS,
   page-local assets, and internally shared components.
 - `lib/example/reactive-shadow.html`: reactive state and Shadow DOM.
-- `lib/example/chat-with-agent.html`: optional Chat + bridge integration; the
-  component owns payload semantics, the page wires transport.
 - `lib/example/dashboard.html`: task-local chart with resize/disposal, Arrow
   filtering and sorting, validated sample data, and loading/empty/error states.
 - `lib/src/ui/adaptive-ui.ts`, `lib/src/ui/tokens.ts`, and relevant component
   modules: public exports, semantic tokens, exact APIs and schemas.
 
-Reuse the maintained `Base`, `Button`, `Card`, `Form`, and `Chat` catalog before
+Reuse the maintained `Base`, `Button`, `Card`, and `Form` catalog before
 creating task-local components. `Base` extends Adapter (component-scoped styles,
 registration and `create()`); register with `define(tagName)` before creation or
 mounting templates. Edictor validates catalog data via each component's static
@@ -71,7 +69,7 @@ Do not import private `_tokens` or component token modules as public APIs.
 `Form.applyData` retains text drafts by name/kind and radio selection only if
 its value remains offered; removed or changed-kind fields lose drafts. Use native
 `form.reset()` to explicitly clear drafts to blank defaults. Attribute changes
-reconcile Button/Card/Form; Chat owns its separate pending state and never resends.
+reconcile Button/Card/Form.
 
 Each agent-connected component owns its outgoing payload, expected reply contract,
 validation, and interaction state as a single source of truth. Page composition

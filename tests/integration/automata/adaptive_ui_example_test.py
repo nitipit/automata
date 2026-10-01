@@ -72,7 +72,7 @@ def test_example_styles_assets_and_keyboard_navigation(
                 page.on("response", lambda response: failed_resources.append(response.url)
                         if response.status >= 400 else None)
                 page.goto(f"http://127.0.0.1:{server.server_port}/pages/catalog/")
-                page.wait_for_function("customElements.get('aui-chat') !== undefined")
+                page.wait_for_function("customElements.get('aui-form') !== undefined")
                 assert page.locator("example-note").count() == 3
                 assert page.locator(".catalog-heading img").evaluate(
                     "image => image.complete && image.naturalWidth === 64"
@@ -122,7 +122,7 @@ def test_example_styles_assets_and_keyboard_navigation(
                 assert button.evaluate("el => getComputedStyle(el).outlineStyle") == "solid"
                 assert button.evaluate("el => getComputedStyle(el).outlineWidth") == "2px"
                 page.keyboard.press("Tab")
-                textbox = page.get_by_role("textbox", name="Your message")
+                textbox = page.get_by_role("textbox", name="Goal")
                 assert textbox.evaluate("el => el === document.activeElement")
                 textbox.fill("A local draft")
                 for width in (390, 320):

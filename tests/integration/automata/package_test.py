@@ -67,7 +67,7 @@ def test_adaptive_ui_skill_ships_source_without_generated_library() -> None:
     assert source.joinpath("src", "ui", "adaptive-ui.ts").is_file()
     assert source.joinpath("package.json").is_file()
     assert source.parent.joinpath("scripts", "build.py").is_file()
-    assert source.joinpath("example", "chat-with-agent.html").is_file()
+    assert not source.joinpath("example", "chat-with-agent.html").exists()
     assert not source.parent.joinpath("scripts", "library").exists()
     assert not source.joinpath("example", "chat.html").exists()
     assert not source.joinpath("browser").is_dir()
@@ -80,16 +80,16 @@ def test_adaptive_ui_example_teaches_direct_web_component_composition() -> None:
 
     assert text.index('<script type="module" src="./index.js"></script>') < text.index("<body>")
     assert '<link rel="icon" href="./catalog.svg"' in text
-    for term in ("<aui-card", "<aui-button", "<aui-chat", "<example-note>"):
+    for term in ("<aui-card", "<aui-button", "<aui-form", "<example-note>"):
         assert term in text
     script = adaptive_ui_source().joinpath("example", "index.js").read_text()
     for term in (
-        'import { Button, Card, Chat } from "/lib/adaptive-ui.js";',
+        'import { Button, Card, Form } from "/lib/adaptive-ui.js";',
         'import { ExampleNote } from "./_components/example-note.js";',
         'import { pageStyles } from "./index.css.js";',
         'Card.define("aui-card");',
         'Button.define("aui-button");',
-        'Chat.define("aui-chat");',
+        'Form.define("aui-form");',
     ):
         assert term in script
 
@@ -344,9 +344,10 @@ def test_package_includes_message_router_and_chat() -> None:
         assert tool.joinpath(path).is_file(), path
     skill = package_root.joinpath(*ROUTER_SKILL, "SKILL.md")
     assert skill.is_file()
-    components = adaptive_ui_source().joinpath("src", "ui", "_components")
-    for path in ("chat.ts", "chat.schema.ts"):
+    components = package_root.joinpath(*PI_SKILLS, "automata-playspace", "lib")
+    for path in ("chat.ts", "contracts.ts", "form.ts", "form.schema.ts", "types.ts"):
         assert components.joinpath(path).is_file(), path
+    assert not adaptive_ui_source().joinpath("src", "ui", "_components", "chat.ts").exists()
 
 
 def test_package_includes_bundled_codex_bridge_pi_extension() -> None:

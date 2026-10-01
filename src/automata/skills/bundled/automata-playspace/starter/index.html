@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Playspace Chat</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./index.js"></script>
+  </head>
+  <body>
+    <main>
+      <header class="intro">
+        <p class="eyebrow">AUTOMATA · PLAYSPACE STARTER</p>
+        <h1>Think together. Keep your draft.</h1>
+        <p>Interactive messages, explicit submissions and local recovery. History is a display, not model context.</p>
+      </header>
+      <section class="tools" aria-label="Playspace controls">
+        <aui-button id="sample-mode" label="Use sample agent" type="button"></aui-button>
+        <aui-button id="live-mode" label="Disconnect / live mode" type="button"></aui-button>
+        <aui-button id="sample-form" label="Open sample Form" type="button"></aui-button>
+        <aui-button id="save" label="Save draft now" type="button"></aui-button>
+        <aui-button id="restore" label="Restore saved draft" type="button"></aui-button>
+      </section>
+      <div class="states">
+        <p id="connection" role="status">Starting · no remote connection</p>
+        <p id="recovery" role="status">Checking local recovery…</p>
+      </div>
+      <ps-chat id="playspace-chat" title="Playspace conversation" agent-label="Agent / sample" user-label="You"
+        placeholder="Try ‘form’ or ‘json’ in sample mode"></ps-chat>
+      <p class="note">Forms become read-only on submission. Revise opens a prefilled copy; editing sends nothing. Corrections do not undo external actions.</p>
+      <p class="note">Version 2 · old v1 cache is preserved and not imported. Local cache belongs to this exact origin and browser profile. It is disposable, not a backup. Do not enter secrets.</p>
+      <p id="startup-error" role="alert"></p>
+    </main>
+  </body>
+</html>

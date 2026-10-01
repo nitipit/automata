@@ -37,16 +37,13 @@
           <example-note>
             <h2>Local composition</h2>
             <p>
-              The chat is a presentation example, not connected to an agent.
+              The form is a local presentation example, not connected to an agent.
             </p>
           </example-note>
         </section>
-        <aui-chat
-          id="catalog-chat"
-          title="Chat example"
-          agent-label="Assistant"
-          user-label="Visitor"
-        ></aui-chat>
+        <aui-form title="Form example" submit-label="Save local choices"
+          fields='[{"name":"goal","label":"Goal","kind":"text","required":true},{"name":"pace","label":"Pace","kind":"choice","required":false,"choices":[{"value":"quick","label":"Quick sketch"},{"value":"careful","label":"Careful comparison"}]}]'>
+        </aui-form>
       </div>
     </main>
   </body>

@@ -13,9 +13,11 @@ const ui = await import("./adaptive-ui.ts");
 restoreGlobal("HTMLElement", originalHTMLElement);
 restoreGlobal("CSSStyleSheet", originalCSSStyleSheet);
 
-Deno.test("Adaptive UI exports Chat and Arrow reactive primitives", () => {
-  assert(typeof ui.Chat === "function");
-  assert(typeof ui.validateChatData === "function");
+Deno.test("Adaptive UI exports catalog and Arrow primitives, not Playspace Chat", () => {
+  assert(!("Chat" in ui));
+  assert(!("validateChatData" in ui));
+  assert(typeof ui.Base === "function");
+  assert(typeof ui.Form === "function");
   for (
     const primitive of [
       ui.component,

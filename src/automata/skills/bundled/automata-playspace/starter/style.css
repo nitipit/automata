@@ -1,0 +1,19 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  color: #17263c;
+  background: #f3f6fa;
+  --aui-action: #2456a6;
+}
+body { margin: 0; padding: 1.5rem; }
+main { max-width: 52rem; margin: auto; }
+.intro h1 { font-size: clamp(1.65rem, 4vw, 2.6rem); margin: .4rem 0; }
+.intro p { line-height: 1.5; }
+.eyebrow { color: #48627d; font-size: .8rem; letter-spacing: .1em; }
+.tools { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.2rem; }
+.states { margin: 1rem 0; padding: .65rem 1rem; border-left: 3px solid #2456a6; background: #e9f0ff; }
+.states p { margin: .4rem 0; font-size: .9rem; }
+ps-chat { width: 100%; height: min(52rem, 85dvh); }
+.note { font-size: .85rem; line-height: 1.5; color: #48627d; }
+#startup-error { color: #b42318; white-space: pre-wrap; }
+@media (max-width: 600px) { body { padding: .75rem; } ps-chat { min-height: 28rem; } }

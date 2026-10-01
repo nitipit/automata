@@ -55,7 +55,8 @@ def installed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         )
     skill = tmp_path / "installed skills" / "automata-adaptive-ui"
     assert (skill / "lib" / "src" / "ui" / "_components" / "base.ts").is_file()
-    assert (skill / "lib" / "example" / "chat-with-agent.html").is_file()
+    assert (skill / "lib" / "example" / "index.html").is_file()
+    assert not (skill / "lib" / "example" / "chat-with-agent.html").exists()
     assert not (skill / "scripts" / "library").exists()
     assert not (skill / "lib" / "browser").exists()
     assert not (skill / "lib" / "node_modules").exists()
