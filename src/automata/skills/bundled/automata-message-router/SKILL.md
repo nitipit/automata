@@ -1,14 +1,15 @@
 ---
 name: automata-message-router
-description: Use when establishing or recovering authorized JSON messaging between browser pages and agent sessions, including targeted page-to-page and agent-to-agent routes.
+description: Use when exchanging JSON through established authorized connections between browser pages and agent sessions, or setting up or recovering them, including targeted page-to-page and agent-to-agent routes.
 metadata:
   automata-tools: .agents/tools/message-router/message_router.py
 ---
 
 # Automata Message Router
 
-Connect the intended participants, verify targeted delivery, and recover or close
-connections without confusing transport state with application outcomes.
+Use or connect the intended participants, verify targeted delivery and meaningful
+handling, and recover or close connections without confusing transport state with
+application outcomes.
 
 ## Choose an available connection
 
@@ -132,9 +133,26 @@ before sending and consume the terminal response through the same client; a
 forwarding receipt is not the peer's answer. Do not busy-poll or treat permission
 to connect as permission to delegate work.
 
+With the shipped browser/Node client, register inbound handling in `onMessage`
+and reply handling in `onResponse` (or the per-send option) before sending. Handle
+both responses and route closure; validate and apply the component-owned reply
+or show its failure, rather than merely logging it. Per the mapped tool's client
+contract, distinguish adapter admission/context receipts in `metadata.pi` from
+component payload replies before component validation. Retain correlation and
+pending state until `final: true`, `route_closed` or explicit cancellation as
+documented in [Send](references/send.md) and [Handle failures](references/failures.md);
+nonterminal component progress may be applied when its own contract allows.
+Components on one page may share a page-owned client: correlate each request with
+its originating instance, keep pending states independent, and prevent late replies
+updating replacements.
+Page-to-page messages likewise need a recipient handler that applies the payload;
+transport does not provide shared application state or impose a payload schema.
+
 For an inbound reply-capable request, use the exact delivered message ID and the
-component's complete reply. Keep its connection open while interaction continues;
-reply capabilities are connection-bound. Do not manufacture IDs, reply to one-way
+component's complete reply; use the documented client's `respond` or the exposed
+adapter's reply operation. Report the handling actually performed, not success
+merely from receipt. Keep the connection open while interaction continues; reply
+capabilities are connection-bound. Do not manufacture IDs, reply to one-way
 messages or silently alter legacy delivery semantics.
 
 Use canonical message/tool-call records rather than adding duplicate transcripts.
@@ -149,7 +167,9 @@ none of the first three proves the model acted on the data.
 
 Verify a correlated exchange along the intended route. Distinguish connection,
 server receipt, agent admission where supported, reply delivery and component
-handling; a transport receipt or terminal-only answer is not an end-to-end result.
+handling. For a UI exchange, verify the originating component visibly applies
+the valid reply and represents failure/uncertainty; a transport receipt or
+terminal-only answer is not an end-to-end result.
 
 Check busy/disconnect behavior when relevant. Do not silently replay an uncertain
 send. Revalidate affected endpoints and routing when earlier evidence is no longer

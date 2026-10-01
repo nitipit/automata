@@ -21,4 +21,5 @@ export {
 } from "./_components/chat.schema.js";
 export { Chat, type ChatMessageRole } from "./_components/chat.js";
 export { Form } from "./_components/form.js";
+export { defineField, Model } from "./_lib/edictor.bundle.js";
 export { tokens } from "./tokens.js";

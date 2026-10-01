@@ -20,11 +20,20 @@ recreate its foundation. Browser connection, profile selection and process contr
 retain their existing owners. Serve only public-safe assets on an authorized
 loopback origin, separate from credentials, profiles and private task records.
 
-Use Playwright's browser evaluation, such as `page.evaluate`, to define and mount
-trusted agent-authored components and revise them while discussing the result.
-Keep reusable shell and library assets in an approved task location when useful;
-component drafts need not become source files. Dependencies and asset fetching
-still require their own authority.
+Use Playwright's browser evaluation, such as `page.evaluate`, to author and mount
+trusted components and CSS, then revise them while discussing the result.
+Component drafts need not become source files. A minimal public-safe runtime can
+be just the page, bootstrap and shared library, for example:
+
+```text
+public/
+  index.html
+  index.js
+  lib/adaptive-ui.js
+```
+
+Choose the shell rather than adding a required board or registry. Dependencies
+and asset fetching still require their own authority.
 
 Preserve unrelated drafts and compatible user interaction state when updating.
 Build or validate a replacement before discarding a good instance where possible.
@@ -34,13 +43,35 @@ listeners, timers and other resources, and prevent stale events from old instanc
 from overwriting current state. These are lifecycle requirements, not a prescribed
 implementation. Executing source can have effects that replacement cannot undo.
 
+## Optional agent-connected experiments
+
+Connect only interactions that benefit from agent or peer participation. Each
+component owns its request/reply JSON, validation and independent interaction
+state; page composition routes through the established Message Router client.
+No global payload envelope or schema is required. Apply replies visibly to the
+originating component and make rejection, invalid replies and uncertain delivery
+visible rather than treating forwarding or a terminal answer as UI completion.
+
+Validate structured inputs and replies against the component's own contract
+before applying them. Choose validation suited to the data and interaction,
+without requiring a particular schema library. Validate before construction or
+restoration when those steps can have effects; keep effects controlled and
+preserve the last good draft or result on failure. Validation does not authorize
+actions.
+
+Restoration reconstructs drafts, not live connections. Reuse a verified authorized
+connection or privately reprovision and revalidate it before enabling sends. Do
+not cache credentials or pending reply capabilities. Restore any pending display
+as interrupted or uncertain, never as a queued send; do not replay it. Ignore late
+replies to replaced instances and release their resources with the component.
+
 ## Persist and recover drafts
 
 Use Cache Storage directly; no service worker or IndexedDB is required. Choose a
 playspace-owned cache namespace and same-origin key so other experiments are not
-silently overwritten. Save enough to reconstruct the draft: trusted definition
-source, serializable inputs, layout, interaction state and the dependencies needed
-to interpret them. Do not try to serialize DOM nodes, closures or live handles.
+silently overwritten. Save enough to reconstruct the draft: trusted component
+and CSS source, serializable inputs, layout, interaction state and the dependencies
+needed to interpret them. Do not try to serialize DOM nodes, closures or live handles.
 The agent chooses the representation and restoration method.
 
 For example, these Playwright calls illustrate storage mechanics, not a board API.
@@ -87,11 +118,12 @@ when those behaviors matter; check restart with the same owned profile and origi
 before promising it. Report unverified boundaries rather than expanding every
 experiment into a full platform or evaluation campaign.
 
-Promote only with explicit user approval for the selected draft and destination.
-Export its definition, required data, styles, dependencies, assets and resource
-lifecycle into maintained source, then verify it works without the draft cache or
-live injection. A component alone may not capture the experiment's dependencies.
-Do not patch installed skills or automatically promote an accepted visual choice.
+Promote only with explicit user approval for the selected component or CSS and
+destination. Export its authored source and required data, styles, schemas,
+dependencies, assets and resource lifecycle into maintained source, then verify
+it works without the draft cache or live injection. A component alone may not
+capture the experiment's dependencies. Liking a visual is not promotion approval;
+do not patch installed skills or automatically promote an accepted visual choice.
 
 Clear only the playspace's exact owned entries within cleanup authority; preserve
 useful drafts before authorized removal. Do not clear all caches or reset a profile

@@ -33,6 +33,40 @@ Deno.test("Adaptive UI exports Chat and Arrow reactive primitives", () => {
   assert(state.count === 1);
 });
 
+Deno.test("public Edictor exports validate custom component data", () => {
+  class DraftDataModel extends ui.Model {}
+
+  DraftDataModel.define({
+    choice: ui.defineField({ initial: "keep" })
+      .instance("string")
+      .assert(
+        (value: unknown) => value === "keep" || value === "revise",
+        "Unsupported draft choice",
+      ),
+  });
+
+  const defaults = DraftDataModel.validate({}) as { choice: string };
+  const revised = DraftDataModel.validate({ choice: "revise" }) as {
+    choice: string;
+  };
+  assert(defaults.choice === "keep");
+  assert(revised.choice === "revise");
+  const invalidInputs = [
+    { choice: 1 },
+    { choice: "unknown" },
+    { extra: true },
+  ];
+  for (const invalid of invalidInputs) {
+    let rejected = false;
+    try {
+      DraftDataModel.validate(invalid);
+    } catch {
+      rejected = true;
+    }
+    assert(rejected, "Custom data should reject invalid fields and values");
+  }
+});
+
 Deno.test("public semantic tokens use overridable CSS values with defaults", () => {
   for (const role of [
     "surface", "text", "mutedText", "border", "action", "actionHover",
