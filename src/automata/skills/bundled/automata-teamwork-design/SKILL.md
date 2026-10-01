@@ -10,8 +10,11 @@ Use this judgment when the choices matter, not as a mandatory stage or document.
 
 ## Choose the arrangement
 
-Compare with a simpler viable alternative, including solo or sequential work.
-Choose from dependencies, context overlap, specialization and the value of
+Choose an arrangement that serves the established outcome, priorities and material
+constraints. Include relevant collaboration needs, such as user involvement or
+keeping the coordinator available; execution speed is not the only measure of
+success. Compare with a simpler viable alternative, including solo or sequential
+work. Choose from dependencies, context overlap, specialization and the value of
 independent evidence—not maximum parallelism or fixed model-to-role rankings.
 Count briefing, duplicated context, review, retries and integration; explain what
 assurance the arrangement adds.
@@ -28,11 +31,13 @@ again. Resuming is not automatically cheaper; cache availability is uncertain.
 Prefer a concise handoff or compaction when obsolete context outweighs useful
 continuity, accounting for the preparation cost and preserving needed state.
 
-Use established user priorities. Clarify deadlines, budget, quality or risk only
-when uncertainty materially changes the design; never silently lower acceptance
-standards. Ordinary context allocation remains an engineering decision within
-those priorities. Define ownership, dependencies, integration and expected evidence
-for handoff.
+Clarify deadlines, budget, quality or risk only when uncertainty materially changes
+the design. If no viable arrangement meets the outcome within material constraints,
+surface the tradeoff; do not silently lower acceptance standards or expand scope.
+Ordinary context allocation remains an engineering decision within those priorities.
+Carry the relevant outcome, constraints and unresolved assumptions into assignments,
+with ownership, dependencies, integration and expected evidence. Give each worker
+enough context to judge its contribution without duplicating the entire discussion.
 
 Distinguish the communication graph from the reporting and authority tree. Enable
 direct discussion between authorized peers when it reduces relay cost or improves
@@ -95,8 +100,9 @@ model changes or worker launches, and redesign does not expand permissions.
 
 ## Boundaries
 
-Planning owns decomposition and acceptance criteria. Teamwork design proposes
-responsibilities, context allocation, models and transitions. Delegation owns
+Goal reasoning owns desired outcomes, priorities and material constraints;
+planning owns the route, decomposition and concrete acceptance checks. Teamwork
+design proposes responsibilities, context allocation, models and transitions. Delegation owns
 executable handoffs and runtime verification; management enacts authorized changes
 and owns active-work recovery. This skill does not launch or reassign workers.
 Compose these capabilities as needed, not as a mandatory skill chain.

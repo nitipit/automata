@@ -11,20 +11,25 @@ route toward it. Clear, bounded work does not need a formal plan.
 
 ## Reason ahead, commit gradually
 
-Understand the outcome, real constraints, relevant dependencies, and evidence of
-success. Resolve unknowns that would materially change the approach; keep later
-steps coarse until evidence makes detail useful. Think further ahead where
+Use the established outcome, priorities and material constraints; do not reopen
+clear intent merely to produce a plan. Translate outcome-level success evidence
+into concrete acceptance checks, then reason about dependencies and operational
+constraints. Resolve unknowns that would materially change the approach; keep
+later steps coarse until evidence makes detail useful. Think further ahead where
 coordination, costly commitments, or irreversible actions require it.
 
 Identify coherent outcomes and their dependencies, not a rigid worker-sized task
 list. Work design determines useful assignment boundaries as context needs become
 clearer.
 
-Constraints come from goals, authorization, and real dependencies—not speculative
-steps. Reassess the affected decision when evidence changes; do not rebuild or
-follow the whole plan merely because it was written down. Adapt within agreed
-scope without asking again; seek approval before exceeding authority. A plan or
-discussion does not itself authorize implementation or delegation.
+Constraints come from goals, authorization and real dependencies—not speculative
+steps. If feasibility exposes conflicting constraints, explain the conflict and
+align with the user rather than silently redefine success or relax a material
+constraint. Reassess the affected decision when evidence changes; do not rebuild
+or follow the whole plan merely because it was written down. Changing the route
+need not change the goal. Adapt methods within agreed scope without asking again;
+seek approval before changing the goal or exceeding authority. A plan or discussion
+does not itself authorize implementation or delegation.
 
 ## Review during work
 
@@ -49,8 +54,9 @@ This illustrates scope and a decision boundary, not a mandatory response format.
 
 ## Boundaries
 
-Planning owns work decomposition, dependencies, constraints, and acceptance criteria.
-Work design owns responsibility distribution; delegation owns handoff readiness;
-management owns active coordination. Use those capabilities when needed rather
-than duplicating their procedures. Planning does not require a team or a separate
-plan document.
+Goal reasoning owns desired outcomes, priorities and material constraints.
+Planning owns the route, work decomposition, dependencies, operational constraints
+and concrete acceptance checks. Work design owns responsibility distribution;
+delegation owns handoff readiness; management owns active coordination. Use those
+capabilities when needed rather than duplicating their procedures. Planning does
+not require a team, a separate plan document or a fixed skill invocation sequence.

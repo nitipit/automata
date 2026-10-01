@@ -1,67 +1,75 @@
 ---
 name: automata-goal
-description: Use when defining or reviewing durable project goals, sub-goals, or instruction links that keep future work aligned.
+description: Use when clarifying the desired outcome behind a request, resolving competing goals or priorities, checking whether work still serves the intended outcome, or preserving approved goals for future sessions.
 ---
 
 # Automata Goal
 
-Design goals as durable alignment, not task management.
+Clarify what success means and keep decisions aligned with it. A requested method,
+completed checklist or working artifact is not necessarily the user's desired
+outcome. Reuse clear intent from context; do not turn every request into a goal
+interview, formal statement or document.
 
-## Core Rule
+## Understand the outcome
 
-The main goal describes the desired product or outcome. Sub-goals describe
-stable review perspectives that future work can be judged against.
+Distinguish the desired outcome and its purpose from proposed solutions,
+constraints, priorities and assumptions. Include material working preferences,
+such as keeping the user involved or the coordinator available, when they affect
+success. Do not invent hidden motives or treat an inferred preference as confirmed.
 
-## Workflow
+Identify what must remain true, where tradeoffs are acceptable, and what evidence
+would demonstrate a useful result. Success evidence belongs at the outcome level;
+concrete acceptance checks and verification procedures belong with the approach.
+Scale precision to the decision: a clear small request needs no elaborate rubric.
 
-1. Understand the product outcome the user wants to preserve.
-2. Reuse the approved goal location. If none is established, ask before writing
-   or moving files; offer `goal/main.md` and `goal/sub-goals/` as a simple option.
-3. Explain how the goal files will be used: agents should read them to align
-   implementation and review decisions, not to find task status or step-by-step
-   work.
-4. Ask whether the user wants goal paths linked from an appropriate
-   `AGENTS.md`. If yes, identify the relevant `AGENTS.md`, propose the minimal
-   reference text, and confirm before editing it.
-5. Identify the few enduring perspectives relevant to consequential decisions.
-6. Test each proposed sub-goal as a review lens:
-   - It should remain useful after the current implementation changes.
-   - It should evaluate many kinds of work, not only one task.
-   - It should describe a perspective, not a phase or step.
-   - It should avoid status, ownership, commands, and implementation details.
-   - The set should remain easy to consult when a decision needs alignment.
-7. Write concise goal text, preferably one paragraph per goal file.
-8. Move implementation details to code, tests, ADRs, cues, or planning notes
-   instead of keeping them in goal files.
+When ambiguity or conflicting priorities would materially change the next move,
+explain the tradeoff and ask the smallest unlocking question. Otherwise exercise
+judgment within the established intent and authority. A suggested alternative is
+not permission to replace the user's goal or ignore an explicit constraint.
 
-## AGENTS.md Linking
+## Keep direction and execution connected
 
-When the user wants goals to guide future sessions, help connect them to the
-agent startup path.
+Carry the relevant outcome, priorities, constraints and unresolved assumptions
+into plans, assignments and review context. Reuse existing task state rather than
+creating a separate goal registry or duplicating authoritative records.
 
-- Prefer the closest relevant `AGENTS.md` for the intended working context.
-- Link goal files for direction reviews and consequential architecture/product
-  decisions, not as mandatory reading before every small edit.
-- Keep the `AGENTS.md` text small; it should point to goal files, not duplicate
-  them.
-- Confirm the path and wording before editing.
-- If multiple `AGENTS.md` files could apply, explain the choice and ask the
-  user which scope should own the link.
+Direction, approach and work arrangement inform each other. An infeasible approach
+may expose conflicting constraints; coordination cost may favor a simpler route.
+Changing the route or team does not necessarily change the goal. Surface a material
+conflict instead of silently lowering success standards to fit an easier plan.
+There is no required skill invocation order or requirement to create a team.
 
-## Defaults
+Revisit alignment when new evidence, scope changes or diminishing value could
+change the decision. Compare the meaningful outcome with what was actually
+achieved, not merely activity or completed tasks. Review only affected assumptions
+at useful boundaries; do not repeatedly interrupt sound execution. Adapt ordinary
+methods within authority, but align with the user before changing the goal,
+relaxing a material constraint or expanding scope.
 
-Use the smallest set that captures the important independent perspectives.
-Do not add goals to fill a quota or split one perspective into task-sized pieces.
+## Optional durable goals
+
+Document goals when the user wants direction preserved across sessions, not as a
+prerequisite for ordinary work. Reuse an approved location and existing records.
+If none is established, agree on placement before writing; `goal/main.md` and
+`goal/sub-goals/` are an option, not a mandatory convention.
+
+Keep durable text concise: desired outcomes, purpose, enduring priorities and
+constraints. Stable review perspectives can help judge different kinds of future
+work; do not disguise task phases or TODOs as durable sub-goals. Keep commands,
+current status, detailed implementation and task-specific acceptance checks with
+their existing owners rather than embedding them in goal files.
+
+For future-session discovery, offer a minimal reference from the relevant
+`AGENTS.md`, without duplicating goal text or requiring every small edit to read
+all goals. Confirm its scope, path and wording before editing; documentation
+permission alone does not authorize instruction changes. Do not create, move or
+rewrite goal files merely because a discussion clarified intent.
 
 ## Boundaries
 
-- Do not turn sub-goals into milestones, TODOs, task phases, or implementation
-  plans.
-- Do not store detailed architecture, command usage, current status, or
-  acceptance criteria in goal files by default.
-- Do not create, move, or rewrite goal files during discussion unless the user
-  confirms the change.
-- Do not silently choose a goal directory or `AGENTS.md` integration point when
-  the user has not confirmed it.
-- If a user wants execution planning, switch to planning behavior after the
-  goals are clear.
+This skill owns desired outcomes, purpose, priority tradeoffs and alignment.
+Planning owns the route, dependencies and concrete acceptance criteria; work design
+owns responsibility and context allocation; tracking records progress. Goal
+clarification does not authorize implementation, delegation, publication or other
+effects. Preserve existing authority boundaries even when a different goal or
+approach seems more useful.
