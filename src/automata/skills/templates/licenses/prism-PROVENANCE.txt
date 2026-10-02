@@ -1,0 +1,31 @@
+Prism.js 1.30.0 (MIT)
+Official source: https://registry.npmjs.org/prismjs/-/prismjs-1.30.0.tgz
+Input: cached official npm package prismjs 1.30.0; no install or hooks run.
+Build: concatenate the files below in order, separated by one newline, preceded
+by the two-line header below; append "\nexport default Prism;\n". No minifier.
+Header:
+// Prism.js 1.30.0 — MIT; see ../licenses/prism-PROVENANCE.txt
+if (typeof window !== "undefined") window.Prism = { manual: true, disableWorkerMessageHandler: true };
+The component CSS module exports the exact official plugin CSS string using
+Python repr, preceded by:
+// Official Prism.js 1.30.0 line-numbers CSS, unmodified; MIT.
+No CDN, runtime fetch, custom line numbering, or document-head style injection.
+
+Input SHA-256 (ordered JS, then CSS and license):
+6fe39cc3a95b3da596218fbca3acf03f1208bc936f9fb84d08a2b4a61e2b9af7  components/prism-core.js
+981ea1865e1dbe304b661196fac6a6103b4ab19080c58c5b5d8ef2767e905df4  components/prism-markup.js
+6a7e077bbcb4a2259bc3152e55681f804ec8a3c2b969f234bb220df0f2d79654  components/prism-clike.js
+7be3e7caf699bfddcd6d94d01e9df233257477f7f521e6c6765f03bd936a2d3e  components/prism-javascript.js
+835c44857c3f295f2c5bd70316006e455779da76287b0e14d93bbc995f658e4b  components/prism-json.js
+6c67db1a4c86269dc754b588d0ad3a0cdb295044fd466ea6f66bbf01dec306bd  components/prism-bash.js
+fd84d8bedf516b82f1b212fc059d280f8f2ca7230bef6408bea6b5ce4e8e68f4  components/prism-python.js
+907706b6b1ca4790755c50ca60f82f0273da640f8dacee5666099ba0bf91b038  components/prism-yaml.js
+c73ae303135279e08c57759cf85cfefe0961e8faca5b23795dd6e2e60d42d05b  components/prism-markdown.js
+5f7f81bc78a3e9819cc389c862a506600ef60c93f78af7a122a8ba6a87a9eda1  plugins/line-numbers/prism-line-numbers.js
+c9ef019077f69475d4b6a675f14d0a237c6327562fecff25bdd281b7dc665493  plugins/line-numbers/prism-line-numbers.css
+2b947f0901a7ffcf08a89957da9783c0e9c6e72cb6ce8e959f501ab5409e4d2b  LICENSE
+
+Output SHA-256:
+db64933eccbb6f8edb10f1d0e0a94c1d5d4889fbc1c3705096a17dad9ffef8a2  lib/prism.js
+d2cc4ff1fd7732e68546a366492c527dac78fa131ba28f89f5660fe4cb7695ee  components/prism-line-numbers.css.js
+2b947f0901a7ffcf08a89957da9783c0e9c6e72cb6ce8e959f501ab5409e4d2b  licenses/prism-LICENSE.txt

@@ -102,11 +102,11 @@ def test_cli_installs_shared_and_pi_skills_without_source_root(
     with pytest.raises(SystemExit) as exc_info:
         app([
             "skills", "install", "--target-root", str(target),
-            "--skill", "automata-storage,automata-context-status",
+            "--skill", "automata-storage,automata-pi-context-status",
         ])
     assert exc_info.value.code == 0
     output = capsys.readouterr().out
-    for name in ("automata-storage", "automata-context-status"):
+    for name in ("automata-storage", "automata-pi-context-status"):
         assert f"Installed {name}" in output
         assert (target / name / "SKILL.md").is_file()
 
@@ -205,6 +205,34 @@ def test_cli_installs_bundled_codex_bridge_extension(
     assert exc_info.value.code == 0
     assert "Installed codex-bridge" in capsys.readouterr().out
     assert (target_root / "codex-bridge.ts").is_file()
+
+
+@pytest.mark.parametrize("command,flag,name", [
+    ("pi-extension", "--extension", "thinking-control"),
+    ("skills", "--skill", "automata-thinking-control"),
+    ("skills", "--skill", "automata-codex-sessions"),
+])
+def test_cli_rejects_retired_bundled_assets(tmp_path: Path, command, flag, name) -> None:
+    target = tmp_path / "install"
+    with pytest.raises(SystemExit) as error:
+        app([command, "install", "--target-root", str(target), flag, name])
+    assert error.value.code != 0
+    assert name in str(error.value)
+    assert not target.exists()
+
+
+def test_cli_does_not_advertise_or_accept_native_codex_runtime(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as help_exit:
+        app(["--help"])
+    assert help_exit.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "codex" not in help_text.casefold()
+    assert "pi-extension" in help_text
+    with pytest.raises(SystemExit) as error:
+        app(["codex", "install"])
+    assert error.value.code != 0
 
 
 def test_cli_exports_json_summary(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:

@@ -7,49 +7,48 @@ from pathlib import Path, PurePosixPath
 import pytest
 import yaml
 
-from automata.install.skills import install_skills
+from automata.install.skills import install_skills, skill_sources
 
 PACKAGE_ROOT = Path(__file__).parents[3] / "src" / "automata"
-SKILLS_ROOT = PACKAGE_ROOT / "skills"
-PI_SKILLS_ROOT = PACKAGE_ROOT / "runtimes" / "pi" / "skills"
-SKILL_ROOTS = (SKILLS_ROOT, PI_SKILLS_ROOT)
+SKILLS_ROOT = PACKAGE_ROOT / "skills" / "bundled"
+SKILL_ROOTS = (SKILLS_ROOT,)
 PI_SKILL_NAMES = {
-    "automata-context-compaction",
-    "automata-context-status",
+    "automata-pi-imagegen",
+    "automata-pi-context-compaction",
+    "automata-pi-context-status",
     "automata-pi-sessions",
-    "automata-codex-imagegen",
-    "automata-skill-activity",
-    "automata-message-router",
+    "automata-pi-skill-activity",
 }
 TOOLS_ROOT = PACKAGE_ROOT / "tools"
-SKILL_FILES = sorted(path for root in SKILL_ROOTS for path in root.rglob("SKILL.md"))
+SOURCES = skill_sources()
+SKILL_FILES = sorted(path / "SKILL.md" for path in SOURCES.values())
 REQUIRED_SKILLS = {
     "automata-agents-md",
     "automata-agent-design",
     "automata-capability-research",
-    "automata-model-research",
-    "automata-work-design",
+    "automata-model-selection",
+    "automata-teamwork-design",
     "automata-adaptive-ui",
+    "automata-playspace",
     "automata-browser-use",
     "automata-line-use",
     "automata-message-router",
-    "automata-codex-imagegen",
+    "automata-pi-imagegen",
     "automata-question",
-    "automata-context-status",
-    "automata-context-compaction",
+    "automata-pi-context-status",
+    "automata-pi-context-compaction",
     "automata-pi-sessions",
-    "automata-skill-activity",
+    "automata-pi-skill-activity",
     "automata-delegation",
     "automata-cue",
     "automata-journal",
-    "automata-time-awareness",
     "automata-team-management",
-    "automata-plan",
+    "automata-workplan",
     "automata-skill-design",
     "automata-setup",
     "automata-timer",
     "automata-storage",
-    "automata-workspace",
+    "automata-task-space",
     "automata-agent-evaluation",
     "automata-communication",
     "automata-goal",
@@ -58,7 +57,6 @@ REQUIRED_SKILLS = {
     "automata-plain-text-writing",
     "automata-runtime-environment",
     "automata-software-development",
-    "automata-stateful-workflow",
     "automata-tmux-background",
     "automata-tmux-communication",
     "automata-tmux-observation",
@@ -66,6 +64,18 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-stateful-workflow",
+    "automata-plan",
+    "automata-imagegen",
+    "automata-context-compaction",
+    "automata-context-status",
+    "automata-skill-activity",
+    "automata-codex-imagegen",
+    "automata-codex-sessions",
+    "automata-thinking-control",
+    "automata-time-awareness",
+    "automata-workspace",
+    "automata-workspace-app",
     "automata-pc-ui-control",
     "automata-agent-router",
     "automata-runtime-status",
@@ -106,7 +116,7 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
         data = parse_frontmatter(path)
         name = data.get("name")
         assert isinstance(name, str) and re.fullmatch(r"automata-[a-z0-9]+(?:-[a-z0-9]+)*", name)
-        assert name == path.parent.name, path
+        assert SOURCES[name] == path.parent, path
         assert name not in names, name
         names.add(name)
         assert isinstance(data.get("description"), str) and data["description"].strip(), path
@@ -116,12 +126,29 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
         assert not [path for root in SKILL_ROOTS for path in root.rglob(name)], name
 
 
-def test_pi_skills_have_one_flat_source_and_no_shared_duplicates() -> None:
-    assert {path.name for path in PI_SKILLS_ROOT.iterdir()} == PI_SKILL_NAMES
+def test_pi_skills_share_one_flat_source_with_all_skills() -> None:
+    assert len(list(SKILLS_ROOT.glob("*/SKILL.md"))) == 39
     for name in PI_SKILL_NAMES:
-        assert (PI_SKILLS_ROOT / name / "SKILL.md").is_file()
-        assert not (PI_SKILLS_ROOT / name).is_symlink()
-        assert not list(SKILLS_ROOT.rglob(name)), name
+        assert (SKILLS_ROOT / name / "SKILL.md").is_file()
+        assert not (SKILLS_ROOT / name).is_symlink()
+
+
+def test_changed_portable_guidance_keeps_runtime_details_external() -> None:
+    for name in (
+        "automata-message-router", "automata-setup", "automata-skill-design", "automata-playspace"
+    ):
+        for path in SOURCES[name].rglob("*.md"):
+            assert not re.search(r"\b(?:Pi|Codex)\b", path.read_text()), path
+    assert (TOOLS_ROOT / "message-router/docs/node-client.md").is_file()
+    assert not (SOURCES["automata-setup"] / "references/codex.md").exists()
+    assert not (SOURCES["automata-message-router"] / "references/node-client.md").exists()
+
+
+def test_renamed_pi_compaction_preserves_preference_paths() -> None:
+    text = (SOURCES["automata-pi-context-compaction"] / "SKILL.md").read_text()
+    assert "`.agents/var/skills/automata-context-compaction/preferences.md`" in text
+    assert "`~/.agents/var/skills/automata-context-compaction/preferences.md`" in text
+    assert "var/skills/automata-pi-context-compaction" not in text
 
 
 def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
@@ -135,8 +162,9 @@ def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
         metadata = parse_frontmatter(path).get("metadata", {})
         assert isinstance(metadata, dict), path
         mapping = metadata.get("automata-tools")
-        if path.parent.name in expected:
-            assert mapping == expected[path.parent.name], path
+        name = parse_frontmatter(path)["name"]
+        if name in expected:
+            assert mapping == expected[name], path
         if mapping is None:
             continue
         assert isinstance(mapping, str), path
@@ -151,7 +179,7 @@ def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
 
 def test_declared_skill_asset_references_exist() -> None:
     for asset in (
-        "skill-ops/automata-agent-evaluation/references/scoring.md",
+        "automata-agent-evaluation/references/scoring.md",
     ):
         assert (SKILLS_ROOT / asset).is_file(), asset
     # Check actual package paths, not prose, example commands, or runtime destinations.
@@ -175,14 +203,17 @@ def test_bundled_skills_exclude_runtime_and_provider_state() -> None:
     assert not (TOOLS_ROOT / "ui-channel").exists()
     assert not (PACKAGE_ROOT / "runtimes/pi/extensions/ui-channel.ts").exists()
     assert not (
-        SKILLS_ROOT / "operations/automata-adaptive-ui/references/build-and-preview.md"
+        SKILLS_ROOT / "automata-adaptive-ui/references/build-and-preview.md"
     ).exists()
 
 
 def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> None:
     target = tmp_path / "skills"
     results = install_skills(target_root=target)
-    expected = {path.parent.name for path in SKILL_FILES}
+    expected = set(SOURCES)
+    assert len(expected) == 39
+    assert 'automata-pi-sessions' in expected
+    assert 'automata-codex-sessions' not in expected
     assert {result.name for result in results} == expected
     assert {path.name for path in target.iterdir()} == expected
     assert all((target / name / "SKILL.md").is_file() for name in expected)
@@ -190,7 +221,7 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
 
 @pytest.mark.parametrize("skill_file", SKILL_FILES, ids=lambda p: p.parent.name)
 def test_selected_skill_installs_only_its_packaged_files(tmp_path: Path, skill_file: Path) -> None:
-    name = skill_file.parent.name
+    name = parse_frontmatter(skill_file)["name"]
     target = tmp_path / "skills"
     results = install_skills(target_root=target, skill_names=[name])
     assert [result.name for result in results] == [name]
@@ -210,7 +241,7 @@ def test_selected_skill_installs_only_its_packaged_files(tmp_path: Path, skill_f
 
 
 def test_journal_template_metadata_supports_discovery() -> None:
-    path = SKILLS_ROOT / "core/automata-journal/templates/entry.md"
+    path = SKILLS_ROOT / "automata-journal/templates/entry.md"
     metadata = parse_frontmatter(path)
     for field in ("id", "created", "kind", "title", "summary"):
         assert isinstance(metadata[field], str) and metadata[field].strip(), field
@@ -223,14 +254,14 @@ def test_journal_template_metadata_supports_discovery() -> None:
 
 def test_journal_and_cue_do_not_name_other_skills() -> None:
     for name in ("automata-journal", "automata-cue"):
-        root = SKILLS_ROOT / "core" / name
+        root = SKILLS_ROOT / name
         for path in root.rglob("*.md"):
             names = set(re.findall(r"automata-[a-z0-9]+(?:-[a-z0-9]+)*", path.read_text()))
             assert names <= {name}, (path, names)
 
 
 def test_evaluation_record_example_is_internally_consistent() -> None:
-    path = SKILLS_ROOT / "skill-ops/automata-agent-evaluation/templates/evaluation-record.json"
+    path = SKILLS_ROOT / "automata-agent-evaluation/templates/evaluation-record.json"
     data = json.loads(path.read_text())
     assert data["schema_version"] == 1
     for field in ("run_id", "subject", "runtime", "evaluator", "rubric", "scenario"):

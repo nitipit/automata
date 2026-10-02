@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "echarts": "npm:echarts@6.0.0",
+    "echarts/package.json": "npm:echarts@6.0.0/package.json",
+    "mermaid/package.json": "npm:mermaid@11.12.2/package.json"
+  },
+  "nodeModulesDir": "none",
+  "tasks": {
+    "build": "deno run --cached-only --allow-read --allow-write=../../../../../.agents/var/apps/dashboard/public build.ts"
+  }
+}

@@ -17,7 +17,7 @@ SKILL = (
     / "src"
     / "automata"
     / "skills"
-    / "operations"
+    / "bundled"
     / "automata-adaptive-ui"
 )
 SOURCE = SKILL / "lib"
@@ -86,14 +86,14 @@ def test_build_help_owns_operation_without_frontend_runtime(
         "--check compares freshness without replacement",
         "--validate also runs type checks, tests, and lint",
         "--source-root and a separate --runtime-root",
-        "no mandatory public/ folder or per-session server",
+        "no fixed directory layout is required",
         "import /lib/adaptive-ui.js",
-        "do not copy the bundle into individual sessions",
+        "pages in one root share that bundle",
         "next reload",
         "everything under the served root must be public-safe",
-        '--allow-net=127.0.0.1 --allow-read="$runtime_root"',
-        '--root="$runtime_root" --port=<port>',
-        "http://127.0.0.1:<port>/sessions/<name>/",
+        '--allow-net=127.0.0.1 --allow-read="$website_root"',
+        '--root="$website_root" --port=<port>',
+        "for index.html at the root, visit http://127.0.0.1:<port>/",
         "this builder does not start a server or browser",
     ):
         assert term in text, term

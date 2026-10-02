@@ -23,6 +23,7 @@ from automata.install.skills import (
 )
 from automata.install.tools import ToolInstallError, install_tools, normalize_tool_names
 from automata.plugin import PluginExportError, export_plugin
+from automata.skills.cli import app as skill_builder_app
 
 app = App(help="Automata reusable agent guidance tools.")
 character_app = App(
@@ -35,6 +36,7 @@ character_app = App(
 app.command(character_app, name="character")
 skills_app = App(help="Install or expose skill directories into an agent skill root.")
 app.command(skills_app, name="skills")
+app.command(skill_builder_app, name="skill-builder")
 tools_app = App(help="Install bundled or local tools into an agent tool root.")
 app.command(tools_app, name="tools")
 plugin_app = App(help="Build Agent Plugin packages from Automata assets.")

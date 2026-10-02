@@ -1,0 +1,1 @@
+"""Anatomy document routes."""

@@ -1,0 +1,22 @@
+{% extends 'templates/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block body %}
+<skill-page>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <main>
+    <header class="page-head">
+      <a class="brand" href="/">AUTOMATA · SKILLS</a>
+      <label>Theme <select id="theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+    </header>
+    <nav aria-label="Skill references">{% for path, label in navigation %}<a href="{{ path }}" {% if label == title %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</nav>
+    <article id="content" class="lesson" tabindex="-1" data-source="/skills/{{ skill }}/{{ document }}">
+      {% if document == 'SKILL.md' %}
+      <h1>SKILL.md</h1>
+      <p>Complete canonical skill source. References, when present, are rendered as Markdown.</p>
+      <code-example><pre tabindex="0"><code class="language-markdown">{{ raw_source }}</code></pre></code-example>
+      {% else %}{{ reference_html | safe }}{% endif %}
+    </article>
+    <footer>Canonical authored Markdown, served directly by Skill Builder. Fenced examples are not executed. <a href="/templates/licenses/PROVENANCE.txt">Adaptive UI / Mermaid provenance</a> · <a href="/templates/licenses/prism-PROVENANCE.txt">Prism provenance</a></footer>
+  </main>
+</skill-page>
+{% endblock %}

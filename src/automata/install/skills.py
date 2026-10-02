@@ -18,28 +18,20 @@ from automata.install.directory import (
 SkillInstallError = DirectoryInstallError
 SkillInstallResult = DirectoryInstallResult
 
-
 def bundled_skill_root() -> Path:
-    """Return the runtime-independent skill root, not the combined catalog."""
+    """Return the single bundled catalog shared by viewer and installer."""
 
-    return Path(str(files("automata").joinpath("skills")))
+    return Path(str(files("automata").joinpath("skills", "bundled")))
 
 
 def bundled_skill_roots() -> tuple[Path, ...]:
-    """Preserve the bundled Pi catalog while keeping its sources separate."""
+    """Compatibility accessor for callers expecting a sequence of roots."""
 
-    return (
-        bundled_skill_root(),
-        Path(str(files("automata").joinpath("runtimes", "pi", "skills"))),
-    )
+    return (bundled_skill_root(),)
 
 
 def skill_sources(source_root: str | Path | None = None) -> dict[str, Path]:
-    """Resolve a unique catalog; an explicit source never adds bundled skills.
-
-    Reject collisions across the shared and Pi roots rather than silently choosing
-    a runtime override. Callers resolve their complete selection before writing.
-    """
+    """Discover one bundled catalog or an isolated explicit custom source."""
 
     roots = (
         (resolve_source_root(source_root),)

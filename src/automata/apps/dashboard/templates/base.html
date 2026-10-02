@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ title }} · Anatomy</title>
+  <script type="module" src="/shared/components/anatomy-nav.js"></script>
+  {% block scripts %}{% endblock %}
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<main>
+  <header class="page-head">
+    <a class="brand" href="/automata/index.html">AUTOMATA <span>/ ANATOMY</span></a>
+    <label>Appearance <select id="theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+  </header>
+  <anatomy-nav><nav aria-label="Anatomy"><a data-monitor-link href="/automata/index.html" {% if section == 'automata' %}aria-current="page"{% endif %}>Automata</a><a href="http://127.0.0.1:8788/message-router/">Message Router guide</a></nav></anatomy-nav>
+  <div id="content" tabindex="-1">{% block content %}{% endblock %}</div>
+  <footer class="small muted">Local, read-only Anatomy · Guide examples are illustrative text, never executed here.</footer>
+</main>
+</body>
+</html>

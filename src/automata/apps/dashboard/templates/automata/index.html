@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block scripts %}
+<script type="module" src="./index.css.js"></script>
+<script type="module" src="./components/monitor.js"></script>
+{% endblock %}
+{% block content %}
+  <section id="dashboard-automata" aria-labelledby="automata-heading">
+  <div class="destination-heading"><div><p class="eyebrow">CONFIGURED SOURCES + RECORDED AGGREGATES</p><h1 id="automata-heading">Automata</h1></div><aui-button id="refresh" label="Refresh now"></aui-button></div>
+  <p class="muted">On-disk setup and recorded loads—not actual agent-session readiness. Polling stops when you leave this page. Your URL retains filters and pause state when you return.</p>
+  <div class="refresh-line">
+    <span id="scope" class="muted">Loading configured sources…</span>
+    <label><input id="auto" type="checkbox" checked> Auto-refresh (5s)</label>
+    <span id="status" role="status" aria-live="polite">Connecting…</span>
+  </div>
+  <p id="warnings" class="warning" role="status"></p>
+  <div class="tabs" role="tablist" aria-label="Dashboard sections">
+    <button type="button" role="tab" id="tab-identity" aria-controls="identity" aria-selected="true" tabindex="0">Identity</button>
+    <button type="button" role="tab" id="tab-capabilities" aria-controls="capabilities" aria-selected="false" tabindex="-1">Capabilities</button>
+    <button type="button" role="tab" id="tab-statistics" aria-controls="statistics" aria-selected="false" tabindex="-1">Statistics</button>
+  </div>
+  <section id="identity" role="tabpanel" aria-labelledby="tab-identity" tabindex="0">
+    <aui-card padding="lg">
+      <h2>Global AGENTS.md</h2>
+      <p class="muted">The identity and standing instructions on disk, not a live session context.</p>
+      <p class="source"><code id="identity-source"></code> <span id="identity-modified" class="small muted"></span></p>
+      <pre id="identity-body" tabindex="0" aria-label="Global AGENTS.md">Loading…</pre>
+      <p id="identity-note" class="small muted"></p>
+    </aui-card>
+  </section>
+  <section id="capabilities" role="tabpanel" aria-labelledby="tab-capabilities" tabindex="0" hidden>
+    <aui-card padding="lg">
+      <h2>Capabilities</h2>
+      <p class="muted">Installed files and declared tools, not a live connection check.</p>
+      <div id="inventory" class="metrics" aria-label="Capability counts"></div>
+      <div class="controls">
+        <label>Find capability <input id="capability-filter" type="search" placeholder="Name or purpose" autocomplete="off"></label>
+        <label>Setup <select id="setup-filter"><option value="all">All</option><option value="installed">Installed</option><option value="available">Available to install</option><option value="incomplete">Incomplete setup</option><option value="unknown">Unknown setup</option></select></label>
+      </div>
+      <p id="capability-count" class="small muted" role="status"></p>
+      <div class="capability-layout">
+        <div id="capabilities-table" class="table-wrap"></div>
+        <aside id="capability-detail" class="detail-panel" aria-live="polite"><p class="muted">Select a capability to see sources and declared tools.</p></aside>
+      </div>
+      <details><summary>Other tools and extensions (no declared skill relationship)</summary><div id="other-tools-table" class="table-wrap"></div></details>
+      <p id="capability-note" class="small muted"></p>
+    </aui-card>
+  </section>
+  <section id="statistics" role="tabpanel" aria-labelledby="tab-statistics" tabindex="0" hidden>
+    <aui-card padding="lg">
+      <h2>Recorded skill loads</h2>
+      <p class="muted">Best-effort observations in this project; a zero bucket does not establish recorder uptime.</p>
+      <div class="controls stats-controls">
+        <label>Range <select id="range"><option value="24h">Last 24 hours</option><option value="7d" selected>Last 7 days</option><option value="30d">Last 30 days</option><option value="custom">Custom dates</option></select></label>
+        <label>Timezone <input id="timezone" type="text" list="timezones" spellcheck="false" autocomplete="off" aria-describedby="timezone-help"><datalist id="timezones"><option value="Asia/Bangkok"><option value="UTC"></datalist></label>
+        <label>Skill <select id="skill"><option value="">All skills</option></select></label>
+        <div id="custom-dates" class="controls" hidden><label>From <input id="start" type="date"></label><label>Through <input id="end" type="date"></label></div>
+      </div>
+      <p id="timezone-help" class="small muted">Use an IANA timezone, for example Asia/Bangkok. Dates follow this timezone.</p>
+      <div id="activity-counts" class="metrics"></div>
+      <p id="window" class="small muted"></p>
+      <h3>Activity over time</h3>
+      <p id="timeline-state" class="small muted" role="status">Loading timeline…</p>
+      <div id="timeline-chart"></div>
+      <div class="section-heading"><h3>Skill ranking</h3><label>Show <select id="chart-limit"><option value="10">Top 10</option><option value="all">All recorded skills</option></select></label></div>
+      <p id="chart-state" class="small muted" role="status">Loading ranking…</p>
+      <div id="activity-chart"></div>
+      <p id="period" class="small muted"></p>
+      <p id="coverage" class="muted"></p>
+      <details><summary>Ranking data</summary><div id="activity-table" class="table-wrap"></div></details>
+      <p id="activity-note" class="small muted"></p>
+    </aui-card>
+  </section>
+  <footer class="small muted"><p>No knowledge store, work items, chats or session histories. Installed does not mean ready in a running session; missing records do not imply no use.</p></footer>
+  </section>
+
+{% endblock %}

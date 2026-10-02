@@ -21,7 +21,7 @@ import pytest
 
 SKILL = (
     Path(__file__).parents[3]
-    / "src/automata/skills/operations/automata-adaptive-ui"
+    / "src/automata/skills/bundled/automata-adaptive-ui"
 )
 
 

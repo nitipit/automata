@@ -63,23 +63,27 @@ def test_list_skill_dirs_rejects_duplicate_names(tmp_path: Path) -> None:
         list_skill_dirs(source_root)
 
 
-def test_default_sources_include_shared_and_pi_skills_without_shadowing() -> None:
-    shared, pi = bundled_skill_roots()
+def test_default_sources_share_one_flat_canonical_root() -> None:
+    (root,) = bundled_skill_roots()
     sources = skill_sources()
-    assert shared.name == "skills" and pi.name == "skills"
-    assert sources["automata-storage"].is_relative_to(shared)
-    assert sources["automata-context-status"] == pi / "automata-context-status"
-    assert len(sources) == len(set(sources))
+    assert root.name == "bundled"
+    assert len(sources) == 39
+    assert 'automata-pi-sessions' in sources
+    assert 'automata-playspace' in sources
+    assert 'automata-workplan' in sources
+    assert 'automata-plan' not in sources
+    assert 'automata-codex-sessions' not in sources
+    assert all(source == root / name for name, source in sources.items())
 
 
 def test_install_skills_selects_shared_and_pi_skills_together(tmp_path: Path) -> None:
     target = tmp_path / "skills"
     results = install_skills(
         target_root=target,
-        skill_names=["automata-storage", "automata-context-status"],
+        skill_names=["automata-storage", "automata-pi-context-status"],
     )
-    assert [result.name for result in results] == ["automata-storage", "automata-context-status"]
-    for name in ("automata-storage", "automata-context-status"):
+    assert [result.name for result in results] == ["automata-storage", "automata-pi-context-status"]
+    for name in ("automata-storage", "automata-pi-context-status"):
         assert (target / name / "SKILL.md").is_file()
 
 
@@ -87,13 +91,14 @@ def test_explicit_skill_source_is_exclusive_and_recurses(tmp_path: Path) -> None
     source = tmp_path / "custom"
     make_grouped_skill(source, "nested", "automata-storage")
     assert skill_sources(source)["automata-storage"] == source / "nested" / "automata-storage"
-    assert "automata-context-status" not in skill_sources(source)
+    assert "automata-pi-context-status" not in skill_sources(source)
+    assert "automata-message-router" not in skill_sources(source)
     target = tmp_path / "dest"
-    with pytest.raises(SkillInstallError, match="automata-context-status"):
+    with pytest.raises(SkillInstallError, match="automata-pi-context-status"):
         install_skills(
             source_root=source,
             target_root=target,
-            skill_names=["automata-storage", "automata-context-status"],
+            skill_names=["automata-storage", "automata-pi-context-status"],
         )
     assert not target.exists()
 
@@ -126,6 +131,45 @@ def test_duplicate_names_across_bundled_roots_fail_before_install(
     with pytest.raises(SkillInstallError, match="Duplicate skill name"):
         install_skills(target_root=target, skill_names=["same-skill"])
     assert not target.exists()
+
+
+@pytest.mark.parametrize("mode", ["copy", "symlink"])
+def test_canonical_router_preserves_install_name(tmp_path: Path, mode: str) -> None:
+    source = skill_sources()["automata-message-router"]
+    assert source.parts[-4:] == ("automata", "skills", "bundled", "automata-message-router")
+    target = tmp_path / "installed"
+    install_skills(target_root=target, skill_names=["automata-message-router"], mode=mode)
+    installed = target / "automata-message-router"
+    assert installed.is_symlink() == (mode == "symlink")
+    assert (installed / "SKILL.md").read_bytes() == (source / "SKILL.md").read_bytes()
+    assert all(path.suffix == ".md" for path in installed.rglob("*") if path.is_file())
+
+
+def test_explicit_same_name_is_isolated_from_bundled_source(tmp_path) -> None:
+    source = tmp_path / "source"
+    make_skill(source / "automata-message-router")
+    assert skill_sources(source) == {"automata-message-router": source / "automata-message-router"}
+    target = tmp_path / "target"
+    install_skills(source_root=source, target_root=target)
+    assert (target / "automata-message-router/SKILL.md").read_bytes() == (
+        source / "automata-message-router/SKILL.md"
+    ).read_bytes()
+
+
+@pytest.mark.parametrize("mode", ["copy", "symlink", "replace"])
+def test_workplan_install_does_not_remove_retired_name(tmp_path: Path, mode: str) -> None:
+    target = tmp_path / "skills"
+    old = target / "automata-plan" / "SKILL.md"
+    old.parent.mkdir(parents=True)
+    old.write_text("obsolete installed skill\n")
+
+    results = install_skills(target_root=target, skill_names=["automata-workplan"], mode=mode)
+
+    assert [result.name for result in results] == ["automata-workplan"]
+    assert (target / "automata-workplan" / "SKILL.md").is_file()
+    assert old.read_text() == "obsolete installed skill\n"
+    with pytest.raises(SkillInstallError, match="Source skill directory does not exist"):
+        install_skills(target_root=target, skill_names=["automata-plan"])
 
 
 def test_install_skills_copies_bundled_storage_skill(tmp_path: Path) -> None:
