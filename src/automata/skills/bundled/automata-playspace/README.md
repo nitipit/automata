@@ -169,7 +169,8 @@ PLAYSPACE_LIB="$PUBLIC/lib" PLAYSPACE_CATALOG="$PUBLIC/catalog.json" \
 ```
 
 The VM-module flag is used only by the narrow actual-starter orchestration check
-(Restore/explicit memory provisioning supersede a delayed paired Connect). Fakes
+(Restore/explicit memory provisioning supersede a delayed paired Connect, plus
+requester refresh, explicit approval/claim, cancellation and no auto-connect). Fakes
 exercise admission/lifecycle, not actual DOM rendering or native router
 acceptance. Browser/keyboard/responsive/reload/live verification belongs to the
 preview owner. No attachment bytes, streaming, service worker, backup service,

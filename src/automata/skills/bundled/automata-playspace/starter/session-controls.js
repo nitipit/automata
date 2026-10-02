@@ -1,4 +1,5 @@
 import { createBrowserSessionAuth } from "./router/session.js";
+import { createPairingRequest } from "./router/pairing-request.js";
 import { createTargetPreference, validTargetParticipant } from "./lib/target-preference.js";
 
 /** Auth stays separate from the page-owned shared transport. No action auto-connects. */
@@ -13,20 +14,33 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
   });
   target.value = preference.restore(target.value); // choice only, never auth or socket
   let auth, alive = true, generation = 0, busy = false, paired = false, connected = false;
-  let pendingKind = "", opener, ownedClose = false;
+  let pendingKind = "", opener, ownedClose = false, requester, requesterError = "";
+  const requestRegion = get("request-pairing-controls");
   const listeners = [];
   function listen(element, name, fn) { element.addEventListener(name, fn); listeners.push([element, name, fn]); }
   function show(message) { if (alive) state.textContent = message; }
   function updateTarget() { get("selected-target").textContent = target.value.trim() || "No target selected"; }
   function render() {
     // Capture focus before hiding/disabled controls makes the browser move it to BODY.
-    const redirectFocus = (paired || busy) && !form.hidden && dialog.open && form.contains(document.activeElement);
+    const redirectFocus = (paired || busy) && dialog.open &&
+      ((!form.hidden && form.contains(document.activeElement)) ||
+       (!requestRegion.hidden && requestRegion.contains(document.activeElement)));
     form.hidden = paired;
     for (const element of form.elements) element.disabled = busy || paired;
     // Leave target editable: a new target intent explicitly retires the old binding.
     connectButton.disabled = busy || !paired || !validTargetParticipant(target.value.trim());
     connectButton.textContent = busy && pendingKind === "connect" ? "Connecting…" : "Connect";
     forgetButton.disabled = busy || !paired;
+    requestRegion.hidden = paired;
+    const request = requester?.view();
+    const outstanding = request && ["pending", "approved"].includes(request.state);
+    get("request-pairing").disabled = busy || paired || !!requesterError;
+    get("check-pairing-request").disabled = busy || paired || !request?.request || !outstanding;
+    get("cancel-pairing-request").disabled = busy || paired || !request?.request || !outstanding;
+    get("pairing-request-locator").textContent = request?.request || "No request yet";
+    get("pairing-request-state").textContent = requesterError || (request ?
+      `Request ${request.state} · expires ${new Date(request.expiresAt * 1000).toLocaleTimeString()}` :
+      "Request pairing, then ask the agent to approve the displayed locator.");
     get("live-mode").hidden = !connected;
     trigger.textContent = connected ? "Connection" : "Connect";
     trigger.setAttribute("aria-expanded", String(dialog.open));
@@ -50,9 +64,12 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
     if (!alive || busy || !auth) return;
     const epoch = ++generation;
     busy = true; pendingKind = kind; render();
-    show(kind === "pair" ? "Pairing browser… · no connection opened" : kind === "forget" ? "Revoking this browser session…" : "Checking pairing for explicit Connect…");
+    show(kind.startsWith("request") ? "Checking pairing request… · no connection opened" :
+      kind === "pair" ? "Pairing browser… · no connection opened" : kind === "forget" ? "Revoking this browser session…" : "Checking pairing for explicit Connect…");
     try { await action(() => alive && epoch === generation); }
-    catch { if (alive && epoch === generation) show("Pairing / connection error · check service, code expiry and target; no automatic retry"); }
+    catch { if (alive && epoch === generation) show(kind.startsWith("request") ?
+      "Request unavailable or response uncertain · check session status explicitly; if a claim committed without a cookie, ask the operator to revoke it before a fresh request. No automatic retry." :
+      "Pairing / connection error · check service, code expiry and target; no automatic retry"); }
     finally {
       // A stale completion must not clear a NEW code or release a newer action.
       if (alive && epoch === generation) { code.value = ""; busy = false; pendingKind = ""; render(); }
@@ -78,7 +95,7 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
     opener = trigger;
     dialog.showModal(); render(); void refresh();
     // Native modal owns focus trapping/Escape; choose an enabled initial field.
-    (paired ? target : code).focus();
+    (paired ? target : get("request-pairing")).focus();
   }
   function pair(event) {
     event.preventDefault();
@@ -86,6 +103,38 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
     void act("pair", async current => {
       const status = await auth.pair(secret);
       if (current()) showStatus(status);
+    });
+  }
+  function startRequest() {
+    void act("request-create", async current => {
+      await requester.start();
+      if (current()) show("Relay only the displayed locator to the agent and explicitly request approval for an existing page. Then Check approval. No connection opened.");
+    });
+  }
+  function checkRequest() {
+    void act("request-check", async current => {
+      // Status first recovers a delivered cookie after an uncertain claim response.
+      const status = await auth.status();
+      if (!current()) return;
+      if (status.authenticated) {
+        showStatus(status);
+        show("This browser is already paired. Forget explicitly before claiming a different request.");
+        return;
+      }
+      const request = await requester.check();
+      if (!current()) return;
+      if (request.state === "approved") {
+        const pairedStatus = await requester.claim();
+        if (current()) showStatus(pairedStatus);
+      } else if (request.state === "redeemed") {
+        show("Request was already claimed but this browser has no session cookie. Ask the operator to revoke the orphaned page session, then create a fresh request. Do not retry the claim.");
+      } else show(`Request ${request.state} · no connection opened; approval checks are manual`);
+    });
+  }
+  function cancelRequest() {
+    void act("request-cancel", async current => {
+      await requester.cancel();
+      if (current()) show("Pairing request cancelled · no session revoked or connection opened");
     });
   }
   function openConnection() {
@@ -110,6 +159,10 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
     });
   }
   listen(form, "submit", pair);
+  listen(get("request-pairing"), "click", startRequest);
+  listen(get("check-pairing-request"), "click", checkRequest);
+  listen(get("cancel-pairing-request"), "click", cancelRequest);
+  listen(get("check-session-status"), "click", () => { void refresh(); });
   listen(connectButton, "click", openConnection);
   listen(forgetButton, "click", forget);
   listen(trigger, "click", openDialog);
@@ -139,7 +192,13 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
     if (event.key === "Escape") { event.preventDefault(); menu.open = false; menu.querySelector("summary").focus(); }
   });
   render();
-  try { auth = createBrowserSessionAuth(); void refresh(); }
+  try {
+    auth = createBrowserSessionAuth();
+    requester = createPairingRequest({auth});
+    try { requester.restore(); render(); }
+    catch { requesterError = "Transient request storage unavailable or malformed; private-code pairing remains available."; render(); }
+    void refresh();
+  }
   catch { show("Pairing unavailable · use the authoritative 127.0.0.1 local HTTP origin"); }
   return {
     refresh, cancel,

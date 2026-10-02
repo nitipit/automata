@@ -215,3 +215,207 @@ else:
 assert not Path(sys.argv[2]).exists()
 ''', str(source), str(tmp_path / "auth")], capture_output=True, text=True, timeout=10)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def request_fixture(tmp_path):
+    from automata_router.auth_requests import PairingRequests
+    store = AuthStore(tmp_path / "auth", {"page", "other"})
+    requests = PairingRequests(store)
+    requests.presence = lambda _: False
+    return store, requests
+
+
+def test_request_binding_transitions_duplicates_and_exact_expiry(tmp_path, monkeypatch):
+    import automata_router.auth_requests as module
+    store, requests = request_fixture(tmp_path)
+    try:
+        capability = "a" * 64
+        created = requests.create(capability)
+        locator = created["request"]
+        assert requests.create(capability) == created
+        assert capability not in json.dumps(requests.records)
+        assert digest(capability) in json.dumps(requests.records)
+        assert "capability" not in created
+        for method in (requests.status, requests.cancel, requests.redeem):
+            with pytest.raises(ValueError):
+                method(locator, "b" * 64)
+            with pytest.raises(ValueError):
+                method(locator, locator)
+        with pytest.raises(ValueError):
+            requests.redeem(locator, capability)
+        for participant in ("agent", "missing"):
+            with pytest.raises(ValueError):
+                requests.approve(locator, participant)
+        approved = requests.approve(locator, "page")
+        assert requests.approve(locator, "page") == approved
+        assert approved["expiresAt"] == created["expiresAt"]
+        with pytest.raises(ValueError):
+            requests.approve(locator, "other")
+        token, session = requests.redeem(locator, capability)
+        assert store.session(token) == session
+        assert requests.lookup(locator)["state"] == "redeemed"
+        for method, args in ((requests.redeem, (locator, capability)),
+                             (requests.cancel, (locator, capability)),
+                             (requests.approve, (locator, "page"))):
+            with pytest.raises(ValueError):
+                method(*args)
+        assert len(store.state["sessions"]) == 1
+        second = requests.create("c" * 64)
+        requests.approve(second["request"], "other")
+        assert requests.cancel(second["request"], "c" * 64)["state"] == "cancelled"
+        assert requests.cancel(second["request"], "c" * 64)["state"] == "cancelled"
+        with pytest.raises(ValueError):
+            requests.approve(second["request"], "other")
+        third = requests.create("d" * 64)
+        monkeypatch.setattr(module.time, "time", lambda: third["expiresAt"])
+        assert requests.lookup(third["request"])["state"] == "expired"
+        with pytest.raises(ValueError):
+            requests.approve(third["request"], "other")
+        assert requests.lookup(second["request"])["state"] == "cancelled"
+    finally:
+        store.close()
+
+
+def test_request_exclusivity_reservation_and_presence_fail_closed(tmp_path):
+    store, requests = request_fixture(tmp_path)
+    try:
+        one = requests.create("a" * 64)["request"]
+        two = requests.create("b" * 64)["request"]
+        def broken(_):
+            raise RuntimeError("unavailable")
+        for callback in (None, broken, lambda _: None, lambda _: 0, lambda _: True):
+            requests.presence = callback
+            with pytest.raises(ValueError):
+                requests.approve(one, "page")
+            assert requests.lookup(one)["state"] == "pending"
+        requests.presence = lambda _: False
+        requests.approve(one, "page")
+        with pytest.raises(ValueError):
+            requests.approve(two, "page")
+        for callback in (None, broken, lambda _: [], lambda _: True):
+            requests.presence = callback
+            with pytest.raises(ValueError):
+                requests.redeem(one, "a" * 64)
+            assert requests.lookup(one)["state"] == "approved"
+            assert not store.state["sessions"]
+        requests.presence = lambda _: False
+        token, _ = store.exchange(store.pair_code("page")["code"])
+        with pytest.raises(ValueError):
+            requests.redeem(one, "a" * 64)
+        assert store.session(token)  # no takeover, revoke or replacement
+        with pytest.raises(ValueError):
+            requests.approve(two, "page")
+        store.revoke(token=token)
+        requests.cancel(one, "a" * 64)
+        requests.approve(two, "page")
+        requests.redeem(two, "b" * 64)
+        assert len(store.state["sessions"]) == 1
+    finally:
+        store.close()
+
+
+def test_request_budgets_capacity_and_restart_are_bounded(tmp_path, monkeypatch):
+    import automata_router.auth_requests as module
+    store, requests = request_fixture(tmp_path)
+    try:
+        monkeypatch.setattr(module, "MAX_REQUESTS", 2)
+        one = requests.create("a" * 64)
+        requests.cancel(one["request"], "a" * 64)
+        two = requests.create("b" * 64)
+        with pytest.raises(module.RequestLimit):
+            requests.create("c" * 64)
+        assert requests.create("b" * 64) == two
+        requests.status(two["request"], "b" * 64)
+        with pytest.raises(module.RequestLimit):
+            requests.status(two["request"], "b" * 64)
+        requests.creation.tokens = 0
+        with pytest.raises(module.RequestLimit):
+            requests.create("d" * 64)
+        requests.operations.tokens = 0
+        with pytest.raises(module.RequestLimit):
+            requests.operations.take()
+        restarted = module.PairingRequests(store)
+        with pytest.raises(ValueError):
+            restarted.lookup(two["request"])
+        assert not restarted.records
+        assert json.loads(store.path.read_text()) == {"v": 1, "codes": {}, "sessions": {}}
+    finally:
+        store.close()
+
+
+def test_request_cookie_guard_and_constructor_late_presence_wiring(tmp_path):
+    from automata_router.auth_request_http import request_packet
+    config = {"v": 1, "participants": {
+        page: {"kind": "page", "token": char * 32, "allow": []}
+        for page, char in (("page", "p"), ("other", "o"))}}
+    backend = Router(validate_config(config), public_url="http://127.0.0.1:8787")
+    store = AuthStore(tmp_path / "auth", {"page", "other"})
+    auth = SessionAuth(store, backend.public_url)
+    try:
+        app = RouterApp(backend, auth=auth)
+        assert auth.requests.presence("page") is False
+        app.auth = SessionAuth(store, backend.public_url)  # actual CLI attachment path
+        auth = app.auth
+        backend.peers["page"] = object()
+        assert auth.requests.presence("page") is True
+        backend.peers.clear()
+        locator = auth.requests.create("a" * 64)["request"]
+        auth.requests.approve(locator, "page")
+        old_token, old_session = store.exchange(store.pair_code("other")["code"])
+        packet = {"request": locator, "capability": "a" * 64}
+        headers = {"cookie": f"automata_router_session={old_token}"}
+        with pytest.raises(ValueError, match="Forget"):
+            request_packet(auth, "/session/request-redeem", packet, headers)
+        assert len(store.state["sessions"]) == 1 and store.session(old_token) == old_session
+        assert auth.requests.lookup(locator)["state"] == "approved"
+        store.revoke(token=old_token)
+        result, token = request_packet(auth, "/session/request-redeem", packet, {})
+        assert result["authenticated"] and store.session(token)["participant"] == "page"
+    finally:
+        store.close()
+
+
+def test_request_http_strict_inputs_and_persistence_failure(tmp_path, monkeypatch):
+    async def check():
+        store, requests = request_fixture(tmp_path)
+        auth = SessionAuth(store, "http://127.0.0.1:8787")
+        auth.requests = requests
+        async def http(path, body, *, content_type=b"application/json", extras=()):
+            replies = []
+            scope = {"path": path, "method": "POST", "headers": [
+                (b"host", b"127.0.0.1:8787"), (b"origin", b"http://127.0.0.1:8787"),
+                (b"content-type", content_type), *extras]}
+            async def receive():
+                return {"type": "http.request", "body": body}
+            async def send(packet):
+                replies.append(packet)
+            await auth.http(scope, receive, send, RouterApp.respond)
+            return replies
+        release = lambda: None
+        try:
+            for body in (b"[]", b'{"capability":"a","capability":"b"}',
+                         b'{"capability":null}', b'{"capability":[]}', b"x" * 1025,
+                         json.dumps({"capability": "a" * 64, "participant": "page"}).encode()):
+                result = await http("/session/request", body)
+                assert result[0]["status"] == 400
+                assert not requests.records
+            assert (await http("/session/request", b"{}", content_type=b"text/plain"))[0]["status"] == 415
+            assert (await http("/session/request", b"{}", extras=[(b"origin", b"http://127.0.0.1:8787")]))[0]["status"] == 403
+            locator = requests.create("a" * 64)["request"]
+            requests.approve(locator, "page")
+            token, existing = store.exchange(store.pair_code("other")["code"])
+            revoked, release = auth.watch(existing)
+            def fail():
+                raise OSError("synthetic private persistence error")
+            monkeypatch.setattr(store, "save", fail)
+            response = await http("/session/request-redeem", json.dumps({
+                "request": locator, "capability": "a" * 64}).encode())
+            assert response[0]["status"] == 503
+            assert b"set-cookie" not in dict(response[0]["headers"])
+            assert b"synthetic" not in response[1]["body"]
+            assert auth.failed and revoked.is_set()
+            assert (await http("/session/request", b"{}"))[0]["status"] == 403
+        finally:
+            release()
+            await auth.close()
+    asyncio.run(check())

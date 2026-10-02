@@ -143,12 +143,20 @@ class AuthStore:
                     del self.state["codes"][key]
             self.save()
             raise ValueError("Invalid, expired or consumed pairing code")
+        return self.issue_session(record["participant"], code_key=digest(code))
+
+    def issue_session(self, participant: str, *, code_key: str | None = None) -> tuple[str, dict]:
+        """Persist one session; callers own approval/exclusivity and cookie delivery."""
+        if participant not in self.pages:
+            raise ValueError("Session requires a configured page")
+        self.prune()
         if len(self.state["sessions"]) >= MAX_SESSIONS:
             raise ValueError("Session capacity reached")
         token = secrets.token_urlsafe(32)
-        session = {"id": secrets.token_hex(16), "participant": record["participant"],
+        session = {"id": secrets.token_hex(16), "participant": participant,
                    "expiresAt": time.time() + self.session_seconds}
-        del self.state["codes"][digest(code)]
+        if code_key is not None:
+            del self.state["codes"][code_key]
         self.state["sessions"][digest(token)] = session
         self.save()
         return token, session

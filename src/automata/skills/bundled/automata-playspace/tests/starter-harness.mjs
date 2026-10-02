@@ -3,7 +3,7 @@ import path from "node:path";
 import vm from "node:vm";
 
 /** Executes actual staged starter modules; DOM, cache and remote boundaries are fakes. */
-export async function starterHarness() {
+export async function starterHarness({requestStorage = new Map(), authenticated = true} = {}) {
   class Element {
     value = ""; textContent = ""; disabled = false; hidden = false; open = false;
     elements = []; listeners = new Map(); dataset = {}; attributes = new Map();
@@ -30,26 +30,58 @@ export async function starterHarness() {
   const ids = ["pairing-state", "pairing-code", "target-participant", "pairing-form", "pair-browser", "connect-session",
     "forget-pairing", "target-preference-state", "connection", "recovery", "sample-mode", "live-mode",
     "sample-form", "save", "restore", "startup-error", "connection-dialog", "connection-settings", "tools-menu",
-    "close-connection", "cancel-connection", "selected-target", "connection-detail", "page-participant"];
+    "close-connection", "cancel-connection", "selected-target", "connection-detail", "page-participant",
+    "request-pairing-controls", "request-pairing", "check-pairing-request", "cancel-pairing-request",
+    "pairing-request-locator", "pairing-request-state", "check-session-status"];
   const elements = new Map(ids.map(id => [id, new Element()]));
   const get = id => elements.get(id), summary = new Element();
   get("target-participant").value = "pc1-agent";
   get("pairing-form").elements = [get("pairing-code"), get("pair-browser")];
+  get("request-pairing-controls").elements = [get("request-pairing"), get("check-pairing-request"), get("cancel-pairing-request")];
   const controls = {candidate:null, holdStatus:false, holdPair:false, holdLoad:false, holdConnect:false,
-    authenticated:true, participant:"page", restorations:0, messages:[], connections:[], clients:[], requests:[]};
+    authenticated, participant:"page", restorations:0, messages:[], connections:[], clients:[], requests:[],
+    requestRecords:new Map()};
   const chat = Object.assign(new Element(), {interrupt(){},setConnection(){},setAgentBusy(){},setStatus(){},
     snapshot:()=>({}),restore:()=>{controls.restorations++;return true;},addMessage:(...args)=>controls.messages.push(args),
     dispose(){},reject(){},receiveMessage(){},markSent(){}});
   const storage = new Map();
   const document = {querySelector:selector => selector === "ps-chat" ? chat : get(selector.slice(1)), getElementById:get};
-  const context = vm.createContext({URL, setTimeout, clearTimeout, queueMicrotask,
+  const context = vm.createContext({URL, setTimeout, clearTimeout, queueMicrotask, AbortController,
+    crypto:globalThis.crypto,
+    sessionStorage:{getItem:key => requestStorage.get(key) ?? null,
+      setItem:(key,value) => requestStorage.set(key,value),removeItem:key => requestStorage.delete(key)},
     location:{origin:"http://127.0.0.1:8775",href:"http://127.0.0.1:8775/"}, document,
     addEventListener(){},removeEventListener(){},
     localStorage:{getItem:key => storage.get(key) ?? null,setItem:(key,value) => storage.set(key,value)},
     fetch:async (url, options) => {
-      const kind = url.endsWith("/pair") ? "Pair" : "Status";
+      const endpoint = new URL(url).pathname;
+      const requestKinds = {"/session/request":"RequestCreate", "/session/request-status":"RequestStatus",
+        "/session/request-cancel":"RequestCancel", "/session/request-redeem":"RequestRedeem"};
+      const kind = requestKinds[endpoint] ?? (url.endsWith("/pair") ? "Pair" : "Status");
       controls.requests.push({url,options});
-      const response = () => ({ok:true,json:async()=>({authenticated:controls.authenticated,participant:controls.participant,expiresAt:100})});
+      const response = () => {
+        let result = {authenticated:controls.authenticated,participant:controls.participant,expiresAt:100};
+        if (requestKinds[endpoint]) {
+          const packet = JSON.parse(options.body);
+          let record = [...controls.requestRecords.values()].find(value => value.capability === packet.capability);
+          if (kind === "RequestCreate" && !record) {
+            const request = "RP-" + String(controls.requestRecords.size + 1).padStart(10,"0");
+            record = {...packet, request, state:"pending", expiresAt:Date.now()/1000+300};
+            controls.requestRecords.set(request,record);
+          }
+          if (!record || (kind !== "RequestCreate" && record.request !== packet.request)) return {ok:false,status:400};
+          if (kind === "RequestCancel") record.state = "cancelled";
+          if (kind === "RequestRedeem") {
+            if (controls.authenticated || record.state !== "approved") return {ok:false,status:400};
+            record.state = "redeemed"; controls.authenticated = true;
+            controls.participant = record.participant;
+            result = {authenticated:true,participant:record.participant,expiresAt:Date.now()/1000+3600};
+          } else {
+            const {capability, ...safe} = record; result = safe;
+          }
+        }
+        return {ok:true,json:async()=>result};
+      };
       if (!controls[`hold${kind}`]) return response();
       controls[`hold${kind}`] = false;
       return new Promise(resolve => { controls[`resolve${kind}`] = () => resolve(response()); });
@@ -104,5 +136,5 @@ export async function starterHarness() {
   await (await load("index.js")).evaluate();
   const tick = () => new Promise(resolve => setImmediate(resolve));
   await tick();
-  return {get,controls,context,clientFactory,chat,document,storage,tick,summary};
+  return {get,controls,context,clientFactory,chat,document,storage,requestStorage,tick,summary};
 }

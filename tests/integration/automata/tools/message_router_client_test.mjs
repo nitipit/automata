@@ -3,6 +3,7 @@ import test from 'node:test';
 import {createMessageRouterClient, createAgentRouterClient} from '../../../../src/automata/tools/message-router/browser/client.js';
 import {createMessageRouterChatClient, createAgentRouterChatClient} from '../../../../src/automata/tools/message-router/browser/pi-client.js';
 import {createBrowserSessionAuth} from '../../../../src/automata/tools/message-router/browser/session.js';
+import {createPairingRequest} from '../../../../src/automata/tools/message-router/browser/pairing-request.js';
 
 test('old browser exports are aliases of the canonical message-router factories', () => {
   assert.equal(createAgentRouterClient, createMessageRouterClient);
@@ -142,4 +143,123 @@ test('session helper keeps credentials same-origin, status inert and pairing cod
     assert.equal(call.options.cache,'no-store');
   }
   assert.throws(() => createBrowserSessionAuth({location:{origin:'http://localhost:8787'}}), /origin/);
+});
+
+test('transient requester survives refresh and lost create response without exposing capability or replay', async () => {
+  const values = new Map(), calls = [];
+  const storage = {getItem:key => values.get(key) ?? null, setItem:(key,value) => values.set(key,value),
+    removeItem:key => values.delete(key)};
+  let clock = 1000, loseResponse = true, state = 'pending';
+  const auth = {
+    async requestPairing(capability) {
+      calls.push({action:'create',capability});
+      assert.ok([...values.values()][0].includes(capability)); // saved BEFORE transmission
+      if (loseResponse) { loseResponse=false; throw new Error('response lost'); }
+      return {request:'RP-123456789A',state,expiresAt:1300};
+    },
+    async requestStatus(request, capability) {
+      calls.push({action:'status',request,capability});
+      return {request,state,expiresAt:1300,participant:'page'};
+    },
+    async redeemRequest(request, capability) {
+      calls.push({action:'claim',request,capability}); state='redeemed';
+      return {authenticated:true,participant:'page',expiresAt:2000};
+    },
+  };
+  const options = {auth,location:{href:'http://127.0.0.1:8787/playspace/'},getStorage:()=>storage,now:()=>clock*1000};
+  const first=createPairingRequest(options);
+  await assert.rejects(first.start(), /lost/);
+  const second=createPairingRequest(options);
+  assert.equal(second.restore().state,'pending');
+  assert.equal(calls.length,1); // restore never creates/checks/claims/connects
+  const view=await second.start();
+  assert.equal(calls[0].capability,calls[1].capability);
+  assert.match(calls[0].capability,/^[0-9a-f]{64}$/);
+  assert.ok(!JSON.stringify(view).includes(calls[0].capability));
+  state='approved';
+  assert.equal((await second.check()).state,'approved');
+  assert.equal(calls.filter(value=>value.action==='claim').length,0);
+  assert.equal((await second.claim()).authenticated,true);
+  assert.equal(second.view().state,'redeemed');
+  await assert.rejects(second.claim(),/not approved/);
+  clock=1300;
+  await assert.rejects(second.check(),/expired/);
+  assert.equal(second.view().state,'expired');
+  second.clearExpired();
+  assert.equal(values.size,0);
+});
+
+test('requester storage denial stops creation; stale responses cannot overwrite a newer binding', async () => {
+  let calls=0, stored=null, resolveOld;
+  const auth={requestPairing:async()=>{calls++;return new Promise(resolve=>{resolveOld=resolve;});}};
+  const base={auth,location:{href:'http://127.0.0.1:8787/'}};
+  const denied=createPairingRequest({...base,getStorage:()=>{throw new Error('blocked');}});
+  await assert.rejects(denied.start(),/blocked/);
+  assert.equal(calls,0);
+  const storage={getItem:()=>stored,setItem:(_,value)=>{stored=value;},removeItem:()=>{stored=null;}};
+  const active=createPairingRequest({...base,getStorage:()=>storage});
+  const pending=active.start();
+  const original=JSON.parse(stored);
+  const newer={...original,capability:'f'.repeat(64),request:'RP-FFFFFFFFFF'};
+  stored=JSON.stringify(newer); // another same-profile local intent owns storage now
+  resolveOld({request:'RP-AAAAAAAAAA',state:'pending',expiresAt:original.expiresAt});
+  await pending;
+  assert.deepEqual(JSON.parse(stored),newer);
+});
+
+test('request HTTP wrappers are same-origin, bounded, strict and never carry locator credentials in URLs', async () => {
+  const calls=[];
+  const auth=createBrowserSessionAuth({location:{origin:'http://127.0.0.1:8787'},fetchImpl:async(url,options)=>{
+    calls.push({url,options});
+    return {ok:true,json:async()=>url.endsWith('/request-redeem') ?
+      {authenticated:true,participant:'page',expiresAt:2000} :
+      {request:'RP-123456789A',state:'pending',expiresAt:1300}};
+  }});
+  await auth.requestPairing('a'.repeat(64));
+  await auth.requestStatus('RP-123456789A','a'.repeat(64));
+  await auth.cancelRequest('RP-123456789A','a'.repeat(64));
+  await auth.redeemRequest('RP-123456789A','a'.repeat(64));
+  for (const {url,options} of calls) {
+    assert.equal(new URL(url).search,'');
+    assert.equal(options.method,'POST');
+    assert.equal(options.credentials,'same-origin');
+    assert.equal(options.mode,'same-origin');
+    assert.equal(options.cache,'no-store');
+    assert.ok(options.signal instanceof AbortSignal);
+    assert.equal(JSON.parse(options.body).capability,'a'.repeat(64));
+  }
+  const bad=createBrowserSessionAuth({location:{origin:'http://127.0.0.1:8787'},
+    fetchImpl:async()=>({ok:true,json:async()=>({authenticated:true})})});
+  await assert.rejects(bad.requestPairing('a'.repeat(64)),/Invalid pairing request/);
+});
+
+test('request HTTP timeout aborts once without retry or claiming rollback', async () => {
+  let calls=0;
+  const auth=createBrowserSessionAuth({location:{origin:'http://127.0.0.1:8787'},
+    fetchImpl:(_,options)=>new Promise((resolve,reject)=>{
+      calls++;
+      options.signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true});
+    })});
+  await assert.rejects(auth.requestPairing('a'.repeat(64)),/aborted/);
+  assert.equal(calls,1);
+});
+
+test('explicit create after restart replaces only pending locator and does not slide local deadline', async () => {
+  let stored=null, clock=1000, locator='RP-AAAAAAAAAA', state='pending', calls=0;
+  const storage={getItem:()=>stored,setItem:(_,value)=>{stored=value;}};
+  const request=createPairingRequest({location:{href:'http://127.0.0.1:8787/'},
+    getStorage:()=>storage,now:()=>clock*1000,auth:{async requestPairing() {
+      calls++; return {request:locator,state,expiresAt:clock+300};
+    }}});
+  assert.equal((await request.start()).expiresAt,1300);
+  clock=1100; locator='RP-BBBBBBBBBB';
+  assert.equal(request.view().request,'RP-AAAAAAAAAA'); // no implicit retry
+  assert.equal(calls,1);
+  const fresh=await request.start();
+  assert.equal(fresh.request,locator);
+  assert.equal(fresh.state,'pending');
+  assert.equal(fresh.expiresAt,1300);
+  locator='RP-CCCCCCCCCC'; state='approved';
+  await assert.rejects(request.start(),/Request changed/); // never inherits another approval
+  assert.equal(request.view().request,'RP-BBBBBBBBBB');
 });

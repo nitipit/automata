@@ -282,6 +282,22 @@ def pair(*, auth_dir: Path, participant: str) -> None:
     operator_request(auth_dir, {"action": "pair", "participant": participant})
 
 
+def approve_request(*, auth_dir: Path, request: str, participant: str) -> None:
+    """Approve a public locator only on explicit user instruction, for an existing page."""
+    operator_request(auth_dir, {"action": "approve-request", "request": request,
+                                "participant": participant})
+
+
+def request_status(*, auth_dir: Path, request: str) -> None:
+    """Inspect volatile request state privately; a locator is not approval authority."""
+    operator_request(auth_dir, {"action": "request-status", "request": request})
+
+
+def cancel_request(*, auth_dir: Path, request: str) -> None:
+    """Cancel this exact pending/approved request, never a browser session."""
+    operator_request(auth_dir, {"action": "cancel-request", "request": request})
+
+
 def revoke(*, auth_dir: Path, participant: str | None = None,
            session_id: str | None = None) -> None:
     """Revoke a page's sessions or one private session ID, including active sockets."""
@@ -297,6 +313,9 @@ app.command(setup)
 app.command(serve)
 app.command(status)
 app.command(pair)
+app.command(approve_request, name="approve-request")
+app.command(request_status, name="request-status")
+app.command(cancel_request, name="cancel-request")
 app.command(revoke)
 app.command(legacy_serve, name="legacy-serve")
 

@@ -106,11 +106,93 @@ test("paired status redirects focus before hiding code, without stealing focus e
       get("close-connection").click();
       c.holdStatus=true;
       get("connection-settings").click(); await tick();
-      assert.equal(document.activeElement,get("pairing-code"));
+      assert.equal(document.activeElement,get("request-pairing"));
       if (focusElsewhere) get("cancel-connection").focus();
       c.authenticated=true; c.resolveStatus(); await tick();
       assert.equal(get("pairing-form").hidden,true);
       assert.equal(document.activeElement,get(focusElsewhere ? "cancel-connection" : "target-participant"));
+      assert.equal(c.connections.length,0);
+    } finally { context.playspaceChat.dispose(); }
+  }
+});
+
+test("request pairing double-click reuses binding; explicit approval check claims without connecting", async () => {
+  const {get,controls:c,context,requestStorage,tick} = await starterHarness({authenticated:false});
+  try {
+    get("connection-settings").click(); await tick();
+    c.holdRequestCreate=true;
+    get("request-pairing").click(); get("request-pairing").click(); await tick();
+    assert.equal(c.requests.filter(value => value.url.endsWith("/request")).length,1);
+    assert.equal(requestStorage.size,1);
+    c.resolveRequestCreate(); await tick();
+    const record=[...c.requestRecords.values()][0];
+    assert.equal(get("pairing-request-locator").textContent,record.request);
+    assert.ok(!get("pairing-request-state").textContent.includes(record.capability));
+    get("request-pairing").click(); await tick();
+    assert.equal(c.requestRecords.size,1);
+    record.state="approved"; record.participant="approved-page";
+    get("check-pairing-request").click(); await tick(); await tick();
+    assert.equal(record.state,"redeemed");
+    assert.equal(get("page-participant").textContent,"approved-page");
+    assert.equal(c.connections.length,0);
+    assert.equal(c.requests.filter(value => value.url.endsWith("/request-redeem")).length,1);
+    get("connect-session").click(); await tick(); await tick();
+    assert.equal(c.connections.length,1);
+    assert.equal(c.connections[0].kind,"session");
+  } finally { context.playspaceChat.dispose(); }
+});
+
+test("refresh resumes transient requester display without claim or connect; cancel is exact", async () => {
+  const first=await starterHarness({authenticated:false});
+  first.get("request-pairing").click(); await first.tick();
+  const original=[...first.controls.requestRecords.values()][0];
+  first.context.playspaceChat.dispose();
+  const next=await starterHarness({authenticated:false,requestStorage:first.requestStorage});
+  try {
+    next.controls.requestRecords.set(original.request,original);
+    assert.equal(next.get("pairing-request-locator").textContent,original.request);
+    assert.equal(next.controls.connections.length,0);
+    assert.ok(next.controls.requests.every(value => value.url.endsWith("/status")));
+    next.get("cancel-pairing-request").click(); await next.tick();
+    assert.equal(original.state,"cancelled");
+    next.get("request-pairing").click(); await next.tick();
+    assert.equal(next.controls.requestRecords.size,2);
+    assert.notEqual(next.get("pairing-request-locator").textContent,original.request);
+    assert.equal(next.controls.connections.length,0);
+  } finally { next.context.playspaceChat.dispose(); }
+});
+
+test("closing dialog fences delayed approval check before claim; no polling after dismissal", async () => {
+  const {get,controls:c,context,tick} = await starterHarness({authenticated:false});
+  try {
+    get("connection-settings").click(); await tick();
+    get("request-pairing").click(); await tick();
+    const record=[...c.requestRecords.values()][0];
+    record.state="approved"; record.participant="page";
+    c.holdRequestStatus=true;
+    get("check-pairing-request").click(); await tick();
+    assert.ok(c.resolveRequestStatus);
+    get("close-connection").click();
+    const count=c.requests.length;
+    c.resolveRequestStatus(); await tick(); await tick();
+    assert.equal(c.requests.length,count);
+    assert.equal(record.state,"approved");
+    assert.equal(c.connections.length,0);
+  } finally { context.playspaceChat.dispose(); }
+});
+
+test("check approval preserves another paired cookie and reports lost-cookie repair", async () => {
+  for (const existing of [true,false]) {
+    const {get,controls:c,context,tick} = await starterHarness({authenticated:false});
+    try {
+      get("request-pairing").click(); await tick();
+      const record=[...c.requestRecords.values()][0];
+      record.state=existing ? "approved" : "redeemed"; record.participant="page-A";
+      c.authenticated=existing; c.participant="page-B";
+      get("check-pairing-request").click(); await tick(); await tick();
+      assert.equal(c.requests.filter(value => value.url.endsWith("/request-redeem")).length,0);
+      assert.ok(get("pairing-state").textContent.includes(existing ? "Forget explicitly" : "orphaned"));
+      if (existing) assert.equal(get("page-participant").textContent,"page-B");
       assert.equal(c.connections.length,0);
     } finally { context.playspaceChat.dispose(); }
   }

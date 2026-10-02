@@ -61,9 +61,12 @@ but still require credentials. The listener binds only `127.0.0.1`.
 ## Optional persistent browser pairing
 
 `serve --auth-dir <private-0700-directory>` enables same-process local pairing.
-Private `pair`/`revoke` CLI commands manage single-use codes and revocable browser
-sessions; `/session/ws` uses a persistent HttpOnly cookie without a permanent
-client token. Reconnect, service restart and agent binding remain explicit; saved
+Browsers can request a five-minute pairing locator without knowing a Page ID.
+Explicit user instruction authorizes private `approve-request` for an existing
+configured page; only the high-entropy requester binding can claim the session.
+Manual approval checks never connect. Private `pair` remains a code fallback;
+`revoke` manages established sessions. `/session/ws` uses a persistent HttpOnly
+cookie without a permanent client token. Reconnect, service restart and agent binding remain explicit; saved
 requests and reply capabilities never replay. Auth paths are excluded from public
 roots. See [local session setup, API, revocation and limits](docs/local-session.md).
 Plain HTTP cookies are not Secure or port-isolated; same-origin scripts and
@@ -178,7 +181,9 @@ recreate invalidated reply channels or retract already admitted historical data.
 - Python responsibilities: `protocol.py` validates JSON, `router.py` owns routing,
   `server.py` owns ASGI/static boundaries and the shared socket loop, `cli.py` owns
   process/endpoint lifecycle, `auth_store.py`/`auth.py` own opt-in private session
-  state and same-origin/operator admission, `auth_socket.py` owns session-bound
+  state and same-origin/operator admission; `auth_requests.py` owns volatile request
+  states/budgets/exclusive claims and `auth_request_http.py` strict request packets.
+  `auth_socket.py` owns session-bound
   output/supervision/retirement, `legacy.py` owns v1 single-pair behavior. Pi transport and context/admission live
   in separate extension modules. No application payload is executed by the router.
 

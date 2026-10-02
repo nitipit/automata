@@ -246,3 +246,92 @@ def test_malformed_persisted_auth_fails_visible_without_reset(service):
     assert state.read_bytes() == original
     assert not (s.auth / "control.sock").exists()
     assert not (s.endpoints / "server.json").exists()
+
+
+def test_request_happy_path_cookie_guard_and_restart(service):
+    s = service
+    # Synthetic fixture config only: exercise a second existing configured page.
+    config = json.loads(s.config.read_text())
+    config["participants"]["other"] = {"kind": "page", "token": "o" * 32, "allow": []}
+    s.config.write_text(json.dumps(config))
+    s.start()
+    capability = "a" * 64
+    code = json.loads(s.run("pair", "--auth-dir", str(s.auth), "--participant", "other"))["code"]
+    status, body, headers = s.http("/session/request", {"capability": capability})
+    assert status == 200 and "Set-Cookie" not in headers
+    created = json.loads(body)
+    packet = {"request": created["request"], "capability": capability}
+    assert json.loads(s.http("/session/request", {"capability": capability})[1]) == created
+    websocket = pytest.importorskip("websocket")
+    with pytest.raises(websocket.WebSocketBadStatusException):
+        s.ws(cookie=f"automata_router_session={capability}")
+    for path in ("request-status", "request-cancel", "request-redeem"):
+        assert s.http("/session/" + path, {**packet, "capability": "b" * 64})[0] == 400
+        assert s.http("/session/" + path, {"request": created["request"]})[0] == 400
+    assert s.http("/session/request-redeem", packet)[0] == 400
+    # Wrong request credentials never consume existing fallback guess budgets.
+    status, _, paired_headers = s.http("/session/pair", {"code": code})
+    assert status == 200
+    other_cookie = paired_headers["Set-Cookie"].split(";", 1)[0]
+    approved = json.loads(s.run("approve-request", "--auth-dir", str(s.auth),
+                              "--request", created["request"], "--participant", "page"))
+    assert approved["state"] == "approved" and approved["expiresAt"] == created["expiresAt"]
+    assert json.loads(s.run("approve-request", "--auth-dir", str(s.auth),
+                          "--request", created["request"], "--participant", "page")) == approved
+    status, _, denied_headers = s.http("/session/request-redeem", packet, cookie=other_cookie)
+    assert status == 400 and "Set-Cookie" not in denied_headers
+    assert json.loads(s.http("/session/status", cookie=other_cookie)[1])["participant"] == "other"
+    sessions = json.loads((s.auth / "state.json").read_text())["sessions"]
+    assert len(sessions) == 1 and next(iter(sessions.values()))["participant"] == "other"
+    assert json.loads(s.run("request-status", "--auth-dir", str(s.auth),
+                          "--request", created["request"]))["state"] == "approved"
+    assert s.http("/session/logout", {}, cookie=other_cookie)[0] == 200
+    status, body, headers = s.http("/session/request-redeem", packet)
+    assert status == 200 and json.loads(body)["participant"] == "page"
+    cookie = headers["Set-Cookie"].split(";", 1)[0]
+    status, _, headers = s.http("/session/request-redeem", packet)
+    assert status == 400 and "Set-Cookie" not in headers  # lost cookie cannot be reissued
+    page, hello = s.ws(cookie=cookie)
+    assert hello["participant"] == "page"
+    assert packet_status(page)["status"] == "connected"
+    fresh = json.loads(s.http("/session/request", {"capability": "c" * 64})[1])
+    s.stop()
+    s.start()
+    assert json.loads(s.http("/session/status", cookie=cookie)[1])["authenticated"] is True
+    assert s.http("/session/request-status", {"request": fresh["request"], "capability": "c" * 64})[0] == 400
+    assert capability not in (s.auth / "state.json").read_text()
+
+
+def packet_status(connection):
+    return packet(connection, {"type": "status", "requestId": "request-paired-status"})
+
+
+def test_request_origin_cancel_and_actual_cli_peer_presence(service):
+    s = service
+    s.start()
+    for options in ({"origin": False}, {"origin": "http://evil.test"},
+                    {"host": "localhost:" + str(s.port)}):
+        for path in ("request", "request-status", "request-cancel", "request-redeem"):
+            assert s.http("/session/" + path, {"capability": "a" * 64}, **options)[0] == 403
+    assert s.http("/session/request?capability=bad", {"capability": "a" * 64})[0] == 404
+    created = json.loads(s.http("/session/request", {"capability": "a" * 64})[1])
+    locator = created["request"]
+    record = json.loads((s.endpoints / "participants/page.json").read_text())
+    peer, hello = s.ws(path="/ws", hello={"v": 2, "type": "hello", "participant": "page", "token": record["token"]})
+    assert hello["participant"] == "page"
+    command = [*s.cli, "approve-request", "--auth-dir", str(s.auth),
+               "--request", locator, "--participant", "page"]
+    result = subprocess.run(command, cwd=s.root, capture_output=True, text=True, timeout=20)
+    assert result.returncode != 0
+    assert packet_status(peer)["status"] == "connected"  # no active-peer takeover
+    assert json.loads(s.run("request-status", "--auth-dir", str(s.auth), "--request", locator))["state"] == "pending"
+    packet_value = {"request": locator, "capability": "a" * 64}
+    assert json.loads(s.http("/session/request-cancel", packet_value)[1])["state"] == "cancelled"
+    assert json.loads(s.http("/session/request-cancel", packet_value)[1])["state"] == "cancelled"
+    result = subprocess.run(command, cwd=s.root, capture_output=True, text=True, timeout=20)
+    assert result.returncode != 0
+    fresh = json.loads(s.http("/session/request", {"capability": "b" * 64})[1])
+    assert fresh["request"] != locator
+    assert s.http("/session/request-cancel", packet_value)[0] == 200
+    assert json.loads(s.run("request-status", "--auth-dir", str(s.auth),
+                          "--request", fresh["request"]))["state"] == "pending"

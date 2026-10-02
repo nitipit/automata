@@ -45,6 +45,17 @@ class RouterApp:
             ):
                 raise ValueError("Public and private roots must not overlap")
 
+    @property
+    def auth(self) -> SessionAuth | None:
+        return self._auth
+
+    @auth.setter
+    def auth(self, value: SessionAuth | None) -> None:
+        # One attachment path covers constructor auth and CLI's late opt-in auth.
+        if value is not None:
+            value.requests.presence = lambda participant: participant in self.backend.peers
+        self._auth = value
+
     async def __call__(self, scope: JsonObject, receive: Any, send: Any) -> None:
         if scope["type"] == "http":
             await self.http(scope, send, receive)

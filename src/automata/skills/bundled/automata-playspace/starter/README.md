@@ -29,10 +29,13 @@ also publishes `catalog.json` with registry-derived source links and admitted
 examples, without credentials or actual user state.
 
 For persistent browser pairing, the operator explicitly starts the existing local
-Router with `--auth-dir <private-directory>` and privately provisions a single-use
-code with its `pair` command. Open Connect, enter the code into Pair browser when
-unpaired, select an explicit target participant ID, then click Connect. A paired
-browser shows its session status instead of the code form. A separate readonly
+Router with `--auth-dir <private-directory>`. Open Connect and click **Request
+pairing**. Relay the displayed locator to the agent and explicitly ask it to approve
+an existing configured page using private `approve-request`. You need neither a
+Page ID nor a private code. Click **Check approval** to claim the approved pairing,
+select an explicit target participant ID, then click **Connect** separately.
+The existing `pair` command and private-code form remain a secondary fallback.
+A paired browser shows its session status instead of the pairing controls. A separate readonly
 Page ID row displays only the authenticated server status participant; otherwise
 it reads “Not paired yet”. This identifies the browser page, not the editable
 Agent target, and is never guessed from target/preferences. Startup only checks auth
@@ -41,6 +44,29 @@ allows explicit reconnect after service/browser restart; native agent bindings
 must still be established explicitly. No events/requests/reply capabilities replay.
 An offline agent presence snapshot is informational, not a stale send gate; after
 it binds, only a new explicit send is attempted.
+
+Pairing requests last five minutes, with bounded server state and **no background
+polling**. Every check/claim is explicit; each fetch times out after five seconds
+without promising rollback. Double clicks reuse the pending binding. Refresh
+restores its display from the dedicated `automata-router-request-v1` sessionStorage
+entry, not from drafts. The 256-bit short-lived requester capability is never the
+public locator and never enters snapshots, URLs or logs. Tabs may share cookies or
+clone sessionStorage; no tab-isolation claim is made. Unavailable transient storage
+blocks request creation without disabling private-code pairing.
+
+**Cancel request** cancels that exact server request. Dialog Cancel/Close/Escape
+only dismiss and fence pending UI work. Approval chooses an existing configured
+page and cannot replace a connected peer, unexpired page session or reservation.
+An incoming cookie for any already-paired page must be explicitly Forgotten before
+claiming another page. The UI checks existing session status before claiming.
+
+Requests do not survive Router restart. Explicit Request pairing can get a fresh
+pending locator after restart (the original local deadline is not extended), then
+requires fresh operator approval. Lost create responses reuse the stored binding.
+For a lost claim response, **Check session status** recovers a delivered cookie.
+If the server committed a session without delivering the cookie, ask the operator
+to explicitly revoke the orphaned page session before a fresh request; claiming
+again never reissues the cookie. No automatic retry, claim, connection or work replay.
 
 The last validated target ID is saved only when Connect is explicitly clicked,
 under a directory-scoped `automata-playspace-chat-target-v1` localStorage preference,

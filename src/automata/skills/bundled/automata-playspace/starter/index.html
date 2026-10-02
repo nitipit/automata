@@ -54,12 +54,25 @@
         <dt>Page ID</dt>
         <dd id="page-participant" role="status">Not paired yet</dd>
       </dl>
-      <form id="pairing-form">
-        <label for="pairing-code">Private single-use pairing code</label>
-        <input id="pairing-code" type="password" autocomplete="off" maxlength="256" required />
-        <button id="pair-browser" type="submit">Pair browser</button>
-        <p class="note">Obtain a fresh code privately from the operator. Pairing alone never connects.</p>
-      </form>
+      <section id="request-pairing-controls" aria-label="Request browser pairing">
+        <button id="request-pairing" type="button">Request pairing</button>
+        <p>Request locator: <strong id="pairing-request-locator">No request yet</strong></p>
+        <p id="pairing-request-state" class="note" role="status">Request pairing, then ask the agent to approve the displayed locator.</p>
+        <p class="note">Relay only this locator and explicitly ask the agent to approve an existing page. The locator is not a login secret. Requests expire after five minutes.</p>
+        <button id="check-pairing-request" type="button" class="secondary" disabled>Check approval</button>
+        <button id="cancel-pairing-request" type="button" class="quiet" disabled>Cancel request</button>
+        <p class="note">Check approval claims an approved pairing, but never connects. Checks are manual; closing this dialog does not cancel the server request.</p>
+      </section>
+      <details class="help">
+        <summary>Use a private pairing code instead</summary>
+        <form id="pairing-form">
+          <label for="pairing-code">Private single-use pairing code</label>
+          <input id="pairing-code" type="password" autocomplete="off" maxlength="256" required />
+          <button id="pair-browser" type="submit">Pair browser</button>
+          <p class="note">Obtain a fresh code privately from the operator. Pairing alone never connects.</p>
+        </form>
+      </details>
+      <button id="check-session-status" type="button" class="quiet">Check session status</button>
       <div class="target-field">
         <label for="target-participant">Agent target</label>
         <input id="target-participant" type="text" placeholder="Exact agent participant ID" autocomplete="off" maxlength="128" />
@@ -76,7 +89,7 @@
         <p id="connection-detail">Disconnected · no remote connection</p>
         <p>Pairing, transport connection, target presence and agent admission are separate. Reconnect and Send are explicit; saved events are never replayed.</p>
         <p>Disconnect keeps pairing and drafts. Forget revokes this browser's cookie session and disconnects, but does not erase drafts or stop the agent. A Pair already submitted may finish even after closing this dialog; it cannot connect automatically.</p>
-        <p>Cookies are HttpOnly, never saved with drafts. Local HTTP is not encrypted or a sandbox against same-user processes or same-origin scripts.</p>
+        <p>Cookies are HttpOnly, never saved with drafts. Requester binding uses short-lived sessionStorage to survive refresh, never draft snapshots. Tabs may share cookies or clone the request binding; this is not tab isolation. Local HTTP is not encrypted or a sandbox against same-user processes or same-origin scripts.</p>
       </details>
       <div class="forget-row">
         <button id="forget-pairing" class="quiet" type="button" aria-describedby="forget-description">Forget pairing</button>

@@ -10,6 +10,8 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from .auth_store import AuthStore
+from .auth_requests import PairingRequests, RequestLimit
+from .auth_request_http import REQUEST_PATHS, request_packet
 from .protocol import json_bytes, parse_frame
 
 COOKIE = "automata_router_session"
@@ -18,6 +20,7 @@ COOKIE = "automata_router_session"
 class SessionAuth:
     def __init__(self, store: AuthStore, public_url: str):
         self.store = store
+        self.requests = PairingRequests(store)
         self.origin = public_url
         self.host = urlsplit(public_url).netloc
         if urlsplit(public_url).hostname != "127.0.0.1":
@@ -120,6 +123,14 @@ class SessionAuth:
                 raise ValueError("Invalid bounded operator fields")
             if packet.get("action") == "pair" and set(packet) == {"action", "participant"}:
                 result = self.store.pair_code(packet["participant"])
+            elif packet.get("action") == "approve-request" and set(packet) == {
+                "action", "request", "participant",
+            }:
+                result = self.requests.approve(packet["request"], packet["participant"])
+            elif packet.get("action") == "request-status" and set(packet) == {"action", "request"}:
+                result = self.requests.view(self.requests.lookup(packet["request"]))
+            elif packet.get("action") == "cancel-request" and set(packet) == {"action", "request"}:
+                result = self.requests.cancel(packet["request"])
             elif packet.get("action") == "revoke" and set(packet) in (
                 {"action", "participant"}, {"action", "sessionId"},
             ):
@@ -160,7 +171,7 @@ class SessionAuth:
                 value.update(participant=session["participant"], expiresAt=session["expiresAt"])
             await respond(send, 200, json_bytes(value), "application/json")
             return
-        if path not in ("/session/pair", "/session/logout") or method != "POST":
+        if path not in {"/session/pair", "/session/logout", *REQUEST_PATHS} or method != "POST":
             await respond(send, 404, b'{"error":"Unknown session endpoint"}', "application/json")
             return
         if headers.get("content-type", "").split(";", 1)[0] != "application/json":
@@ -180,6 +191,11 @@ class SessionAuth:
                 if not message.get("more_body"):
                     break
             packet = parse_frame(body.decode())
+            if path in REQUEST_PATHS:
+                value, token = request_packet(self, path, packet, headers)
+                await respond(send, 200, json_bytes(value), "application/json",
+                              {"set-cookie": self.cookie(token)} if token else None)
+                return
             if path == "/session/logout":
                 if packet != {}:
                     raise ValueError("Unexpected logout fields")
@@ -195,6 +211,9 @@ class SessionAuth:
                          "expiresAt": session["expiresAt"]}
             await respond(send, 200, json_bytes(value), "application/json",
                           {"set-cookie": self.cookie(token)})
+        except RequestLimit:
+            await respond(send, 429, b'{"error":"Request limit reached; no automatic retry"}',
+                          "application/json")
         except OSError:
             self.fail_closed()
             await respond(send, 503, b'{"error":"Private auth persistence failed"}',
