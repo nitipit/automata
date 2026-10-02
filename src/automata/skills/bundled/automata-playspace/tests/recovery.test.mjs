@@ -1,65 +1,56 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { load } from "./runtime.mjs";
-const { createCacheRecovery } = await load("recovery.js");
+const { createCacheRecovery } = await load("playspace.js");
+const options = { cacheName: "test-owned-core", key: "/draft", origin: "http://127.0.0.1:9999" };
 
-const key = "http://127.0.0.1:8775/__playspace_chat_snapshot_v2__";
-test("recovery writes ordered snapshots and reports success only after put", async () => {
+test("ordered writes resolve only after put and preserve the last successful snapshot", async () => {
+  let release, stored, attempts = 0;
   const puts = [], states = [];
-  let release;
-  let stored;
   const gate = new Promise(resolve => { release = resolve; });
   const cache = {
-    async put(_key, response) {
-      const value = await response.json();
-      puts.push(value);
-      if (puts.length === 1) await gate;
+    async put(key, response) {
+      const value = await response.json(); puts.push(value);
+      assert.equal(key, "http://127.0.0.1:9999/draft");
+      if (++attempts === 1) await gate;
+      if (value.fail) throw Error("write");
       stored = value;
     },
     async match() { return stored ? new Response(JSON.stringify(stored)) : undefined; },
   };
-  const recovery = createCacheRecovery({ key, cacheStorage: { async open() { return cache; } }, onState: value => states.push(value) });
-  const first = recovery.save({ version: 1, composer: "one" });
-  const second = recovery.save({ version: 1, composer: "two" });
+  const recovery = createCacheRecovery({ ...options, cacheStorage: { async open() { return cache; } },
+    onState: state => states.push(state) });
+  const first = recovery.save({ draft: "one" });
+  const second = recovery.save({ draft: "two" });
   await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(puts, [{ version: 1, composer: "one" }]);
+  assert.deepEqual(puts, [{ draft: "one" }]);
   assert.ok(!states.some(state => state.startsWith("Saved")));
   release();
-  assert.equal(await first, true);
-  assert.equal(await second, true);
+  assert.equal(await first, true); assert.equal(await second, true);
+  assert.equal(await recovery.save({ fail: true }), false);
+  assert.deepEqual(await recovery.load(), { draft: "two" });
+  assert.equal(await recovery.save({ draft: "three" }), true);
   await recovery.flush();
-  assert.equal((await recovery.load()).composer, "two");
-  assert.deepEqual(puts.map(value => value.composer), ["one", "two"]);
-  assert.ok(states.some(state => state.startsWith("Saved v2 locally")));
+  assert.deepEqual(await recovery.load(), { draft: "three" });
 });
 
-test("unavailable/malformed storage is visible and never erased", async () => {
-  const states = [];
-  const unavailable = createCacheRecovery({ key, cacheStorage: null, onState: value => states.push(value) });
-  assert.equal(await unavailable.save({ version: 1 }), false);
+test("key admission, malformed/unavailable cache and non-JSON saves never erase entries", async () => {
+  assert.throws(() => createCacheRecovery({ ...options, key: "https://elsewhere.test/draft" }));
+  assert.throws(() => createCacheRecovery({ ...options, cacheName: "" }));
+  const unavailable = createCacheRecovery({ ...options, cacheStorage: null });
+  assert.equal(await unavailable.save({ draft: "one" }), false);
   assert.equal(await unavailable.load(), null);
-  assert.ok(states.some(state => state.startsWith("Not saved")));
-  let erased = false;
-  const broken = createCacheRecovery({ key, cacheStorage: { async open() { return {
-    async match() { return new Response("bad JSON"); },
-    async delete() { erased = true; },
-  }; } }, onState: value => states.push(value) });
-  assert.equal(await broken.load(), null);
-  assert.equal(erased, false);
-  assert.ok(states.some(state => state.includes("malformed")));
-  broken.dispose();
-  const count = states.length;
-  await broken.load();
-  assert.equal(states.length, count);
-});
-
-test("failed write does not poison the next ordered save", async () => {
-  let attempt = 0;
-  let saved;
-  const recovery = createCacheRecovery({ key, cacheStorage: { async open() { return {
-    async put(_key, response) { if (++attempt === 1) throw Error("storage"); saved = await response.json(); },
-  }; } } });
-  assert.equal(await recovery.save({ composer: "first" }), false);
-  assert.equal(await recovery.save({ composer: "second" }), true);
-  assert.deepEqual(saved, { composer: "second" });
+  let erased = false, puts = 0;
+  const cacheStorage = { async open() { return {
+    async match() { return new Response("not JSON"); },
+    async delete() { erased = true; }, async put() { puts++; },
+  }; } };
+  const recovery = createCacheRecovery({ ...options, cacheStorage });
+  assert.equal(await recovery.load(), null);
+  assert.equal(await recovery.save({ bad: undefined }), false);
+  assert.equal(erased, false); assert.equal(puts, 0);
+  recovery.dispose();
+  assert.equal(await recovery.save({ draft: "after dispose" }), false);
+  assert.equal(await recovery.load(), null);
+  assert.equal(puts, 0);
 });

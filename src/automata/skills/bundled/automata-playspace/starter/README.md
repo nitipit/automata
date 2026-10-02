@@ -1,184 +1,103 @@
-# Playspace Chat starter
+# One-component starter
 
-Optional thin **JavaScript** composition of the maintained Playspace components.
-See [../README.md](../README.md) for TypeScript source ownership, component/event
-contracts, APIs, runtime validation, build path and focused checks. The starter
-owns page layout, routing and persistence wiring, not component schemas.
+This is runnable page composition, not a standalone chat app. One `Base` component
+owns an editable draft, outgoing `{text: string}`, reply `{text: string}` and
+serializable `{draft, result}`. Page composition sends the request to a selected
+Pi participant and applies only the validated reply to that originating instance.
+Text is rendered literally, never as HTML. Local editing needs no Router.
 
-Build/copy public assets with:
+## Build and open
 
 ```sh
 python <playspace-skill>/scripts/build.py --runtime-root "$PUBLIC" --validate
 ```
 
-Serve only that public-safe root on an owned loopback origin. No browser/server
-is launched by the builder. First use opens **disconnected**. Chat dominates the
-page; the header shows the explicit target and transport state. Connect opens a
-native modal with one primary next action for browser approval or connection.
-The selected agent is prominent; its editable ID and private-code fallback live
-under Advanced. Page ID remains a compact, visible, read-only secondary row. Tools contains
-Save/Restore, component contracts, draft safety notes and clearly labelled Demo
-choices. Demo replies are **local, not live**; try “form” or “json”. Demo Form also
-switches to local mode before adding its example, so it cannot submit to a live
-agent. All content is ps-text/ps-json/ps-form through the generic component path,
-never HTML execution.
+Use the approved preview/server workflow to serve only `PUBLIC` on loopback.
+No server is started by the builder. Use an isolated `http://127.0.0.1:<port>`
+origin; do not replace another task's live origin or serve private task files.
+Existing cached dependencies only; see the parent [README](../README.md).
 
-## Optional live connection
+For local editing, a static server is sufficient. For pairing, the existing Router
+must serve these public assets and same-origin `/session/*` endpoints. A plain
+static preview reports auth unavailable; it does not fall back to public tokens.
+Router service setup, native agent binding and browser control retain their
+existing owners. See the Message Router skill/operator documentation for those
+operations; this starter does not install, start or approve them.
 
-The builder copies maintained Router browser modules into `router/` with the
-starter; use `--router-source <message-router-tool>` for non-sibling inputs. It
-also publishes `catalog.json` with registry-derived source links and admitted
-examples, without credentials or actual user state.
+Files have distinct owners:
 
-For persistent browser pairing, the operator explicitly starts the existing local
-Router with `--auth-dir <private-directory>`. Open Connect and click **Start
-pairing**, then **Copy message to send agent**. Send the visible `Please approve
-pairing RP-…` message to the agent to request approval for an existing configured
-page using private `approve-request`. Copy never sends anything; if clipboard
-access fails, select and copy the visible message manually. You need neither a
-Page ID nor a private code. Keep the dialog open and visible: **Waiting for agent
-approval** checks automatically every two seconds and claims approval once. Then
-click **Connect to <agent>** separately. **Check approval** remains available for
-manual recovery, including a known-approved but unclaimed request. **Choose agent**
-opens Advanced when the target is missing/invalid. Once connected, **Done** only
-dismisses the dialog. The existing `pair` command and private-code form remain a
-secondary fallback under Advanced.
-A paired browser shows its session status instead of the pairing controls. A separate readonly
-Page ID row displays only the authenticated server status participant; otherwise
-it reads “Not approved yet”. This identifies the browser page, not the editable
-Agent target, and is never guessed from target/preferences. Startup only checks auth
-status; it never opens a socket or starts/binds an agent. A restored valid cookie
-allows explicit reconnect after service/browser restart; native agent bindings
-must still be established explicitly. No events/requests/reply capabilities replay.
-An offline agent presence snapshot is informational, not a stale send gate; after
-it binds, only a new explicit send is attempted.
+- `component.js`: self-contained trusted factory/source/CSS and initial draft.
+- `page.js`: component → Router routing, Pi receipt display and lifecycle intents.
+- `index.js`: shared imports, Cache namespace, bootstrap and pagehide cleanup.
+- `index.html` / `style.css`: small page shell and controls.
 
-Pairing requests last five minutes, with bounded server state. One sequential
-2-second timer checks only while the dialog is open, the document visible and the
-request pending or approved-unclaimed. Initial/opening/manual status reads and
-approval actions share one physical lock; no overlapping HTTP action or automatic
-Connect occurs. Each fetch retains its five-second timeout without promising
-rollback. Errors stop automatic checks and offer manual recovery; expiry does not
-extend the request. Double clicks reuse the pending binding. Refresh
-restores its display from the dedicated `automata-router-request-v1` sessionStorage
-entry, not from drafts. The 256-bit short-lived requester capability is never the
-public locator and never enters snapshots, URLs or logs. Tabs may share cookies or
-clone sessionStorage; no tab-isolation claim is made. Unavailable transient storage
-blocks request creation without disabling private-code pairing.
+The browser receives compiled `lib/` and Router browser modules, not source TS,
+tests, credentials or operator files. No catalog or examples/chat archive.
 
-**Cancel pairing request** cancels that exact server request. Dialog Close/Done/Escape
-dismiss and fence pending UI work, retaining the binding. Hidden documents also
-stop scheduling and fence continuations before claim. Reopen/visible resumes a
-normal request after a fresh two-second wait and any held operation settles;
-errors and uncertain claims do not silently resume. Target edits pause waiting
-until an explicit Check approval or dialog reopen. Approval chooses an existing configured
-page and cannot replace a connected peer, unexpired page session or reservation.
-An incoming cookie for any already-paired page must have its approval explicitly removed before
-claiming another page. The UI checks existing session status before claiming.
+## Local editing and recovery
 
-Requests do not survive Router restart. Expired/cancelled unclaimed requests offer
-**Start new pairing**, requiring fresh operator approval. A redeemed request keeps
-its repair identity past the request TTL: missing cookies do not prove revocation. Service/storage uncertainty or
-a redeemed request without a cookie offers **Check session status** and operator
-repair guidance, not another claim or a confident new-request instruction. The
-request client retains its binding; the UI never automatically retries errors.
-Before redeem, the client persists a sticky `claimAttempted` marker: failed storage
-means no redeem, and an ambiguous response cannot cause a second redeem, including
-after reload. For a lost claim response, **Check session status** recovers a
-delivered cookie. Matching authenticated status or a confirmed redeem records
-`claimConfirmed` without removing the attempt marker. Both unresolved attempts
-and confirmed redemptions remain protected after TTL; neither Start pairing nor
-local expiry cleanup may replace them. A confirmed redemption can retire only
-after successful explicit logout of its matching page. Before logout, a fresh
-session-status read under the same physical lock supplies the identity, never the
-cached displayed Page ID. Revoking another page does not retire the prior claim.
-This browser-side status/logout sequence is not atomic against another tab changing
-cookies between the two requests. If the server committed a session without delivering the
-cookie, ask the operator to check/revoke the orphaned page session and explicitly
-repair the local binding before a fresh request. Missing/expired cookies alone are
-not proof of revocation. Claiming again never reissues the cookie. No automatic
-error retry, connection or work replay.
+1. Edit the component's draft. Nothing is sent automatically.
+2. **Save draft** awaits Cache API persistence. A later edit remains unsaved.
+3. **Restore draft** first disconnects/invalidate pending intents, then reads,
+   validates and reconstructs the saved component, CSS, layout and state.
+4. Reload at the same origin/profile. Startup restores only the draft; connection
+   stays disconnected, with no auth request, socket or send replay.
 
-The last validated target ID is saved only when Connect is explicitly clicked,
-under a directory-scoped `automata-playspace-chat-target-v1` localStorage preference,
-separate from draft snapshots. A new page restores that input only, never selects
-from presence, opens a socket or sends. No code, cookie or token enters this
-storage. Malformed/blocked storage retains the current input and shows a limitation;
-select the target again after restart if it could not be saved.
+Cache name is `automata-playspace-core-v1`; key is the same-origin
+`./__playspace_core_snapshot_v1__` relative to the page. Old chat caches are neither
+read nor removed. Invalid snapshots, altered source/CSS and reconstruction failures
+retain the current draft and do not erase the cache. The exact authored component
+source/CSS is the starter's allowlist; arbitrary cached source is not executable
+permission. Live trusted revisions require deliberately changing that loader.
 
-Close, Done and Escape fence pending Pair/Connect results. Closing retires an
-opening connection, but keeps an already-established transport; it is not a hidden
-Disconnect. Pair requests already submitted can still finish setting the cookie,
-but never chain a Connect; reopening checks status. A stale completion cannot clear
-a newer pairing code or release a newer pending action. Target edits cancel pending
-Connect and retire the old live binding, so sends cannot silently use the old agent.
-Pending requests are interrupted/uncertain, not replayed or proof of undo.
-Native modal focus returns to the header trigger. If paired status arrives while
-a pairing control owns focus, focus moves to the next enabled primary action (or
-focusable status while busy), never a collapsed Advanced field. Unaffected focus
-is retained. Current Close also fences pending
-cache Restore without disconnecting an established transport. External native
-closes retire opening activity synchronously through dialog `beforetoggle`;
-queued `close` notifications never cancel/refocus a newer explicit intent. This
-requires a browser supporting native dialog `beforetoggle` (verified on the parent
-preview's Chrome); older-browser lifecycle acceptance is not claimed. Tools closes
-on actions or Escape; safety explanations remain discoverable in details.
+Only draft/result state is saved. Pending requests, destination input, pairing
+code, credentials and Router capabilities are not. Do not put secrets in the
+component itself: JSON validation cannot identify private data. Origin/profile
+changes, eviction and clearing site data may lose cache; this is not a backup.
 
-Disconnect keeps approval and local drafts. **Remove browser approval** is a
-separate destructive action under Advanced: it revokes that cookie session,
-clears it and disconnects without erasing drafts. After confirmed revocation, a
-terminal requester binding is cleared locally so a fresh pairing can be requested;
-an unresolved claim is not cleared by this path. Codes and permanent
-Router tokens never enter snapshots. Authenticated, offline/expired and failures
-are visible separately from transport/agent admission. Cookie auth requires the
-exact local HTTP `127.0.0.1:<port>` origin. HttpOnly/SameSite=Strict is not Secure
-over HTTP or isolation between ports; same-user processes and same-origin scripts
-are not sandboxed. See the Router tool's `docs/local-session.md` for private
-lifecycle, revocation, storage and limitations.
+## Optional authorized agent connection
 
-For an existing authorized **direct-token** integration only (not UI fallback),
-after an authorized credential and explicit agent participant are established,
-trusted page setup can call `window.playspaceChat.connect(credentials, to)`.
-The validated explicit target is reflected in the header/input without saving a
-preference; only the UI Connect action saves that preference. Credentials follow the client's `{wsUrl,participant,token,sessionId?}` contract;
-never put tokens in URLs/public files/cache/logs. The helper only connects. A user
-must explicitly Send or submit a Form. An optional trusted `createClient` factory
-may replace dynamic import. Components and events route as complete distinct
-payloads, not history wrappers. The page does not redefine their validators.
+1. An authorized operator/agent privately provisions the intended page participant
+   and its allowed Pi destination using the existing Router operator path.
+2. Redeem the operator's one-use code with **Pair**. Code redemption does not
+   connect or send; approval authority never enters public assets.
+3. Enter the exact authorized Pi participant ID and press **Connect**. This checks
+   current session status and opens Router's authenticated same-origin connection.
+4. Press the component's **Send to connected agent**. The page sends its JSON
+   unchanged. The agent replies on the exact pending route with `{text: "…"}`.
+5. A valid terminal Pi reply updates the component visibly. Save to persist it.
 
-## Composer
+An authorized agent may redeem the provisioned code through
+`await window.playspace.pair(code)` rather than making the user manually type it.
+This uses the same redemption endpoint, not an approval endpoint. Keep operator
+credentials/code delivery in the approved private workflow; do not cache them or
+put them in URLs/source. Pairing and Connect remain separate explicit operations.
+Disconnect closes the socket but does not revoke a paired cookie; revocation is
+owned by the existing Router controls/operator workflow, not by this starter.
 
-The Playspace Chat textarea grows with typing/paste and restored drafts up to
-30vh, then scrolls internally. Deletion, sent-draft clearing, rejection restoration
-and native form reset remeasure it; newer unsent edits are preserved. Native
-textarea keyboard behavior is unchanged. Width/viewport changes remeasure wrapping;
-height-only observer notifications are ignored, and disposal releases resources.
-The starter keeps an initially compact composer. DOM-fake tests verify lifecycle
-and values, not real wrapping/overflow; browser acceptance must measure those.
+Forwarded is not admitted/completed. Pi admission is shown as waiting; only
+`type: "response"`, `final: true`, `metadata.pi.type: "reply"` permits an update.
+Rejection, unexpected receipt or route closure reports failure/uncertainty without
+changing the last-good result. Invalid reply JSON likewise retains the result.
+There is no generic peer response mode, streaming or sample-agent fallback.
 
-## Recovery
+Restore, Disconnect, disposal, target edits and newer Connect actions fence older
+operations before auth/cache awaits. Replaced instances fence their old replies.
+A late forwarding receipt cannot regress a completed/failed result to pending.
+No retry, reconnection or replay is automatic, including after service restart.
 
-The starter envelope is `{version:2,mode:'sample'|'live',chat:ChatSnapshotV2}`.
-Cache namespace is **automata-playspace-chat-v2**, same-origin directory-local key
-**__playspace_chat_snapshot_v2__**. The old v1 namespace/key remain untouched;
-there is no migration/import or silent deletion. The page visibly labels v2 and
-old cache not imported. The coordinator should preserve an open v1 draft before
-an authorized upgrade/reload.
+## Inspection and acceptance
 
-Writes are ordered for this page; `save()` resolves after the write. Await it
-before claiming persistence. One writer per key: Cache Storage is not a multi-tab
-transaction service. Failed storage/malformed restoration preserve current drafts
-and cache. Refresh restores history, composer, Form drafts/readonly submissions,
-and separate inert event records; events and pending requests **never replay**.
-Live mode restores disconnected with no credentials or reply capabilities. Local
-sample mode can be selected/recovered without a remote connection.
+`window.playspace` exposes `runtime`, `router`, `save()`, `restore()`, `pair(code)`,
+`connect()`, `disconnect()`, `status()`, `dispose()` and startup `ready`. The runtime
+provides `snapshot()`, `replace(snapshot)` and `update(id, payload)` for trusted
+page-owner inspection. These APIs are not authorization to execute arbitrary code
+or operate another page. Router connection objects/credentials are not cached.
 
-History is display-only, not model context. Cache is exact-origin/profile scoped,
-disposable, not a backup; eviction/site-data clearing/origin/profile changes can
-lose drafts. Do not enter secrets. Refresh recovery is not proof of browser-restart
-recovery.
-
-`window.playspaceChat` exposes trusted composition/testing helpers: chat, contracts,
-snapshot, save, restore, connect and dispose. Call `dispose()` before retiring the
-page; replacement generations ignore stale sample/live replies. Retirement does
-not authorize clearing browser data or deleting task evidence.
+Focused Node checks exercise the actual `page.js`, authored `Base` component,
+real Router callback shape, delayed auth/restore/connection/accepted completions,
+trust rejection and repeated restoration. They do not establish native rendering.
+The preview owner checks keyboard/focus/layout, visible reply, exact-origin Cache
+reload, malformed snapshot retention, unauthorized rejection and explicit paired
+connection in an isolated real browser/Router. Do not claim browser-restart
+recovery without checking that boundary.
