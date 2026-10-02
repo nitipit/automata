@@ -253,7 +253,7 @@ from automata.plugin import export_plugin
 assert Path(automata.__file__).is_relative_to(site)
 sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
-assert len(sources) == 40
+assert len(sources) == 39
 assert 'automata-thinking-control' not in sources
 assert 'automata-pi-sessions' in sources
 assert 'automata-playspace' in sources

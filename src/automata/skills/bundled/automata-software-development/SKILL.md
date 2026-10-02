@@ -5,9 +5,10 @@ description: Use for software implementation, debugging, refactoring, code revie
 
 # Automata Software Development
 
-Carry an approved outcome through implementation and proportionate verification.
-Prefer simple, readable solutions with cohesive responsibilities, not the smallest
-diff at the expense of understandable boundaries or future context cost.
+Carry an approved outcome through a working happy path first, not production
+readiness by default. Assume valid inputs and normal operation unless the approved
+scope says otherwise. Prefer simple, readable solutions with cohesive responsibilities,
+not the smallest diff at the expense of understandable boundaries.
 
 ## Scope and design
 
@@ -79,18 +80,21 @@ needed.
 
 ## Implement and document
 
-Check uncertain assumptions with the smallest executable test in a representative,
-authorized environment. Exercise the relevant boundary: browser behavior needs
-browser evidence; pure logic may need only a direct test. Mocks do not prove behavior
-of what they replace. If a real boundary is unavailable or unauthorized, report the
-limit. The first implementation slice can be the proof; no separate prototype is
-required.
+Build the smallest integrated happy path and confirm it with a minimal smoke check
+in an authorized environment. For prose-only changes, a direct structural and
+semantic review can suffice. Exercise only the boundary needed for this claim:
+browser behavior needs browser evidence; pure logic may need only a direct call.
+Mocks do not prove behavior of what they replace. If the relevant boundary is
+unavailable or unauthorized, report the limit rather than expanding verification.
+The first implementation slice can be the proof; no separate prototype is required.
 
-Prove a minimal integrated path early and interleave changes with checks. Avoid
-premature abstractions, generic hardening or logging/configuration scaffolds without
-a concrete threat, boundary or acceptance need. Keep protections against unintended
-capabilities, destructive actions and privacy exposure; disclose material deferred
-hardening without silently expanding a prototype's scope.
+Do not add edge-case handling, retries, recovery, concurrency mechanisms, generic
+hardening, or logging/configuration scaffolds unless included in the approved scope.
+Suggest worthwhile additions separately and obtain confirmation before implementing
+them. A plausible risk alone does not authorize production-readiness work.
+Keep basic authorization, destructive-action and privacy safeguards. If a safe
+happy path cannot be built within scope, explain the blocker and ask rather than
+silently adding hardening or bypassing safeguards.
 
 Follow project conventions. Update docs when behavior, APIs, commands, configuration
 or workflows change. Document non-obvious contracts beside their owner: lifecycle,
@@ -101,27 +105,18 @@ or responsibilities instead.
 
 ## Select assurance
 
-Implementation, review and verification are composable, not a mandatory team pipeline.
-Choose the lowest sufficient assurance for risk and agreed acceptance criteria:
+The default is the minimal happy-path smoke check, not a test suite or review
+pipeline. Suggest edge-case, regression, integration, production-like or broader
+checks when useful, but obtain confirmation before adding or running them. An
+explicit request for such checks authorizes that scope; approval to implement a
+feature alone does not. Do not escalate automatically because a change involves
+state, interfaces, security or concurrency.
 
-- **Direct:** prose, formatting or an isolated edit; a relevant quick check.
-- **Focused:** ordinary code changes; targeted tests/checks without automatically
-  requiring another reviewer or a full suite.
-- **Independent:** consequential interfaces, state, security, concurrency or meaningful
-  uncertainty; a separately scoped review and relevant verification. A fresh review
-  pass is not an independent reviewer. Use another owner when independent judgment
-  materially helps and delegation is authorized.
-- **Full:** release readiness, broad impact or explicit request; appropriate review
-  plus relevant suite, build, integration or acceptance checks.
-
-Use the shortest checks that detect relevant regressions. Make scope, evidence and
-non-goals explicit for handoffs or consequential choices, not a routine template.
-Review critiques correctness/risk; verification executes checks. Do not silently
-expand either assignment or claim independent review where none occurred.
-
-Keep tests cohesive by behavior/boundary and follow repository placement conventions:
-module/API behavior in unit tests, command invocation in CLI tests, package resources,
-external processes and runtime tools in integration tests.
+When expanded assurance is approved, select checks for the agreed claim and keep
+them cohesive by behavior/boundary using repository placement conventions. Review
+critiques correctness/risk; verification executes checks. Independent review and
+delegation require their own authority; a fresh self-review is not independent.
+Make scope, evidence and non-goals explicit when useful, not a routine template.
 
 ## Finish and report
 
