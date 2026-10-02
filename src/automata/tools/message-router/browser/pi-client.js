@@ -62,6 +62,8 @@ export function createMessageRouterChatClient({to, onMessage = () => {}, onState
 
   return {
     connect:credentials => router.connect(credentials),
+    connectSession:session => router.connectSession(session),
+    status:router.status,
     sendMessage(payload, options) {
       const delivery = options === undefined ? undefined : validateDelivery(options);
       return submit(payload, delivery ? {pi:{delivery}} : {}, delivery?.role === 'context');

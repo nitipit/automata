@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Playspace</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script type="module" src="./index.js"></script>
+  </head>
+  <body>
+    <main>
+      <header class="app-header">
+        <h1>Playspace</h1>
+        <div class="connection-summary">
+          <span id="selected-target" title="Explicitly selected agent target">No target selected</span>
+          <span id="connection" class="status-pill" role="status">Disconnected</span>
+          <button id="connection-settings" type="button" aria-haspopup="dialog">Connect</button>
+          <details id="tools-menu" class="tools-menu">
+            <summary aria-label="Playspace tools">•••</summary>
+            <div class="tools-panel">
+              <button id="save" type="button">Save draft now</button>
+              <button id="restore" type="button">Restore saved draft</button>
+              <a href="./catalog.json" target="_blank" rel="noopener">Component contracts ↗</a>
+              <hr />
+              <button id="sample-mode" type="button">Demo · local replies only</button>
+              <button id="sample-form" type="button">Demo · try a Form locally</button>
+              <details class="help">
+                <summary>Drafts &amp; safety</summary>
+                <p>History is a display, not model context. Forms become read-only on submission; Revise opens a prefilled copy and sends nothing. Corrections do not undo external actions.</p>
+                <p>Version 2 · old v1 cache is preserved, not imported. Local cache belongs to this exact origin and browser profile. It is disposable, not a backup. Do not enter secrets.</p>
+              </details>
+            </div>
+          </details>
+        </div>
+      </header>
+      <section class="conversation" aria-label="Playspace conversation">
+        <ps-chat id="playspace-chat" title="Conversation" agent-label="Agent" user-label="You"
+          input-label="Your message" placeholder="Ask the agent or describe an idea…"
+          empty-message="A space to think together. Connect an agent, or explore the local Demo from Tools."></ps-chat>
+      </section>
+      <footer class="page-footer">
+        <p id="recovery" role="status">Checking local recovery…</p>
+        <p id="startup-error" role="alert"></p>
+      </footer>
+    </main>
+    <dialog id="connection-dialog" aria-labelledby="connection-title" aria-describedby="connection-description">
+      <div class="dialog-heading">
+        <h2 id="connection-title">Connect this Playspace</h2>
+        <button id="close-connection" class="icon-button quiet" type="button" aria-label="Close connection settings">×</button>
+      </div>
+      <p id="connection-description" class="agent-summary">Agent <strong id="dialog-target">Choose an agent</strong></p>
+      <p id="pairing-state" class="pairing-status" role="status" tabindex="-1">Checking browser approval…</p>
+      <dl class="page-identity">
+        <dt>Page ID</dt>
+        <dd id="page-participant" role="status">Not approved yet</dd>
+      </dl>
+      <p id="pairing-request-state" class="pairing-guidance" role="status">First, ask the agent to approve this browser. Then you can connect.</p>
+      <section id="request-pairing-controls" aria-label="Approve this browser">
+        <div id="pairing-message-box" hidden>
+          <p id="pairing-message" class="copy-message" tabindex="0"></p>
+          <button id="copy-pairing-message" type="button">Copy message to send agent</button>
+          <p id="copy-pairing-state" class="note" role="status"></p>
+        </div>
+        <button id="request-pairing" type="button">Start pairing</button>
+        <button id="check-pairing-request" type="button" class="secondary" hidden>Check approval</button>
+        <button id="cancel-pairing-request" type="button" class="quiet" hidden>Cancel pairing request</button>
+        <p id="request-expiry" class="note"></p>
+        <p id="request-dismiss-note" class="note" hidden>Closing or hiding this dialog pauses automatic checks and keeps the request. Only Cancel pairing request cancels it.</p>
+      </section>
+      <div class="dialog-actions">
+        <button id="connect-session" type="button" hidden>Connect</button>
+        <button id="choose-agent" type="button" hidden>Choose agent</button>
+        <button id="done-connection" type="button" hidden>Done</button>
+        <button id="check-session-status" type="button" hidden>Check session status</button>
+        <button id="live-mode" class="secondary" type="button" hidden>Disconnect</button>
+      </div>
+      <details id="connection-advanced" class="help connection-help">
+        <summary>Advanced &amp; help</summary>
+        <div class="target-field">
+          <label for="target-participant">Agent participant ID</label>
+          <input id="target-participant" type="text" placeholder="Exact agent participant ID" autocomplete="off" maxlength="128" />
+          <p id="target-preference-state" class="note" role="status">Only the non-secret agent ID is saved locally on Connect.</p>
+          <p class="note">Changing the agent disconnects the current connection, but keeps drafts.</p>
+        </div>
+        <button id="advanced-check-session" type="button" class="quiet">Check session status</button>
+        <details class="help">
+          <summary>Use a private pairing code instead</summary>
+          <form id="pairing-form">
+            <label for="pairing-code">Private single-use pairing code</label>
+            <input id="pairing-code" type="password" autocomplete="off" maxlength="256" required />
+            <button id="pair-browser" class="secondary" type="submit">Pair browser</button>
+            <p class="note">Obtain a fresh code privately from the operator. Pairing alone never connects.</p>
+          </form>
+        </details>
+        <p class="note">Request locator: <span id="pairing-request-locator">No request yet</span></p>
+        <details class="help">
+          <summary>Connection &amp; privacy</summary>
+          <p id="connection-detail">Disconnected · no remote connection</p>
+          <p>Pairing, transport connection, target presence and agent admission are separate. Reconnect and Send are explicit; saved events are never replayed.</p>
+          <p>Disconnect keeps approval and drafts. Remove browser approval revokes this browser's cookie session and disconnects, but does not erase drafts or stop the agent. A Pair already submitted may finish even after closing this dialog; it cannot connect automatically.</p>
+          <p>Cookies are HttpOnly, never saved with drafts. Requester binding uses short-lived sessionStorage to survive refresh, never draft snapshots. Tabs may share cookies or clone the request binding; this is not tab isolation. Local HTTP is not encrypted or a sandbox against same-user processes or same-origin scripts.</p>
+        </details>
+        <div id="forget-row" class="forget-row" hidden>
+          <button id="forget-pairing" class="quiet danger" type="button" aria-describedby="forget-description">Remove browser approval</button>
+          <p id="forget-description" class="note">Revokes approval and disconnects this browser. Keeps your drafts.</p>
+        </div>
+      </details>
+      <button id="cancel-connection" class="quiet dialog-close" type="button">Close</button>
+    </dialog>
+  </body>
+</html>

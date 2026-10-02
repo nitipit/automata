@@ -58,6 +58,20 @@ separately hosted frontend, explicitly pass `--origin http://127.0.0.1:3000` and
 bundle/copy the browser modules into that frontend. Node clients may omit Origin,
 but still require credentials. The listener binds only `127.0.0.1`.
 
+## Optional persistent browser pairing
+
+`serve --auth-dir <private-0700-directory>` enables same-process local pairing.
+Browsers can request a five-minute pairing locator without knowing a Page ID.
+Explicit user instruction authorizes private `approve-request` for an existing
+configured page; only the high-entropy requester binding can claim the session.
+Manual approval checks never connect. Private `pair` remains a code fallback;
+`revoke` manages established sessions. `/session/ws` uses a persistent HttpOnly
+cookie without a permanent client token. Reconnect, service restart and agent binding remain explicit; saved
+requests and reply capabilities never replay. Auth paths are excluded from public
+roots. See [local session setup, API, revocation and limits](docs/local-session.md).
+Plain HTTP cookies are not Secure or port-isolated; same-origin scripts and
+same-user local processes remain outside this security boundary.
+
 ## Browser / Node client
 
 For an active agent using ordinary process tools, see the installed
@@ -129,7 +143,8 @@ selected compatibility-only tool sets remain supported.
   the binding and ephemeral context; late replies cannot bind to replacements.
 
 `browser/pi-client.js` exports `createMessageRouterChatClient({to,onMessage,onState,
-onDelivery})`. Connect with the **page** credential. It retains `sendMessage`,
+onDelivery})`. Connect with the **page** credential, or explicit `connectSession` after local
+pairing; `status()` still returns only granted destinations. It retains `sendMessage`,
 `inspectContext`, `clearContext`, reply callbacks and Pi delivery options from the
 [existing Chat contract](LEGACY.md#delivery-options-and-buffered-context). Initial
 remote busy state is unknown in v2; the Pi adapter checks actual admission state
@@ -164,8 +179,12 @@ recreate invalidated reply channels or retract already admitted historical data.
   They cannot speak v2 merely by changing their URL; upgrade credentials/client
   together. The v1 adapter does not gain multiparty routing.
 - Python responsibilities: `protocol.py` validates JSON, `router.py` owns routing,
-  `server.py` owns ASGI/static boundaries, `cli.py` owns process/endpoint lifecycle,
-  `legacy.py` owns v1 single-pair behavior. Pi transport and context/admission live
+  `server.py` owns ASGI/static boundaries and the shared socket loop, `cli.py` owns
+  process/endpoint lifecycle, `auth_store.py`/`auth.py` own opt-in private session
+  state and same-origin/operator admission; `auth_requests.py` owns volatile request
+  states/budgets/exclusive claims and `auth_request_http.py` strict request packets.
+  `auth_socket.py` owns session-bound
+  output/supervision/retirement, `legacy.py` owns v1 single-pair behavior. Pi transport and context/admission live
   in separate extension modules. No application payload is executed by the router.
 
 Authorized connectivity is not permission to delegate work or execute peer-supplied

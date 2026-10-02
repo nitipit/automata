@@ -40,6 +40,18 @@ export function createMessageRouterClient({
     requireId(participant, 'participant');
     if (typeof token !== 'string' || !token || token.length > 256) throw new Error('Invalid participant token');
     if (sessionId !== undefined) requireId(sessionId, 'session id');
+    return open(wsUrl, participant, {v:2, type:'hello', participant, token,
+      ...(sessionId === undefined ? {} : {sessionId})});
+  }
+  function connectSession({wsUrl, participant}) {
+    requireId(participant, 'participant'); // acknowledgment check, not an identity choice
+    const url = new URL(wsUrl);
+    if (url.pathname !== '/session/ws' || url.search || url.hash) throw new Error('Invalid session WebSocket URL');
+    if (!globalThis.location || url.origin !== globalThis.location.origin.replace(/^http/, 'ws'))
+      throw new Error('Session WebSocket must use the exact page origin');
+    return open(wsUrl, participant, {v:2, type:'hello'});
+  }
+  function open(wsUrl, participant, hello) {
     const url = new URL(wsUrl);
     if (!['ws:', 'wss:'].includes(url.protocol) || url.username || url.password) throw new Error('Invalid WebSocket URL');
     if (!WebSocketImpl) throw new Error('WebSocket is unavailable');
@@ -115,7 +127,7 @@ export function createMessageRouterClient({
     currentSocket.onerror = () => { if (current()) invalidate('Connection failed; delivery uncertain'); };
     currentSocket.addEventListener('open', () => {
       if (!current()) return;
-      try { currentSocket.send(JSON.stringify({v:2, type:'hello', participant, token, ...(sessionId === undefined ? {} : {sessionId})})); }
+      try { currentSocket.send(JSON.stringify(hello)); }
       catch { invalidate('Authentication write failed'); }
     }, {once:true});
     return promise;
@@ -176,6 +188,6 @@ export function createMessageRouterClient({
     return rpc('cancel', {routeId:request.routeId});
   }
 
-  return {connect, send, respond, cancel, status:() => rpc('status'),
+  return {connect, connectSession, send, respond, cancel, status:() => rpc('status'),
     close:() => invalidate('Closed explicitly; delivery uncertain'), isConnected:() => connected};
 }
