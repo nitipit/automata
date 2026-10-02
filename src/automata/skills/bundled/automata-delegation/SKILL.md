@@ -58,10 +58,12 @@ For asynchronous work:
 dispatch + coordinator-targeted watchdog → yield → callback or notice → assess
 ```
 
-Pair each dispatch with one bounded watchdog for the next meaningful evidence.
-Address its notice to the coordinator's wakeable input, identifying expected
-evidence and task correlation. A scheduled request to a stuck worker cannot wake
-the coordinator. Send work once, then end the turn when no independent work remains.
+Before dispatch, establish a real coordinator wake path for callbacks and one
+bounded watchdog for the next meaningful evidence chosen by the workplan. Address
+its notice to the coordinator's wakeable input, identifying expected evidence and
+task correlation. Logs and artifacts alone are not wake-up; a scheduled request to
+a stuck worker cannot wake the coordinator. Send work once, then end the turn when
+no independent work remains.
 
 Ending an interactive turn leaves the session available for callbacks; it does not
 abandon the assignment or close the terminal. Do not wait through sleeps or repeated
@@ -74,7 +76,9 @@ A process/time limit is a separate safety backstop, not a callback.
 Choose intermediate milestones and deadlines from duration, risk and dependencies.
 Workers report meaningful changes through the agreed path, not periodic activity
 for its own sake. Keep the expectation and watchdog current: cancel or re-arm when
-evidence arrives or work completes, blocks, fails, is abandoned or relaunched.
+evidence arrives or work completes, pauses, blocks, fails, is abandoned or
+relaunched. Preserve late results without treating them as permission to resume
+paused work.
 
 Review a worker's result before acceptance. Preserve task correlation in the brief,
 results and resends when callbacks could be confused. Keep completed evidence until
@@ -99,7 +103,8 @@ removing coverage. Never silently leave active work unwatched.
 ## Boundaries
 
 Delegation owns handoff, evidence, waiting, recovery and acceptance. Work design
-proposes responsibilities and context boundaries; planning owns decomposition and
-acceptance criteria; management coordinates within the approved envelope.
+proposes responsibilities and context boundaries; workplan owns decomposition,
+acceptance checks and reasons/timing for evidence and review; management coordinates
+within the approved envelope.
 `AGENTS.md` owns durable policy. Model, transport, terminal lifecycle and timer
 skills own their mechanisms; keep participant topology and evidence timing contextual.

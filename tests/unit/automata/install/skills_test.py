@@ -70,6 +70,8 @@ def test_default_sources_share_one_flat_canonical_root() -> None:
     assert len(sources) == 40
     assert 'automata-pi-sessions' in sources
     assert 'automata-playspace' in sources
+    assert 'automata-workplan' in sources
+    assert 'automata-plan' not in sources
     assert 'automata-codex-sessions' not in sources
     assert all(source == root / name for name, source in sources.items())
 
@@ -152,6 +154,22 @@ def test_explicit_same_name_is_isolated_from_bundled_source(tmp_path) -> None:
     assert (target / "automata-message-router/SKILL.md").read_bytes() == (
         source / "automata-message-router/SKILL.md"
     ).read_bytes()
+
+
+@pytest.mark.parametrize("mode", ["copy", "symlink", "replace"])
+def test_workplan_install_does_not_remove_retired_name(tmp_path: Path, mode: str) -> None:
+    target = tmp_path / "skills"
+    old = target / "automata-plan" / "SKILL.md"
+    old.parent.mkdir(parents=True)
+    old.write_text("obsolete installed skill\n")
+
+    results = install_skills(target_root=target, skill_names=["automata-workplan"], mode=mode)
+
+    assert [result.name for result in results] == ["automata-workplan"]
+    assert (target / "automata-workplan" / "SKILL.md").is_file()
+    assert old.read_text() == "obsolete installed skill\n"
+    with pytest.raises(SkillInstallError, match="Source skill directory does not exist"):
+        install_skills(target_root=target, skill_names=["automata-plan"])
 
 
 def test_install_skills_copies_bundled_storage_skill(tmp_path: Path) -> None:

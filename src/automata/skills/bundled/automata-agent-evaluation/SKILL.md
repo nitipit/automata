@@ -57,7 +57,7 @@ writes are confirmed. Never expose secrets or use production accounts for realis
 ## Coordinator Preflight
 
 Before launching any subject agent or multi-agent runtime, write a compact run contract in the
-plan and treat it as a launch gate:
+workplan and treat it as a launch gate:
 
 - coordinator and each fresh subject, with responsibility and owned context;
 - subject source or installation, runtime, model, and supported thinking effort;
@@ -67,28 +67,29 @@ plan and treat it as a launch gate:
 - exact return path for every expected callback, or the agreed alternate transport;
 - worker-to-coordinator watchdog owner, notification path, next expected evidence, and
   recovery action;
-- coordinator-to-user watchdog owner and a supported user-visible notification path; and
+- user-report expectations, owner and supported path when delivery is promised; and
 - cleanup owner and stop condition.
 
-Apply the contract to the evaluator itself. Resolve the team, transport, model, effort, estimate,
-the disposition of both watchdog paths, and cleanup fields before launching the first subject or
-starting a persistent runtime. A fully bounded synchronous-return run contract may record both
-watchdog paths as `not applicable — bounded synchronous return`. Supported worker-to-coordinator
-and coordinator-to-user watchdog paths, including the user-visible notification path, remain
-mandatory for asynchronous or persistent subjects. After launching it, require direct verification
-of the first subject's actual CWD, model/effort, discovered source or installation, and isolation
-boundary against the contract before launching remaining scenario probes. If runtime identity
-differs from the contract, stop remaining launches and classify the evidence rather than consuming
-the budget in the wrong runtime.
-A timer log, evidence file, or shell exit is not a user notification. If the coordinator cannot
-wake the user-facing session through a supported path, say so and replan before long-running
-asynchronous work.
+Apply the contract to the evaluator itself. Resolve the arrangement, transport, model,
+effort, proportionate estimate, evidence timing, report expectations and cleanup before
+launching the first subject or starting a persistent runtime. A bounded synchronous-return
+run needs no communication watchdog. For asynchronous or persistent subjects, establish a
+real callback wake path to the coordinator with a bounded adaptive time fallback before
+launch; log-writing alone is not wake-up. Keep this internal path separate from user reports.
+Use the current chat by default; external delivery requires authority and a verified path.
+If a required wake or promised report path is unavailable, say so and choose bounded
+synchronous work or an agreed reachable alternative.
 
-For asynchronous work, return control to the caller only after the coordinator-to-user path is
-established. Do not use `sleep`, blocking shell timeouts, or unbounded polling for coordination.
-Use the agreed timer/watchdog path to record bounded evidence, then inspect, cancel, re-arm, or
-recover normally. A hard process limit is a separate safety backstop, not a watchdog, callback,
-or user notification.
+After launching, verify the first subject's actual CWD, model/effort, discovered source or
+installation, and isolation boundary against the contract before launching remaining probes.
+If runtime identity differs, stop remaining launches and classify the evidence rather than
+consuming the budget in the wrong runtime.
+
+Yield when no independent work remains. Do not use `sleep`, blocking shell timeouts or
+unbounded polling for coordination. On callback or fallback wake, assess evidence and current
+authority, then cancel, re-arm or recover as needed. Cancel obsolete triggers on completion
+or pause; late callbacks do not authorize resume. A hard process limit is a separate safety
+backstop, not a watchdog, callback or user notification.
 
 ## Evidence, Scoring, and Results
 

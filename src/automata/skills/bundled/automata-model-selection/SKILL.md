@@ -86,6 +86,7 @@ not authorize model/effort changes, paid trials, new agents, private-data transf
 installation or scheduled monitoring.
 
 This skill owns recommendations, comparative knowledge and preference discussion.
-Planning owns decomposition, teamwork design owns assignments and solo/team
-arrangements, and runtime discovery owns availability checks. Compose as needed,
+Workplan owns decomposition and proportionate resource/review decisions; teamwork
+design owns assignments and solo/team arrangements, and runtime discovery owns
+availability checks. Compose as needed,
 not as a mandatory invocation chain.

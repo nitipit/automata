@@ -16,8 +16,8 @@ class PluginProfile:
 
 PROFILES = {
     "core": PluginProfile(
-        description="Contextual execution planning for Automata agents.",
-        skills=("automata-plan",),
+        description="Adaptive work planning for Automata agents.",
+        skills=("automata-workplan",),
     ),
 }
 

@@ -24,12 +24,13 @@ without JavaScript.
 Public views:
 
 - `/`: catalog; `/templates/index.html` redirects to `/` for compatibility.
-- `/templates/skill.html?name=automata-message-router` (or `name=automata-plan`): source view.
+- `/templates/skill.html?name=automata-message-router` (or `name=automata-workplan`): source view.
 - `/templates/reference.html?name=automata-message-router&reference=references/connect.md`:
   rendered reference view.
 - `/message-router/`, `/message-router/index.html`, and existing
   `/message-router/references/<name>.html`: preserved direct-render aliases.
-- `/plan/` and `/plan/index.html`: plan source view; no invented references.
+- `/automata-workplan/` and `/automata-workplan/index.html`: workplan source view.
+  The retired `automata-plan` name and `/plan/` alias are no longer served.
 
 ## Rendering and boundaries
 
@@ -89,7 +90,9 @@ styles are retained.
 references, scripts, libraries and templates) without importing FastAPI or a
 renderer. Use installed names such as `automata-message-router`; only its public
 URL retains the short `/message-router/` alias. Serving never installs or syncs
-live skills; agents read canonical files, not human-rendered output.
+live skills; agents read canonical files, not human-rendered output. Installing the
+renamed `automata-workplan` does not remove an existing `automata-plan` installation;
+remove the obsolete installed name only under separate scoped migration authority.
 
 `tests/apps/skill_builder/test_build.py` covers direct public views, denial boundaries,
 reference Jinja/HTML literal handling, and disposable installation of both
