@@ -106,7 +106,7 @@ test("paired status redirects focus before hiding code, without stealing focus e
       get("close-connection").click();
       c.holdStatus=true;
       get("connection-settings").click(); await tick();
-      assert.equal(document.activeElement,get("request-pairing"));
+      assert.equal(document.activeElement,get("pairing-state")); // opening status owns the shared busy lock
       if (focusElsewhere) get("cancel-connection").focus();
       c.authenticated=true; c.resolveStatus(); await tick();
       assert.equal(get("pairing-form").hidden,true);
@@ -185,6 +185,7 @@ test("check approval preserves another paired cookie and reports lost-cookie rep
   for (const existing of [true,false]) {
     const {get,controls:c,context,tick} = await starterHarness({authenticated:false});
     try {
+      get("connection-settings").click(); await tick();
       get("request-pairing").click(); await tick();
       const record=[...c.requestRecords.values()][0];
       record.state=existing ? "approved" : "redeemed"; record.participant="page-A";

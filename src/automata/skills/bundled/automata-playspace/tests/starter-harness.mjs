@@ -3,7 +3,9 @@ import path from "node:path";
 import vm from "node:vm";
 
 /** Executes actual staged starter modules; DOM, cache and remote boundaries are fakes. */
-export async function starterHarness({requestStorage = new Map(), authenticated = true} = {}) {
+export async function starterHarness({requestStorage = new Map(), authenticated = true,
+  clock, holdInitialStatus = false} = {}) {
+  const ClockDate = clock?.Date ?? Date;
   class Element {
     value = ""; textContent = ""; disabled = false; hidden = false; open = false;
     elements = []; listeners = new Map(); dataset = {}; attributes = new Map();
@@ -40,15 +42,17 @@ export async function starterHarness({requestStorage = new Map(), authenticated 
   get("target-participant").value = "pc1-agent";
   get("pairing-form").elements = [get("pairing-code"), get("pair-browser")];
   get("request-pairing-controls").elements = [get("request-pairing"), get("check-pairing-request"), get("cancel-pairing-request"), get("copy-pairing-message"), get("pairing-message")];
-  const controls = {candidate:null, holdStatus:false, holdPair:false, holdLoad:false, holdConnect:false,
+  const controls = {candidate:null, holdStatus:holdInitialStatus, holdPair:false, holdLoad:false, holdConnect:false,
     authenticated, participant:"page", restorations:0, messages:[], connections:[], clients:[], requests:[],
     requestRecords:new Map(), clipboard:[]};
   const chat = Object.assign(new Element(), {interrupt(){},setConnection(){},setAgentBusy(){},setStatus(){},
     snapshot:()=>({}),restore:()=>{controls.restorations++;return true;},addMessage:(...args)=>controls.messages.push(args),
     dispose(){},reject(){},receiveMessage(){},markSent(){}});
   const storage = new Map();
-  const document = {querySelector:selector => selector === "ps-chat" ? chat : get(selector.slice(1)), getElementById:get};
-  const context = vm.createContext({URL, setTimeout, clearTimeout, queueMicrotask, AbortController,
+  const document = Object.assign(new Element(), {visibilityState:"visible",
+    querySelector:selector => selector === "ps-chat" ? chat : get(selector.slice(1)), getElementById:get});
+  const context = vm.createContext({URL, setTimeout:clock?.setTimeout ?? setTimeout,
+    clearTimeout:clock?.clearTimeout ?? clearTimeout, Date:ClockDate, queueMicrotask, AbortController,
     crypto:globalThis.crypto,
     navigator:{clipboard:{writeText:async text => {
       if (controls.clipboardFail) throw new Error("Clipboard blocked");
@@ -56,7 +60,10 @@ export async function starterHarness({requestStorage = new Map(), authenticated 
     }}},
 
     sessionStorage:{getItem:key => requestStorage.get(key) ?? null,
-      setItem:(key,value) => requestStorage.set(key,value),removeItem:key => requestStorage.delete(key)},
+      setItem:(key,value) => {
+        if (controls.storageWriteFail) throw new Error("Storage write blocked");
+        requestStorage.set(key,value);
+      },removeItem:key => requestStorage.delete(key)},
     location:{origin:"http://127.0.0.1:8775",href:"http://127.0.0.1:8775/"}, document,
     addEventListener(){},removeEventListener(){},
     localStorage:{getItem:key => storage.get(key) ?? null,setItem:(key,value) => storage.set(key,value)},
@@ -66,6 +73,8 @@ export async function starterHarness({requestStorage = new Map(), authenticated 
         "/session/request-cancel":"RequestCancel", "/session/request-redeem":"RequestRedeem"};
       const kind = requestKinds[endpoint] ?? (url.endsWith("/pair") ? "Pair" : url.endsWith("/logout") ? "Forget" : "Status");
       controls.requests.push({url,options});
+      controls.activeRequests = (controls.activeRequests ?? 0) + 1;
+      controls.maxActiveRequests = Math.max(controls.maxActiveRequests ?? 0, controls.activeRequests);
       const response = () => {
         if (controls.failNext === kind) { controls.failNext = null; return {ok:false,status:503}; }
         if (kind === "Forget") controls.authenticated = false;
@@ -75,7 +84,7 @@ export async function starterHarness({requestStorage = new Map(), authenticated 
           let record = [...controls.requestRecords.values()].find(value => value.capability === packet.capability);
           if (kind === "RequestCreate" && !record) {
             const request = "RP-" + String(controls.requestRecords.size + 1).padStart(10,"0");
-            record = {...packet, request, state:"pending", expiresAt:Date.now()/1000+300};
+            record = {...packet, request, state:"pending", expiresAt:ClockDate.now()/1000+300};
             controls.requestRecords.set(request,record);
           }
           if (!record || (kind !== "RequestCreate" && record.request !== packet.request)) return {ok:false,status:400};
@@ -84,16 +93,22 @@ export async function starterHarness({requestStorage = new Map(), authenticated 
             if (controls.authenticated || record.state !== "approved") return {ok:false,status:400};
             record.state = "redeemed"; controls.authenticated = true;
             controls.participant = record.participant;
-            result = {authenticated:true,participant:record.participant,expiresAt:Date.now()/1000+3600};
+            if (controls.loseRedeemResponse) {
+              if (controls.loseCookie) controls.authenticated = false;
+              return {ok:false,status:503};
+            }
+            result = {authenticated:true,participant:record.participant,expiresAt:ClockDate.now()/1000+3600};
           } else {
             const {capability, ...safe} = record; result = safe;
           }
         }
         return {ok:true,json:async()=>result};
       };
-      if (!controls[`hold${kind}`]) return response();
-      controls[`hold${kind}`] = false;
-      return new Promise(resolve => { controls[`resolve${kind}`] = () => resolve(response()); });
+      try {
+        if (!controls[`hold${kind}`]) return response();
+        controls[`hold${kind}`] = false;
+        return await new Promise(resolve => { controls[`resolve${kind}`] = () => resolve(response()); });
+      } finally { controls.activeRequests--; }
     },
   });
   const clientFactory = options => {

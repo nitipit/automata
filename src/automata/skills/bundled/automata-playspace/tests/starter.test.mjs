@@ -120,9 +120,13 @@ test("cancelled Pair cannot chain Connect or clear a newer code/action", async (
     get("cancel-connection").click();
     get("connection-settings").click(); await tick();
     get("pairing-code").value="new-private-code";
+    get("pairing-form").fire("submit"); await tick(); // disabled: no overlap and no code clearing
+    assert.equal(get("pairing-code").value,"new-private-code");
+    assert.equal(c.requests.filter(request => request.url.endsWith("/pair")).length,1);
+    resolveOld(); await tick(); await tick();
+    assert.equal(get("pairing-code").value,"new-private-code");
     c.holdPair=true; get("pairing-form").fire("submit"); await tick();
     const resolveNew=c.resolvePair;
-    resolveOld(); await tick(); await tick();
     assert.equal(get("pair-browser").disabled,true);
     get("cancel-connection").click();
     get("pairing-code").value="unsent-new-code";

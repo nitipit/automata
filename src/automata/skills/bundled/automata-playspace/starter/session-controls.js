@@ -16,7 +16,7 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
   target.value = preference.restore(target.value); // choice only, never auth or socket
   let auth, alive = true, generation = 0, busy = false, paired = false, connected = false;
   let pendingKind = "", opener, ownedClose = false, requester, requesterError = "", recovery = "";
-  let uncertainAction = false;
+  let uncertainAction = false, timer, owner, autoPaused = false;
   const view = createSessionView(get);
   const listeners = [];
   function listen(element, name, fn) { element.addEventListener(name, fn); listeners.push([element, name, fn]); }
@@ -27,42 +27,67 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
       recovery: requesterError || recovery, targetValid: validTargetParticipant(target.value.trim())});
     updateTarget();
   }
-  function showStatus(status) {
+  function stopWaiting() { clearTimeout(timer); timer = undefined; }
+  function canWait() {
+    const request = requester?.view();
+    return alive && dialog.open && document.visibilityState === "visible" && !busy &&
+      !paired && !autoPaused && !requesterError && !recovery && !request?.claimAttempted &&
+      !!request?.request && ["pending", "approved"].includes(request.state);
+  }
+  function schedule() {
+    stopWaiting();
+    if (canWait()) timer = setTimeout(() => {
+      timer = undefined;
+      if (canWait()) checkRequest(true);
+      else if (alive) render(); // includes expiry: never extend the original TTL
+    }, 2000);
+  }
+  function showStatus(status, recover = true) {
+    requester?.confirmSession(status);
     paired = status.authenticated;
     if (paired) uncertainAction = false;
-    if (paired || !uncertainAction) recovery = "";
+    if (paired || (recover && !uncertainAction)) recovery = "";
     get("page-participant").textContent = paired && typeof status.participant === "string" ? status.participant : "Not approved yet";
     show(paired ? "Browser approved" : "Browser not approved / approval expired");
     render();
   }
-  async function refresh() {
-    if (!alive || busy || !auth) return;
-    const epoch = generation;
-    try { const status = await auth.status(); if (alive && epoch === generation) showStatus(status); }
-    catch { if (alive && epoch === generation) {
-      recovery ||= "Cannot check browser approval. Recover the local service, then Check session status. No automatic retry or connection.";
-      show("Browser approval unavailable"); render();
-    } }
+  async function refresh(recover = true) {
+    return act("status", async current => {
+      const status = await auth.status();
+      if (current()) showStatus(status, recover);
+    });
   }
   async function act(kind, action) {
     if (!alive || busy || !auth) return;
+    stopWaiting();
     const epoch = ++generation;
-    busy = true; pendingKind = kind; render();
+    owner = epoch; busy = true; pendingKind = kind; render();
     show(kind.startsWith("request") ? "Checking pairing request… · no connection opened" :
-      kind === "pair" ? "Pairing browser… · no connection opened" : kind === "forget" ? "Revoking this browser session…" : "Checking pairing for explicit Connect…");
+      kind === "pair" ? "Pairing browser… · no connection opened" : kind === "forget" ? "Revoking this browser session…" :
+      kind === "status" ? "Checking browser approval…" : "Checking pairing for explicit Connect…");
     try { await action(() => alive && epoch === generation); }
-    catch { if (alive && epoch === generation) {
-      uncertainAction = true;
+    catch { if (alive) {
+      // Physical single flight means this is still the same binding, even if hidden.
+      // A stale failure must stop waiting too, without publishing stale success UI.
+      uncertainAction ||= !["status", "request-check"].includes(kind) || !!requester?.view()?.claimUncertain;
       recovery = "Request unavailable or response uncertain. Check session status. If still unapproved, ask the operator to check/revoke any orphaned page session before a fresh request. No automatic retry.";
-      show(kind === "connect" ? "Connection failed. Check the local service and agent, then explicitly Connect again." : "Browser approval could not be confirmed.");
+      if (epoch === generation) show(kind === "connect" ? "Connection failed. Check the local service and agent, then explicitly Connect again." : "Browser approval could not be confirmed.");
     } }
     finally {
-      // A stale completion must not clear a NEW code or release a newer action.
-      if (alive && epoch === generation) { code.value = ""; busy = false; pendingKind = ""; render(); }
+      // Fencing never releases the physical lock. Only its owner can settle it.
+      if (owner === epoch) {
+        owner = undefined; busy = false; pendingKind = "";
+        if (alive) {
+          if (epoch === generation) code.value = "";
+          render(); schedule(); // every resume gets a fresh two-second delay
+        }
+      }
     }
   }
-  function cancel() {
-    generation++; code.value = ""; busy = false; pendingKind = "";
+  function cancel(pause = true) {
+    stopWaiting();
+    if (pause) autoPaused = true;
+    generation++; code.value = "";
     cancelConnect(); // fence page recovery/import; retire only not-yet-established sockets
     render();
   }
@@ -79,12 +104,14 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
     if (!alive || dialog.open) return;
     menu.open = false;
     opener = trigger;
-    dialog.showModal(); render(); void refresh();
+    autoPaused = false;
+    dialog.showModal(); render(); void refresh(false);
     // Native modal owns focus trapping/Escape; never focus a collapsed field.
     view.focusNext(busy);
   }
   function pair(event) {
     event.preventDefault();
+    if (!alive || busy || !auth) return;
     const secret = code.value; code.value = "";
     void act("pair", async current => {
       const status = await auth.pair(secret);
@@ -94,28 +121,36 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
   function startRequest() {
     void act("request-create", async current => {
       await requester.start();
-      if (current()) { recovery = ""; uncertainAction = false; get("copy-pairing-state").textContent = ""; show("Pairing request ready · no connection opened"); }
+      if (current()) { recovery = ""; uncertainAction = false; autoPaused = false; get("copy-pairing-state").textContent = ""; show("Waiting for agent approval · no connection opened"); }
     });
   }
-  function checkRequest() {
-    if (requester?.view()?.state === "expired") { render(); return; }
+  function checkRequest(automatic = false) {
+    if (!dialog.open || document.visibilityState !== "visible") return;
+    if (requester?.view()?.state === "expired" || (automatic && !canWait())) { render(); return; }
     void act("request-check", async current => {
+      const eligible = () => current() && dialog.open && document.visibilityState === "visible";
+      if (!automatic) autoPaused = false;
       // Status first recovers a delivered cookie after an uncertain claim response.
       const status = await auth.status();
-      if (!current()) return;
+      if (!eligible()) return;
       if (status.authenticated) {
         showStatus(status);
         show("This browser is already approved. Remove browser approval explicitly before claiming a different request.");
         return;
       }
+      if (requester.view()?.claimUncertain) {
+        recovery = "The claim outcome is uncertain. Ask the operator to check/revoke the orphaned page session. Do not retry the claim or start a new request.";
+        return;
+      }
       const request = await requester.check();
-      if (!current()) return;
-      if (request.state === "approved") {
+      if (!eligible()) return;
+      recovery = ""; uncertainAction = false;
+      if (request.state === "approved" && !request.claimAttempted) {
         const pairedStatus = await requester.claim();
         if (current()) showStatus(pairedStatus);
       } else if (request.state === "redeemed") {
         show("Request was already claimed but this browser has no session cookie. Ask the operator to revoke the orphaned page session, then create a fresh request. Do not retry the claim.");
-      } else show(`Request ${request.state} · no connection opened; approval checks are manual`);
+      } else show(request.state === "pending" ? "Waiting for agent approval · no connection opened" : `Request ${request.state} · no connection opened`);
     });
   }
   async function copyMessage() {
@@ -125,7 +160,7 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
     const epoch = generation;
     try {
       await navigator.clipboard.writeText(`Please approve pairing ${request.request}`);
-      if (alive && epoch === generation) get("copy-pairing-state").textContent = "Copied. Send this message to the agent, then Check approval.";
+      if (alive && epoch === generation) get("copy-pairing-state").textContent = "Copied. Send this message to the agent; approval is checked automatically while this dialog is visible.";
     } catch {
       if (alive && epoch === generation) get("copy-pairing-state").textContent = "Clipboard unavailable. Select and copy the message above, then send it to the agent.";
     }
@@ -139,9 +174,9 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
   }
   function openConnection() {
     if (!alive || busy || !auth) return;
-    cancelConnect(); // explicit Connect supersedes cache/import work BEFORE its auth wait
     const to = target.value.trim(); // never inferred from presence
     void act("connect", async current => {
+      cancelConnect(); // reserve the auth lock before callbacks; fence cache/import BEFORE auth wait
       if (!validTargetParticipant(to)) throw new Error("Select a participant ID");
       preference.save(to);
       const status = await auth.status();
@@ -154,10 +189,19 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
   function forget() {
     void act("forget", async current => {
       disconnect();
+      // Cookies can change outside this control. Never attest from displayed state.
+      const before = await auth.status();
+      if (!current()) return;
+      const revokedParticipant = before.authenticated ? before.participant : undefined;
+      // This fresh observation is not an atomic cross-tab status/logout guarantee.
       const status = await auth.forget();
       if (current()) {
-        // Confirmed explicit revocation makes this terminal binding safe to retire.
-        if (!status.authenticated && ["redeemed", "expired", "cancelled"].includes(requester?.view()?.state)) requester.clearExpired();
+        // Revoking a different cookie is not authority to retire this claim.
+        const request = requester?.view();
+        if (!status.authenticated && !request?.claimUncertain &&
+            ["redeemed", "expired", "cancelled"].includes(request?.state) &&
+            (request.state !== "redeemed" || (revokedParticipant && revokedParticipant === request.participant)))
+          requester.clearExpired({revokedParticipant});
         uncertainAction = false;
         showStatus(status);
       }
@@ -168,7 +212,7 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
   listen(get("copy-pairing-message"), "click", () => { void copyMessage(); });
   listen(get("choose-agent"), "click", () => { get("connection-advanced").open = true; target.focus(); });
   listen(get("done-connection"), "click", closeDialog);
-  listen(get("check-pairing-request"), "click", checkRequest);
+  listen(get("check-pairing-request"), "click", () => checkRequest());
   listen(get("cancel-pairing-request"), "click", cancelRequest);
   listen(get("check-session-status"), "click", () => { void refresh(); });
   listen(get("advanced-check-session"), "click", () => { void refresh(); });
@@ -190,6 +234,10 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
     });
   });
   listen(dialog, "close", render); // notification only; never cancel or refocus here
+  listen(document, "visibilitychange", () => {
+    if (document.visibilityState !== "visible") cancel(false);
+    else schedule();
+  });
   listen(target, "input", () => { cancel(); disconnect(); render(); });
   listen(menu, "click", event => {
     if (event.target.closest("button, a")) {
@@ -206,13 +254,13 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
     requester = createPairingRequest({auth});
     try { requester.restore(); render(); }
     catch { requesterError = "Pairing request storage is unavailable or malformed. Check session status; ask the operator to repair the request before starting again. Private-code pairing remains available under Advanced."; render(); }
-    void refresh();
   }
   catch { recovery = "Pairing unavailable. Use the authoritative 127.0.0.1 local HTTP origin, then Check session status."; show("Browser approval unavailable"); render(); }
   return {
     refresh, cancel,
     selectTarget(to) {
       if (!validTargetParticipant(to)) return false;
+      cancel();
       target.value = to; render(); // explicit trusted provisioning, NOT a saved preference
       return true;
     },
@@ -228,7 +276,7 @@ export function bindSessionControls({ connect, disconnect, cancelConnect = () =>
       render();
     },
     dispose() {
-      alive = false; generation++; code.value = "";
+      stopWaiting(); alive = false; generation++; code.value = "";
       for (const [element, name, fn] of listeners) element.removeEventListener(name, fn);
       if (dialog.open) dialog.close();
     },

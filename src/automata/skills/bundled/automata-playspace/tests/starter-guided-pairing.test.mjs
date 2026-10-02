@@ -65,6 +65,7 @@ test("restored approved-unclaimed request offers Check, not Copy, and restoratio
     assert.match(get("pairing-request-state").textContent,/Approved by agent/);
     assert.ok(c.requests.every(request => request.url.endsWith("/status")));
     assert.equal(c.connections.length,0);
+    get("connection-settings").click(); await tick();
     get("check-pairing-request").click(); await tick(); await tick();
     primary(get,"connect-session");
     assert.equal(c.connections.length,0);
@@ -133,12 +134,12 @@ test("invalid approved target opens Advanced and focuses field; unrelated focus 
   const {get,controls:c,context,document,tick} = await starterHarness();
   try {
     get("connection-settings").click(); await tick();
-    get("target-participant").value = ""; get("target-participant").fire("input");
+    get("target-participant").value = ""; get("target-participant").fire("input"); await tick();
     primary(get,"choose-agent");
     get("choose-agent").click();
     assert.equal(get("connection-advanced").open,true);
     assert.equal(document.activeElement,get("target-participant"));
-    get("target-participant").value = "agent-two"; get("target-participant").fire("input");
+    get("target-participant").value = "agent-two"; get("target-participant").fire("input"); await tick();
     assert.equal(document.activeElement,get("target-participant"));
     primary(get,"connect-session");
     get("close-connection").focus(); c.holdStatus = true; get("connect-session").click();

@@ -184,8 +184,10 @@ test('transient requester survives refresh and lost create response without expo
   await assert.rejects(second.claim(),/not approved/);
   clock=1300;
   await assert.rejects(second.check(),/expired/);
-  assert.equal(second.view().state,'expired');
-  second.clearExpired();
+  assert.equal(second.view().state,'redeemed'); // request TTL cannot retire a claimed session
+  await assert.rejects(second.start(),/explicit session revocation/);
+  assert.throws(() => second.clearExpired(),/explicit session revocation/);
+  second.clearExpired({revokedParticipant:'page'}); // caller observed matching explicit logout
   assert.equal(values.size,0);
 });
 

@@ -36,9 +36,10 @@ pairing**, then **Copy message to send agent**. Send the visible `Please approve
 pairing RP-…` message to the agent to request approval for an existing configured
 page using private `approve-request`. Copy never sends anything; if clipboard
 access fails, select and copy the visible message manually. You need neither a
-Page ID nor a private code. Click **Check approval** to claim the approved pairing,
-then **Connect to <agent>** separately. A known-approved but unclaimed request
-makes Check approval primary instead of asking the agent again. **Choose agent**
+Page ID nor a private code. Keep the dialog open and visible: **Waiting for agent
+approval** checks automatically every two seconds and claims approval once. Then
+click **Connect to <agent>** separately. **Check approval** remains available for
+manual recovery, including a known-approved but unclaimed request. **Choose agent**
 opens Advanced when the target is missing/invalid. Once connected, **Done** only
 dismisses the dialog. The existing `pair` command and private-code form remain a
 secondary fallback under Advanced.
@@ -52,9 +53,13 @@ must still be established explicitly. No events/requests/reply capabilities repl
 An offline agent presence snapshot is informational, not a stale send gate; after
 it binds, only a new explicit send is attempted.
 
-Pairing requests last five minutes, with bounded server state and **no background
-polling**. Every check/claim is explicit; each fetch times out after five seconds
-without promising rollback. Double clicks reuse the pending binding. Refresh
+Pairing requests last five minutes, with bounded server state. One sequential
+2-second timer checks only while the dialog is open, the document visible and the
+request pending or approved-unclaimed. Initial/opening/manual status reads and
+approval actions share one physical lock; no overlapping HTTP action or automatic
+Connect occurs. Each fetch retains its five-second timeout without promising
+rollback. Errors stop automatic checks and offer manual recovery; expiry does not
+extend the request. Double clicks reuse the pending binding. Refresh
 restores its display from the dedicated `automata-router-request-v1` sessionStorage
 entry, not from drafts. The 256-bit short-lived requester capability is never the
 public locator and never enters snapshots, URLs or logs. Tabs may share cookies or
@@ -62,20 +67,37 @@ clone sessionStorage; no tab-isolation claim is made. Unavailable transient stor
 blocks request creation without disabling private-code pairing.
 
 **Cancel pairing request** cancels that exact server request. Dialog Close/Done/Escape
-only dismiss and fence pending UI work. Approval chooses an existing configured
+dismiss and fence pending UI work, retaining the binding. Hidden documents also
+stop scheduling and fence continuations before claim. Reopen/visible resumes a
+normal request after a fresh two-second wait and any held operation settles;
+errors and uncertain claims do not silently resume. Target edits pause waiting
+until an explicit Check approval or dialog reopen. Approval chooses an existing configured
 page and cannot replace a connected peer, unexpired page session or reservation.
 An incoming cookie for any already-paired page must have its approval explicitly removed before
 claiming another page. The UI checks existing session status before claiming.
 
-Requests do not survive Router restart. Expired/cancelled requests offer **Start
-new pairing**, requiring fresh operator approval. Service/storage uncertainty or
+Requests do not survive Router restart. Expired/cancelled unclaimed requests offer
+**Start new pairing**, requiring fresh operator approval. A redeemed request keeps
+its repair identity past the request TTL: missing cookies do not prove revocation. Service/storage uncertainty or
 a redeemed request without a cookie offers **Check session status** and operator
 repair guidance, not another claim or a confident new-request instruction. The
-request client retains its bounded binding; the UI never automatically retries.
-For a lost claim response, **Check session status** recovers a delivered cookie.
-If the server committed a session without delivering the cookie, ask the operator
-to explicitly revoke the orphaned page session before a fresh request; claiming
-again never reissues the cookie. No automatic retry, claim, connection or work replay.
+request client retains its binding; the UI never automatically retries errors.
+Before redeem, the client persists a sticky `claimAttempted` marker: failed storage
+means no redeem, and an ambiguous response cannot cause a second redeem, including
+after reload. For a lost claim response, **Check session status** recovers a
+delivered cookie. Matching authenticated status or a confirmed redeem records
+`claimConfirmed` without removing the attempt marker. Both unresolved attempts
+and confirmed redemptions remain protected after TTL; neither Start pairing nor
+local expiry cleanup may replace them. A confirmed redemption can retire only
+after successful explicit logout of its matching page. Before logout, a fresh
+session-status read under the same physical lock supplies the identity, never the
+cached displayed Page ID. Revoking another page does not retire the prior claim.
+This browser-side status/logout sequence is not atomic against another tab changing
+cookies between the two requests. If the server committed a session without delivering the
+cookie, ask the operator to check/revoke the orphaned page session and explicitly
+repair the local binding before a fresh request. Missing/expired cookies alone are
+not proof of revocation. Claiming again never reissues the cookie. No automatic
+error retry, connection or work replay.
 
 The last validated target ID is saved only when Connect is explicitly clicked,
 under a directory-scoped `automata-playspace-chat-target-v1` localStorage preference,
@@ -105,7 +127,8 @@ on actions or Escape; safety explanations remain discoverable in details.
 Disconnect keeps approval and local drafts. **Remove browser approval** is a
 separate destructive action under Advanced: it revokes that cookie session,
 clears it and disconnects without erasing drafts. After confirmed revocation, a
-terminal requester binding is cleared locally so a fresh pairing can be requested. Codes and permanent
+terminal requester binding is cleared locally so a fresh pairing can be requested;
+an unresolved claim is not cleared by this path. Codes and permanent
 Router tokens never enter snapshots. Authenticated, offline/expired and failures
 are visible separately from transport/agent admission. Cookie auth requires the
 exact local HTTP `127.0.0.1:<port>` origin. HttpOnly/SameSite=Strict is not Secure

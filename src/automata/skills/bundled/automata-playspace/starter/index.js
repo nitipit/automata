@@ -19,7 +19,7 @@ let pendingProvisionIntent;
 function showConnection(value) {
   openingConnection = value === "LIVE · connecting to selected participant";
   sessionControls?.setConnection(value);
-  if (value.startsWith("LIVE DISCONNECTED")) void sessionControls?.refresh();
+  if (!initializing && value.startsWith("LIVE DISCONNECTED")) void sessionControls?.refresh(false);
 }
 const transport = bindChatTransport(chat, {
   sampleReply, createLiveClient: options => liveFactory(options),
@@ -141,4 +141,8 @@ try {
   if (!await restore()) chat.addMessage("agent", text("What would you like to explore? Connect your agent to begin, or try the local Demo in Tools."));
 } catch {
   document.querySelector("#startup-error").textContent = "Starter initialization failed · no remote request sent. Check public modules/component contracts.";
-} finally { initializing = false; }
+} finally {
+  initializing = false;
+  // Startup Restore fences connection intents; check auth only after that boundary.
+  void sessionControls.refresh(false);
+}

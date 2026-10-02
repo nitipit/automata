@@ -11,7 +11,7 @@ export function createSessionView(get) {
     const lostToBusy = busy && (wasInForm || wasInRequest || actionIds.some(id => get(id) === active));
     const pending = request?.state === "pending" && !!request.request;
     const approved = request?.state === "approved" && !!request.request;
-    const repair = !paired && (recovery || request?.state === "redeemed" || (request && !request.request));
+    const repair = !paired && (recovery || request?.claimUncertain || request?.state === "redeemed" || (request && !request.request));
     const message = request?.request ? `Please approve pairing ${request.request}` : "";
     get("dialog-target").textContent = get("target-participant").value.trim() || "Choose an agent";
     get("pairing-request-locator").textContent = request?.request || "No request yet";
@@ -48,18 +48,19 @@ export function createSessionView(get) {
       if (paired) offer("forget-pairing").className = "quiet danger";
     } else if (repair) {
       offer("check-session-status", true);
-      guidance = recovery || (request?.state === "redeemed" ?
+      guidance = recovery || (request?.claimUncertain ?
+        "The claim outcome is uncertain, even after request expiry. Check session status. If still unapproved, ask the operator to check/revoke the orphaned page session; do not retry the claim or start a new request." : request?.state === "redeemed" ?
         "This request was already claimed, but this browser has no approval cookie. Check session status. If still unapproved, ask the operator to revoke the orphaned page session before starting again; do not retry the claim." :
         "The request outcome is uncertain. Check session status and ask the operator to repair the request before starting again.");
     } else if (approved) {
       offer("check-pairing-request", true);
       offer("cancel-pairing-request");
-      guidance = "Approved by agent — check approval to finish browser approval. This does not connect.";
+      guidance = "Approved by agent — finishing browser approval automatically while this dialog is visible. Check approval is also available. This does not connect.";
     } else if (pending) {
       offer("copy-pairing-message", true);
       offer("check-pairing-request");
       offer("cancel-pairing-request");
-      guidance = "Send this message to the agent. After they approve, select Check approval. Checks are manual; nothing connects automatically.";
+      guidance = "Waiting for agent approval. Send this message to the agent; approval is checked automatically every two seconds while this dialog is open and visible. Connect stays separate.";
     } else {
       offer("request-pairing", true).textContent = request ? "Start new pairing" : "Start pairing";
       guidance = request?.state === "expired" ? "This pairing request expired. Start a new request and ask the agent to approve it." :
