@@ -1,164 +1,77 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-import vm from "node:vm";
+import { load, installDOM, FakeNode } from "./runtime.mjs";
+installDOM();
+const adaptiveUI = await load("adaptive-ui.js");
+const { createStarter } = await load("../page.js");
+export const deferred = () => {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+};
+export const settle = () => new Promise(resolve => setImmediate(resolve));
+export const response = (type, payload = null, final = true) => ({
+  v: 2, type: "response", id: "route-id", requestId: "request-id",
+  from: { id: "agent", kind: "agent" }, final, payload, metadata: { pi: { type } },
+});
 
-/** Executes actual staged starter modules; DOM, cache and remote boundaries are fakes. */
-export async function starterHarness({requestStorage = new Map(), authenticated = true,
-  clock, holdInitialStatus = false} = {}) {
-  const ClockDate = clock?.Date ?? Date;
-  class Element {
-    value = ""; textContent = ""; disabled = false; hidden = false; open = false;
-    elements = []; listeners = new Map(); dataset = {}; attributes = new Map();
-    addEventListener(name, fn) { if (!this.listeners.has(name)) this.listeners.set(name, new Set()); this.listeners.get(name).add(fn); }
-    removeEventListener(name, fn) { this.listeners.get(name)?.delete(fn); }
-    fire(name, detail = {}) {
-      const event = {target:this,preventDefault(){this.defaultPrevented=true;}, ...detail};
-      for (const fn of this.listeners.get(name) ?? []) fn(event);
-      return event;
-    }
-    click() { this.fire("click"); }
-    focus() { document.activeElement = this; }
-    setAttribute(name, value) { this.attributes.set(name, value); }
-    showModal() { this.open = true; }
-    close() {
-      if (!this.open) return;
-      this.fire("beforetoggle", {oldState:"open",newState:"closed"});
-      this.open = false;
-    } // tests dispatch the separately queued native close notification
-    querySelector() { return summary; }
-    contains(element) { return element === this || this.elements.includes(element); }
-    closest() { return null; }
-  }
-  const ids = ["pairing-state", "pairing-code", "target-participant", "pairing-form", "pair-browser", "connect-session",
-    "forget-pairing", "target-preference-state", "connection", "recovery", "sample-mode", "live-mode",
-    "sample-form", "save", "restore", "startup-error", "connection-dialog", "connection-settings", "tools-menu",
-    "close-connection", "cancel-connection", "selected-target", "connection-detail", "page-participant",
-    "request-pairing-controls", "request-pairing", "check-pairing-request", "cancel-pairing-request",
-    "pairing-request-locator", "pairing-request-state", "check-session-status", "copy-pairing-message",
-    "pairing-message", "pairing-message-box", "copy-pairing-state", "request-expiry", "request-dismiss-note",
-    "dialog-target", "choose-agent", "done-connection", "connection-advanced", "advanced-check-session", "forget-row"];
-  const elements = new Map(ids.map(id => [id, new Element()]));
-  const get = id => elements.get(id), summary = new Element();
-  get("target-participant").value = "pc1-agent";
-  get("pairing-form").elements = [get("pairing-code"), get("pair-browser")];
-  get("request-pairing-controls").elements = [get("request-pairing"), get("check-pairing-request"), get("cancel-pairing-request"), get("copy-pairing-message"), get("pairing-message")];
-  const controls = {candidate:null, holdStatus:holdInitialStatus, holdPair:false, holdLoad:false, holdConnect:false,
-    authenticated, participant:"page", restorations:0, messages:[], connections:[], clients:[], requests:[],
-    requestRecords:new Map(), clipboard:[]};
-  const chat = Object.assign(new Element(), {interrupt(){},setConnection(){},setAgentBusy(){},setStatus(){},
-    snapshot:()=>({}),restore:()=>{controls.restorations++;return true;},addMessage:(...args)=>controls.messages.push(args),
-    dispose(){},reject(){},receiveMessage(){},markSent(){}});
-  const storage = new Map();
-  const document = Object.assign(new Element(), {visibilityState:"visible",
-    querySelector:selector => selector === "ps-chat" ? chat : get(selector.slice(1)), getElementById:get});
-  const context = vm.createContext({URL, setTimeout:clock?.setTimeout ?? setTimeout,
-    clearTimeout:clock?.clearTimeout ?? clearTimeout, Date:ClockDate, queueMicrotask, AbortController,
-    crypto:globalThis.crypto,
-    navigator:{clipboard:{writeText:async text => {
-      if (controls.clipboardFail) throw new Error("Clipboard blocked");
-      controls.clipboard.push(text);
-    }}},
-
-    sessionStorage:{getItem:key => requestStorage.get(key) ?? null,
-      setItem:(key,value) => {
-        if (controls.storageWriteFail) throw new Error("Storage write blocked");
-        requestStorage.set(key,value);
-      },removeItem:key => requestStorage.delete(key)},
-    location:{origin:"http://127.0.0.1:8775",href:"http://127.0.0.1:8775/"}, document,
-    addEventListener(){},removeEventListener(){},
-    localStorage:{getItem:key => storage.get(key) ?? null,setItem:(key,value) => storage.set(key,value)},
-    fetch:async (url, options) => {
-      const endpoint = new URL(url).pathname;
-      const requestKinds = {"/session/request":"RequestCreate", "/session/request-status":"RequestStatus",
-        "/session/request-cancel":"RequestCancel", "/session/request-redeem":"RequestRedeem"};
-      const kind = requestKinds[endpoint] ?? (url.endsWith("/pair") ? "Pair" : url.endsWith("/logout") ? "Forget" : "Status");
-      controls.requests.push({url,options});
-      controls.activeRequests = (controls.activeRequests ?? 0) + 1;
-      controls.maxActiveRequests = Math.max(controls.maxActiveRequests ?? 0, controls.activeRequests);
-      const response = () => {
-        if (controls.failNext === kind) { controls.failNext = null; return {ok:false,status:503}; }
-        if (kind === "Forget") controls.authenticated = false;
-        let result = {authenticated:controls.authenticated,participant:controls.participant,expiresAt:100};
-        if (requestKinds[endpoint]) {
-          const packet = JSON.parse(options.body);
-          let record = [...controls.requestRecords.values()].find(value => value.capability === packet.capability);
-          if (kind === "RequestCreate" && !record) {
-            const request = "RP-" + String(controls.requestRecords.size + 1).padStart(10,"0");
-            record = {...packet, request, state:"pending", expiresAt:ClockDate.now()/1000+300};
-            controls.requestRecords.set(request,record);
-          }
-          if (!record || (kind !== "RequestCreate" && record.request !== packet.request)) return {ok:false,status:400};
-          if (kind === "RequestCancel") record.state = "cancelled";
-          if (kind === "RequestRedeem") {
-            if (controls.authenticated || record.state !== "approved") return {ok:false,status:400};
-            record.state = "redeemed"; controls.authenticated = true;
-            controls.participant = record.participant;
-            if (controls.loseRedeemResponse) {
-              if (controls.loseCookie) controls.authenticated = false;
-              return {ok:false,status:503};
-            }
-            result = {authenticated:true,participant:record.participant,expiresAt:ClockDate.now()/1000+3600};
-          } else {
-            const {capability, ...safe} = record; result = safe;
-          }
-        }
-        return {ok:true,json:async()=>result};
-      };
-      try {
-        if (!controls[`hold${kind}`]) return response();
-        controls[`hold${kind}`] = false;
-        return await new Promise(resolve => { controls[`resolve${kind}`] = () => resolve(response()); });
-      } finally { controls.activeRequests--; }
+/** Runs the shipped page composition and authored Base component, not a copied controller. */
+export async function starterHarness() {
+  const elements = Object.fromEntries(["root", "status", "connection", "target", "code", "save",
+    "restore", "pair", "connect", "disconnect", "authStatus"].map(id => [id, new FakeNode()]));
+  elements.target.value = "agent";
+  const clients = [], saves = [], pairs = [];
+  const control = { authWait: null, loadWait: null, flushWait: null, connectWait: null,
+    stored: null, onSend: null, authCalls: 0, disposed: false, saveWait: null };
+  const auth = {
+    async status() { control.authCalls++; return control.authWait ? await control.authWait.promise : { authenticated: true, participant: "page" }; },
+    connection(status) { if (!status.authenticated) throw Error("unauthenticated"); return { participant: status.participant, wsUrl: "ws://local/session/ws" }; },
+    async pair(code) { pairs.push(code); return { authenticated: true }; },
+  };
+  const recovery = {
+    async load() { return control.loadWait ? await control.loadWait.promise : control.stored; },
+    async save(value) {
+      saves.push(value);
+      if (control.saveWait) await control.saveWait.promise;
+      control.stored = structuredClone(value);
+      return true;
     },
-  });
-  const clientFactory = options => {
-    const client = {closed:false,
-      async connectSession() {
-        controls.connections.push({kind:"session",to:options.to});
-        if (controls.holdConnect) {
-          controls.holdConnect = false;
-          await new Promise(resolve => {controls.resolveConnect = resolve;});
-        }
-        options.onState({status:"connected"});
+    async flush() { if (control.flushWait) await control.flushWait.promise; },
+    dispose() { control.disposed = true; },
+  };
+  const page = createStarter({ elements, adaptiveUI, auth, recovery, createClient(callbacks) {
+    const client = { connected: false, closed: false, callbacks, sends: [],
+      async connectSession(session) {
+        client.session = session;
+        if (control.connectWait) await control.connectWait.promise;
+        client.connected = true;
+        callbacks.onState({ status: "connected" });
       },
-      async connect() { controls.connections.push({kind:"token",to:options.to}); options.onState({status:"connected"}); },
-      async status() { return {destinations:[{id:options.to,kind:"agent",connected:true}]}; },
-      close(){this.closed=true;},isConnected(){return !this.closed;}, sendMessage(){controls.sends=(controls.sends??0)+1;},
+      async connect() { throw Error("Unexpected bearer connection"); },
+      isConnected: () => client.connected,
+      close() {
+        client.closed = true; client.connected = false;
+        callbacks.onState({ status: "disconnected" });
+        for (const sent of client.sends) sent.options.onResponse({ type: "route_closed", uncertain: true });
+      },
+      send(to, payload, options) {
+        const accepted = deferred();
+        const sent = { to, payload, options, accepted };
+        client.sends.push(sent);
+        control.onSend?.(sent);
+        return { id: "request-id", accepted: accepted.promise };
+      },
     };
-    controls.clients.push(client);
-    return client;
+    clients.push(client); return client;
+  } });
+  await page.ready;
+  return { page, elements, clients, saves, pairs, control,
+    send(text = "question") {
+      const component = elements.root.children[0];
+      component.querySelector("textarea").value = text;
+      component.querySelector("form").emit("submit");
+      return clients.at(-1)?.sends.at(-1);
+    },
+    get message() { return elements.status.textContent; },
+    get connection() { return elements.connection.textContent; },
+    get state() { return page.runtime.snapshot().layout[0].state; },
   };
-  const fakes = {
-    "lib/playspace.js":{registerPlayspace(){},ContractError:class extends Error{},text:value=>value,formContracts:{}},
-    "lib/recovery.js":{createCacheRecovery:()=>({flush:async()=>{},load:async()=>{
-      if (!controls.holdLoad) return controls.candidate;
-      return new Promise(resolve => {controls.resolveLoad=()=>resolve(controls.candidate);});
-    },save:async()=>true,dispose(){}})},
-    "lib/state.js":{validateStarterSnapshot:value=>value},
-    "sample.js":{sampleForm:()=>"sample-form",sampleReply:()=>null},
-    "router/pi-client.js":{createMessageRouterChatClient:clientFactory},
-  };
-  const modules = new Map(), stage = path.dirname(process.env.PLAYSPACE_LIB);
-  async function load(name) {
-    if (modules.has(name)) return modules.get(name);
-    const exports = fakes[name];
-    const module = exports ? new vm.SyntheticModule(Object.keys(exports), function() {
-      for (const [key,value] of Object.entries(exports)) this.setExport(key,value);
-    }, {context,identifier:name}) : new vm.SourceTextModule(await fs.readFile(path.join(stage,name),"utf8"), {
-      context,identifier:name,
-      async importModuleDynamically(specifier, parent) {
-        if (controls.holdImport) await new Promise(resolve => {controls.resolveImport=resolve;});
-        const imported = await load(path.posix.normalize(path.posix.join(path.posix.dirname(parent.identifier),specifier)));
-        if (imported.status !== "evaluated") await imported.evaluate();
-        return imported;
-      },
-    });
-    modules.set(name,module);
-    await module.link((specifier,parent) => load(path.posix.normalize(path.posix.join(path.posix.dirname(parent.identifier),specifier))));
-    return module;
-  }
-  await (await load("index.js")).evaluate();
-  const tick = () => new Promise(resolve => setImmediate(resolve));
-  await tick();
-  return {get,controls,context,clientFactory,chat,document,storage,requestStorage,tick,summary};
 }

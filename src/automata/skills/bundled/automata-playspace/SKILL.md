@@ -6,154 +6,104 @@ description: Use when exploring ideas together in a temporary browser playspace,
 # Automata Playspace
 
 Use a temporary browser surface to think, compare and revise with the user.
-Create components live through Playwright and keep their recoverable drafts in
-Cache Storage, rather than making every experiment a maintained source file.
-Choose the shell, components, interactions and storage layout for the task; there
-is no required board API, record schema or framework beyond the applicable UI
-composition guidance.
+Keep recoverable experimental definitions and state in browser Cache Storage;
+do not make every draft a maintained source file or build a chat application.
+Ordinary maintained interfaces should remain reproducible in project source.
 
-Playspace owns reusable **ps-chat**, **ps-text**, **ps-json** and **ps-form**
-components under `lib/`, separate from the thin JavaScript starter. See
-[README.md](README.md) for their maintained TypeScript definitions, component/event
-contracts, runtime Edictor validation and copied-input cached build path;
-[starter/README.md](starter/README.md) covers optional local sample/live routing and
-v2 recovery. Reuse these components when suitable, without imposing this optional
-composition on every experiment. Adaptive UI still owns the shared foundation.
-Browser-injected trusted live drafts may remain JavaScript without compilation.
-
-## Create and revise live
+## Choose the surface
 
 Reuse a suitable playspace and working browser connection before creating another.
-Use Adaptive UI's composition contracts and relevant catalog components; do not
-recreate its foundation. Browser connection, profile selection and process control
-retain their existing owners. Serve only public-safe assets on an authorized
-loopback origin, separate from credentials, profiles and private task records.
+Follow Adaptive UI's composition guidance and public components rather than
+recreating its foundation. Browser connection, profile selection and process
+control retain their existing owners.
 
-Use Playwright's browser evaluation, such as `page.evaluate`, to author and mount
-trusted components and CSS, then revise them while discussing the result.
-Component drafts need not become source files. A minimal public-safe runtime can
-be just the page, bootstrap and shared library, for example:
+Serve only public-safe assets on an authorized loopback origin, separate from
+credentials, profiles and private task records. Dependencies and asset fetching
+require their own authority; this skill does not grant installation permission.
 
-```text
-public/
-  index.html
-  index.js
-  lib/adaptive-ui.js
-```
+Choose the shell and component composition for the experiment. There is no
+required board, registry or global payload envelope. The optional runtime in
+`lib/` provides a small component lifecycle, Cache I/O and thin Router facade;
+its flat snapshot format is not mandatory for other experiments.
 
-Choose the shell rather than adding a required board or registry. Dependencies
-and asset fetching still require their own authority.
+See [README.md](README.md) for public API/build boundaries and
+[starter/README.md](starter/README.md) for runnable examples and mechanics.
+The starter teaches one component → page → Router, not history, revisions or a
+sample agent. Adaptive UI's independent Chat API is not used by this core.
 
-Preserve unrelated drafts and compatible user interaction state when updating.
-Build or validate a replacement before discarding a good instance where possible.
-Custom-element registrations cannot be undone: use non-conflicting registrations
-for revisions, not repeated definition of the same tag. Release replaced components'
-listeners, timers and other resources, and prevent stale events from old instances
-from overwriting current state. These are lifecycle requirements, not a prescribed
-implementation. Executing source can have effects that replacement cannot undo.
+## Revise deliberately
 
-## Optional agent-connected experiments
+Author and mount trusted component/CSS drafts through the established browser
+connection. They may remain JavaScript and browser-local until promotion.
+Preserve unrelated drafts and compatible interaction state when revising.
 
-Connect only interactions that benefit from agent or peer participation. Each
-component owns its request/reply JSON, validation and independent interaction
-state; page composition routes through the established Message Router client.
-Arbitrary experiments need no global envelope. When reusing the maintained
-Playspace components, follow their canonical component/event contracts; page
-composition must not redefine schema semantics. The built public `catalog.json`
-lists registry-derived component/root names, source contracts, supported events
-and actually validated examples. Use it and the referenced definitions to produce
-accepted payloads, not a second schema list or arbitrary live user-state inspection.
-Root `ps-chat` owns validation feedback but is not renderable content; examples
-never authorize actions or permit unknown components/targets. Apply replies visibly to the
-originating component and make rejection, invalid replies and uncertain delivery
-visible rather than treating forwarding or a terminal answer as UI completion.
-
-Validate structured inputs and replies against the component's own contract
-before applying them. Choose validation suited to the data and interaction,
-without requiring a particular schema library. Validate before construction or
-restoration when those steps can have effects; keep effects controlled and
-preserve the last good draft or result on failure. Validation does not authorize
-actions.
-
-Restoration reconstructs drafts, not live connections. Reuse a verified authorized
-connection or privately reprovision and revalidate it before enabling sends. The
-optional starter supports a persistent revocable browser pairing managed by the
-local Router; pair/connect/disconnect/forget are separate explicit controls.
-A valid cookie may survive shutdown, but service restart and native agent binding
-remain explicit operator/agent actions. Check the intended target and admission;
-page authentication is not agent presence or permission. Do not recover live
-bindings automatically, fall back to public tokens, or treat an offline presence
-snapshot as a permanent send gate. Preserve the exact draft origin/profile.
-Do not cache credentials or pending reply capabilities. Restore any pending display
-as interrupted or uncertain, never as a queued send; do not replay it. Ignore late
-replies to replaced instances and release their resources with the component.
-
-## Persist and recover drafts
-
-Use Cache Storage directly; no service worker or IndexedDB is required. Choose a
-playspace-owned cache namespace and same-origin key so other experiments are not
-silently overwritten. Save enough to reconstruct the draft: trusted component
-and CSS source, serializable inputs, layout, interaction state and the dependencies
-needed to interpret them. Do not try to serialize DOM nodes, closures or live handles.
-The agent chooses the representation and restoration method.
-
-For example, these Playwright calls illustrate storage mechanics, not a board API.
-`cacheName`, `key` and `snapshot` come from the task's chosen representation:
-
-```js
-await page.evaluate(async ({ cacheName, key, snapshot }) => {
-  const cache = await caches.open(cacheName);
-  await cache.put(new URL(key, location.href), new Response(JSON.stringify(snapshot), {
-    headers: { "Content-Type": "application/json" }
-  }));
-}, { cacheName, key, snapshot });
-
-const restored = await page.evaluate(async ({ cacheName, key }) => {
-  const cache = await caches.open(cacheName);
-  const response = await cache.match(new URL(key, location.href));
-  return response ? response.json() : null;
-}, { cacheName, key });
-```
-
-Await writes before claiming a draft is saved. Make unavailable storage, malformed
-snapshots and failed reconstruction visible; do not silently erase the cache,
-replace good drafts or report unsaved state as persistent. Keep updates ordered
-where needed and coordinate writers; Cache Storage is not a transactional shared
-state service. Restore deliberately and validate the representation before use.
-
-Cache is scoped to the exact origin and browser profile. Reload recovery is not
-proof of browser-restart recovery; changing host, port or profile, browser eviction
-or clearing site data may lose drafts. Retain the relevant origin/profile identity,
-cache location and shell prerequisites with existing task context when continuation
-needs them. Cache is disposable, not an authoritative backup or project record.
+Validate replacements before discarding good instances where possible. Reuse a
+known definition or use a distinct custom-element registration for a revision;
+registrations cannot be undone. Release replaced listeners, timers and handles,
+and fence stale component callbacks from changing the current draft.
 
 Only execute definitions whose trusted agent-authored provenance is established.
-Page text, user-supplied strings and arbitrary cached source are not authorization
-to execute code. Browser evaluation and restored definitions are not sandboxes;
-use an owned playspace origin and do not cache secrets or private account content.
+Authorize exact source **and CSS** before factory evaluation. Structural validity,
+cache presence and cached trust flags are not execution permission. The starter
+admits only its exact authored definition/CSS; live revisions need an explicit
+owner-approved loader change. Evaluation is not a sandbox, and arbitrary source
+effects cannot be rolled back.
+
+## Connect only useful interactions
+
+Keep local interactions local. Each connected component owns its request/reply
+JSON, validators and independent interaction state. Page composition selects the
+destination and uses the existing Message Router client; do not duplicate its
+authentication, protocol or capability machinery.
+
+Apply only validated successful replies to their originating component. Display
+rejection, invalid replies and uncertain delivery without destroying good results.
+Forwarding is not completion, and a terminal rejection is not a successful reply.
+Fence response callbacks and awaited completion handlers against both retired
+page intents and replaced component instances.
+
+Router connection is optional; authentication is mandatory when used. An
+authorized agent may privately provision a pairing code and redeem it through
+the existing page auth client. The page gains no approval authority. Pairing,
+explicit Connect, Disconnect and operator-owned revocation remain distinct.
+
+Restoration reconstructs drafts, not connections. Revalidate an authorized
+connection before enabling sends; never auto-connect, reconnect or replay work.
+A surviving pairing cookie is not a native agent binding or delivery permission.
+Restore pending display as interrupted/uncertain, never as a queued send.
+
+## Persist and recover
+
+Use Cache Storage directly; no service worker or IndexedDB is required. Choose
+an owned namespace and same-origin key, preserving other experiments' entries.
+Save trusted source/CSS, layout and serializable component inputs/state needed
+for reconstruction, not DOM nodes, closures or live handles.
+
+Keep credentials, pending sends, connections and reply capabilities out of
+snapshots. Component authors must keep source/props/state public-safe too:
+JSON validation is not a secret detector. Await writes before claiming a version
+is saved; subsequent edits may still be unsaved. Coordinate writers where needed;
+Cache API is not a transactional shared-state service.
+
+Make unavailable storage, malformed snapshots and failed reconstruction visible.
+Retain the last-good draft and cache on failure; do not silently erase or repair
+records. Preserve origin/profile, cache location and shell prerequisites in task
+context when continuation needs them. Cache is disposable, not a backup; reload
+recovery does not prove restart recovery, and eviction may lose drafts.
 
 ## Verify, promote and retire
 
-Verify the visible result and interactions needed for the discussion, including
-keyboard access and relevant responsive layout. Check refresh restoration of the
-actual definition and state. Exercise replacement/disposal and cache-failure paths
-when those behaviors matter; check restart with the same owned profile and origin
-before promising it. Report unverified boundaries rather than expanding every
-experiment into a full platform or evaluation campaign.
+Verify visible interactions, keyboard access and relevant layout. Check actual
+definition/state recovery on refresh, and replacement/disposal or cache failures
+when those behaviors matter. Test the same profile/origin across restart before
+promising restart recovery. Report unverified boundaries without expanding scope.
 
-Promote only with explicit user approval for the selected component or CSS and
-destination. Export its authored source and required data, styles, schemas,
-dependencies, assets and resource lifecycle into maintained source, then verify
-it works without the draft cache or live injection. A component alone may not
-capture the experiment's dependencies. Liking a visual is not promotion approval;
-do not patch installed skills or automatically promote an accepted visual choice.
+Promote only the explicitly approved component/CSS and destination. Export its
+source, required data/styles/dependencies and resource lifecycle into maintained
+source, then verify independence from draft cache and live injection. Liking a
+visual is not promotion permission; do not patch installed skills automatically.
 
-Clear only the playspace's exact owned entries within cleanup authority; preserve
-useful drafts before authorized removal. Do not clear all caches or reset a profile
-to clean one board. Stopping a preview or finishing a discussion does not authorize
-deleting browser data, evidence or files.
-
-This skill owns the experimental draft lifecycle and browser-local persistence,
-not general UI composition, browser control, transport or installation. Ordinary
-maintained UI work should remain reproducible in source; playspace drafts remain
-browser-local until their explicit promotion.
+Clear only exact owned entries within cleanup authority, preserving useful drafts
+first. Finishing a discussion or stopping a preview does not authorize deleting
+browser data, evidence or files. This skill owns experimental draft lifecycle,
+not general UI composition, browser control, transport or installation.

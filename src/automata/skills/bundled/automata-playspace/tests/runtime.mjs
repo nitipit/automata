@@ -13,6 +13,13 @@ export class FakeNode {
   append(...nodes) { for (const node of nodes) { node.parentNode = this; this.children.push(node); } }
   remove() { if (this.parentNode) this.parentNode.children.splice(this.parentNode.children.indexOf(this), 1); this.parentNode = null; }
   replaceChildren(...nodes) { for (const child of this.children) child.parentNode = null; this.children = []; this.append(...nodes); }
+  replaceChild(next, previous) {
+    const index = this.children.indexOf(previous);
+    if (index < 0) throw new Error("Not a child");
+    previous.parentNode = null;
+    next.parentNode = this;
+    this.children[index] = next;
+  }
   setAttribute(name, value) { this.attributes.set(name, String(value)); }
   getAttribute(name) { return this.attributes.get(name) ?? null; }
   querySelectorAll(selector) {
@@ -58,5 +65,9 @@ export function installDOM() {
   globalThis.MutationObserver = class { observe() {} disconnect() {} };
   globalThis.document = Object.assign(new FakeNode("document"), { adoptedStyleSheets: [], createElement: tag => new FakeNode(tag) });
   const definitions = new Map();
-  globalThis.customElements = { get: tag => definitions.get(tag), define: (tag, value) => definitions.set(tag, value) };
+  globalThis.customElements = { get: tag => definitions.get(tag), define(tag, value) {
+    if (definitions.has(tag)) throw new Error("Duplicate registration");
+    definitions.set(tag, value);
+  } };
+  return { definitions };
 }
