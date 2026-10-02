@@ -1,137 +1,75 @@
-/** Page composition wires transport; Chat still owns payloads and admission state.
- * No implicit connection, retry, replay, persisted credentials or model history.
- */
-import type { Chat } from "./chat.js";
-import type { Payload } from "./types.js";
+/** Lifetime facade only. Router owns packets, auth, correlation and capabilities. */
+type Packet = Record<string, any>;
+type SendOptions = {
+  metadata?: Record<string, any>;
+  expectReply?: boolean;
+  onResponse?: (packet: Packet) => void;
+  isCurrent?: () => boolean;
+};
+type RouterClient = {
+  connect(credentials: any): Promise<unknown>;
+  connectSession(session: any): Promise<unknown>;
+  send(to: string, payload: unknown, options: Omit<SendOptions, "isCurrent">): {
+    id: string; accepted: Promise<any>;
+  };
+  respond(id: string, payload: unknown, options?: any): Promise<any>;
+  isConnected(): boolean;
+  close(): void;
+};
 
-export function bindChatTransport(chat: Chat, { sampleReply, createLiveClient, onState = (_message: string) => {} }: {
-  sampleReply: (payload: Payload) => Payload | Promise<Payload>;
-  createLiveClient?: (options: any) => any;
-  onState?: (message: string) => void;
+export function createPlayspaceRouter({ createClient, onState = () => {}, onMessage = () => {} }: {
+  createClient(options: { onState(packet: Packet): void; onMessage(packet: Packet): void }): RouterClient;
+  onState?: (packet: Packet) => void;
+  onMessage?: (packet: Packet) => void;
 }) {
-  let mode = "sample";
-  let client;
-  let generation = 0;
   let alive = true;
-  function notify(message) { if (alive) onState(message); }
+  let generation = 0;
+  let client: RouterClient | undefined;
   function retire() {
-    generation++;
+    generation++; // close can synchronously emit callbacks; invalidate first
     const previous = client;
     client = undefined;
     previous?.close();
-    chat.interrupt("Outstanding request interrupted/uncertain · no automatic replay");
   }
-  function sample() {
+  async function open(method: "connect" | "connectSession", credentials: unknown) {
+    if (!alive) throw new Error("Router facade is disposed");
     retire();
-    mode = "sample";
-    chat.setConnection(true);
-    chat.setAgentBusy(false);
-    chat.setStatus("Sample agent mode · local replies only · no remote connection");
-    notify("SAMPLE AGENT · offline demonstration, not a live agent");
-  }
-  function disconnected() {
-    retire();
-    mode = "live";
-    chat.setConnection(false);
-    notify("LIVE DISCONNECTED · connection credentials are never recovered from cache");
-  }
-  async function connect(credentials, to, { session = false } = {}) {
-    if (!alive) return false;
-    disconnected();
     const epoch = generation;
-    const current = () => alive && generation === epoch;
-    chat.setStatus("Connecting to explicitly selected agent…");
-    notify("LIVE · connecting to selected participant");
+    const current = () => alive && epoch === generation;
     try {
-      client = createLiveClient({ to,
-        onState(state) {
-          if (!current()) return;
-          switch (state.status) {
-            case "connected":
-              chat.setConnection(true);
-              chat.setAgentBusy(state.agentBusy === true);
-              notify("LIVE · authenticated transport; agent admission still required");
-              break;
-            case "sending": chat.setStatus("Sending · transport receipt pending"); break;
-            case "accepted": chat.setStatus("Forwarded · waiting for agent admission"); break;
-            case "admitted": chat.setStatus("Agent admitted · waiting for reply"); break;
-            case "rejected": chat.reject("Agent/route rejected request · no automatic retry"); break;
-            case "disconnected":
-              chat.setConnection(false);
-              chat.interrupt("Delivery interrupted/uncertain · no automatic replay");
-              notify("LIVE DISCONNECTED · prior effects/reply may be uncertain");
-              break;
-            case "error":
-              chat.interrupt("Router failure · delivery may be uncertain · no automatic replay");
-              break;
-          }
-        },
-        onMessage(message) {
-          if (!current()) return;
-          if (message?.v !== 1 || message.kind !== "reply") {
-            chat.interrupt("Invalid reply envelope · no automatic retry");
-            return;
-          }
-          chat.receiveMessage(message.payload);
-        },
+      const next = createClient({
+        onState: packet => { if (current()) onState(packet); },
+        onMessage: packet => { if (current()) onMessage(packet); },
       });
-      if (session) await client.connectSession(credentials);
-      else await client.connect(credentials);
-      if (!current()) return false;
-      // Presence is a snapshot, not admission and not a permanent send gate.
-      // A later explicit send may work after an offline agent binds.
-      if (client.status) {
-        const status = await client.status();
-        if (!current()) return false;
-        const destination = status.destinations?.find(item => item.id === to);
-        if (!destination) throw new Error("Target is not an allowed destination");
-        notify(destination.connected ? `LIVE · authenticated · target ${to} online; admission still required` :
-          `LIVE · authenticated · target ${to} offline; connect the agent explicitly, then send a NEW request`);
-      }
-      return true;
+      client = next;
+      await next[method](credentials);
+      return current() && next.isConnected();
     } catch {
-      if (current()) {
-        retire();
-        chat.setConnection(false);
-        chat.interrupt("Connection failed · nothing automatically retried");
-        notify("LIVE DISCONNECTED · explicit authorized connection required");
-      }
-      return false;
+      if (!current()) return false;
+      retire();
+      throw new Error("Router connection failed; explicit reconnection required");
     }
   }
-  const onMessage = event => {
-    if (!alive || event.target !== chat) return;
-    const payload = event.detail;
-    const epoch = generation;
-    try {
-      if (mode === "sample") {
-        const reply = sampleReply(payload);
-        chat.markSent();
-        // Asynchronous boundary exercises replacement/stale-result protection.
-        Promise.resolve(reply).then(value => {
-          if (alive && generation === epoch) chat.receiveMessage(value);
-        }, () => {
-          if (alive && generation === epoch) chat.reject("Sample reply failed · no automatic retry");
-        });
-      } else {
-        if (!client?.isConnected()) throw new Error("disconnected");
-        client.sendMessage(payload);
-        chat.markSent();
-      }
-    } catch {
-      chat.reject("Send failed or uncertain · no automatic retry; check connection state");
-    }
-  };
-  chat.addEventListener("agent-message", onMessage);
   return {
-    sample, disconnected, connect,
-    getMode: () => mode,
-    dispose() {
-      alive = false;
-      generation++;
-      chat.removeEventListener("agent-message", onMessage);
-      client?.close();
-      client = undefined;
+    connect: (credentials: unknown) => open("connect", credentials),
+    connectSession: (session: unknown) => open("connectSession", session),
+    disconnect() {
+      retire();
+      if (alive) onState({ status: "disconnected" });
     },
+    send(to: string, payload: unknown, options: SendOptions = {}) {
+      if (!alive || !client?.isConnected()) throw new Error("Router is disconnected");
+      const epoch = generation;
+      const { isCurrent = () => true, onResponse = () => {}, ...routerOptions } = options;
+      return client.send(to, payload, { ...routerOptions, onResponse(packet) {
+        if (alive && epoch === generation && isCurrent()) onResponse(packet);
+      } });
+    },
+    respond(id: string, payload: unknown, options?: unknown) {
+      if (!alive || !client?.isConnected()) throw new Error("Router is disconnected");
+      return client.respond(id, payload, options);
+    },
+    isConnected: () => alive && !!client?.isConnected(),
+    dispose() { if (alive) { alive = false; retire(); } },
   };
 }

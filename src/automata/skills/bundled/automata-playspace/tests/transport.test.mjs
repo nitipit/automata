@@ -1,105 +1,82 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { load } from "./runtime.mjs";
-const { bindChatTransport } = await load("transport.js");
-
-class ChatProbe extends EventTarget {
-  replies = [];
-  statuses = [];
-  rejected = [];
-  sent = 0;
-  setConnection(value) { this.connected = value; }
-  setAgentBusy(value) { this.busy = value; }
-  setStatus(value) { this.statuses.push(value); }
-  interrupt(value) { this.statuses.push(value); }
-  reject(value) { this.rejected.push(value); }
-  receiveMessage(value) { this.replies.push(value); }
-  markSent() { this.sent++; }
-  emit(payload) { this.dispatchEvent(new CustomEvent("agent-message", { detail: payload })); }
+const { createPlayspaceRouter } = await load("playspace.js");
+const deferred = () => {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+};
+function harness() {
+  const clients = [], states = [], responses = [], messages = [];
+  const facade = createPlayspaceRouter({ onState: state => states.push(state),
+    onMessage: packet => messages.push(packet), createClient(callbacks) {
+      const opening = deferred();
+      const client = { callbacks, opening, connected: false, closed: false,
+        connect(credentials) { client.credentials = credentials; return opening.promise; },
+        connectSession(session) { client.session = session; return opening.promise; },
+        isConnected: () => client.connected,
+        send(to, payload, options) {
+          client.sent = { to, payload, options };
+          client.acceptance = deferred();
+          return { id: "request-id", accepted: client.acceptance.promise };
+        },
+        respond(id, payload, options) { client.replied = { id, payload, options }; return Promise.resolve("ok"); },
+        close() {
+          client.closed = true;
+          callbacks.onState({ status: "old-close" });
+          client.sent?.options.onResponse({ type: "route_closed", uncertain: true });
+        },
+      };
+      clients.push(client); return client;
+    } });
+  return { facade, clients, states, responses, messages };
 }
-const tick = () => new Promise(resolve => setImmediate(resolve));
 
-test("sample mode is explicitly labeled and retired replies never apply", async () => {
-  const chat = new ChatProbe();
-  let resolve;
-  const states = [];
-  const transport = bindChatTransport(chat, { sampleReply: () => new Promise(done => { resolve = done; }), onState: value => states.push(value) });
-  transport.sample();
-  assert.ok(states.at(-1).includes("not a live agent"));
-  chat.emit({ type: "text", data: "sample" });
-  assert.equal(chat.sent, 1);
-  transport.disconnected();
-  resolve({ type: "text", data: "late" });
-  await tick();
-  assert.deepEqual(chat.replies, []);
-  transport.dispose();
-  chat.emit({ type: "text", data: "retired" });
-  assert.equal(chat.sent, 1);
+test("explicit connection only; facade forwards exact Router options and inbound reply ID", async () => {
+  const h = harness(); assert.equal(h.clients.length, 0);
+  assert.throws(() => h.facade.send("agent", {}));
+  const connecting = h.facade.connectSession({ participant: "page", wsUrl: "ws://local/session/ws" });
+  const client = h.clients[0]; client.connected = true; client.opening.resolve();
+  assert.equal(await connecting, true);
+  let instanceCurrent = true;
+  const sent = h.facade.send("agent", { arbitrary: "component JSON" }, {
+    metadata: { pi: {} }, expectReply: true, isCurrent: () => instanceCurrent,
+    onResponse: packet => h.responses.push(packet),
+  });
+  assert.deepEqual(client.sent.payload, { arbitrary: "component JSON" });
+  assert.equal(Object.hasOwn(client.sent.options, "isCurrent"), false);
+  const packet = { type: "response", final: true, payload: null, metadata: { pi: { type: "reply" } } };
+  client.sent.options.onResponse(packet);
+  assert.equal(h.responses[0], packet);
+  instanceCurrent = false; client.sent.options.onResponse(packet);
+  assert.equal(h.responses.length, 1);
+  client.acceptance.resolve({ status: "forwarded" });
+  assert.deepEqual(await sent.accepted, { status: "forwarded" });
+  await h.facade.respond("inbound-route-id", { reply: true }, { final: true });
+  assert.equal(client.replied.id, "inbound-route-id");
+  client.callbacks.onMessage({ id: "incoming" });
+  assert.equal(h.messages.length, 1);
+  h.facade.disconnect();
+  assert.deepEqual(h.states, [{ status: "disconnected" }]); // synchronous old-close suppressed
+  client.callbacks.onMessage({ id: "stale" });
+  assert.equal(h.messages.length, 1);
 });
 
-test("live adapter wires complete content, safe failure state and ignores replaced-client replies", async () => {
-  const chat = new ChatProbe();
-  const clients = [];
-  const sent = [];
-  let connections = 0;
-  const transport = bindChatTransport(chat, { sampleReply: () => ({ type: "text", data: "local" }),
-    createLiveClient(options) {
-      const client = { options, closed: false,
-        async connect() { connections++; options.onState({ status: "connected" }); },
-        close() { this.closed = true; }, isConnected: () => true,
-        sendMessage(content) { sent.push(content); },
-      };
-      clients.push(client);
-      return client;
-    },
-  });
-  assert.equal(connections, 0); // no automatic provisioning
-  await transport.connect({ token: "test-only" }, "authorized-agent");
-  assert.equal(chat.connected, true);
-  const content = { type: "event", data: { name: "form-submit", target: "ps-form#form-1", detail: { submissionId: "submit-1", previousSubmissionId: null, values: { goal: "complete" } } } };
-  chat.emit(content);
-  assert.deepEqual(sent, [content]);
-  clients[0].options.onState({ status: "rejected", error: { message: "DO-NOT-ECHO" } });
-  assert.ok(!chat.rejected.at(-1).includes("DO-NOT-ECHO"));
-  await transport.connect({ token: "test-only" }, "authorized-agent");
-  assert.equal(clients[0].closed, true);
-  clients[0].options.onMessage({ v: 1, kind: "reply", payload: { type: "text", data: "stale" } });
-  assert.deepEqual(chat.replies, []);
-  clients[1].options.onMessage({ v: 1, kind: "reply", payload: { type: "text", data: "current" } });
-  assert.deepEqual(chat.replies, [{ type: "text", data: "current" }]);
-  transport.dispose();
-  clients[1].options.onMessage({ v: 1, kind: "reply", payload: { type: "text", data: "retired" } });
-  assert.equal(chat.replies.length, 1);
-  assert.equal(clients[1].closed, true);
-});
-
-test("paired transport offline snapshot is not a stale send gate; unknown target closes binding", async () => {
-  const chat = new ChatProbe();
-  const sent = [], clients = [], states = [];
-  const transport = bindChatTransport(chat, {sampleReply:() => null, onState:value => states.push(value),
-    createLiveClient(options) {
-      const client = {closed:false,
-        connect() { throw new Error('Permanent tokens must not be used'); },
-        async connectSession(value) { this.session = value; options.onState({status:'connected'}); },
-        async status() { return {destinations:[{id:'late-agent',kind:'agent',connected:false}]}; },
-        close() { this.closed = true; }, isConnected:() => true,
-        sendMessage(payload) { sent.push(payload); },
-      };
-      clients.push(client);
-      return client;
-    },
-  });
-  const session = {wsUrl:'ws://127.0.0.1:8787/session/ws',participant:'page'};
-  assert.equal(await transport.connect(session, 'late-agent', {session:true}), true);
-  assert.equal(chat.connected, true);
-  assert.ok(states.at(-1).includes('offline'));
-  assert.deepEqual(sent, []); // status alone never sends an application message
-  const payload = {type:'component',data:{name:'ps-text',id:'explicit-new',props:{text:'new request'}}};
-  chat.emit(payload);
-  assert.deepEqual(sent, [payload]); // later explicit send uses current router presence/admission
-  assert.equal(await transport.connect(session, 'ungranted-agent', {session:true}), false);
-  assert.equal(chat.connected, false);
-  assert.equal(clients.at(-1).closed, true);
-  assert.deepEqual(sent, [payload]);
-  transport.dispose();
+test("superseded and disposed connect completions cannot close or relabel newer clients", async () => {
+  const h = harness();
+  const first = h.facade.connect({ token: "memory-only" });
+  const old = h.clients[0];
+  const second = h.facade.connectSession({ participant: "new" });
+  const next = h.clients[1]; next.connected = true; next.opening.resolve();
+  assert.equal(await second, true);
+  old.opening.reject(Error("late old failure"));
+  assert.equal(await first, false);
+  assert.equal(next.closed, false);
+  assert.deepEqual(h.states, []);
+  h.facade.dispose();
+  next.callbacks.onState({ status: "connected" });
+  assert.equal(h.states.length, 0);
+  assert.throws(() => h.facade.send("agent", null));
+  await assert.rejects(h.facade.connect({}));
 });

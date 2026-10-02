@@ -16,7 +16,7 @@ def main() -> int:
         "browser launch. Maintained/installed source is read-only. Inputs/checks live "
         "in a private temporary workspace; only compiled JS and starter assets are "
         "copied to the approved public root after a successful build. Existing unrelated "
-        "public files and v1 browser cache are never removed. --validate runs focused "
+        "public files and browser caches are never removed. --validate runs focused "
         "component/state/transport/cache checks, not browser acceptance."
     ))
     parser.add_argument(
@@ -53,8 +53,6 @@ def main() -> int:
             )
             shutil.copytree(source / "lib", ps_copy / "lib")
             shutil.copytree(source / "tests", ps_copy / "tests")
-            (ps_copy / "scripts").mkdir()
-            shutil.copy2(source / "scripts/catalog.mjs", ps_copy / "scripts/catalog.mjs")
             # One existing cached toolchain. Deno's cached-only task never fetches.
             subprocess.run(["deno", "task", "build"], cwd=ui_copy, check=True)
             config = {
@@ -86,18 +84,17 @@ def main() -> int:
                  "--format=esm", "--target=es2022", f"--outdir={staged / 'lib'}"],
                 cwd=workspace, check=True,
             )
-            for name in ["index.html", "index.js", "sample.js", "session-controls.js", "session-view.js", "style.css"]:
+            for name in ["index.html", "index.js", "page.js", "component.js", "style.css"]:
                 shutil.copy2(source / "starter" / name, staged / name)
             (staged / "router").mkdir()
-            for asset in (router / "browser").glob("*.js"):
-                shutil.copy2(asset, staged / "router" / asset.name)
-            environment = {**os.environ, "PLAYSPACE_LIB": str(staged / "lib"),
-                           "PLAYSPACE_CATALOG": str(staged / "catalog.json")}
-            subprocess.run(["node", str(ps_copy / "scripts/catalog.mjs"), str(staged / "catalog.json")],
-                           env=environment, cwd=workspace, check=True)
+            # client.js reexports legacy-client.js; retain that owned dependency,
+            # not unused Pi/chat/page/requester adapters.
+            for name in ["client.js", "protocol.js", "legacy-client.js", "session.js"]:
+                shutil.copy2(router / "browser" / name, staged / "router" / name)
+            environment = {**os.environ, "PLAYSPACE_LIB": str(staged / "lib")}
             if args.validate:
                 subprocess.run(
-                    ["node", "--experimental-vm-modules", "--test",
+                    ["node", "--test",
                      *map(str, (ps_copy / "tests").glob("*.test.mjs"))],
                     env=environment, cwd=workspace, check=True,
                 )
