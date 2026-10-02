@@ -5,14 +5,18 @@ import {
   validateChatData,
 } from "./chat.schema.js";
 
-export type ChatMessageRole = "user" | "agent";
-export type ChatPayload = { text: string; context: Record<string, unknown> };
-export type ChatReplyPayload = { text: string; [key: string]: unknown };
+import {
+  ChatContractError, type ChatComponentHandle, type ChatContent,
+  type ChatMessage, type ChatMessageRole, type ChatRegistry, validateChatContent,
+} from "./chat-content.js";
+import { type ChatSnapshot, validateChatSnapshot } from "./chat-state.js";
+export type { ChatMessageRole } from "./chat-content.js";
+export type ChatPayload = { text: string; content: ChatContent; context: Record<string, unknown> };
 
 let nextChatInputId = 0;
 
 /**
- * A text chat presentation component with semantic, bridge-neutral events.
+ * A literal/structured chat presentation with bridge-neutral events and explicit snapshots.
  * Register `Button` as `aui-button` before registering `Chat`; the catalog
  * example demonstrates that required composition wiring.
  */
@@ -24,8 +28,15 @@ export class Chat extends Base<ChatData> {
   #pending = false;
   #agentBusy = true;
   #outgoing: string | undefined;
+  #markedSent = false;
   #inputId = `chat-input-${++nextChatInputId}`;
   #data: ChatData = validateChatData({});
+  #registry: ChatRegistry = {};
+  #messages: ChatMessage[] = [];
+  #handles = new Map<string, ChatComponentHandle>();
+  #textarea: HTMLTextAreaElement | null = null;
+  #form: HTMLFormElement | null = null;
+  #disposed = false;
 
   static get observedAttributes(): string[] {
     return [
@@ -197,14 +208,14 @@ export class Chat extends Base<ChatData> {
 
     const heading = this.querySelector("h1");
     if (heading) heading.textContent = data.title;
-    const label = this.querySelector("label");
+    const label = this.#form?.querySelector("label");
     if (label) label.textContent = data.inputLabel;
-    const textarea = this.querySelector("textarea") as HTMLTextAreaElement | null;
+    const textarea = this.#textarea;
     if (textarea) {
       textarea.placeholder = data.placeholder;
       textarea.maxLength = 6000;
     }
-    const button = this.querySelector("aui-button");
+    const button = this.#form?.querySelector("aui-button");
     if (button) {
       button.setAttribute("label", data.sendLabel);
       button.setAttribute("type", "submit");
@@ -256,14 +267,17 @@ export class Chat extends Base<ChatData> {
 
   /**
    * Add the outgoing text to the local log and clear the composer after dispatch.
-   * This is not proof of remote receipt or admission. Call once per dispatch;
-   * repeated calls append duplicate log entries.
+   * This is not proof of remote receipt or admission. Repeated calls for one
+   * dispatch are ignored.
    */
   markSent(): void {
-    if (this.#outgoing === undefined) return;
+    if (this.#outgoing === undefined || this.#markedSent) return;
+    this.#markedSent = true;
     this.addMessage("user", this.#outgoing);
-    const textarea = this.querySelector("textarea") as HTMLTextAreaElement | null;
-    if (textarea) textarea.value = "";
+    const textarea = this.#textarea;
+    // Preserve text typed while dispatch was in progress.
+    if (textarea?.value.trim() === this.#outgoing) textarea.value = "";
+    this.#changed();
     this.setStatus("Sent · awaiting reply…");
   }
 
@@ -273,11 +287,21 @@ export class Chat extends Base<ChatData> {
    */
   reject(text: string): void {
     this.#pending = false;
-    const textarea = this.querySelector("textarea") as HTMLTextAreaElement | null;
+    const textarea = this.#textarea;
     if (textarea && !textarea.value && this.#outgoing !== undefined) {
       textarea.value = this.#outgoing;
     }
+    this.#outgoing = undefined;
     this.setStatus(text);
+    this.#changed();
+  }
+
+  /** Interrupt presentation only; never retracts remote effects or restores/replays a send. */
+  interrupt(text: string): void {
+    this.#pending = false;
+    this.#outgoing = undefined;
+    this.setStatus(text);
+    this.#changed();
   }
 
   /**
@@ -285,35 +309,135 @@ export class Chat extends Base<ChatData> {
    * correlation. Valid and invalid payloads both end the local pending request;
    * invalid payloads display an error without retrying or adding a message.
    */
-  receiveMessage(payload: unknown): void {
-    if (!isChatReplyPayload(payload)) {
+  receiveMessage(payload: unknown): boolean {
+    if (this.#disposed) return false;
+    try {
+      this.addMessage("agent", validateChatContent(payload, this.#registry));
+    } catch (error) {
       this.#pending = false;
       this.#outgoing = undefined;
       this.setStatus("Reply payload is invalid for Chat · no automatic resend");
-      return;
+      this.#feedback(error);
+      this.#changed();
+      return false;
     }
-    this.addMessage("agent", payload.text);
     this.#pending = false;
     this.#outgoing = undefined;
     this.setStatus("Reply received · ready for your next message");
+    this.#changed();
+    return true;
   }
 
-  /** Adds a literal text message to the conversation log. */
-  addMessage(role: ChatMessageRole, text: string): void {
+  /** Literal strings retain the basic Chat API; structured objects are validated. */
+  addMessage(role: ChatMessageRole, value: unknown): string {
+    if (this.#disposed) throw new Error("Chat is disposed");
+    if (role !== "user" && role !== "agent") throw new Error("Invalid Chat role");
+    const content = validateChatContent(typeof value === "string" ? { type: "text", data: value } : value, this.#registry);
+    const item: ChatMessage = { id: crypto.randomUUID(), role, content };
+    const rendered = this.#render(item);
     this.#ensureMarkup();
-    const area = this.querySelector(".messages");
-    if (!area) return;
+    const area = this.querySelector(".messages")!;
     area.querySelector(".empty")?.remove();
-    const message = document.createElement("article");
-    message.className = "message";
-    message.setAttribute("data-role", role);
-    const label = document.createElement("strong");
-    label.textContent = role === "user" ? this.#data.userLabel : this.#data.agentLabel;
-    const content = document.createElement("p");
-    content.textContent = text;
-    message.append(label, content);
-    area.append(message);
+    area.append(rendered.element);
+    if (rendered.handle) this.#handles.set(item.id, rendered.handle);
+    this.#messages.push(item);
     area.scrollTop = area.scrollHeight;
+    this.#feedback();
+    this.#changed();
+    return item.id;
+  }
+
+  /** Configure trusted definitions before adding/restoring messages. */
+  setRegistry(registry: ChatRegistry): void {
+    if (this.#messages.length) throw new Error("Configure registry before history");
+    this.#registry = Object.freeze({ ...registry });
+  }
+
+  snapshot(): ChatSnapshot {
+    const componentStates: Record<string, unknown> = {};
+    for (const [id, handle] of this.#handles) {
+      if (handle.snapshot) componentStates[id] = handle.snapshot();
+    }
+    return validateChatSnapshot({ version: 1, settings: this.#data, messages: this.#messages,
+      composer: this.#textarea?.value ?? "", pending: this.#pending, componentStates }, this.#registry);
+  }
+
+  /** Atomic candidate validation/construction. Pending becomes uncertain; never replayed. */
+  restore(value: unknown): boolean {
+    if (this.#disposed) return false;
+    const candidates: { element: HTMLElement; handle?: ChatComponentHandle }[] = [];
+    try {
+      const snapshot = validateChatSnapshot(value, this.#registry);
+      for (const item of snapshot.messages) candidates.push(this.#render(item, snapshot.componentStates[item.id]));
+      this.#ensureMarkup();
+      this.#releaseHandles();
+      const area = this.querySelector(".messages")!;
+      area.replaceChildren(...candidates.map((item) => item.element));
+      this.#messages = snapshot.messages;
+      snapshot.messages.forEach((item, index) => {
+        const handle = candidates[index].handle;
+        if (handle) this.#handles.set(item.id, handle);
+      });
+      this.applyData(snapshot.settings);
+      this.#textarea!.value = snapshot.composer;
+      this.#pending = false;
+      this.#outgoing = undefined;
+      this.setStatus(snapshot.pending ? "Restored · outstanding request interrupted/uncertain · no replay" : "Restored display history · no requests replayed");
+      this.#feedback();
+      return true;
+    } catch (error) {
+      for (const item of candidates) item.handle?.dispose?.();
+      this.#feedback(error);
+      return false;
+    }
+  }
+
+  /** Caller disposes a replaced/retired instance; DOM movement is not retirement. */
+  dispose(): void {
+    this.#disposed = true;
+    this.#connected = false;
+    this.#pending = false;
+    this.#outgoing = undefined;
+    this.#releaseHandles();
+    this.#updateButton();
+  }
+
+  #render(item: ChatMessage, state?: unknown): { element: HTMLElement; handle?: ChatComponentHandle } {
+    const element = document.createElement("article");
+    element.className = "message";
+    element.setAttribute("data-role", item.role);
+    element.setAttribute("data-message-id", item.id);
+    const label = document.createElement("strong");
+    label.textContent = item.role === "user" ? this.#data.userLabel : this.#data.agentLabel;
+    let body: HTMLElement;
+    let handle: ChatComponentHandle | undefined;
+    if (item.content.type === "component") {
+      const { name, props } = item.content.data;
+      let live = true;
+      const created = this.#registry[name].create(props, { messageId: item.id, state, changed: () => { if (live && !this.#disposed) this.#changed(); } });
+      handle = { ...created, dispose: () => { live = false; created.dispose?.(); } };
+      body = handle.element;
+    } else {
+      body = document.createElement(item.content.type === "text" ? "p" : "pre");
+      body.textContent = item.content.type === "text" ? item.content.data : JSON.stringify(item.content.data, null, 2);
+    }
+    element.append(label, body);
+    return { element, handle };
+  }
+
+  #releaseHandles(): void {
+    for (const handle of this.#handles.values()) handle.dispose?.();
+    this.#handles.clear();
+  }
+
+  #feedback(error?: unknown): void {
+    this.#ensureMarkup();
+    const feedback = this.querySelector(".feedback");
+    if (feedback) feedback.textContent = error ? error instanceof ChatContractError ? error.message : "Component contract failed · last-good state preserved; consult its canonical definition" : "";
+  }
+
+  #changed(): void {
+    if (!this.#disposed) this.dispatchEvent(new CustomEvent("chat-change", { bubbles: true, composed: true }));
   }
 
   #mount(): void {
@@ -321,29 +445,54 @@ export class Chat extends Base<ChatData> {
     this.#ensureMarkup();
     if (this.#bound) return;
     this.#bound = true;
-    const form = this.querySelector("form");
+    const form = this.#form;
+    this.#textarea?.addEventListener("input", () => this.#changed());
     form?.addEventListener("submit", (event) => {
       event.preventDefault();
       this.#submit();
     });
   }
 
+  /** Shared admission gate for composer and explicitly submitted components. */
+  canSend(): boolean {
+    return !this.#disposed && this.#connected && !this.#pending && !this.#agentBusy;
+  }
+
+  /** Sends complete validated content only on an explicit component action. */
+  sendContent(value: unknown): boolean {
+    if (!this.canSend()) return false;
+    const content = validateChatContent(value, this.#registry);
+    this.#pending = true;
+    this.#outgoing = undefined;
+    this.addMessage("user", content);
+    this.setStatus("Sending…");
+    this.dispatchEvent(new CustomEvent("agent-message", {
+      bubbles: true, composed: true,
+      detail: { content, context: { componentId: this.id || "chat" } },
+    }));
+    this.#changed();
+    return true;
+  }
+
   #submit(): void {
-    if (!this.#connected || this.#pending || this.#agentBusy) return;
-    const textarea = this.querySelector("textarea") as HTMLTextAreaElement | null;
+    if (!this.canSend()) return;
+    const textarea = this.#textarea;
     const text = textarea?.value.trim() ?? "";
     if (!text) return;
     this.#pending = true;
     this.#outgoing = text;
+    this.#markedSent = false;
     this.setStatus("Sending…");
     this.dispatchEvent(new CustomEvent("agent-message", {
       bubbles: true,
       composed: true,
       detail: {
         text,
+        content: { type: "text", data: text },
         context: { componentId: this.id || "chat" },
       } satisfies ChatPayload,
     }));
+    this.#changed();
   }
 
   #ensureMarkup(): void {
@@ -363,10 +512,12 @@ export class Chat extends Base<ChatData> {
     area.append(empty);
 
     const form = document.createElement("form");
+    this.#form = form;
     const label = document.createElement("label");
     label.htmlFor = this.#inputId;
     label.setAttribute("for", this.#inputId);
     const textarea = document.createElement("textarea");
+    this.#textarea = textarea;
     textarea.id = this.#inputId;
     textarea.name = "message";
     textarea.required = true;
@@ -381,16 +532,19 @@ export class Chat extends Base<ChatData> {
     // it before appending the custom element to the footer.
     button.setAttribute("label", this.#data.sendLabel);
     button.setAttribute("type", "submit");
+    const feedback = document.createElement("pre");
+    feedback.className = "feedback";
+    feedback.setAttribute("role", "alert");
     footer.append(status, button);
-    form.append(label, textarea, footer);
+    form.append(label, textarea, footer, feedback);
     this.append(header, area, form);
   }
 
   #updateButton(): void {
-    const disabled = !this.#connected || this.#pending || this.#agentBusy;
-    const nativeButton = this.querySelector("aui-button button") as HTMLButtonElement | null;
+    const disabled = this.#disposed || !this.#connected || this.#pending || this.#agentBusy;
+    const nativeButton = this.#form?.querySelector("aui-button button") as HTMLButtonElement | null;
     if (nativeButton) nativeButton.disabled = disabled;
-    const button = this.querySelector("aui-button");
+    const button = this.#form?.querySelector("aui-button");
     if (button) button.setAttribute("aria-disabled", String(disabled));
   }
 
@@ -420,7 +574,3 @@ export class Chat extends Base<ChatData> {
   }
 }
 
-function isChatReplyPayload(value: unknown): value is ChatReplyPayload {
-  return value !== null && typeof value === "object" && !Array.isArray(value) &&
-    typeof (value as { text?: unknown }).text === "string";
-}
