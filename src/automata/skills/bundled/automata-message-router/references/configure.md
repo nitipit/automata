@@ -56,6 +56,14 @@ Config version 1 is distinct from wire protocol version 2. Actual tokens must be
 
 `server.json` describes the listener without tokens. Each `endpoints/participants/<id>.json` contains that participant's credential and URL. Provision only the intended participant's record out of band. Never put the config or endpoint directory under a web root, commit tokens, or hand a page an agent credential.
 
+Optional local browser pairing uses `serve --auth-dir <private-directory>` inside
+this same process. Keep that mode-0700 directory outside all public roots; it owns
+hashed session records and the private mode-0600 operator socket. `pair` selects a
+configured **page** privately, not an agent; the browser receives only a fresh code.
+Codes/session credentials are not public setup knowledge. Retain valid auth state
+for restart; malformed state fails closed and requires explicit private repair.
+See the tool's local-session documentation for manual pair/revoke commands.
+
 Changing a grant is an owner operation: review the configuration and restart the owned router. A client cannot edit its own permissions. The router service itself is not an authenticated participant.
 
 [Next: connect the clients →](./connect.md)

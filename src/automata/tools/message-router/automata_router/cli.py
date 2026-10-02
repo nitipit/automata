@@ -6,6 +6,7 @@ import json
 import os
 import secrets
 import signal
+import socket
 import urllib.error
 import urllib.request
 import uuid
@@ -15,6 +16,8 @@ from typing import Annotated, Any
 import uvicorn
 from cyclopts import App, Parameter
 
+from .auth import SessionAuth
+from .auth_store import AuthStore
 from .legacy import Broker
 from .protocol import (
     MAX_FRAME_BYTES,
@@ -80,7 +83,14 @@ class PublishedServer(uvicorn.Server):
     async def startup(self, sockets: Any = None) -> None:
         await super().startup(sockets=sockets)
         if self.started:
-            self.records.create()
+            try:
+                application = self.config.app
+                if application.auth:
+                    await application.auth.start()
+                self.records.create()
+            except Exception:
+                await self.shutdown(sockets=sockets)
+                raise
 
 
 def run_server(application: RouterApp, records: EndpointRecords, port: int) -> None:
@@ -89,7 +99,7 @@ def run_server(application: RouterApp, records: EndpointRecords, port: int) -> N
             application,
             host="127.0.0.1",
             port=port,
-            lifespan="off",
+            lifespan="on",
             ws_max_size=MAX_FRAME_BYTES,
             log_level="warning",
         ),
@@ -158,8 +168,13 @@ def serve(
         Path | None, Parameter(help="Optional directory containing public-safe files only.")
     ] = None,
     origin: Annotated[
-        list[str], Parameter(help="Additional allowed browser Origin; explicit opt-in.")
+        list[str], Parameter(help="Additional direct-token browser Origin; not cookie auth.")
     ] = (),
+    auth_dir: Annotated[
+        Path | None, Parameter(help="Opt-in private browser session/control directory (0700).")
+    ] = None,
+    session_seconds: int = 604800,
+    pairing_seconds: int = 300,
 ) -> None:
     """Serve authorized participants; static hosting is optional and independent of UI choice."""
     if not 1 <= port <= 65535:
@@ -186,13 +201,25 @@ def serve(
             "kind": grant.kind,
             "token": grant.token,
         }
-    application = RouterApp(
-        Router(grants, public_url=public_url),
-        public_root=public_root,
-        private_paths=(config_file, endpoint_dir),
-        origins=tuple(origin),
-    )
-    run_server(application, EndpointRecords(records), port)
+    # Check public/private boundaries before creating any auth data.
+    backend = Router(grants, public_url=public_url)
+    private_paths = (config_file, endpoint_dir, *((auth_dir,) if auth_dir else ()))
+    application = RouterApp(backend, public_root=public_root, private_paths=private_paths,
+                            origins=tuple(origin))
+    if auth_dir:
+        pages = {name for name, grant in grants.items() if grant.kind == "page"}
+        store = AuthStore(auth_dir, pages, session_seconds=session_seconds,
+                          code_seconds=pairing_seconds)
+        try:
+            application.auth = SessionAuth(store, public_url)
+        except Exception:
+            store.close()
+            raise
+    try:
+        run_server(application, EndpointRecords(records), port)
+    finally:
+        if application.auth:
+            application.auth.store.close()
 
 
 def status(*, endpoint_file: Path = DEFAULT_STATE_ROOT / "endpoints" / "server.json") -> None:
@@ -230,10 +257,47 @@ def legacy_serve(
     )
 
 
+def operator_request(auth_dir: Path, packet: dict[str, Any]) -> None:
+    """Private local operator request; never route secrets through public HTTP."""
+    if not hasattr(socket, "AF_UNIX"):
+        raise ValueError("Local browser auth control requires Unix sockets")
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+        client.settimeout(5)
+        client.connect(str(auth_dir.resolve() / "control.sock"))
+        client.sendall((json.dumps(packet) + "\n").encode())
+        body = b""
+        while b"\n" not in body:
+            chunk = client.recv(1024)
+            if not chunk or len(body) + len(chunk) > 4096:
+                raise ValueError("Invalid private operator response")
+            body += chunk
+    result = json.loads(body)
+    if not result.pop("ok", False):
+        raise ValueError(result.get("error", "Private operator request failed"))
+    print(json.dumps(result))
+
+
+def pair(*, auth_dir: Path, participant: str) -> None:
+    """Generate a single-use private page code on the running service. Keep output private."""
+    operator_request(auth_dir, {"action": "pair", "participant": participant})
+
+
+def revoke(*, auth_dir: Path, participant: str | None = None,
+           session_id: str | None = None) -> None:
+    """Revoke a page's sessions or one private session ID, including active sockets."""
+    if (participant is None) == (session_id is None):
+        raise ValueError("Choose exactly one --participant or --session-id")
+    operator_request(auth_dir, {"action": "revoke", **(
+        {"participant": participant} if participant is not None else {"sessionId": session_id}
+    )})
+
+
 app = App(name="message-router", help="Route bounded JSON between authorized pages and agents.")
 app.command(setup)
 app.command(serve)
 app.command(status)
+app.command(pair)
+app.command(revoke)
 app.command(legacy_serve, name="legacy-serve")
 
 

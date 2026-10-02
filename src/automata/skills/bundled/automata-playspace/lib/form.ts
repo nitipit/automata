@@ -115,8 +115,22 @@ export class FormComponent extends Base<{ props: FormProps; context: ComponentCo
     }
 }
 
+const exampleProps = contracts.validateProps({ title: "Example form", fields: [
+  { name: "note", label: "Note", kind: "text", required: true, maxLength: 80 },
+  { name: "choice", label: "Choice", kind: "choice", required: false,
+    choices: [{ value: "one", label: "One" }, { value: "two", label: "Two" }] },
+] });
+const exampleSubmission = contracts.submit(exampleProps, { note: "Example answer", choice: "one" }, "example-submission");
+
 export const formDefinition: ComponentDefinition = {
   contract: contracts.pointer,
+  catalog: {
+    description: "Validated text/choice form; submit becomes read-only, revise creates a local copy",
+    sources: ["./lib/form.js", "./lib/form.schema.js", "./lib/form-history.js"],
+    propsExample: exampleProps,
+    eventExamples: { "form-submit": { detail: exampleSubmission,
+      state: { values: exampleSubmission.values, submission: exampleSubmission } } },
+  },
   validate: contracts.validateProps,
   validateState: contracts.validateState,
   validateHistory: validateFormHistory,

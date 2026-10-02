@@ -11,6 +11,14 @@ main { max-width: 52rem; margin: auto; }
 .intro p { line-height: 1.5; }
 .eyebrow { color: #48627d; font-size: .8rem; letter-spacing: .1em; }
 .tools { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.2rem; }
+.pairing { display: grid; gap: .5rem; padding: 1rem; border: 1px solid #bac9dc; border-radius: .75rem; background: white; }
+.pairing form { display: grid; gap: .5rem; }
+.pairing input { box-sizing: border-box; min-width: 0; width: 100%; padding: .65rem; font: inherit; border: 1px solid #8197b1; border-radius: .3rem; }
+.pairing button { padding: .65rem 1rem; border: 0; border-radius: .3rem; background: var(--aui-action); color: white; font: inherit; cursor: pointer; }
+.pairing button:disabled { opacity: .6; cursor: wait; }
+.pairing :is(input, button, a):focus-visible { outline: 3px solid #f0ae24; outline-offset: 3px; }
+.pairing .tools { margin-top: .3rem; align-items: center; }
+.pairing p { margin: .25rem 0; overflow-wrap: anywhere; }
 .states { margin: 1rem 0; padding: .65rem 1rem; border-left: 3px solid #2456a6; background: #e9f0ff; }
 .states p { margin: .4rem 0; font-size: .9rem; }
 ps-chat { width: 100%; height: min(52rem, 85dvh); }

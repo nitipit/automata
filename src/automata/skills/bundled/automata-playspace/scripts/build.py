@@ -25,12 +25,20 @@ def main() -> int:
     parser.add_argument(
         "--ui-source", type=Path, help="Adaptive UI skill directory; defaults to sibling"
     )
+    parser.add_argument(
+        "--router-source", type=Path,
+        help="Message Router tool directory; defaults to maintained source or sibling .agents/tools",
+    )
     parser.add_argument("--validate", action="store_true")
     args = parser.parse_args()
     source = Path(__file__).resolve().parents[1]
     ui = (args.ui_source or source.parent / "automata-adaptive-ui").resolve()
+    candidates = [source.parents[2] / "tools/message-router", source.parent.parent / "tools/message-router"]
+    router = (args.router_source or next((path for path in candidates if (path / "browser/session.js").is_file()), candidates[0])).resolve()
+    if not (router / "browser/session.js").is_file():
+        parser.error("Source-driven Message Router browser/session.js required; use --router-source")
     public = args.runtime_root.expanduser().resolve()
-    if public.is_relative_to(source) or public.is_relative_to(ui):
+    if public.is_relative_to(router) or public.is_relative_to(source) or public.is_relative_to(ui):
         parser.error("public root must be outside maintained/installed source")
     if not shutil.which("deno") or not shutil.which("node"):
         parser.error("Existing cached Deno and Node required; obtain authority before installing")
@@ -45,6 +53,8 @@ def main() -> int:
             )
             shutil.copytree(source / "lib", ps_copy / "lib")
             shutil.copytree(source / "tests", ps_copy / "tests")
+            (ps_copy / "scripts").mkdir()
+            shutil.copy2(source / "scripts/catalog.mjs", ps_copy / "scripts/catalog.mjs")
             # One existing cached toolchain. Deno's cached-only task never fetches.
             subprocess.run(["deno", "task", "build"], cwd=ui_copy, check=True)
             config = {
@@ -76,12 +86,19 @@ def main() -> int:
                  "--format=esm", "--target=es2022", f"--outdir={staged / 'lib'}"],
                 cwd=workspace, check=True,
             )
-            for name in ["index.html", "index.js", "sample.js", "style.css"]:
+            for name in ["index.html", "index.js", "sample.js", "session-controls.js", "style.css"]:
                 shutil.copy2(source / "starter" / name, staged / name)
+            (staged / "router").mkdir()
+            for asset in (router / "browser").glob("*.js"):
+                shutil.copy2(asset, staged / "router" / asset.name)
+            environment = {**os.environ, "PLAYSPACE_LIB": str(staged / "lib"),
+                           "PLAYSPACE_CATALOG": str(staged / "catalog.json")}
+            subprocess.run(["node", str(ps_copy / "scripts/catalog.mjs"), str(staged / "catalog.json")],
+                           env=environment, cwd=workspace, check=True)
             if args.validate:
-                environment = {**os.environ, "PLAYSPACE_LIB": str(staged / "lib")}
                 subprocess.run(
-                    ["node", "--test", *map(str, (ps_copy / "tests").glob("*.test.mjs"))],
+                    ["node", "--experimental-vm-modules", "--test",
+                     *map(str, (ps_copy / "tests").glob("*.test.mjs"))],
                     env=environment, cwd=workspace, check=True,
                 )
             public.mkdir(parents=True, exist_ok=True)

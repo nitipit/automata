@@ -14,7 +14,42 @@ flowchart LR
     router --- reviewer[reviewer · agent]
 ```
 
-## The credential shape is the same; the provisioning path differs
+## Optional same-origin browser session
+
+The Router's opt-in `serve --auth-dir <private-directory>` supports local persistent
+page pairing inside the same process. Its private `pair --auth-dir ...
+--participant desk` command issues a single-use code to deliver out of band.
+The browser submits only that code; the server binds the configured page identity.
+No permanent token is exposed and no grant list is supplied by the browser.
+
+```javascript
+import {createBrowserSessionAuth} from "/assets/session.js";
+import {createMessageRouterClient} from "/assets/client.js";
+const auth = createBrowserSessionAuth();
+const desk = createMessageRouterClient({onMessage, onResponse});
+// Wire these to explicit user controls, not automatic startup:
+await auth.pair(privatelySuppliedCode);
+const status = await auth.status(); // inert; valid cookie may survive restart
+await desk.connectSession(auth.connection(status));
+desk.close(); // keep pairing
+await auth.forget(); // revoke cookie session, close active socket and clear cookie
+```
+
+This uses `/session/ws` with token-free `{v:2,type:'hello'}` and the same routing
+client; it has no fallback to a token. It requires the exact authoritative local
+HTTP 127.0.0.1 origin and mandatory same-origin cookie WebSocket Origin. Additional
+`--origin` settings below apply only to the direct-token path. Cookies are
+HttpOnly/SameSite=Strict, not Secure on HTTP or isolated by port; same-origin scripts
+and malicious same-user processes remain outside this boundary.
+
+Reconnect is explicit. Restart the owned service and bind the intended actual
+agent session explicitly; pairing never launches an agent. Old sends, events and
+reply capabilities do not recover or replay. Preserve the draft origin/profile.
+See the mapped tool's `docs/local-session.md` for lifetimes, private storage,
+operator revocation and limitations. Direct-token/Node integrations below remain
+supported independently; do not use them as a public-token fallback.
+
+## The direct credential shape is the same; the provisioning path differs
 
 **Authentication:** the private token proves which configured participant is connecting. **Authorization:** the router's private `allow` list decides which destinations that identity may initiate toward. A token is not a grant list; neither adding an `allow` field to a client nor knowing a destination gives permission.
 
@@ -44,9 +79,13 @@ flowchart LR
 
 The browser literal below and the Node `JSON.parse` + spread below are two ways to construct these same connection fields, not two credential formats. Node can read its authorized private file directly. An ordinary browser page cannot read that filesystem path, and this client does not automatically fetch an endpoint record.
 
-### How does the browser receive its token?
+### How does a direct-token browser receive its token?
 
-**This is an explicit application-provisioning prerequisite, not implemented by this reference.** The page owner must choose an authorized, private way to supply only that page's endpoint values into its runtime memory. “Out of band” means that this happens outside router message delivery and outside this static site. Do not replace the placeholder by committing a token into JS/HTML, publishing an endpoint file, or adding a public token-fetch URL. Until private provisioning is established, the browser example is illustrative and not ready to connect.
+**This is an explicit application-provisioning prerequisite for the direct path.**
+Prefer the opt-in session flow above when permanent browser tokens should remain
+server-side; do not mix the two authentication modes or silently fall back.
+
+The page owner must choose an authorized, private way to supply only that page's endpoint values into its runtime memory. “Out of band” means that this happens outside router message delivery and outside this static site. Do not replace the placeholder by committing a token into JS/HTML, publishing an endpoint file, or adding a public token-fetch URL. Until private provisioning is established, the browser example is illustrative and not ready to connect.
 
 ## Browser page: desk (or viewer in its own page)
 

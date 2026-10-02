@@ -3,6 +3,8 @@ import { createCacheRecovery } from "./lib/recovery.js";
 import { validateStarterSnapshot } from "./lib/state.js";
 import { bindChatTransport } from "./lib/transport.js";
 import { sampleForm, sampleReply } from "./sample.js";
+import { createMessageRouterChatClient } from "./router/pi-client.js";
+import { bindSessionControls } from "./session-controls.js";
 
 registerPlayspace();
 const chat = document.querySelector("ps-chat");
@@ -10,10 +12,15 @@ const connection = document.querySelector("#connection");
 const recoveryState = document.querySelector("#recovery");
 let initializing = true;
 let disposed = false;
-let liveFactory;
+let connectionIntent = 0;
+let liveFactory = createMessageRouterChatClient;
+let sessionControls;
 const transport = bindChatTransport(chat, {
   sampleReply, createLiveClient: options => liveFactory(options),
-  onState: value => { connection.textContent = value; },
+  onState: value => {
+    connection.textContent = value;
+    if (value.startsWith("LIVE DISCONNECTED")) void sessionControls?.refresh();
+  },
 });
 const recovery = createCacheRecovery({
   key: new URL("./__playspace_chat_snapshot_v2__", location.href).href,
@@ -31,9 +38,14 @@ function save() {
 function onChange() { if (!initializing) void save(); }
 chat.addEventListener("chat-change", onChange);
 async function restore() {
+  const intent = ++connectionIntent;
+  sessionControls?.cancel(); // BEFORE flush/load: delayed auth status cannot reconnect
+  if (transport.getMode() === "sample") transport.sample();
+  else transport.disconnected(); // also retire a connection already opening
   await recovery.flush();
+  if (disposed || intent !== connectionIntent) return false;
   const value = await recovery.load();
-  if (!value || disposed) return false;
+  if (!value || disposed || intent !== connectionIntent) return false;
   const previous = initializing;
   initializing = true;
   try {
@@ -51,9 +63,19 @@ async function restore() {
     return false;
   } finally { initializing = previous; }
 }
+sessionControls = bindSessionControls({
+  async connect(session, to) {
+    connectionIntent++;
+    liveFactory = createMessageRouterChatClient;
+    const connected = await transport.connect(session, to, { session: true });
+    void save();
+    return connected;
+  },
+  disconnect: () => { connectionIntent++; transport.disconnected(); void save(); },
+});
 const handlers = new Map([
-  ["sample-mode", () => { transport.sample(); void save(); }],
-  ["live-mode", () => { transport.disconnected(); void save(); }],
+  ["sample-mode", () => { connectionIntent++; sessionControls.cancel(); transport.sample(); void save(); }],
+  ["live-mode", () => { connectionIntent++; sessionControls.cancel(); transport.disconnected(); void save(); }],
   ["sample-form", () => chat.addMessage("agent", sampleForm())],
   ["save", () => { void save(); }], ["restore", () => { void restore(); }],
 ]);
@@ -62,12 +84,18 @@ for (const [id, handler] of handlers) document.getElementById(id).addEventListen
 /** Authorized provisioning only; credentials/capabilities stay out of snapshots. */
 async function connect(credentials, to, { createClient, moduleURL = "./router/pi-client.js" } = {}) {
   if (disposed) return false;
+  const intent = ++connectionIntent;
+  sessionControls.cancel(); // explicit memory provisioning supersedes paired Connect
+  transport.disconnected();
   try {
-    liveFactory = createClient ?? (await import(moduleURL)).createMessageRouterChatClient;
+    const factory = createClient ?? (await import(moduleURL)).createMessageRouterChatClient;
+    if (disposed || intent !== connectionIntent) return false;
+    liveFactory = factory;
     const connected = await transport.connect(credentials, to);
     void save();
     return connected;
   } catch {
+    if (disposed || intent !== connectionIntent) return false;
     transport.disconnected();
     connection.textContent = "LIVE DISCONNECTED · router assets unavailable; no request sent";
     return false;
@@ -76,8 +104,10 @@ async function connect(credentials, to, { createClient, moduleURL = "./router/pi
 function dispose() {
   if (disposed) return;
   disposed = true;
+  connectionIntent++;
   chat.removeEventListener("chat-change", onChange);
   for (const [id, handler] of handlers) document.getElementById(id).removeEventListener("click", handler);
+  sessionControls.dispose();
   transport.dispose();
   chat.dispose();
   recovery.dispose();

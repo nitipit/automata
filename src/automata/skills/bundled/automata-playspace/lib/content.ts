@@ -23,8 +23,9 @@ export class JSONComponent extends Base<{ value: JSONValue }> {
   }
   applyData(props) { this.textContent = JSON.stringify(props.value, null, 2); }
 }
-function definition(Component, contract: string): ComponentDefinition {
+function definition(Component, contract: string, propsExample, description: string): ComponentDefinition {
   return { contract, validate: value => Component.validateData(value), events: {},
+    catalog: { description, sources: ["./lib/content.js"], propsExample },
     create(props, context) {
       const element = Component.create({ data: props });
       element.id = context.componentId;
@@ -32,5 +33,5 @@ function definition(Component, contract: string): ComponentDefinition {
     },
   };
 }
-export const textDefinition = definition(TextComponent, textContract);
-export const jsonDefinition = definition(JSONComponent, jsonContract);
+export const textDefinition = definition(TextComponent, textContract, { text: "Example literal text" }, "Literal text, never HTML");
+export const jsonDefinition = definition(JSONComponent, jsonContract, { value: { example: [null, true, 42] } }, "Inspectable serializable JSON");

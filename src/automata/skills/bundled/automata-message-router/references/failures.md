@@ -40,7 +40,11 @@ try {
 }
 ```
 
-Expected rejection: `error.message === "offline"`. No durable queue retains the message. This assumes disconnect has reached the router; an in-flight emission race can instead be uncertain. status is only a point-in-time observation.
+Expected rejection: `error.message === "offline"`. No durable queue retains the message.
+Authentication can remain valid while an allowed agent is offline. Its later
+explicit binding may permit a **new explicit send**; an earlier offline presence
+snapshot is not a permanent local send gate. Never replay the rejected/uncertain
+request as part of reconnect. This assumes disconnect has reached the router; an in-flight emission race can instead be uncertain. status is only a point-in-time observation.
 
 ## Cancel correlation, not recipient actions
 
@@ -91,6 +95,11 @@ A remote peer disconnect can emit `{"v":2,"type":"route_closed","id":"<route ID>
 
 A forwarding result may itself have `status: "uncertain"` rather than rejecting. Check it; a resolved promise is not necessarily `forwarded`. Disconnect, timeout, or a failed write cannot prove the recipient did nothing.
 
-Reconnect explicitly with the same authorized identity when appropriate; old reply capabilities cannot be recovered. Bounded duplicate detection is not exactly-once execution. The router has no automatic reply expiry: final response, explicit cancel, or either endpoint's disconnect releases correlation.
+Reconnect explicitly with the same authorized identity when appropriate; old reply capabilities cannot be recovered.
+For local session auth, Disconnect keeps pairing, whereas Forget/logout or private
+operator revocation removes the session and closes active idle sockets. Expiry also
+closes session sockets; it does not undo previously forwarded/in-flight effects.
+A persistent cookie can authenticate a new connection after explicit service
+restart, not restore requests or native agent bindings. Bounded duplicate detection is not exactly-once execution. The router has no automatic reply expiry: final response, explicit cancel, or either endpoint's disconnect releases correlation.
 
 [Return to the configuration and permissions →](./configure.md)

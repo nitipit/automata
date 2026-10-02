@@ -35,7 +35,7 @@ export function bindChatTransport(chat: Chat, { sampleReply, createLiveClient, o
     chat.setConnection(false);
     notify("LIVE DISCONNECTED · connection credentials are never recovered from cache");
   }
-  async function connect(credentials, to) {
+  async function connect(credentials, to, { session = false } = {}) {
     if (!alive) return false;
     disconnected();
     const epoch = generation;
@@ -75,11 +75,23 @@ export function bindChatTransport(chat: Chat, { sampleReply, createLiveClient, o
           chat.receiveMessage(message.payload);
         },
       });
-      await client.connect(credentials);
+      if (session) await client.connectSession(credentials);
+      else await client.connect(credentials);
       if (!current()) return false;
+      // Presence is a snapshot, not admission and not a permanent send gate.
+      // A later explicit send may work after an offline agent binds.
+      if (client.status) {
+        const status = await client.status();
+        if (!current()) return false;
+        const destination = status.destinations?.find(item => item.id === to);
+        if (!destination) throw new Error("Target is not an allowed destination");
+        notify(destination.connected ? `LIVE · authenticated · target ${to} online; admission still required` :
+          `LIVE · authenticated · target ${to} offline; connect the agent explicitly, then send a NEW request`);
+      }
       return true;
     } catch {
       if (current()) {
+        retire();
         chat.setConnection(false);
         chat.interrupt("Connection failed · nothing automatically retried");
         notify("LIVE DISCONNECTED · explicit authorized connection required");

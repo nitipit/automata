@@ -11,7 +11,7 @@ its public `adaptive-ui.js` exports, never its private component/library paths.
 ```sh
 # PUBLIC is an approved absolute public-safe website root, outside skill source.
 python <playspace-skill>/scripts/build.py --runtime-root "$PUBLIC" --validate
-# Installed siblings work directly; for copied inputs specify --ui-source <ui-skill>.
+# Copied inputs: --ui-source <ui-skill> --router-source <message-router-tool>.
 ```
 
 Existing Python, Deno, Node >=20.19 and Adaptive UI's locked cached dependencies
@@ -19,14 +19,15 @@ Existing Python, Deno, Node >=20.19 and Adaptive UI's locked cached dependencies
 launch or source mutation. The builder copies inputs to a private temporary
 workspace, builds **one shared** `lib/adaptive-ui.js`, typechecks maintained TS and
 transpiles Playspace TS into adjacent ES JS modules. It publishes compiled modules
-and starter assets only after successful checks. No foundation/runtime rebundling,
+and starter assets, source-driven Router browser modules and `catalog.json` only
+after successful checks. No foundation/runtime rebundling,
 plugin loader, schema exporter or framework. Build-only `adaptive-ui.d.ts` resolves
 types through the sibling **public entry**; it is not a runtime compatibility shim.
 The current focused check uses TypeScript's non-strict baseline with explicitly
 typed wire/state/component interfaces, not a declaration that arbitrary JSON is
 safe. Edictor owns runtime admission regardless of compile-time typing.
 
-The public root contains only JS/HTML/CSS. Source TS, tests, build inputs, credentials,
+The public root contains only public JS/HTML/CSS and the descriptive JSON catalog. Source TS, tests, build inputs, credentials,
 profiles and task records stay outside it. Public assets can be copied while an
 existing page is open; applying updated custom elements requires a new page realm
 and does not promise preservation of in-memory drafts. Preserve the draft before
@@ -51,6 +52,25 @@ an authorized reload. Existing unrelated public assets are not deleted.
 
 These maintained definitions are the agent contract source. Compile to JS for the
 browser; do not invent schemas in a page or reinterpret rejected values.
+
+### Public contract discovery
+
+The builder always generates `catalog.json` from `lib/registry.ts` and root
+`ps-chat` metadata, with component/root names, canonical contract pointers, public
+compiled source links, supported event names and validated examples. Metadata lives
+beside each definition; event names come from its executable `events` map. Every
+example is admitted by the existing component/event/state validators using the
+real shared Edictor bundle before publication. No handwritten parallel schema,
+JSONSchema exporter, live user-state inspection or permission grant is involved.
+
+Fetch/read the public catalog, follow its `sources` references, and use the
+component-owned validator when producing a reply. Example IDs/state are artificial;
+choose unique IDs and valid existing targets for the actual interaction. Event
+examples expose prerequisite state for validation, not authority to manufacture a
+submission or perform an action. `ps-chat` is a root with settings and
+`validation-feedback`, **not** a renderable content component. Unknown component,
+event and instance names remain rejected. `generateCatalog()` is also exported
+for trusted composition; custom definitions may add the same optional metadata.
 
 ## Components and events
 
@@ -144,10 +164,13 @@ current history. DOM movement alone is not retirement.
 compiled Adaptive UI/Edictor exports. To rerun tests on built output:
 
 ```sh
-PLAYSPACE_LIB="$PUBLIC/lib" node --test <playspace-skill>/tests/*.test.mjs
+PLAYSPACE_LIB="$PUBLIC/lib" PLAYSPACE_CATALOG="$PUBLIC/catalog.json" \
+  node --experimental-vm-modules --test <playspace-skill>/tests/*.test.mjs
 ```
 
-Fakes exercise admission/lifecycle, not actual DOM rendering or native router
+The VM-module flag is used only by the narrow actual-starter orchestration check
+(Restore/explicit memory provisioning supersede a delayed paired Connect). Fakes
+exercise admission/lifecycle, not actual DOM rendering or native router
 acceptance. Browser/keyboard/responsive/reload/live verification belongs to the
 preview owner. No attachment bytes, streaming, service worker, backup service,
 automatic external-action rollback or v1 migration.

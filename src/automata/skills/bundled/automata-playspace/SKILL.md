@@ -59,7 +59,12 @@ component owns its request/reply JSON, validation and independent interaction
 state; page composition routes through the established Message Router client.
 Arbitrary experiments need no global envelope. When reusing the maintained
 Playspace components, follow their canonical component/event contracts; page
-composition must not redefine schema semantics. Apply replies visibly to the
+composition must not redefine schema semantics. The built public `catalog.json`
+lists registry-derived component/root names, source contracts, supported events
+and actually validated examples. Use it and the referenced definitions to produce
+accepted payloads, not a second schema list or arbitrary live user-state inspection.
+Root `ps-chat` owns validation feedback but is not renderable content; examples
+never authorize actions or permit unknown components/targets. Apply replies visibly to the
 originating component and make rejection, invalid replies and uncertain delivery
 visible rather than treating forwarding or a terminal answer as UI completion.
 
@@ -71,8 +76,15 @@ preserve the last good draft or result on failure. Validation does not authorize
 actions.
 
 Restoration reconstructs drafts, not live connections. Reuse a verified authorized
-connection or privately reprovision and revalidate it before enabling sends. Do
-not cache credentials or pending reply capabilities. Restore any pending display
+connection or privately reprovision and revalidate it before enabling sends. The
+optional starter supports a persistent revocable browser pairing managed by the
+local Router; pair/connect/disconnect/forget are separate explicit controls.
+A valid cookie may survive shutdown, but service restart and native agent binding
+remain explicit operator/agent actions. Check the intended target and admission;
+page authentication is not agent presence or permission. Do not recover live
+bindings automatically, fall back to public tokens, or treat an offline presence
+snapshot as a permanent send gate. Preserve the exact draft origin/profile.
+Do not cache credentials or pending reply capabilities. Restore any pending display
 as interrupted or uncertain, never as a queued send; do not replay it. Ignore late
 replies to replaced instances and release their resources with the component.
 

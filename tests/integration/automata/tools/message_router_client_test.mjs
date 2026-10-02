@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {createMessageRouterClient, createAgentRouterClient} from '../../../../src/automata/tools/message-router/browser/client.js';
 import {createMessageRouterChatClient, createAgentRouterChatClient} from '../../../../src/automata/tools/message-router/browser/pi-client.js';
+import {createBrowserSessionAuth} from '../../../../src/automata/tools/message-router/browser/session.js';
 
 test('old browser exports are aliases of the canonical message-router factories', () => {
   assert.equal(createAgentRouterClient, createMessageRouterClient);
@@ -89,4 +90,56 @@ test('intermediate application receipts and cancellation release bounded correla
   assert.equal(responses.length,1);
   assert.throws(()=>client.send('agent', NaN), /finite/);
   client.close();
+});
+
+class SessionSocket extends Socket {
+  send(raw) {
+    const packet = JSON.parse(raw);
+    this.sent.push(packet);
+    if (packet.type === 'hello') this.message({v:2,type:'hello_ack',participant:'paired-page',kind:'page'});
+    else this.handle?.(packet);
+  }
+}
+test('cookie session uses shared correlation without token hello, cross-origin fallback or replay', async () => {
+  const previous = globalThis.location;
+  globalThis.location = {origin:'http://127.0.0.1:8787'};
+  const client = createMessageRouterClient({WebSocketImpl:SessionSocket});
+  const session = {wsUrl:'ws://127.0.0.1:8787/session/ws',participant:'paired-page'};
+  try {
+    for (const wsUrl of ['ws://127.0.0.1:8788/session/ws', 'ws://localhost:8787/session/ws',
+                         'ws://127.0.0.1:8787/ws', 'ws://127.0.0.1:8787/session/ws?participant=other'])
+      assert.throws(() => client.connectSession({...session, wsUrl}), /origin|URL/);
+    await client.connectSession(session);
+    const socket = Socket.all.at(-1);
+    assert.deepEqual(socket.sent, [{v:2,type:'hello'}]);
+    socket.handle = packet => acknowledge(socket, packet, {routeId:'cookie-route'});
+    const sent = client.send('agent', {nested:[null,false,{arbitrary:'kept'}]});
+    assert.equal((await sent.accepted).status, 'forwarded');
+    assert.deepEqual(socket.sent.at(-1).payload, {nested:[null,false,{arbitrary:'kept'}]});
+    client.close();
+    await client.connectSession(session);
+    assert.deepEqual(Socket.all.at(-1).sent, [{v:2,type:'hello'}]);
+    assert.throws(() => client.respond('cookie-route', null), /capability/);
+  } finally { client.close(); globalThis.location = previous; }
+});
+
+test('session helper keeps credentials same-origin, status inert and pairing code out of connection data', async () => {
+  const calls = [];
+  const auth = createBrowserSessionAuth({location:{origin:'http://127.0.0.1:8787'},
+    fetchImpl:async (url, options) => {
+      calls.push({url,options});
+      return {ok:true,json:async()=>({authenticated:!url.endsWith('/logout'),participant:'page',expiresAt:1})};
+    }});
+  assert.equal((await auth.status()).authenticated, true);
+  assert.equal(calls[0].options.method,'GET');
+  const paired = await auth.pair('private-synthetic-code');
+  assert.deepEqual(auth.connection(paired), {wsUrl:'ws://127.0.0.1:8787/session/ws',participant:'page'});
+  assert.deepEqual(JSON.parse(calls[1].options.body), {code:'private-synthetic-code'});
+  await auth.forget();
+  for (const call of calls) {
+    assert.equal(call.options.mode,'same-origin');
+    assert.equal(call.options.credentials,'same-origin');
+    assert.equal(call.options.cache,'no-store');
+  }
+  assert.throws(() => createBrowserSessionAuth({location:{origin:'http://localhost:8787'}}), /origin/);
 });

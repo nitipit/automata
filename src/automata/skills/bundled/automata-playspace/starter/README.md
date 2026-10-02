@@ -18,14 +18,39 @@ Sample agent mode is visibly **local, not live**, and sends nothing remotely.
 
 ## Optional live connection
 
-Copy the maintained Message Router browser modules, with their usual authority:
+The builder copies maintained Router browser modules into `router/` with the
+starter; use `--router-source <message-router-tool>` for non-sibling inputs. It
+also publishes `catalog.json` with registry-derived source links and admitted
+examples, without credentials or actual user state.
 
-```sh
-mkdir -p "$PUBLIC/router"
-cp <automata-repo>/src/automata/tools/message-router/browser/{client,legacy-client,pi-client,protocol}.js "$PUBLIC/router/"
-```
+For persistent browser pairing, the operator explicitly starts the existing local
+Router with `--auth-dir <private-directory>` and privately provisions a single-use
+code with its `pair` command. Enter the code into Pair browser, select an explicit
+target participant ID, then click Connect paired session. Startup only checks auth
+status; it never opens a socket or starts/binds an agent. A restored valid cookie
+allows explicit reconnect after service/browser restart; native agent bindings
+must still be established explicitly. No events/requests/reply capabilities replay.
+An offline agent presence snapshot is informational, not a stale send gate; after
+it binds, only a new explicit send is attempted.
 
-After an authorized credential and explicit agent participant are established,
+The last validated target ID is saved only when Connect is explicitly clicked,
+under a directory-scoped `automata-playspace-chat-target-v1` localStorage preference,
+separate from draft snapshots. A new page restores that input only, never selects
+from presence, opens a socket or sends. No code, cookie or token enters this
+storage. Malformed/blocked storage retains the current input and shows a limitation;
+select the target again after restart if it could not be saved.
+
+Disconnect keeps pairing and local drafts. Forget pairing revokes that cookie
+session, clears it and disconnects without erasing drafts. Codes and permanent
+Router tokens never enter snapshots. Authenticated, offline/expired and failures
+are visible separately from transport/agent admission. Cookie auth requires the
+exact local HTTP `127.0.0.1:<port>` origin. HttpOnly/SameSite=Strict is not Secure
+over HTTP or isolation between ports; same-user processes and same-origin scripts
+are not sandboxed. See the Router tool's `docs/local-session.md` for private
+lifecycle, revocation, storage and limitations.
+
+For an existing authorized **direct-token** integration only (not UI fallback),
+after an authorized credential and explicit agent participant are established,
 trusted page setup can call `window.playspaceChat.connect(credentials, to)`.
 Credentials follow the client's `{wsUrl,participant,token,sessionId?}` contract;
 never put tokens in URLs/public files/cache/logs. The helper only connects. A user

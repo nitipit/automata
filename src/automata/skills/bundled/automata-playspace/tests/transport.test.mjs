@@ -72,3 +72,34 @@ test("live adapter wires complete content, safe failure state and ignores replac
   assert.equal(chat.replies.length, 1);
   assert.equal(clients[1].closed, true);
 });
+
+test("paired transport offline snapshot is not a stale send gate; unknown target closes binding", async () => {
+  const chat = new ChatProbe();
+  const sent = [], clients = [], states = [];
+  const transport = bindChatTransport(chat, {sampleReply:() => null, onState:value => states.push(value),
+    createLiveClient(options) {
+      const client = {closed:false,
+        connect() { throw new Error('Permanent tokens must not be used'); },
+        async connectSession(value) { this.session = value; options.onState({status:'connected'}); },
+        async status() { return {destinations:[{id:'late-agent',kind:'agent',connected:false}]}; },
+        close() { this.closed = true; }, isConnected:() => true,
+        sendMessage(payload) { sent.push(payload); },
+      };
+      clients.push(client);
+      return client;
+    },
+  });
+  const session = {wsUrl:'ws://127.0.0.1:8787/session/ws',participant:'page'};
+  assert.equal(await transport.connect(session, 'late-agent', {session:true}), true);
+  assert.equal(chat.connected, true);
+  assert.ok(states.at(-1).includes('offline'));
+  assert.deepEqual(sent, []); // status alone never sends an application message
+  const payload = {type:'component',data:{name:'ps-text',id:'explicit-new',props:{text:'new request'}}};
+  chat.emit(payload);
+  assert.deepEqual(sent, [payload]); // later explicit send uses current router presence/admission
+  assert.equal(await transport.connect(session, 'ungranted-agent', {session:true}), false);
+  assert.equal(chat.connected, false);
+  assert.equal(clients.at(-1).closed, true);
+  assert.deepEqual(sent, [payload]);
+  transport.dispose();
+});

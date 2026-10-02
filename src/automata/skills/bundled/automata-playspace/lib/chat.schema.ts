@@ -52,5 +52,16 @@ export function validateFeedback(value: unknown, instance: Instance) {
   }
   return result;
 }
-export const chatDefinition = { contract: chatContract, events: { "validation-feedback": validateFeedback } };
+export const chatDefinition = {
+  contract: chatContract, validate: validateChatData,
+  catalog: {
+    description: "Chat root settings and safe validation feedback; not renderable message content",
+    sources: ["./lib/chat.schema.js", "./lib/chat.js"],
+    propsExample: {},
+    eventExamples: { "validation-feedback": { detail: {
+      contract: chatContract, fields: { title: "Nonempty title required; consult root contract" },
+    } } },
+  },
+  events: { "validation-feedback": validateFeedback },
+};
 export { validateChatData };

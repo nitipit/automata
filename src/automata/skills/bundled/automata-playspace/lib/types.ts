@@ -9,8 +9,15 @@ export type Instance = { name: string; props: any; state?: any; contracts?: Set<
 export type ComponentHandle = { element: HTMLElement; snapshot?: () => JSONValue; dispose?: () => void };
 export type ComponentContext = { componentId: string; state?: JSONValue; history: History;
   changed: () => void; canSend: () => boolean; appendRevision: (props: FormProps) => void };
+export type DefinitionCatalog = {
+  description: string;
+  sources: string[];
+  propsExample: JSONValue;
+  eventExamples?: Record<string, { detail: JSONValue; state?: JSONValue }>;
+};
 export type ComponentDefinition = {
   contract: string;
+  catalog?: DefinitionCatalog;
   validate: (props: unknown) => any;
   validateState?: (props: any, state: unknown) => any;
   validateHistory?: (history: History) => void;

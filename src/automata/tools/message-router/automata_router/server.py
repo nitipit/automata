@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
 
+from .auth import SessionAuth
+from .auth_socket import SessionSocket
 from .protocol import Connection, JsonObject, json_bytes, parse_frame
 
 
@@ -20,8 +22,12 @@ class RouterApp:
         private_paths: tuple[Path, ...] = (),
         origins: tuple[str, ...] = (),
         legacy_roots: tuple[Path, Path] | None = None,
+        auth: SessionAuth | None = None,
     ):
         self.backend = backend
+        self.auth = auth
+        if auth:
+            private_paths = (*private_paths, auth.store.directory)
         self.public_root = public_root.resolve() if public_root is not None else None
         self.private_paths = tuple(path.resolve() for path in private_paths)
         self.origins = {backend.public_url, *origins}
@@ -41,13 +47,41 @@ class RouterApp:
 
     async def __call__(self, scope: JsonObject, receive: Any, send: Any) -> None:
         if scope["type"] == "http":
-            await self.http(scope, send)
+            await self.http(scope, send, receive)
         elif scope["type"] == "websocket":
             await self.websocket(scope, receive, send)
+        elif scope["type"] == "lifespan":
+            await self.lifespan(receive, send)
         else:
             raise RuntimeError("Unsupported ASGI scope")
 
-    async def http(self, scope: JsonObject, send: Any) -> None:
+    async def lifespan(self, receive: Any, send: Any) -> None:
+        while True:
+            message = await receive()
+            if message["type"] == "lifespan.startup":
+                try:
+                    # PublishedServer starts private operator control only after
+                    # the real public listener has successfully bound.
+                    await send({"type": "lifespan.startup.complete"})
+                except Exception:
+                    if self.auth:
+                        await self.auth.close()
+                    await send({"type": "lifespan.startup.failed",
+                                "message": "Private auth startup failed"})
+                    return
+            elif message["type"] == "lifespan.shutdown":
+                if self.auth:
+                    await self.auth.close()
+                await send({"type": "lifespan.shutdown.complete"})
+                return
+
+    async def http(self, scope: JsonObject, send: Any, receive: Any = None) -> None:
+        if scope.get("path", "").startswith("/session/"):
+            if not self.auth or scope.get("query_string"):
+                await self.respond(send, 404, b"Not found\n", "text/plain")
+                return
+            await self.auth.http(scope, receive, send, self.respond)
+            return
         method = scope.get("method", "GET")
         if method not in {"GET", "HEAD"}:
             await self.respond(
@@ -134,49 +168,76 @@ class RouterApp:
         origin = next(
             (value.decode() for key, value in scope.get("headers", []) if key == b"origin"), None
         )
-        if scope.get("path") != "/ws" or (origin is not None and origin not in self.origins):
+        session = None
+        cookie_endpoint = scope.get("path") == "/session/ws"
+        if cookie_endpoint and self.auth:
+            try:
+                if scope.get("query_string"):
+                    raise ValueError("Unexpected session parameters")
+                session = self.auth.session(scope)
+            except ValueError:
+                pass
+        if ((cookie_endpoint and session is None)
+                or (not cookie_endpoint and scope.get("path") != "/ws")
+                or (not cookie_endpoint and origin is not None and origin not in self.origins)):
             await send(
                 {"type": "websocket.close", "code": 1008, "reason": "Forbidden endpoint or origin"}
             )
             return
-        connection = None
-        try:
+        lifecycle = SessionSocket(self.auth, session, self.backend, send) if session else None
+        connection = lifecycle.connection if lifecycle else Connection(
+            lambda value: send(
+                {"type": "websocket.send", "text": json_bytes(value).decode("utf-8")}
+            )
+        )
+
+        async def serve_connection():
             if (await receive()).get("type") != "websocket.connect":
                 raise ValueError("Expected a WebSocket connection")
             await send({"type": "websocket.accept"})
-            connection = Connection(
-                lambda value: send(
-                    {"type": "websocket.send", "text": json_bytes(value).decode("utf-8")}
-                )
-            )
             first = await asyncio.wait_for(receive(), timeout=5)
             if first.get("type") != "websocket.receive":
                 raise ValueError("Expected authentication hello")
-            await self.backend.authenticate(connection, parse_frame(first.get("text")))
+            hello = parse_frame(first.get("text"))
+            if session:
+                if hello != {"v": 2, "type": "hello"} or type(hello.get("v")) is not int:
+                    raise ValueError("Session hello cannot choose identity or credentials")
+                identity = session["participant"]
+                hello = {"v": 2, "type": "hello", "participant": identity,
+                         "token": self.backend.grants[identity].token}
+                lifecycle.check()
+            await self.backend.authenticate(connection, hello)
             while True:
                 message = await receive()
                 if message.get("type") == "websocket.disconnect":
                     break
                 if message.get("type") != "websocket.receive":
                     raise ValueError("Expected a text frame")
+                if lifecycle:
+                    lifecycle.check()
                 if not await self.backend.packet(connection, parse_frame(message.get("text"))):
                     await send({"type": "websocket.close", "code": 1000})
                     break
+
+        try:
+            if lifecycle:
+                await lifecycle.run(serve_connection)
+            else:
+                await serve_connection()
         except Exception:
             # Never include raw frames, credentials, filesystem paths or arbitrary
             # transport exception strings in remote diagnostics.
-            await self.backend.emit(
-                connection,
-                {
-                    "type": "error",
-                    "code": "protocol",
-                    "message": "Authentication or protocol failure",
-                },
-            )
+            await self.backend.emit(connection, {
+                "type": "error", "code": "protocol",
+                "message": "Authentication or protocol failure",
+            })
             try:
-                await send({"type": "websocket.close", "code": 1008, "reason": "Protocol failure"})
+                await asyncio.wait_for(send({"type": "websocket.close", "code": 1008,
+                                             "reason": "Protocol failure"}), timeout=1)
             except Exception:
                 pass  # The peer may already have closed its socket.
         finally:
-            if connection is not None:
+            if lifecycle:
+                await lifecycle.close()
+            else:
                 await self.backend.disconnected(connection)

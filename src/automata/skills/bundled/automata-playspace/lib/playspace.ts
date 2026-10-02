@@ -15,7 +15,8 @@ export function registerPlayspace() {
 }
 export { Chat };
 export { builtins } from "./registry.js";
+export { generateCatalog, roots } from "./catalog.js";
 export { component, text, json, event, ContractError, validateComponent, validateEvent } from "./contracts.js";
 export { formContracts } from "./form.schema.js";
 export { validateChatSnapshot } from "./chat-state.js";
-export type { ComponentPayload, EventPayload, Payload, Registry, ComponentDefinition, ChatSnapshot, FormProps, FormState, Submission } from "./types.js";
+export type { ComponentPayload, EventPayload, Payload, Registry, ComponentDefinition, DefinitionCatalog, ChatSnapshot, FormProps, FormState, Submission } from "./types.js";

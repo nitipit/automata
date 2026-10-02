@@ -27,7 +27,9 @@ Collaboration ownership and process management remain separate from this transpo
 ## One service, explicitly addressed participants
 
 The Message Router carries bounded JSON between browser pages and agent sessions.
-Each participant connects to one central service with its own private credential.
+Each participant connects to one central service with its own private identity.
+Direct clients use private tokens; an opt-in same-origin browser session can pair
+once and reconnect without exposing the permanent page token.
 A sender names a destination; the service checks permission and forwards the
 message to that connected participant.
 
@@ -113,6 +115,20 @@ with an available client bound to the actual session. Use explicit participant I
 and destinations, not page directories or whichever agent happens to be online.
 Static hosting is optional and independent of Adaptive UI; serve only public-safe
 files. Establish missing installation within existing authority.
+
+For the tool's opt-in local browser pairing, keep auth state/control outside public
+roots and provision fresh single-use codes privately. A persistent revocable
+cookie authenticates only its fixed page identity; it changes neither grants nor
+reply/session binding. Pairing, Connect, Disconnect and Forget are distinct.
+Check cookie status and reconnect explicitly after shutdown; restarting the
+service and binding the intended actual agent session remain explicit actions,
+not startup automation. A second tab cannot displace the active identity. Do not
+fall back to exposed tokens, cache codes, replay saved sends or revive lost reply
+capabilities. Authentication, destination presence, admission and component
+handling are separate evidence. Follow the tool's local-session documentation for
+exact Origin/Host boundaries, private operator commands and revocation.
+Local HTTP cookies are not Secure or port-isolated; HttpOnly is not a same-origin
+script/action sandbox or protection from malicious same-user processes.
 
 Use loopback unless broader access is authorized. Keep participant credentials and
 endpoint records out of public assets and logs; retain live identity only for

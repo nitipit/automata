@@ -14,9 +14,26 @@
         <h1>Think together. Keep your draft.</h1>
         <p>Interactive messages, explicit submissions and local recovery. History is a display, not model context.</p>
       </header>
+      <section class="pairing" aria-label="Local session pairing">
+        <form id="pairing-form">
+          <label for="pairing-code">Private single-use pairing code</label>
+          <input id="pairing-code" type="password" autocomplete="off" maxlength="256" required />
+          <button type="submit">Pair browser</button>
+        </form>
+        <label for="target-participant">Target participant ID (explicit selection)</label>
+        <input id="target-participant" type="text" value="agent" autocomplete="off" maxlength="128" />
+        <p id="target-preference-state" class="note" role="status">Choose target explicitly · only its non-secret ID is saved locally</p>
+        <div class="tools">
+          <button id="connect-session" type="button">Connect paired session</button>
+          <button id="forget-pairing" type="button">Forget pairing / revoke session</button>
+          <a href="./catalog.json" target="_blank" rel="noopener">Component contracts / valid examples</a>
+        </div>
+        <p id="pairing-state" role="status">Checking pairing · no socket opened</p>
+        <p class="note">Pairing does not start an agent or grant actions. Reconnect is explicit; no saved messages are replayed. Disconnect keeps pairing and drafts; Forget revokes only this session.</p>
+      </section>
       <section class="tools" aria-label="Playspace controls">
         <aui-button id="sample-mode" label="Use sample agent" type="button"></aui-button>
-        <aui-button id="live-mode" label="Disconnect / live mode" type="button"></aui-button>
+        <aui-button id="live-mode" label="Disconnect (keep pairing)" type="button"></aui-button>
         <aui-button id="sample-form" label="Open sample Form" type="button"></aui-button>
         <aui-button id="save" label="Save draft now" type="button"></aui-button>
         <aui-button id="restore" label="Restore saved draft" type="button"></aui-button>
