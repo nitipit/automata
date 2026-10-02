@@ -19,6 +19,7 @@ export function createChatView(chat: HTMLElement) {
   const textarea = document.createElement("textarea");
   textarea.id = `chat-input-${++inputSequence}`;
   textarea.name = "message";
+  textarea.rows = 1;
   textarea.required = true;
   textarea.maxLength = 6000;
   label.htmlFor = textarea.id;

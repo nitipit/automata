@@ -14,7 +14,9 @@ python <playspace-skill>/scripts/build.py --runtime-root "$PUBLIC" --validate
 Serve only that public-safe root on an owned loopback origin. No browser/server
 is launched by the builder. First use opens **disconnected**. Chat dominates the
 page; the header shows the explicit target and transport state. Connect opens a
-native modal with separate browser pairing and connection controls. Tools contains
+native modal with one primary next action for browser approval or connection.
+The selected agent is prominent; its editable ID and private-code fallback live
+under Advanced. Page ID remains a compact, visible, read-only secondary row. Tools contains
 Save/Restore, component contracts, draft safety notes and clearly labelled Demo
 choices. Demo replies are **local, not live**; try “form” or “json”. Demo Form also
 switches to local mode before adding its example, so it cannot submit to a live
@@ -29,15 +31,20 @@ also publishes `catalog.json` with registry-derived source links and admitted
 examples, without credentials or actual user state.
 
 For persistent browser pairing, the operator explicitly starts the existing local
-Router with `--auth-dir <private-directory>`. Open Connect and click **Request
-pairing**. Relay the displayed locator to the agent and explicitly ask it to approve
-an existing configured page using private `approve-request`. You need neither a
+Router with `--auth-dir <private-directory>`. Open Connect and click **Start
+pairing**, then **Copy message to send agent**. Send the visible `Please approve
+pairing RP-…` message to the agent to request approval for an existing configured
+page using private `approve-request`. Copy never sends anything; if clipboard
+access fails, select and copy the visible message manually. You need neither a
 Page ID nor a private code. Click **Check approval** to claim the approved pairing,
-select an explicit target participant ID, then click **Connect** separately.
-The existing `pair` command and private-code form remain a secondary fallback.
+then **Connect to <agent>** separately. A known-approved but unclaimed request
+makes Check approval primary instead of asking the agent again. **Choose agent**
+opens Advanced when the target is missing/invalid. Once connected, **Done** only
+dismisses the dialog. The existing `pair` command and private-code form remain a
+secondary fallback under Advanced.
 A paired browser shows its session status instead of the pairing controls. A separate readonly
 Page ID row displays only the authenticated server status participant; otherwise
-it reads “Not paired yet”. This identifies the browser page, not the editable
+it reads “Not approved yet”. This identifies the browser page, not the editable
 Agent target, and is never guessed from target/preferences. Startup only checks auth
 status; it never opens a socket or starts/binds an agent. A restored valid cookie
 allows explicit reconnect after service/browser restart; native agent bindings
@@ -54,15 +61,17 @@ public locator and never enters snapshots, URLs or logs. Tabs may share cookies 
 clone sessionStorage; no tab-isolation claim is made. Unavailable transient storage
 blocks request creation without disabling private-code pairing.
 
-**Cancel request** cancels that exact server request. Dialog Cancel/Close/Escape
+**Cancel pairing request** cancels that exact server request. Dialog Close/Done/Escape
 only dismiss and fence pending UI work. Approval chooses an existing configured
 page and cannot replace a connected peer, unexpired page session or reservation.
-An incoming cookie for any already-paired page must be explicitly Forgotten before
+An incoming cookie for any already-paired page must have its approval explicitly removed before
 claiming another page. The UI checks existing session status before claiming.
 
-Requests do not survive Router restart. Explicit Request pairing can get a fresh
-pending locator after restart (the original local deadline is not extended), then
-requires fresh operator approval. Lost create responses reuse the stored binding.
+Requests do not survive Router restart. Expired/cancelled requests offer **Start
+new pairing**, requiring fresh operator approval. Service/storage uncertainty or
+a redeemed request without a cookie offers **Check session status** and operator
+repair guidance, not another claim or a confident new-request instruction. The
+request client retains its bounded binding; the UI never automatically retries.
 For a lost claim response, **Check session status** recovers a delivered cookie.
 If the server committed a session without delivering the cookie, ask the operator
 to explicitly revoke the orphaned page session before a fresh request; claiming
@@ -75,7 +84,7 @@ from presence, opens a socket or sends. No code, cookie or token enters this
 storage. Malformed/blocked storage retains the current input and shows a limitation;
 select the target again after restart if it could not be saved.
 
-Cancel, Close and Escape fence pending Pair/Connect results. Closing retires an
+Close, Done and Escape fence pending Pair/Connect results. Closing retires an
 opening connection, but keeps an already-established transport; it is not a hidden
 Disconnect. Pair requests already submitted can still finish setting the cookie,
 but never chain a Connect; reopening checks status. A stale completion cannot clear
@@ -83,8 +92,9 @@ a newer pairing code or release a newer pending action. Target edits cancel pend
 Connect and retire the old live binding, so sends cannot silently use the old agent.
 Pending requests are interrupted/uncertain, not replayed or proof of undo.
 Native modal focus returns to the header trigger. If paired status arrives while
-a pairing control owns focus, focus moves to the target before that control is
-hidden/disabled; focus elsewhere is retained. Current Cancel also fences pending
+a pairing control owns focus, focus moves to the next enabled primary action (or
+focusable status while busy), never a collapsed Advanced field. Unaffected focus
+is retained. Current Close also fences pending
 cache Restore without disconnecting an established transport. External native
 closes retire opening activity synchronously through dialog `beforetoggle`;
 queued `close` notifications never cancel/refocus a newer explicit intent. This
@@ -92,8 +102,10 @@ requires a browser supporting native dialog `beforetoggle` (verified on the pare
 preview's Chrome); older-browser lifecycle acceptance is not claimed. Tools closes
 on actions or Escape; safety explanations remain discoverable in details.
 
-Disconnect keeps pairing and local drafts. Forget pairing revokes that cookie
-session, clears it and disconnects without erasing drafts. Codes and permanent
+Disconnect keeps approval and local drafts. **Remove browser approval** is a
+separate destructive action under Advanced: it revokes that cookie session,
+clears it and disconnects without erasing drafts. After confirmed revocation, a
+terminal requester binding is cleared locally so a fresh pairing can be requested. Codes and permanent
 Router tokens never enter snapshots. Authenticated, offline/expired and failures
 are visible separately from transport/agent admission. Cookie auth requires the
 exact local HTTP `127.0.0.1:<port>` origin. HttpOnly/SameSite=Strict is not Secure
@@ -110,6 +122,16 @@ never put tokens in URLs/public files/cache/logs. The helper only connects. A us
 must explicitly Send or submit a Form. An optional trusted `createClient` factory
 may replace dynamic import. Components and events route as complete distinct
 payloads, not history wrappers. The page does not redefine their validators.
+
+## Composer
+
+The Playspace Chat textarea grows with typing/paste and restored drafts up to
+30vh, then scrolls internally. Deletion, sent-draft clearing, rejection restoration
+and native form reset remeasure it; newer unsent edits are preserved. Native
+textarea keyboard behavior is unchanged. Width/viewport changes remeasure wrapping;
+height-only observer notifications are ignored, and disposal releases resources.
+The starter keeps an initially compact composer. DOM-fake tests verify lifecycle
+and values, not real wrapping/overflow; browser acceptance must measure those.
 
 ## Recovery
 

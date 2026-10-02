@@ -70,7 +70,7 @@ test("first use is disconnected; paired UI hides code; opening and cancelling cr
     assert.equal(get("pairing-code").disabled,true);
     get("connection-settings").click(); await tick();
     assert.equal(get("connection-dialog").open,true);
-    assert.equal(document.activeElement,get("target-participant"));
+    assert.equal(document.activeElement,get("connect-session"));
     assert.equal(get("connection-dialog").fire("cancel").defaultPrevented,true);
     assert.equal(get("connection-dialog").open,false);
     assert.equal(document.activeElement,get("connection-settings"));

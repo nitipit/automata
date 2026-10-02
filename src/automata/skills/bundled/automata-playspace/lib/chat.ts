@@ -8,6 +8,7 @@ import { chatInstances, validateChatSnapshot } from "./chat-state.js";
 import { renderMessage } from "./render.js";
 import { createChatView, updateChatView, disableChatView, type ChatView } from "./chat-view.js";
 import { builtins } from "./registry.js";
+import { createComposerSizing } from "./composer-sizing.js";
 
 const attributes = { title: "title", agentLabel: "agent-label", userLabel: "user-label",
   inputLabel: "input-label", sendLabel: "send-label", placeholder: "placeholder", emptyMessage: "empty-message" };
@@ -15,6 +16,7 @@ const attributes = { title: "title", agentLabel: "agent-label", userLabel: "user
 /** Playspace history/composer/admission owner; transport stays in page composition. */
 export class Chat extends Base<ChatData> {
   #view: ChatView;
+  #sizing: ReturnType<typeof createComposerSizing>;
   #bound = false;
   #applying = false;
   #connected = false;
@@ -43,6 +45,7 @@ export class Chat extends Base<ChatData> {
       this.#view.feedbackButton.addEventListener("click", this.#onFeedback);
       this.addEventListener("playspace-event", this.#onEvent);
     }
+    this.#sizing.mount();
     this.#updateButton();
   }
   attributeChangedCallback(_name, oldValue, newValue) {
@@ -62,7 +65,11 @@ export class Chat extends Base<ChatData> {
     updateChatView(this.#view, data, this);
     this.#updateButton();
   }
-  #ensureView() { this.#view ??= createChatView(this); }
+  #ensureView() {
+    if (this.#view) return;
+    this.#view = createChatView(this);
+    this.#sizing = createComposerSizing(this.#view.textarea, this.#view.form, () => this.#changed());
+  }
   #identity() {
     if (!this.id) this.id = newId("chat");
     if (!safeId(this.id)) throw new ContractError(chatDefinition.contract, { id: "Safe stable ps-chat ID required" });
@@ -96,12 +103,14 @@ export class Chat extends Base<ChatData> {
     this.#markedSent = true;
     this.addMessage("user", this.#outgoing);
     if (this.#view.textarea.value.trim() === (this.#outgoing.data.props as { text: string }).text) this.#view.textarea.value = "";
+    this.#sizing.resize();
     this.#changed();
     this.setStatus("Sent · awaiting reply…");
   }
   reject(text: string): void {
     this.#pending = false;
     if (this.#outgoing && !this.#view.textarea.value) this.#view.textarea.value = (this.#outgoing.data.props as { text: string }).text;
+    this.#sizing.resize();
     this.#outgoing = undefined;
     this.setStatus(text);
     this.#changed();
@@ -183,6 +192,7 @@ export class Chat extends Base<ChatData> {
       snapshot.messages.forEach((item, index) => this.#handles.set(item.content.data.id, candidates[index].handle));
       this.applyData(snapshot.settings);
       this.#view.textarea.value = snapshot.composer;
+      this.#sizing.resize();
       this.#connected = false;
       this.#agentBusy = true;
       this.#pending = false;
@@ -272,6 +282,7 @@ export class Chat extends Base<ChatData> {
     this.#pending = false;
     this.#outgoing = undefined;
     this.#releaseHandles();
+    this.#sizing?.dispose();
     this.#view?.textarea.removeEventListener("input", this.#onInput);
     this.#view?.form.removeEventListener("submit", this.#onSubmit);
     this.#view?.feedbackButton.removeEventListener("click", this.#onFeedback);

@@ -6,7 +6,7 @@ import { starterHarness } from "./starter-harness.mjs";
 
 test("readonly Page ID uses authenticated server participant, not Agent target; unpaired shows placeholder", async () => {
   const html = await fs.readFile(path.join(path.dirname(process.env.PLAYSPACE_LIB),"index.html"),"utf8");
-  assert.match(html,/<dt>Page ID<\/dt>\s*<dd id="page-participant" role="status">Not paired yet<\/dd>/);
+  assert.match(html,/<dt>Page ID<\/dt>\s*<dd id="page-participant" role="status">Not approved yet<\/dd>/);
   assert.doesNotMatch(html,/<input[^>]*id="page-participant"/);
   const {get,controls:c,context,tick} = await starterHarness();
   try {
@@ -20,7 +20,7 @@ test("readonly Page ID uses authenticated server participant, not Agent target; 
     get("close-connection").click();
     c.authenticated=false; // unauthenticated status may still carry an irrelevant participant
     get("connection-settings").click(); await tick();
-    assert.equal(get("page-participant").textContent,"Not paired yet");
+    assert.equal(get("page-participant").textContent,"Not approved yet");
     assert.equal(c.connections.length,0);
   } finally { context.playspaceChat.dispose(); }
 });

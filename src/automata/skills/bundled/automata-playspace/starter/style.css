@@ -56,9 +56,9 @@ hr { border: 0; border-top: 1px solid var(--aui-border); }
 #playspace-chat h1 { font-size: 1.3rem; }
 #playspace-chat .messages { padding: .5rem 1.5rem 1.5rem; }
 #playspace-chat .message { max-width: min(90%, 52rem); }
-#playspace-chat .composer { padding: 1rem 1.5rem; display: grid; grid-template-columns: 1fr auto; gap: .5rem .8rem; }
+#playspace-chat .composer { padding: 1rem 1.5rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem .8rem; }
 #playspace-chat .composer > label { grid-column: 1 / -1; font-size: .85rem; margin: 0; }
-#playspace-chat textarea { min-height: 3.1rem; height: 3.1rem; max-height: 10rem; background: #fafbfd; }
+#playspace-chat textarea { min-width: 0; min-height: min(3.1rem, 30vh); max-height: 30vh; background: #fafbfd; }
 #playspace-chat .footer { display: contents; }
 #playspace-chat .footer > aui-button { grid-column: 2; grid-row: 2; align-self: start; }
 #playspace-chat .status { grid-column: 1 / -1; grid-row: 3; font-size: .8rem; overflow-wrap: anywhere; }
@@ -77,7 +77,18 @@ dialog::backdrop { background: #17263c55; }
 .muted { margin: .5rem 0 1.2rem; font-size: .9rem; }
 .note { font-size: .8rem; margin: .4rem 0; }
 .pairing-status { background: #f4f7fb; border: 1px solid var(--aui-border); border-radius: .65rem; padding: .9rem; font-size: .9rem; line-height: 1.5; overflow-wrap: anywhere; }
-.page-identity { display: grid; grid-template-columns: auto 1fr; gap: .75rem; font-size: .9rem; }
+.page-identity { display: grid; grid-template-columns: auto 1fr; gap: .5rem; margin: .5rem 0; font-size: .75rem; }
+.agent-summary { margin: .7rem 0; color: var(--aui-muted-text); font-size: .85rem; }
+.agent-summary strong { display: block; color: var(--aui-text); font-size: 1.1rem; overflow-wrap: anywhere; }
+.pairing-guidance { line-height: 1.5; font-size: .9rem; margin: 1rem 0; }
+.copy-message { padding: .7rem; background: #f4f7fb; border: 1px solid var(--aui-border); border-radius: .5rem; overflow-wrap: anywhere; user-select: text; font-size: .9rem; }
+#request-pairing-controls > button, #copy-pairing-message { width: 100%; margin-bottom: .5rem; }
+#connection-dialog .primary { background: var(--aui-action); color: var(--aui-action-text); overflow-wrap: anywhere; }
+#connection-dialog .primary:hover { background: var(--aui-action-hover); }
+#connection-dialog .danger { color: var(--aui-danger); }
+#connection-dialog .dialog-close { display: block; margin: .5rem auto 0; }
+#connection-dialog .dialog-actions:has(> :not([hidden])) { margin: 1rem 0; }
+#connection-dialog .dialog-actions:not(:has(> :not([hidden]))) { margin: 0; }
 .page-identity dt { font-weight: 600; }
 .page-identity dd { margin: 0; overflow-wrap: anywhere; color: var(--aui-muted-text); }
 #pairing-form { display: grid; gap: .5rem; margin: 1rem 0; }

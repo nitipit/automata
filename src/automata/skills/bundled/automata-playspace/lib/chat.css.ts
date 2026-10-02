@@ -30,7 +30,8 @@ const chatCSS = `
   .composer { padding: 1rem 1.5rem 1.4rem; border-top: 1px solid ${tokens.border}; }
   label { display: block; margin-bottom: .4rem; color: ${tokens.mutedText}; font-size: 1rem; }
   textarea {
-    width: 100%; min-height: 5rem; box-sizing: border-box; resize: vertical; padding: .7rem;
+    width: 100%; min-height: min(5rem, 30vh); max-height: 30vh; box-sizing: border-box;
+    resize: none; overflow-y: auto; padding: .7rem;
     border: 1px solid ${tokens.border}; border-radius: .65rem; font: inherit;
   }
   textarea:focus-visible { outline: 2px solid ${tokens.focus}; outline-offset: 2px; }

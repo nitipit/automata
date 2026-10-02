@@ -110,7 +110,7 @@ test("paired status redirects focus before hiding code, without stealing focus e
       if (focusElsewhere) get("cancel-connection").focus();
       c.authenticated=true; c.resolveStatus(); await tick();
       assert.equal(get("pairing-form").hidden,true);
-      assert.equal(document.activeElement,get(focusElsewhere ? "cancel-connection" : "target-participant"));
+      assert.equal(document.activeElement,get(focusElsewhere ? "cancel-connection" : "connect-session"));
       assert.equal(c.connections.length,0);
     } finally { context.playspaceChat.dispose(); }
   }
@@ -191,7 +191,7 @@ test("check approval preserves another paired cookie and reports lost-cookie rep
       c.authenticated=existing; c.participant="page-B";
       get("check-pairing-request").click(); await tick(); await tick();
       assert.equal(c.requests.filter(value => value.url.endsWith("/request-redeem")).length,0);
-      assert.ok(get("pairing-state").textContent.includes(existing ? "Forget explicitly" : "orphaned"));
+      assert.ok(get("pairing-state").textContent.includes(existing ? "Remove browser approval explicitly" : "orphaned"));
       if (existing) assert.equal(get("page-participant").textContent,"page-B");
       assert.equal(c.connections.length,0);
     } finally { context.playspaceChat.dispose(); }

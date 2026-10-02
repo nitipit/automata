@@ -32,15 +32,17 @@ export async function starterHarness({requestStorage = new Map(), authenticated 
     "sample-form", "save", "restore", "startup-error", "connection-dialog", "connection-settings", "tools-menu",
     "close-connection", "cancel-connection", "selected-target", "connection-detail", "page-participant",
     "request-pairing-controls", "request-pairing", "check-pairing-request", "cancel-pairing-request",
-    "pairing-request-locator", "pairing-request-state", "check-session-status"];
+    "pairing-request-locator", "pairing-request-state", "check-session-status", "copy-pairing-message",
+    "pairing-message", "pairing-message-box", "copy-pairing-state", "request-expiry", "request-dismiss-note",
+    "dialog-target", "choose-agent", "done-connection", "connection-advanced", "advanced-check-session", "forget-row"];
   const elements = new Map(ids.map(id => [id, new Element()]));
   const get = id => elements.get(id), summary = new Element();
   get("target-participant").value = "pc1-agent";
   get("pairing-form").elements = [get("pairing-code"), get("pair-browser")];
-  get("request-pairing-controls").elements = [get("request-pairing"), get("check-pairing-request"), get("cancel-pairing-request")];
+  get("request-pairing-controls").elements = [get("request-pairing"), get("check-pairing-request"), get("cancel-pairing-request"), get("copy-pairing-message"), get("pairing-message")];
   const controls = {candidate:null, holdStatus:false, holdPair:false, holdLoad:false, holdConnect:false,
     authenticated, participant:"page", restorations:0, messages:[], connections:[], clients:[], requests:[],
-    requestRecords:new Map()};
+    requestRecords:new Map(), clipboard:[]};
   const chat = Object.assign(new Element(), {interrupt(){},setConnection(){},setAgentBusy(){},setStatus(){},
     snapshot:()=>({}),restore:()=>{controls.restorations++;return true;},addMessage:(...args)=>controls.messages.push(args),
     dispose(){},reject(){},receiveMessage(){},markSent(){}});
@@ -48,6 +50,11 @@ export async function starterHarness({requestStorage = new Map(), authenticated 
   const document = {querySelector:selector => selector === "ps-chat" ? chat : get(selector.slice(1)), getElementById:get};
   const context = vm.createContext({URL, setTimeout, clearTimeout, queueMicrotask, AbortController,
     crypto:globalThis.crypto,
+    navigator:{clipboard:{writeText:async text => {
+      if (controls.clipboardFail) throw new Error("Clipboard blocked");
+      controls.clipboard.push(text);
+    }}},
+
     sessionStorage:{getItem:key => requestStorage.get(key) ?? null,
       setItem:(key,value) => requestStorage.set(key,value),removeItem:key => requestStorage.delete(key)},
     location:{origin:"http://127.0.0.1:8775",href:"http://127.0.0.1:8775/"}, document,
@@ -57,9 +64,11 @@ export async function starterHarness({requestStorage = new Map(), authenticated 
       const endpoint = new URL(url).pathname;
       const requestKinds = {"/session/request":"RequestCreate", "/session/request-status":"RequestStatus",
         "/session/request-cancel":"RequestCancel", "/session/request-redeem":"RequestRedeem"};
-      const kind = requestKinds[endpoint] ?? (url.endsWith("/pair") ? "Pair" : "Status");
+      const kind = requestKinds[endpoint] ?? (url.endsWith("/pair") ? "Pair" : url.endsWith("/logout") ? "Forget" : "Status");
       controls.requests.push({url,options});
       const response = () => {
+        if (controls.failNext === kind) { controls.failNext = null; return {ok:false,status:503}; }
+        if (kind === "Forget") controls.authenticated = false;
         let result = {authenticated:controls.authenticated,participant:controls.participant,expiresAt:100};
         if (requestKinds[endpoint]) {
           const packet = JSON.parse(options.body);

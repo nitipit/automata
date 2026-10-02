@@ -8,6 +8,7 @@ export const load = name => import(pathToFileURL(path.join(process.env.PLAYSPACE
 export class FakeNode {
   children = []; parentNode = null; listeners = new Map(); attributes = new Map();
   className = ""; id = ""; value = ""; textContent = ""; isConnected = true; adoptedStyleSheets = [];
+  style = {}; scrollHeight = 40;
   constructor(tagName = "div") { this.tagName = tagName; }
   append(...nodes) { for (const node of nodes) { node.parentNode = this; this.children.push(node); } }
   remove() { if (this.parentNode) this.parentNode.children.splice(this.parentNode.children.indexOf(this), 1); this.parentNode = null; }
@@ -37,7 +38,20 @@ class FakeEvent {
   preventDefault() {}
   stopPropagation() { this.stopped = true; }
 }
+export const layout = {observers: [], listeners: new Map()};
 export function installDOM() {
+  globalThis.getComputedStyle = () => ({borderTopWidth:"1px", borderBottomWidth:"1px"});
+  globalThis.addEventListener = (name, fn) => {
+    if (!layout.listeners.has(name)) layout.listeners.set(name, new Set());
+    layout.listeners.get(name).add(fn);
+  };
+  globalThis.removeEventListener = (name, fn) => layout.listeners.get(name)?.delete(fn);
+  globalThis.ResizeObserver = class {
+    constructor(callback) { this.callback = callback; layout.observers.push(this); }
+    observe(element) { this.element = element; }
+    disconnect() { this.disconnected = true; }
+    fire(width) { this.callback([{contentRect:{width}}]); }
+  };
   globalThis.HTMLElement = FakeNode;
   globalThis.CustomEvent = FakeEvent;
   globalThis.CSSStyleSheet = class { cssRules = []; replaceSync() {} };

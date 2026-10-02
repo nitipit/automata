@@ -86,7 +86,7 @@ def main() -> int:
                  "--format=esm", "--target=es2022", f"--outdir={staged / 'lib'}"],
                 cwd=workspace, check=True,
             )
-            for name in ["index.html", "index.js", "sample.js", "session-controls.js", "style.css"]:
+            for name in ["index.html", "index.js", "sample.js", "session-controls.js", "session-view.js", "style.css"]:
                 shutil.copy2(source / "starter" / name, staged / name)
             (staged / "router").mkdir()
             for asset in (router / "browser").glob("*.js"):
