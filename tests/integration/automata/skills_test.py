@@ -43,7 +43,7 @@ REQUIRED_SKILLS = {
     "automata-cue",
     "automata-journal",
     "automata-team-management",
-    "automata-plan",
+    "automata-workplan",
     "automata-skill-design",
     "automata-setup",
     "automata-timer",
@@ -65,6 +65,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-plan",
     "automata-imagegen",
     "automata-context-compaction",
     "automata-context-status",

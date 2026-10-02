@@ -36,9 +36,11 @@ blocked branch as a globally blocked subtree when other work can continue.
 
 ## Visibility without interruption
 
-Keep reporting commitments separate from worker-evidence deadlines. For each
-asynchronous child, maintain the next meaningful evidence and coordinator-targeted
-watchdog through the delegation contract. Synchronous work needs no watchdog.
+Keep reporting commitments separate from worker-evidence deadlines. Use the
+workplan's next meaningful evidence and review timing to maintain a reachable
+coordinator wake path and bounded adaptive fallback through the delegation
+contract. Synchronous work needs no watchdog. Completion or pause invalidates
+obsolete triggers; late evidence does not authorize resuming paused work.
 Do not leave users or parents responsible for watching workers.
 
 Use callbacks as the normal evidence path. When evidence is overdue or a concrete
@@ -98,7 +100,8 @@ resuming work. Recovery requires an explicit parent-owned decision.
 ## Boundaries
 
 This skill owns aggregate status, adaptive visibility, direct-team adaptation and
-manager-loss recovery. Planning owns acceptance criteria; work design owns proposed
-arrangements; delegation owns individual handoff, review, acceptance and cleanup.
+manager-loss recovery. Workplan owns acceptance checks and reasons/timing for
+review and reporting; work design owns proposed arrangements; delegation owns
+individual handoff, review, acceptance and cleanup.
 Applicable `AGENTS.md` files own durable instructions. Timer, model and transport
 skills own their mechanisms. Compose these contracts; do not replace them.

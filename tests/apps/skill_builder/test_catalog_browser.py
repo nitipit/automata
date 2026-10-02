@@ -60,10 +60,10 @@ def test_catalog_search_and_navigation(site):
             expect(page).to_have_url(url + '/message-router/references/connect.html')
             page.get_by_role('link', name='AUTOMATA · SKILLS').click()
             expect(page).to_have_url(url + '/')
-            search.fill('Automata Plan')
+            search.fill('Automata Workplan')
             expect(cards).to_have_count(1)
-            page.get_by_role('link', name='Automata Plan', exact=True).click()
-            expect(page).to_have_url(url + '/plan/')
+            page.get_by_role('link', name='Automata Workplan', exact=True).click()
+            expect(page).to_have_url(url + '/automata-workplan/')
             page.evaluate('history.back()')
             expect(page).to_have_url(url + '/')
             expect(cards).to_have_count(40)  # A new catalog has no stale search state.
@@ -76,8 +76,8 @@ def test_catalog_search_and_navigation(site):
             no_js = browser.new_context(java_script_enabled=False).new_page()
             no_js.goto(url + '/')
             expect(no_js.locator('.skill-card')).to_have_count(40)
-            expect(no_js.get_by_role('link', name='Automata Plan')).to_have_attribute(
-                'href', '/plan/'
+            expect(no_js.get_by_role('link', name='Automata Workplan')).to_have_attribute(
+                'href', '/automata-workplan/'
             )
         finally:
             browser.close()

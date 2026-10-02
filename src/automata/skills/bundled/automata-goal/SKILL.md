@@ -68,8 +68,9 @@ rewrite goal files merely because a discussion clarified intent.
 ## Boundaries
 
 This skill owns desired outcomes, purpose, priority tradeoffs and alignment.
-Planning owns the route, dependencies and concrete acceptance criteria; work design
-owns responsibility and context allocation; tracking records progress. Goal
+Workplan owns the adaptive route, dependencies, concrete acceptance checks and
+resource/review decisions; work design owns responsibility and context allocation;
+tracking records progress. Goal
 clarification does not authorize implementation, delegation, publication or other
 effects. Preserve existing authority boundaries even when a different goal or
 approach seems more useful.

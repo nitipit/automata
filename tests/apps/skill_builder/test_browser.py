@@ -69,7 +69,7 @@ def test_catalog_sources_references_and_sse(site):
             page.on("request", lambda request: requests.append(request.url))
             for slug, title in [("message-router", "Automata Message Router"),
                                 ("automata-storage", "Automata Storage"),
-                                ("plan", "Automata Plan"),
+                                ("automata-workplan", "Automata Workplan"),
                                 ("automata-playspace", "Automata Playspace")]:
                 page.goto(url + "/")
                 assert page.locator(".skill-card").count() == 40
@@ -84,11 +84,12 @@ def test_catalog_sources_references_and_sse(site):
                 assert raw.text_content() == source
                 assert source.startswith("---\n")
                 assert_line_numbers(raw, source)
-                if slug == "plan":
+                if slug == "automata-workplan":
                     expect(page.locator("nav a")).to_have_count(1)
+            page.goto(url + "/automata-workplan/")
             # The page must reload itself: no page.reload/goto after this source edit.
             page.evaluate("window.__beforeSourceEdit = true")
-            source = root / "bundled/automata-plan/SKILL.md"
+            source = root / "bundled/automata-workplan/SKILL.md"
             source.write_text(source.read_text() + "\nSSE-CANONICAL-EDIT-PROOF\n")
             expect(page.locator("article code-example code")).to_contain_text(
                 "SSE-CANONICAL-EDIT-PROOF", timeout=15000

@@ -14,7 +14,7 @@ def test_export_core_profile_creates_standard_skill_package(tmp_path: Path) -> N
     result = export_plugin(name="automata-core", profile="core", output=output)
 
     manifest = json.loads((output / "plugin.json").read_text())
-    assert result.skills == ("automata-plan",)
+    assert result.skills == ("automata-workplan",)
     assert manifest["$schema"] == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
     assert manifest["name"] == "automata-core"
     assert manifest["description"]
@@ -29,11 +29,11 @@ def test_export_merges_profile_and_explicit_selections(tmp_path: Path) -> None:
     result = export_plugin(
         name="automata-expanded",
         profile="core",
-        skill_names=("automata-cue", "automata-plan"),
+        skill_names=("automata-cue", "automata-workplan"),
         output=output,
     )
 
-    assert result.skills == ("automata-plan", "automata-cue")
+    assert result.skills == ("automata-workplan", "automata-cue")
     assert (output / "skills" / "automata-cue" / "SKILL.md").is_file()
 
 
@@ -87,7 +87,7 @@ def test_export_packages_tools_under_automata_extension(tmp_path: Path) -> None:
 
     result = export_plugin(
         name="automata-runtime",
-        skill_names=("automata-plan",),
+        skill_names=("automata-workplan",),
         tool_names=("tmux-message",),
         output=output,
     )

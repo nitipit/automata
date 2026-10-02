@@ -56,36 +56,25 @@ evidence from assumptions. Names, availability, price and current-session identi
 do not establish task fit. Do not infer speed from price alone.
 
 Use available **and permitted** models and effort levels; missing permission is not
-unlimited authority. Justify each assignment, including a solo executor or current
-coordinator, against a viable alternative. An approval-ready design includes model
-and effort choices with their rationale; an arrangement-only sketch is preliminary.
-Resolve decision-relevant evidence gaps before seeking execution approval. Reuse
-applicable knowledge and research only gaps that could change the choice.
+unlimited authority. When proposing assignments, justify material model and effort
+choices against a viable alternative, including solo execution when relevant.
+Distinguish proposed settings from verified runtime identities and label unknown or
+unsupported settings. Resolve evidence gaps that could change the recommendation;
+reuse sufficient knowledge rather than making every authorized continuation a new
+selection exercise.
 
-## Present the proposal
+## Explain the arrangement
 
-Present **team setup, time estimate and token estimate together** before approval,
-with the recommendation and main tradeoff. A small solo task may need only a few
-lines, not the full working analysis.
+Present the recommendation and main tradeoff when approval or coordination needs
+it. Include decision-relevant ownership, context, model/effort choices, integration,
+communication and reporting obligations; avoid exhaustive team diagrams for small
+work. Names or a team tree do not replace runtime identities or require extra
+workers. Resource estimates and proposal detail belong with the overall approach,
+scaled to the decision rather than a mandatory team/time/token template.
 
-- **Team:** identify roles, ownership, manager/reviewer responsibilities, useful
-  peer communication paths, reporting obligations and parallel versus sequential work. Give each agent's model and effort, including the
-  coordinator. Distinguish proposed from verified settings; include known inherited
-  defaults and label unknown or unsupported settings. Names or a team tree can aid
-  discussion but do not replace runtime identities or require extra workers.
-- **Time:** give an end-to-end range covering preparation, implementation, tests,
-  review, corrections and integration. State assumptions and distinguish active
-  effort from elapsed time, dependency delays and approval waits.
-- **Tokens:** estimate the whole task across coordinator and workers, including
-  startup/resumption, briefing, repeated input, output, review and corrections.
-  Separate input, output and cached input when useful and supported. State the basis, uncertainty and
-  exclusions. Context-window size is not cumulative usage; token estimates are not
-  cost quotes. If an estimate is not defensible, offer a bounded first slice to
-  calibrate it.
-
-Revise estimates and ownership when evidence changes; report deltas rather than
-repeating unchanged diagrams. Estimates are not acceptance criteria. Explain
-changed assumptions when challenged; do not redesign merely to agree.
+Revise ownership and affected assumptions when evidence changes; report deltas
+rather than repeating unchanged diagrams. Explain the basis when challenged; do
+not redesign merely to agree.
 
 ## Redesign within authority
 
@@ -101,8 +90,9 @@ model changes or worker launches, and redesign does not expand permissions.
 ## Boundaries
 
 Goal reasoning owns desired outcomes, priorities and material constraints;
-planning owns the route, decomposition and concrete acceptance checks. Teamwork
-design proposes responsibilities, context allocation, models and transitions. Delegation owns
-executable handoffs and runtime verification; management enacts authorized changes
-and owns active-work recovery. This skill does not launch or reassign workers.
+workplan owns the route, decomposition, acceptance checks and proportionate resource
+and review decisions. Teamwork design proposes responsibilities, context allocation,
+models and transitions. Delegation owns executable handoffs and runtime verification;
+management enacts authorized changes and owns active-work recovery. This skill does
+not launch or reassign workers.
 Compose these capabilities as needed, not as a mandatory skill chain.

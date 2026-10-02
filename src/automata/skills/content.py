@@ -8,7 +8,7 @@ from urllib.parse import unquote, urljoin, urlsplit
 
 SOURCE = Path(__file__).resolve().parent
 SKILLS = SOURCE / "bundled"
-LEGACY_URL_SLUGS = {"automata-message-router": "message-router", "automata-plan": "plan"}
+LEGACY_URL_SLUGS = {"automata-message-router": "message-router"}
 
 
 def url_slug(skill: str) -> str:
