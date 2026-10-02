@@ -1,60 +1,100 @@
 import { createBrowserSessionAuth } from "./router/session.js";
 import { createTargetPreference, validTargetParticipant } from "./lib/target-preference.js";
 
-/** Pair/forget affect only auth. Connect/disconnect affect only this live binding. */
-export function bindSessionControls({ connect, disconnect }) {
-  const state = document.querySelector("#pairing-state");
-  const code = document.querySelector("#pairing-code");
-  const target = document.querySelector("#target-participant");
-  const form = document.querySelector("#pairing-form");
-  const connectButton = document.querySelector("#connect-session");
-  const forgetButton = document.querySelector("#forget-pairing");
-  const preferenceState = document.querySelector("#target-preference-state");
+/** Auth stays separate from the page-owned shared transport. No action auto-connects. */
+export function bindSessionControls({ connect, disconnect, cancelConnect = () => {} }) {
+  const get = id => document.getElementById(id);
+  const state = get("pairing-state"), code = get("pairing-code"), target = get("target-participant");
+  const form = get("pairing-form"), connectButton = get("connect-session"), forgetButton = get("forget-pairing");
+  const dialog = get("connection-dialog"), trigger = get("connection-settings"), menu = get("tools-menu");
   const preference = createTargetPreference({
     key: `automata-playspace-chat-target-v1:${new URL(".", location.href).href}`,
-    onState: message => { preferenceState.textContent = message; },
+    onState: message => { get("target-preference-state").textContent = message; },
   });
-  target.value = preference.restore(target.value); // restore choice only, no auth or socket
-  let auth, alive = true, generation = 0, busy = false;
+  target.value = preference.restore(target.value); // choice only, never auth or socket
+  let auth, alive = true, generation = 0, busy = false, paired = false, connected = false;
+  let pendingKind = "", opener, ownedClose = false;
+  const listeners = [];
+  function listen(element, name, fn) { element.addEventListener(name, fn); listeners.push([element, name, fn]); }
   function show(message) { if (alive) state.textContent = message; }
-  function setBusy(value) {
-    busy = value;
-    for (const element of form.elements) element.disabled = value;
-    connectButton.disabled = value;
-    forgetButton.disabled = value;
+  function updateTarget() { get("selected-target").textContent = target.value.trim() || "No target selected"; }
+  function render() {
+    // Capture focus before hiding/disabled controls makes the browser move it to BODY.
+    const redirectFocus = (paired || busy) && !form.hidden && dialog.open && form.contains(document.activeElement);
+    form.hidden = paired;
+    for (const element of form.elements) element.disabled = busy || paired;
+    // Leave target editable: a new target intent explicitly retires the old binding.
+    connectButton.disabled = busy || !paired || !validTargetParticipant(target.value.trim());
+    connectButton.textContent = busy && pendingKind === "connect" ? "Connecting…" : "Connect";
+    forgetButton.disabled = busy || !paired;
+    get("live-mode").hidden = !connected;
+    trigger.textContent = connected ? "Connection" : "Connect";
+    trigger.setAttribute("aria-expanded", String(dialog.open));
+    updateTarget();
+    if (redirectFocus) target.focus();
   }
   function showStatus(status) {
-    show(status.authenticated ? `PAIRED · ${status.participant} · expires ${new Date(status.expiresAt * 1000).toLocaleString()} · connection is explicit` :
-      "NOT PAIRED / EXPIRED · obtain a fresh private code from the operator");
+    paired = status.authenticated;
+    get("page-participant").textContent = paired && typeof status.participant === "string" ? status.participant : "Not paired yet";
+    show(paired ? `Browser paired · ${status.participant} · expires ${new Date(status.expiresAt * 1000).toLocaleString()}` :
+      "Browser not paired / pairing expired");
+    render();
   }
   async function refresh() {
     if (!alive || busy || !auth) return;
     const epoch = generation;
     try { const status = await auth.status(); if (alive && epoch === generation) showStatus(status); }
-    catch { if (alive && epoch === generation) show("AUTH UNAVAILABLE · start/recover the local service explicitly; no automatic reconnect"); }
+    catch { if (alive && epoch === generation) show("Pairing unavailable · recover the local service explicitly; no automatic reconnect"); }
   }
-  async function act(action) {
+  async function act(kind, action) {
     if (!alive || busy || !auth) return;
     const epoch = ++generation;
-    setBusy(true);
+    busy = true; pendingKind = kind; render();
+    show(kind === "pair" ? "Pairing browser… · no connection opened" : kind === "forget" ? "Revoking this browser session…" : "Checking pairing for explicit Connect…");
     try { await action(() => alive && epoch === generation); }
-    catch { if (alive && epoch === generation) show("AUTH / CONNECTION ERROR · check service, code expiry and selected target; no automatic retry"); }
-    finally { code.value = ""; if (alive) setBusy(false); }
+    catch { if (alive && epoch === generation) show("Pairing / connection error · check service, code expiry and target; no automatic retry"); }
+    finally {
+      // A stale completion must not clear a NEW code or release a newer action.
+      if (alive && epoch === generation) { code.value = ""; busy = false; pendingKind = ""; render(); }
+    }
+  }
+  function cancel() {
+    generation++; code.value = ""; busy = false; pendingKind = "";
+    cancelConnect(); // fence page recovery/import; retire only not-yet-established sockets
+    render();
+  }
+  function closeDialog() {
+    cancel();
+    if (dialog.open) {
+      ownedClose = true;
+      try { dialog.close(); } finally { ownedClose = false; }
+    }
+    opener?.focus();
+    render();
+  }
+  function openDialog() {
+    if (!alive || dialog.open) return;
+    menu.open = false;
+    opener = trigger;
+    dialog.showModal(); render(); void refresh();
+    // Native modal owns focus trapping/Escape; choose an enabled initial field.
+    (paired ? target : code).focus();
   }
   function pair(event) {
     event.preventDefault();
-    const secret = code.value;
-    code.value = "";
-    void act(async current => {
+    const secret = code.value; code.value = "";
+    void act("pair", async current => {
       const status = await auth.pair(secret);
       if (current()) showStatus(status);
     });
   }
-  function open() {
-    const to = target.value.trim(); // explicit target, never inferred from presence
-    void act(async current => {
+  function openConnection() {
+    if (!alive || busy || !auth) return;
+    cancelConnect(); // explicit Connect supersedes cache/import work BEFORE its auth wait
+    const to = target.value.trim(); // never inferred from presence
+    void act("connect", async current => {
       if (!validTargetParticipant(to)) throw new Error("Select a participant ID");
-      preference.save(to); // explicit Connect choice only; storage failure does not change input
+      preference.save(to);
       const status = await auth.status();
       if (!current()) return;
       showStatus(status);
@@ -63,25 +103,66 @@ export function bindSessionControls({ connect, disconnect }) {
     });
   }
   function forget() {
-    void act(async current => {
+    void act("forget", async current => {
       disconnect();
       const status = await auth.forget();
       if (current()) showStatus(status);
     });
   }
-  form.addEventListener("submit", pair);
-  connectButton.addEventListener("click", open);
-  forgetButton.addEventListener("click", forget);
+  listen(form, "submit", pair);
+  listen(connectButton, "click", openConnection);
+  listen(forgetButton, "click", forget);
+  listen(trigger, "click", openDialog);
+  listen(get("close-connection"), "click", closeDialog);
+  listen(get("cancel-connection"), "click", closeDialog);
+  listen(dialog, "cancel", event => { event.preventDefault(); closeDialog(); });
+  // Native beforetoggle is synchronous with close(), unlike the queued close event.
+  // Retire external closes at their actual transition, so mixed owned/external closes
+  // cannot consume guessed FIFO credits or invalidate a newer explicit intent later.
+  listen(dialog, "beforetoggle", event => {
+    if (event.newState !== "closed" || ownedClose) return;
+    cancel();
+    const epoch = generation;
+    queueMicrotask(() => {
+      if (alive && epoch === generation && !dialog.open) { opener?.focus(); render(); }
+    });
+  });
+  listen(dialog, "close", render); // notification only; never cancel or refocus here
+  listen(target, "input", () => { cancel(); disconnect(); render(); });
+  listen(menu, "click", event => {
+    if (event.target.closest("button, a")) {
+      menu.open = false;
+      if (event.target.closest("button")) menu.querySelector("summary").focus();
+    }
+  });
+  listen(menu, "keydown", event => {
+    if (event.key === "Escape") { event.preventDefault(); menu.open = false; menu.querySelector("summary").focus(); }
+  });
+  render();
   try { auth = createBrowserSessionAuth(); void refresh(); }
-  catch { show("AUTH UNAVAILABLE · use the authoritative 127.0.0.1 local HTTP origin"); }
+  catch { show("Pairing unavailable · use the authoritative 127.0.0.1 local HTTP origin"); }
   return {
-    refresh,
-    cancel() { generation++; },
+    refresh, cancel,
+    selectTarget(to) {
+      if (!validTargetParticipant(to)) return false;
+      target.value = to; render(); // explicit trusted provisioning, NOT a saved preference
+      return true;
+    },
+    setConnection(message) {
+      const demo = message.startsWith("SAMPLE");
+      const opening = message.includes("connecting to selected");
+      connected = !demo && !opening && message.startsWith("LIVE · authenticated");
+      const pill = get("connection");
+      pill.textContent = demo ? "Demo · local" : opening ? "Connecting…" : connected ? "Connected" : "Disconnected";
+      pill.dataset.state = demo ? "demo" : opening ? "connecting" : connected ? "connected" : "disconnected";
+      pill.title = message;
+      get("connection-detail").textContent = message;
+      render();
+    },
     dispose() {
       alive = false; generation++; code.value = "";
-      form.removeEventListener("submit", pair);
-      connectButton.removeEventListener("click", open);
-      forgetButton.removeEventListener("click", forget);
+      for (const [element, name, fn] of listeners) element.removeEventListener(name, fn);
+      if (dialog.open) dialog.close();
     },
   };
 }

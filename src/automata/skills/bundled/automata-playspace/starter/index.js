@@ -8,19 +8,22 @@ import { bindSessionControls } from "./session-controls.js";
 
 registerPlayspace();
 const chat = document.querySelector("ps-chat");
-const connection = document.querySelector("#connection");
 const recoveryState = document.querySelector("#recovery");
 let initializing = true;
 let disposed = false;
 let connectionIntent = 0;
 let liveFactory = createMessageRouterChatClient;
 let sessionControls;
+let openingConnection = false;
+let pendingProvisionIntent;
+function showConnection(value) {
+  openingConnection = value === "LIVE · connecting to selected participant";
+  sessionControls?.setConnection(value);
+  if (value.startsWith("LIVE DISCONNECTED")) void sessionControls?.refresh();
+}
 const transport = bindChatTransport(chat, {
   sampleReply, createLiveClient: options => liveFactory(options),
-  onState: value => {
-    connection.textContent = value;
-    if (value.startsWith("LIVE DISCONNECTED")) void sessionControls?.refresh();
-  },
+  onState: showConnection,
 });
 const recovery = createCacheRecovery({
   key: new URL("./__playspace_chat_snapshot_v2__", location.href).href,
@@ -38,8 +41,8 @@ function save() {
 function onChange() { if (!initializing) void save(); }
 chat.addEventListener("chat-change", onChange);
 async function restore() {
-  const intent = ++connectionIntent;
   sessionControls?.cancel(); // BEFORE flush/load: delayed auth status cannot reconnect
+  const intent = ++connectionIntent;
   if (transport.getMode() === "sample") transport.sample();
   else transport.disconnected(); // also retire a connection already opening
   await recovery.flush();
@@ -72,24 +75,39 @@ sessionControls = bindSessionControls({
     return connected;
   },
   disconnect: () => { connectionIntent++; transport.disconnected(); void save(); },
+  cancelConnect() {
+    connectionIntent++; // modal Cancel also supersedes an older pending cache Restore
+    if (!openingConnection && pendingProvisionIntent === undefined) return;
+    pendingProvisionIntent = undefined;
+    transport.disconnected();
+    void save();
+  },
 });
+function demo() {
+  connectionIntent++;
+  sessionControls.cancel();
+  transport.sample();
+  void save();
+}
 const handlers = new Map([
-  ["sample-mode", () => { connectionIntent++; sessionControls.cancel(); transport.sample(); void save(); }],
+  ["sample-mode", demo],
   ["live-mode", () => { connectionIntent++; sessionControls.cancel(); transport.disconnected(); void save(); }],
-  ["sample-form", () => chat.addMessage("agent", sampleForm())],
+  ["sample-form", () => { demo(); chat.addMessage("agent", sampleForm()); }],
   ["save", () => { void save(); }], ["restore", () => { void restore(); }],
 ]);
 for (const [id, handler] of handlers) document.getElementById(id).addEventListener("click", handler);
 
 /** Authorized provisioning only; credentials/capabilities stay out of snapshots. */
 async function connect(credentials, to, { createClient, moduleURL = "./router/pi-client.js" } = {}) {
-  if (disposed) return false;
-  const intent = ++connectionIntent;
+  if (disposed || !sessionControls.selectTarget(to)) return false;
   sessionControls.cancel(); // explicit memory provisioning supersedes paired Connect
+  const intent = ++connectionIntent;
   transport.disconnected();
+  pendingProvisionIntent = intent;
   try {
     const factory = createClient ?? (await import(moduleURL)).createMessageRouterChatClient;
     if (disposed || intent !== connectionIntent) return false;
+    pendingProvisionIntent = undefined;
     liveFactory = factory;
     const connected = await transport.connect(credentials, to);
     void save();
@@ -97,8 +115,10 @@ async function connect(credentials, to, { createClient, moduleURL = "./router/pi
   } catch {
     if (disposed || intent !== connectionIntent) return false;
     transport.disconnected();
-    connection.textContent = "LIVE DISCONNECTED · router assets unavailable; no request sent";
+    showConnection("LIVE DISCONNECTED · router assets unavailable; no request sent");
     return false;
+  } finally {
+    if (pendingProvisionIntent === intent) pendingProvisionIntent = undefined;
   }
 }
 function dispose() {
@@ -117,8 +137,8 @@ function onPageHide(event) { if (!event.persisted) dispose(); }
 globalThis.addEventListener("pagehide", onPageHide);
 globalThis.playspaceChat = { chat, contracts: formContracts, snapshot, save, restore, connect, dispose };
 try {
-  transport.sample();
-  if (!await restore()) chat.addMessage("agent", text("Sample agent mode is local, not live. Try ‘form’ or ‘json’. This is v2; old v1 cache is preserved but not imported."));
+  transport.disconnected();
+  if (!await restore()) chat.addMessage("agent", text("What would you like to explore? Connect your agent to begin, or try the local Demo in Tools."));
 } catch {
   document.querySelector("#startup-error").textContent = "Starter initialization failed · no remote request sent. Check public modules/component contracts.";
 } finally { initializing = false; }

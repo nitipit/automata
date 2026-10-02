@@ -3,50 +3,85 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Playspace Chat</title>
+    <title>Playspace</title>
     <link rel="stylesheet" href="./style.css" />
     <script type="module" src="./index.js"></script>
   </head>
   <body>
     <main>
-      <header class="intro">
-        <p class="eyebrow">AUTOMATA · PLAYSPACE STARTER</p>
-        <h1>Think together. Keep your draft.</h1>
-        <p>Interactive messages, explicit submissions and local recovery. History is a display, not model context.</p>
-      </header>
-      <section class="pairing" aria-label="Local session pairing">
-        <form id="pairing-form">
-          <label for="pairing-code">Private single-use pairing code</label>
-          <input id="pairing-code" type="password" autocomplete="off" maxlength="256" required />
-          <button type="submit">Pair browser</button>
-        </form>
-        <label for="target-participant">Target participant ID (explicit selection)</label>
-        <input id="target-participant" type="text" value="agent" autocomplete="off" maxlength="128" />
-        <p id="target-preference-state" class="note" role="status">Choose target explicitly · only its non-secret ID is saved locally</p>
-        <div class="tools">
-          <button id="connect-session" type="button">Connect paired session</button>
-          <button id="forget-pairing" type="button">Forget pairing / revoke session</button>
-          <a href="./catalog.json" target="_blank" rel="noopener">Component contracts / valid examples</a>
+      <header class="app-header">
+        <h1>Playspace</h1>
+        <div class="connection-summary">
+          <span id="selected-target" title="Explicitly selected agent target">No target selected</span>
+          <span id="connection" class="status-pill" role="status">Disconnected</span>
+          <button id="connection-settings" type="button" aria-haspopup="dialog">Connect</button>
+          <details id="tools-menu" class="tools-menu">
+            <summary aria-label="Playspace tools">•••</summary>
+            <div class="tools-panel">
+              <button id="save" type="button">Save draft now</button>
+              <button id="restore" type="button">Restore saved draft</button>
+              <a href="./catalog.json" target="_blank" rel="noopener">Component contracts ↗</a>
+              <hr />
+              <button id="sample-mode" type="button">Demo · local replies only</button>
+              <button id="sample-form" type="button">Demo · try a Form locally</button>
+              <details class="help">
+                <summary>Drafts &amp; safety</summary>
+                <p>History is a display, not model context. Forms become read-only on submission; Revise opens a prefilled copy and sends nothing. Corrections do not undo external actions.</p>
+                <p>Version 2 · old v1 cache is preserved, not imported. Local cache belongs to this exact origin and browser profile. It is disposable, not a backup. Do not enter secrets.</p>
+              </details>
+            </div>
+          </details>
         </div>
-        <p id="pairing-state" role="status">Checking pairing · no socket opened</p>
-        <p class="note">Pairing does not start an agent or grant actions. Reconnect is explicit; no saved messages are replayed. Disconnect keeps pairing and drafts; Forget revokes only this session.</p>
+      </header>
+      <section class="conversation" aria-label="Playspace conversation">
+        <ps-chat id="playspace-chat" title="Conversation" agent-label="Agent" user-label="You"
+          input-label="Your message" placeholder="Ask the agent or describe an idea…"
+          empty-message="A space to think together. Connect an agent, or explore the local Demo from Tools."></ps-chat>
       </section>
-      <section class="tools" aria-label="Playspace controls">
-        <aui-button id="sample-mode" label="Use sample agent" type="button"></aui-button>
-        <aui-button id="live-mode" label="Disconnect (keep pairing)" type="button"></aui-button>
-        <aui-button id="sample-form" label="Open sample Form" type="button"></aui-button>
-        <aui-button id="save" label="Save draft now" type="button"></aui-button>
-        <aui-button id="restore" label="Restore saved draft" type="button"></aui-button>
-      </section>
-      <div class="states">
-        <p id="connection" role="status">Starting · no remote connection</p>
+      <footer class="page-footer">
         <p id="recovery" role="status">Checking local recovery…</p>
-      </div>
-      <ps-chat id="playspace-chat" title="Playspace conversation" agent-label="Agent / sample" user-label="You"
-        placeholder="Try ‘form’ or ‘json’ in sample mode"></ps-chat>
-      <p class="note">Forms become read-only on submission. Revise opens a prefilled copy; editing sends nothing. Corrections do not undo external actions.</p>
-      <p class="note">Version 2 · old v1 cache is preserved and not imported. Local cache belongs to this exact origin and browser profile. It is disposable, not a backup. Do not enter secrets.</p>
-      <p id="startup-error" role="alert"></p>
+        <p id="startup-error" role="alert"></p>
+      </footer>
     </main>
+    <dialog id="connection-dialog" aria-labelledby="connection-title" aria-describedby="connection-description">
+      <div class="dialog-heading">
+        <h2 id="connection-title">Connect this Playspace</h2>
+        <button id="close-connection" class="icon-button quiet" type="button" aria-label="Close connection settings">×</button>
+      </div>
+      <p id="connection-description" class="muted">One connection shared by Chat and its components.</p>
+      <p id="pairing-state" class="pairing-status" role="status">Checking browser pairing · no connection opened</p>
+      <dl class="page-identity">
+        <dt>Page ID</dt>
+        <dd id="page-participant" role="status">Not paired yet</dd>
+      </dl>
+      <form id="pairing-form">
+        <label for="pairing-code">Private single-use pairing code</label>
+        <input id="pairing-code" type="password" autocomplete="off" maxlength="256" required />
+        <button id="pair-browser" type="submit">Pair browser</button>
+        <p class="note">Obtain a fresh code privately from the operator. Pairing alone never connects.</p>
+      </form>
+      <div class="target-field">
+        <label for="target-participant">Agent target</label>
+        <input id="target-participant" type="text" placeholder="Exact agent participant ID" autocomplete="off" maxlength="128" />
+        <p id="target-preference-state" class="note" role="status">Only the non-secret target ID is saved locally on Connect.</p>
+        <p class="note">Connecting does not start the agent or guarantee admission.</p>
+      </div>
+      <div class="dialog-actions">
+        <button id="connect-session" type="button">Connect</button>
+        <button id="live-mode" class="secondary" type="button">Disconnect</button>
+        <button id="cancel-connection" class="secondary" type="button">Cancel</button>
+      </div>
+      <details class="help connection-help">
+        <summary>Connection &amp; privacy</summary>
+        <p id="connection-detail">Disconnected · no remote connection</p>
+        <p>Pairing, transport connection, target presence and agent admission are separate. Reconnect and Send are explicit; saved events are never replayed.</p>
+        <p>Disconnect keeps pairing and drafts. Forget revokes this browser's cookie session and disconnects, but does not erase drafts or stop the agent. A Pair already submitted may finish even after closing this dialog; it cannot connect automatically.</p>
+        <p>Cookies are HttpOnly, never saved with drafts. Local HTTP is not encrypted or a sandbox against same-user processes or same-origin scripts.</p>
+      </details>
+      <div class="forget-row">
+        <button id="forget-pairing" class="quiet" type="button" aria-describedby="forget-description">Forget pairing</button>
+        <p id="forget-description" class="note">Revoke this browser session · keep drafts</p>
+      </div>
+    </dialog>
   </body>
 </html>
