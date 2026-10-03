@@ -130,6 +130,18 @@ alone do not establish agent behavior. Ensure the revision preserves decisions,
 conditions, and exceptions. Keep simple skills short; above 8000 characters, review
 for repetition or separable supporting material, not an automatic split or size target.
 
+## Report skill edits
+
+Capture each skill file's pre-edit baseline. In the completion report, use a compact
+table with file paths, byte size before → after, total physical lines before → after,
+and lines added/deleted relative to that baseline. Include supporting files when
+edited, not only `SKILL.md`. Do not count unrelated pre-existing changes as this
+task's work; if a baseline is unavailable, label that limit rather than inventing
+before-values. Pair the table with meaningful changes, verification and limitations.
+Size and line counts show growth and churn, not exact token usage or skill quality;
+do not optimize wording merely to reduce them. Honor an explicitly different
+reporting format requested by the user.
+
 ## Boundaries
 
 This skill owns design and revision, not installation or runtime exposure.
