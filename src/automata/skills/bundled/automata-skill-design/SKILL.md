@@ -9,138 +9,109 @@ Design compact contracts that improve agent decisions without prescribing every 
 
 ## Scope and Activation
 
-Create a skill only when it owns a distinct capability or decision, has a recognizable
-activation situation, and leads to a useful action or outcome. Otherwise refine an
-existing owner or leave ordinary reasoning to the agent. Conceptual skills need a
-concrete post-activation purpose too.
+A skill needs a distinct capability or decision, recognizable activation and a useful
+outcome—even when conceptual. Otherwise refine an existing owner or leave ordinary
+reasoning to the agent. Split independent responsibilities, not every subtopic.
 
-Keep one coherent scope. Split independent responsibilities, not every subtopic.
-Write frontmatter `description` for recognition: user intent, task state, or runtime
-signals that need this skill's specialized guidance, not broad everyday activities.
-Keep descriptions short and distinguish nearby capabilities. Review a situation
-where the skill should activate, a nearby one where it should not, and overlap
-with another skill. This need not become a formal evaluation campaign. Put detailed
-behavior in the body. Use minimal frontmatter (`name` and `description`).
+Use minimal frontmatter (`name` and `description`). Keep `description` short and
+specific to intent, task state or runtime signals needing specialized guidance;
+put details in the body. Review activation, nearby non-activation and overlap with
+another skill; no formal evaluation campaign is required.
 
-Choose a lowercase, single-hyphen-separated runtime name matching the installed
-directory. Check likely collisions with existing skills and runtime commands.
+Use a lowercase, single-hyphen-separated runtime name matching the installed
+directory; check collisions with skills and runtime commands.
 
 ## Instructions and Composition
 
-Keep portable skills agent-CLI-brand-neutral, including names, activation
-descriptions, instructions and supporting references. Describe capabilities,
-decisions and required outcomes rather than branching workflows by host.
-When a skill genuinely requires a particular runtime's extension or interface
-contract, name and scope it explicitly for that runtime. Keep that contract in
-the runtime-specific skill instead of adding host branches to a portable skill;
-do not create counterparts just for symmetry. Shared tool bindings and runtime
-installation details belong in tool or runtime documentation. Installing a skill
-does not install its required extension or establish that its interface is exposed.
+Keep portable skills agent-CLI-brand-neutral in names, activation, instructions and
+references. Describe capabilities and outcomes, not host branches. Name and scope
+runtime-dependent contracts in runtime-specific skills, not portable branches or
+counterparts for symmetry. Shared tool bindings and installation belong in tool or
+runtime docs. Installing a skill neither installs required extensions nor proves
+their interfaces are exposed.
 
-For judgment, establish orientation, useful decisions, and authority boundaries;
-let the agent adapt. Require fixed procedures only for concrete mechanical,
-interoperability, or safety needs. Every instruction should affect behavior.
-For action-oriented skills, define success, proportionate verification, authorized
-corrections, and when to stop or escalate. Preserve authority boundaries across
-models; do not assume a model's claimed judgment makes them unnecessary.
+Orient judgment through useful decisions and authority boundaries; let the agent
+adapt. Require fixed procedures only for mechanical, interoperability or safety needs.
+Action-oriented skills need success criteria, proportionate verification, authorized
+corrections and stop/escalation conditions. Authority boundaries remain necessary
+regardless of a model's claimed judgment.
 
-Use direct wording. Remove filler, repeated ideas, and unnecessary qualifiers.
-Combine overlapping instructions while preserving conditions, exceptions, and authority
-boundaries. Prefer clarity over the shortest text; avoid cryptic abbreviations.
-Judge revisions by whether they preserve intended decisions, not word count alone.
+Each skill should stand independently and compose through context. Make activation,
+inputs, outputs and ownership clear. Describe needed capabilities, evidence or outcomes;
+let the agent select skills rather than prescribing named skill invocation. Documentation
+and interface links are not invocation instructions. Dependencies need a concrete
+interface, handoff or safety reason—not an invocation chain. Leave actors, topology,
+timing and message paths flexible when the situation should determine them.
 
-Keep internal decisions separate from user-visible presentation. Do not require
-announcing modes, checklists, or steps unless that communication serves a real need.
-Leave ordinary response style to character guidance.
-
-Each skill should stand independently within its scope and compose through context.
-Make activation cues, inputs, outputs, and ownership boundaries clear. Don't instruct
-the agent to load or invoke another skill by name. Describe the capability, evidence,
-or outcome needed; let the agent choose relevant skills from their activation
-descriptions. Links to documentation or shared interface contracts are not invocation
-instructions. Require dependencies only where a concrete interface, handoff, or safety
-boundary needs them—not mandatory invocation chains. Avoid fixed actors, topology,
-timing, or message paths when the situation should determine them.
+Every instruction should affect behavior. Remove filler and overlap while preserving
+decisions, conditions, exceptions and authority. Prefer clear language over brevity
+or cryptic abbreviations. Keep internal decisions separate from presentation; require
+announced modes, checklists or steps only for a real communication need. Ordinary
+response style belongs to character guidance.
 
 ## Supporting Assets
 
-Only `SKILL.md` is required. Keep its core contract and shipped defaults together.
-Use references for on-demand knowledge, examples for clearer demonstrations,
-templates for reusable formats, and scripts for repeated mechanics. Do not create
-assets for appearance. Moving always-read prose does not reduce context cost.
-Separate optional workflows with clear cues for selective reading; keep short,
-coherent contracts together rather than forcing every skill into a router.
-Examples should teach general behavior, not encode one session's policy.
+Only `SKILL.md` is required; keep its core contract and defaults together. Use
+references for on-demand knowledge, examples for general behavior rather than session
+policy, templates for formats and scripts for repeated mechanics. Cue optional reading;
+moving always-read prose does not reduce context cost. Keep short, coherent contracts
+together rather than forcing router structures. Do not add assets for appearance.
 
-When using an Automata tool, map its installed `.agents/tools/...` entry path in
-`metadata.automata-tools` (comma-separated for multiple entries). Do not map source
-paths, system commands, or helpers. Reuse known entries without redundant discovery;
-check changeable prerequisites when evidence warrants it. A mapping is not proof
-that the environment is ready. Keep scripts inspectable and document safe use.
+Map Automata tools by installed `.agents/tools/...` entry path in
+`metadata.automata-tools` (comma-separated for multiple entries), not source paths,
+system commands or helpers. Reuse known entries; check changeable prerequisites when
+evidence warrants it. Mapping does not prove readiness. Keep scripts inspectable and
+document safe use.
 
 ## State and Environment Boundaries
 
 Identify ownership before location. Keep mutable agent data outside the package;
-describe its purpose and lifecycle using the applicable owner-scoped data convention.
-Avoid host-specific paths unless the capability owns that convention. Let the
-generator implement concrete discovery paths. Keep generated outputs separate from
-user inputs with different lifecycles.
+define its purpose and lifecycle under the owner's data convention. Keep generated
+outputs separate from user inputs with different lifecycles. Host-specific paths
+need an owning convention; let the generator implement concrete discovery paths.
 
-For environment-dependent skills, distinguish setup from normal use. When setup
-requires discovery or experimentation, save a verified recipe in a suitable agent-data
-location within existing storage authority: working commands, prerequisites, usage
-and cleanup procedures, and invalidation conditions. Make it findable on later use
-and consult it before repeating discovery. Reuse it with lightweight checks of
-changeable prerequisites; repair or rediscover only what is invalid within existing
-authority, then update the recipe after verification. Saved knowledge does not grant
-permission.
+Separate setup from normal use and reusable knowledge from runtime state. Retain
+findable, verified setup recipes within storage authority when they avoid repeated
+work: commands, prerequisites, usage, cleanup and invalidation. Consult before
+rediscovery; check changeable prerequisites, repair only invalid parts within authority
+and update after verification. Each capability owns validity/invalidation; persist
+runtime state only for continuity or recovery. Saved knowledge grants no permission.
+Do not impose records or universal schemas. Judgment-only skills need no setup ceremony.
+Installation mechanics belong to setup.
 
-Separate reusable setup knowledge from temporary runtime state. Each capability owns
-its validity checks and invalidation conditions; persist runtime state only when
-continuity or recovery requires it. Do not mandate records or a universal schema:
-retain knowledge only when it avoids useful work being repeated. Judgment-only skills
-need no setup ceremony. Installation mechanics belong to `automata-setup`.
-
-For accumulating data or runtime resources, establish growth/retention review,
-cleanup authority, and when use has ended. Distinguish disposable material from
-needed evidence, stopping activity from deleting records, and review thresholds
-from deletion permission. A terminal status alone does not prove inactivity.
-Automatic deletion needs an agreed policy; avoid universal quotas or checks on every
-write. Put concurrency and deletion safeguards in tools, not prose alone.
+Define growth/retention review, cleanup authority and end-of-use conditions for
+accumulating data or resources. Distinguish disposable data from needed evidence,
+stopping activity from deleting records, and review triggers from deletion permission.
+Terminal status does not prove inactivity. Automatic deletion needs an agreed policy,
+not universal quotas or per-write checks. Enforce concurrency and deletion safeguards
+in tools, not prose alone.
 
 ## Modification and Review
 
-Review the whole skill before editing. Resolve material ambiguity, then carry out
-approved changes and verification without repeated permission. Ask before exceeding
-scope or adding unapproved storage, configuration, or integration changes.
-Discussion alone does not authorize mutation.
+Read the whole skill and resolve material ambiguity before editing. Complete approved
+changes and verification without repeated permission; ask before exceeding scope or
+adding unapproved storage, configuration or integrations. Discussion is not authority
+to mutate.
 
-When revising after poor agent behavior, distinguish missing guidance from failed
-application. Check whether the instruction was discoverable, loaded, understood,
-or contradicted elsewhere in the instruction stack. Fix the cause at its owner;
-more prose does not necessarily improve behavior.
+For poor behavior, check missing guidance versus failed application: discovery,
+loading, understanding or conflicting instructions. Fix the cause at its owner,
+not by adding prose by default. Replace overlap rather than append requests. Review
+scope, activation, composition and authority together; explain misplaced additions
+or conflicts before implementing. Do not universalize one incident.
 
-Replace or remove overlapping guidance rather than appending each new request.
-Check scope, activation, composition, and authority together. If an addition belongs
-elsewhere or creates a conflict, explain that before implementing it. Do not turn
-one observed incident into a universal rule.
-
-Validate the affected behavior or interface with proportionate checks; wording tests
-alone do not establish agent behavior. Ensure the revision preserves decisions,
-conditions, and exceptions. Keep simple skills short; above 8000 characters, review
-for repetition or separable supporting material, not an automatic split or size target.
+Use proportionate behavior/interface checks; wording tests do not prove agent behavior.
+Review preservation of decisions, conditions and exceptions, not word count alone.
+Above 8000 characters, review repetition or separable supporting material—not an
+automatic split or size target.
 
 ## Report skill edits
 
-Capture each skill file's pre-edit baseline. In the completion report, use a compact
-table with file paths, byte size before → after, total physical lines before → after,
-and lines added/deleted relative to that baseline. Include supporting files when
-edited, not only `SKILL.md`. Do not count unrelated pre-existing changes as this
-task's work; if a baseline is unavailable, label that limit rather than inventing
-before-values. Pair the table with meaningful changes, verification and limitations.
-Size and line counts show growth and churn, not exact token usage or skill quality;
-do not optimize wording merely to reduce them. Honor an explicitly different
-reporting format requested by the user.
+Capture pre-edit baselines for edited skills and supporting files. Report a compact
+table: path, bytes and physical lines before → after, and added/deleted lines against
+that baseline. Exclude unrelated changes; disclose unavailable baselines, never invent
+values. Summarize meaningful changes, verification and limits beside the table. Counts
+show growth and churn, not exact tokens or quality; do not optimize wording merely
+to lower them. Honor an explicitly requested alternative format.
 
 ## Boundaries
 
