@@ -1,80 +1,58 @@
 ---
 name: automata-storage
-description: Use when choosing locations, ownership, retention, or cleanup for capability-owned operational data.
+description: Use when choosing ownership, locations, or retention for agent-generated helpers, temporary work, preferences, or operational data; also when reviewing or cleaning up that storage.
 ---
 
 # Automata Storage
 
-Choose storage by ownership and lifecycle, not on every file read or write. This
-skill governs capability-owned operational data: reusable runtimes, profiles,
-setup recipes, application builds, and tool state. Task-specific artifacts are not capability-owned
-merely because a skill produced them. Task-workspace layout and arbitrary
-management of maintained source or user-owned files are outside this scope.
+Choose storage by owner, lifecycle, and sensitivity, not file extension or every
+read/write. Executable operational helpers are not automatically maintained source.
+This skill chooses storage and retention; it does not approve tool creation,
+promotion, installation, or arbitrary management of user files.
 
-When no explicit storage convention applies, use these repository-local defaults
-for capability-owned data:
+## Ownership and location
 
-```text
-.agents/var/skills/<skill-name>/
-.agents/var/tools/<tool-name>/
-.agents/var/apps/<app-name>/
-```
+Follow explicit conventions first. Otherwise, in a repository use:
 
-Choose the namespace from the capability that owns the data. Let that owner define
-its internal layout. Shared capability data needs one owner, not duplicate copies
-or a central storage-skill directory. Do not create a generic shared directory
-merely because a future use is possible.
+- One-off helpers/intermediates: the task's approved temporary area. Use `/tmp`
+  only when loss across restart is acceptable; temporary is a lifecycle, not an owner.
+- Reusable skill-owned helpers, preferences, and setup knowledge:
+  `.agents/var/skills/<skill-name>/`.
+- Existing tools' operational data: `.agents/var/tools/<tool-name>/`.
+- Apps' operational data: `.agents/var/apps/<app-name>/`.
+- User-requested outputs: the task's agreed destination, not a skill cache merely
+  because a skill produced them.
 
-## Precedence
+Choose the actual owner, not whoever generated the file. Let that owner define the
+internal layout; shared assets need one owner, not duplicate copies or a central
+storage-skill directory. Do not create unused directories. Task-workspace and
+maintained-source layout remain with their existing owners.
 
-1. Follow an explicit storage convention when one exists.
-2. Otherwise use the repository-local defaults when a repository context is known.
-3. For explicitly global capabilities, use the equivalent paths under
-   `~/.agents/var/`. Without an established scope, ask before choosing durable
-   storage outside a repository.
+Use equivalent `~/.agents/var/` paths only for an explicitly global capability;
+ask before choosing durable global storage when scope is unclear. Defaults do not
+authorize new effects, migration, or installation. Keep existing locations unless
+an authorized migration is needed. Putting a helper in packaged source or an
+installed tools directory requires explicit creation/promotion and deployment
+authority, not merely a convenient path.
 
-These defaults do not authorize installation, scope expansion, or moving existing
-files. Keep existing locations unless a migration is needed and authorized.
+## Reuse and lifetime
 
-## Setup Knowledge and Live State
+Separate preferences/setup knowledge, live handles, caches, and evidence when their
+lifetimes differ; separate files are optional. Retain only useful verified knowledge
+within storage authority, not secrets or copies of authoritative configuration.
+Owners define validity and recovery. Recheck changed prerequisites and live identity
+before reuse; a saved handle is not a permanent source of truth.
 
-Keep reusable setup knowledge separate from temporary runtime handles when their
-lifetimes differ; separate files are optional. The capability owner defines validity
-checks and recovery, not a central readiness registry. Save only knowledge worth
-reusing within approved storage scope; do not copy secrets, authoritative project
-configuration, or transient handles into a permanent source of truth.
+## Retention and cleanup
 
-## Growth and Retention
+Review accumulation at meaningful boundaries using lightweight evidence, not scans
+on every write. Apply the owner's agreed policy; thresholds prompt review, not
+automatic deletion. Distinguish disposable caches from unique evidence, outputs,
+and user-authored material. Age or terminal status does not establish inactivity.
 
-Treat retention as an ownership decision, not just a size check. Distinguish
-rebuildable caches and disposable outputs from durable decisions, unique evidence,
-and user-authored inputs. Keep different lifecycles separate; age alone does not
-establish that data is safe to remove.
-
-Follow the data owner's agreed growth and retention policy. At natural maintenance
-boundaries, notice meaningful accumulation or rising navigation, storage, or read
-cost. Use lightweight metadata or existing observations first, not recursive scans
-on every write. If a review is warranted, explain what grew and offer a scoped
-cleanup; avoid repeating unchanged notices after the user defers them.
-
-Choose review triggers appropriate to the data's value and cost. There is no
-universal file count, age, or byte quota. Distinguish a soft review threshold from
-a hard limit: a reminder does not stop growth. A hard limit needs an agreed action
-at the boundary, not silent eviction or data loss.
-
-Identify exact owned candidates and effects before cleanup. A clear scoped removal
-request or agreed automatic-retention policy can authorize cleanup; a growth notice
-cannot. Ask when authority or scope is unclear. Prefer recoverable removal and
-confirm permanent deletion unless explicitly authorized. Do not delete active data,
-follow links into another owner's data, or remove referenced evidence merely because
-it sits near disposable output. Ask before consolidating or relocating durable data
-outside an already authorized maintenance policy.
-
-## Boundaries
-
-- Keep maintained source and packaged instructions separate from mutable data;
-  package installation belongs to setup, not this skill.
-- Planning, delegation, and process control remain with their existing owners.
-- Do not modify or remove another capability's or task's data without authorization.
-- Ask before establishing a new shared or durable data convention that falls outside
-  an existing owner directory.
+Identify exact owned candidates, dependencies, and effects before moving or deleting.
+Clear scoped cleanup approval needs no repeated confirmation; otherwise ask.
+Prefer recoverable removal; permanent or automatic deletion needs explicit authority.
+Never delete active resources, follow links into another owner's data, or discard
+referenced evidence merely because it is nearby. Ask before relocating/consolidating
+outside approved storage. Stopping activity and deleting its records are separate.
