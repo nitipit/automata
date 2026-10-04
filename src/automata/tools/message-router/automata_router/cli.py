@@ -18,6 +18,7 @@ from cyclopts import App, Parameter
 
 from .auth import SessionAuth
 from .auth_store import AuthStore
+from .config import validate_config
 from .legacy import Broker
 from .protocol import (
     MAX_FRAME_BYTES,
@@ -26,7 +27,7 @@ from .protocol import (
     strict_object_pairs,
     utc_now,
 )
-from .router import Router, validate_config
+from .router import Router
 from .server import RouterApp
 
 # Preserve the historical default: renaming the capability does not migrate credentials.
@@ -123,31 +124,42 @@ def run_server(application: RouterApp, records: EndpointRecords, port: int) -> N
 def setup(
     *,
     config_file: Path = DEFAULT_STATE_ROOT / "config.json",
+    node: Annotated[
+        list[str], Parameter(help="Generic node ID; repeat for multiple nodes.")
+    ] = (),
     agent: Annotated[
-        list[str], Parameter(help="Agent participant ID; repeat for multiple agents.")
+        list[str], Parameter(help="Node using the agent adapter (requires session ID).")
     ] = (),
     page: Annotated[
-        list[str], Parameter(help="Page participant ID; repeat for multiple pages.")
+        list[str], Parameter(help="Node using the page adapter (optional browser pairing).")
+    ] = (),
+    network: Annotated[
+        list[str], Parameter(help="node:network assignment; unassigned nodes use default.")
     ] = (),
     allow: Annotated[
-        list[str], Parameter(help="Directed source:destination grant; repeat as needed.")
+        list[str], Parameter(help="Directed source:destination exception; repeat as needed.")
+    ] = (),
+    block: Annotated[
+        list[str], Parameter(help="Directed source:destination deny; overrides defaults/allow.")
     ] = (),
 ) -> None:
-    """Create private grants; with no identities, create page→agent as the default pair."""
-    if not agent and not page and not allow:
-        agent, page, allow = ["agent"], ["page"], ["page:agent"]
-    participants = {}
-    for kind, identities in (("agent", agent), ("page", page)):
+    """Create v2 private nodes; same-network peers may route without duplicate client ACLs."""
+    if not node and not agent and not page:
+        node = ["node"]
+    nodes = {}
+    for kind, identities in (("node", node), ("agent", agent), ("page", page)):
         for identity in identities:
-            if identity in participants:
-                raise ValueError("Participant IDs must be distinct")
-            participants[identity] = {"kind": kind, "token": secrets.token_urlsafe(32), "allow": []}
-    for grant in allow:
-        source, separator, destination = grant.partition(":")
-        if not separator or source not in participants or destination not in participants:
-            raise ValueError("Each --allow must name configured source:destination participants")
-        participants[source]["allow"].append(destination)
-    config = {"v": 1, "participants": participants}
+            if identity in nodes:
+                raise ValueError("Node IDs must be distinct")
+            nodes[identity] = {"kind": kind, "token": secrets.token_urlsafe(32)}
+    assigned = set()
+    for assignment in network:
+        identity, separator, name = assignment.partition(":")
+        if not separator or identity not in nodes or identity in assigned:
+            raise ValueError("Each --network must assign a configured node exactly once")
+        nodes[identity]["network"] = name
+        assigned.add(identity)
+    config = {"v": 2, "nodes": nodes, "allow": list(allow), "block": list(block)}
     validate_config(config)
     try:
         private_write(config_file, config)
@@ -176,7 +188,7 @@ def serve(
     session_seconds: int = 604800,
     pairing_seconds: int = 300,
 ) -> None:
-    """Serve authorized participants; static hosting is optional and independent of UI choice."""
+    """Serve configured nodes; static hosting and browser pairing are optional."""
     if not 1 <= port <= 65535:
         raise ValueError("--port must be between 1 and 65535")
     config = json.loads(
@@ -199,6 +211,7 @@ def serve(
             **shared,
             "participant": identity,
             "kind": grant.kind,
+            **({"network": grant.network} if grant.network is not None else {}),
             "token": grant.token,
         }
     # Check public/private boundaries before creating any auth data.
@@ -308,7 +321,7 @@ def revoke(*, auth_dir: Path, participant: str | None = None,
     )})
 
 
-app = App(name="message-router", help="Route bounded JSON between authorized pages and agents.")
+app = App(name="message-router", help="Route bounded JSON between trusted configured nodes.")
 app.command(setup)
 app.command(serve)
 app.command(status)

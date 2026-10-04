@@ -1,10 +1,10 @@
 # Handle failures
 
-## Forbidden: no grant in this direction
+## Forbidden: central policy denies this direction
 
-worker may reply to a desk request, but cannot start a new worker → desk message under this configuration.
-
-worker tries to initiate to desk; router rejects forbidden before forwarding.
+worker may reply to a desk request, but cannot start a new worker → desk message:
+it crosses Networks without an explicit allow. Explicit blocks also deny, even
+within a Network or when an allow pair exists.
 
 ```mermaid
 sequenceDiagram
@@ -23,11 +23,12 @@ try {
 }
 ```
 
-The client rejects `accepted` with an Error. The underlying wire result is `{"v":2,"type":"result","requestId":"<ID>","status":"rejected","error":"forbidden"}`. No forwarding occurs. A return capability does not change the grant.
+The client rejects `accepted` with an Error. The underlying wire result is `{"v":2,"type":"result","requestId":"<ID>","status":"rejected","error":"forbidden"}`. No forwarding occurs. A return capability does not change central initiation policy.
 
 ## Offline: allowed, but no current recipient connection
 
-Close the separately owned viewer client first. desk → viewer is still permitted, but not currently deliverable.
+Close the separately owned viewer client first. desk → viewer remains permitted,
+but is not currently deliverable.
 
 ```javascript
 // In viewer's context:
@@ -41,16 +42,15 @@ try {
 ```
 
 Expected rejection: `error.message === "offline"`. No durable queue retains the message.
-Authentication can remain valid while an allowed agent is offline. Its later
+Authentication can remain valid while an allowed node is offline. Its later
 explicit binding may permit a **new explicit send**; an earlier offline presence
 snapshot is not a permanent local send gate. Never replay the rejected/uncertain
-request as part of reconnect. This assumes disconnect has reached the router; an in-flight emission race can instead be uncertain. status is only a point-in-time observation.
+request as part of reconnect. This assumes disconnect has reached the Router;
+an in-flight emission race can instead be uncertain. status is only a snapshot.
 
 ## Cancel correlation, not recipient actions
 
 For this example, temporarily use a worker handler that logs but does not respond. Cancel only after the request has an acknowledged route ID and while it is still pending.
-
-After forwarding, desk cancels via its request ID; router removes the reply capability but does not retract the worker's work.
 
 ```mermaid
 sequenceDiagram
@@ -95,11 +95,14 @@ A remote peer disconnect can emit `{"v":2,"type":"route_closed","id":"<route ID>
 
 A forwarding result may itself have `status: "uncertain"` rather than rejecting. Check it; a resolved promise is not necessarily `forwarded`. Disconnect, timeout, or a failed write cannot prove the recipient did nothing.
 
-Reconnect explicitly with the same authorized identity when appropriate; old reply capabilities cannot be recovered.
-For local session auth, Disconnect keeps pairing, whereas Forget/logout or private
-operator revocation removes the session and closes active idle sockets. Expiry also
-closes session sockets; it does not undo previously forwarded/in-flight effects.
-A persistent cookie can authenticate a new connection after explicit service
-restart, not restore requests or native agent bindings. Bounded duplicate detection is not exactly-once execution. The router has no automatic reply expiry: final response, explicit cancel, or either endpoint's disconnect releases correlation.
+Reconnect explicitly with the authorized identity when appropriate; old reply
+capabilities cannot be recovered. [Connect](./connect.md) owns local-session
+controls: Disconnect retains pairing; Forget/logout or private operator revocation
+removes it and closes active idle sockets. Expiry also closes session sockets,
+without undoing forwarded/in-flight effects. A persistent cookie authenticates a
+new connection after explicit service restart, not old requests or agent bindings.
+Bounded duplicate detection is not exactly-once execution. There is no automatic
+reply expiry: final response, explicit cancel or either endpoint's disconnect
+releases correlation.
 
 [Return to the configuration and permissions →](./configure.md)

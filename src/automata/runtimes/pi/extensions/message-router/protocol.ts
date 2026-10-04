@@ -2,8 +2,8 @@
 export type JsonPrimitive = null | string | number | boolean;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 export type JsonRecord = Record<string, unknown>;
-export type Endpoint = { wsUrl: string; publicUrl: string; controlToken?: string; v?: 2; participant?: string; token?: string; kind?: "agent" };
-export type Sender = { id: string; kind: "page" | "agent"; sessionId?: string };
+export type Endpoint = { wsUrl: string; publicUrl: string; controlToken?: string; v?: 2; participant?: string; token?: string; kind?: "node" | "agent" };
+export type Sender = { id: string; kind: "node" | "page" | "agent"; network?: string; sessionId?: string };
 export type Delivery = { role: "user" | "context"; deliverAs: "immediate" | "steer" | "followUp" | "nextTurn"; slot?: string; triggerTurn?: boolean };
 export type ContextEntry = { id: string; payload: JsonValue; slot?: string; canonical: string; owner: string };
 export type BrowserEnvelope = {

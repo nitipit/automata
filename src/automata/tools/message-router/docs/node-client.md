@@ -1,15 +1,16 @@
 # Task-local Node client with an ordinary agent shell
 
 Use this when an active agent needs to read a browser request and answer it using
-an existing authorized router. This is a short task-specific example, not a new
+an existing authorized trusted-network router. This is a short task-specific example, not a new
 service, model host or automatic inbox adapter. It complements existing tmux
 collaboration when browser or other external request/reply is needed; it does not
 replace agent process management or establish authority to delegate.
 
 ## Prerequisites
 
-- An owned router, reviewed directed grants, and this participant's private agent
-  endpoint file. Setup/serve require separate authority; they do not launch agents.
+- An owned router, reviewed Network membership and allow/block policy, and this
+  node's private endpoint file (kind `node` or `agent`). Setup/serve require separate
+  authority; they do not launch agents. Generic nodes require no browser pairing.
 - Node with native `WebSocket` and `crypto.randomUUID`, the installed router's
   `browser/client.js`, and permission to read the endpoint and reach loopback.
 - An explicit current session identifier and an owned live execution process.

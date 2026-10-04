@@ -7,6 +7,8 @@ import {setTimeout as delay} from 'node:timers/promises';
 const root = process.env.AGENT_BROWSER_BRIDGE_TEST_ROOT;
 const endpoints = process.env.MESSAGE_ROUTER_ENDPOINTS;
 const moduleRoot = process.env.MESSAGE_ROUTER_BROWSER;
+const nodeKind = process.env.MESSAGE_ROUTER_NODE_KIND ?? 'agent';
+const senderKind = nodeKind === 'node' ? 'node' : 'page';
 const {default:register} = await import(pathToFileURL(join(root,'message-router/index.ts')));
 const {createMessageRouterChatClient} = await import(pathToFileURL(join(moduleRoot,'pi-client.js')));
 const credential = id => JSON.parse(readFileSync(join(endpoints,'participants',id+'.json')));
@@ -45,14 +47,17 @@ const b = createMessageRouterChatClient({to:'agent',onDelivery:p=>deliveriesB.pu
 try {
   await first.call({action:'open',endpoint:join(endpoints,'participants/agent.json')});
   // Compatibility name shares one binding; it cannot open a second connection.
-  assert.equal((await first.legacyCall({action:'status'})).participant,'agent');
+  const status = await first.legacyCall({action:'status'});
+  assert.equal(status.participant,'agent');
+  assert.equal(status.network,'work');
+  assert.deepEqual(status.destinations.map(peer=>peer.id),['peer']);
   await assert.rejects(first.legacyCall({action:'open',endpoint:join(endpoints,'participants/agent.json')}),/already opening or open/);
   await second.legacyCall({action:'open',endpoint:join(endpoints,'participants/peer.json')});
   await a.connect(credential('a')); await b.connect(credential('b'));
   const sent = a.sendMessage({text:'hello',__proto__:null});
   await until(()=>first.users.length===1);
   const text = first.users[0].content;
-  assert.match(text,/source="page"\nparticipant="a"/);
+  assert.ok(text.includes(`source="${senderKind}"\nparticipant="a"\nnetwork="default"`));
   const inboundId = JSON.parse(text.split('\n').find(line=>line.startsWith('id=')).slice(3));
   await until(()=>states.some(state=>state.status==='admitted'));
   await first.call({action:'send',replyTo:inboundId,payload:{text:'answer'}});
@@ -88,7 +93,7 @@ try {
   // Agent→agent is explicit, with peer provenance and asynchronously consumed reply.
   const outbound = await first.call({action:'route',to:'peer',payload:{question:'peer'}});
   await until(()=>second.users.length===1);
-  assert.match(second.users[0].content,/source="agent"\nparticipant="agent"\nsessionId="agent-session"/);
+  assert.ok(second.users[0].content.includes(`source="${nodeKind}"\nparticipant="agent"\nnetwork="work"\nsessionId="agent-session"`));
   const peerId = JSON.parse(second.users[0].content.split('\n').find(line=>line.startsWith('id=')).slice(3));
   await second.legacyCall({action:'send',replyTo:peerId,payload:{answer:'peer'}});
   await until(async()=> (await first.call({action:'status'})).outgoing.some(p=>p.id===outbound.id && p.final));

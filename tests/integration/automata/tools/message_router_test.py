@@ -25,7 +25,7 @@ def port_available():
         return sock.getsockname()[1]
 
 
-def check_node_reply_recipe(tmp_path, node, tool_root, endpoints, page):
+def check_node_reply_recipe(tmp_path, node, tool_root, endpoints, page, config_version=2):
     """Exercise installed Markdown example over a real PTY, not a model mock."""
     import pty
 
@@ -65,7 +65,8 @@ def check_node_reply_recipe(tmp_path, node, tool_root, endpoints, page):
                               "to": "agent", "payload": {"question": "hello"}}))
         assert json.loads(page.recv())["status"] == "forwarded"
         packet = event("received")["packet"]
-        assert packet["from"] == {"id": "a", "kind": "page"}
+        assert packet["from"] == {"id": "a", "kind": "page",
+                                  **({"network": "default"} if config_version == 2 else {})}
         assert packet["expectReply"] is True
         reply({"id": "not-a-capability", "payload": None})
         event("reply_failed_or_uncertain")
@@ -157,7 +158,8 @@ def test_renamed_cli_preserves_state_and_environment_precedence(tmp_path, select
     assert config.read_bytes() == original
 
 
-def test_installed_router_without_ui_and_private_static_boundaries(tmp_path):
+@pytest.mark.parametrize("config_version", [1, 2])
+def test_installed_router_without_ui_and_private_static_boundaries(tmp_path, config_version):
     websocket = pytest.importorskip("websocket")
     uv = shutil.which("uv")
     if not uv:
@@ -194,6 +196,16 @@ def test_installed_router_without_ui_and_private_static_boundaries(tmp_path):
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert config.stat().st_mode & 0o777 == 0o600
+    if config_version == 1:
+        generated = json.loads(config.read_text())
+        participants = {
+            name: {"kind": spec["kind"], "token": spec["token"], "allow": []}
+            for name, spec in generated["nodes"].items()
+        }
+        for pair in generated["allow"]:
+            source, target = pair.split(":")
+            participants[source]["allow"].append(target)
+        config.write_text(json.dumps({"v": 1, "participants": participants}))
     assert not (tmp_path / "lib").exists()
     assert not (tmp_path / "sessions").exists()
     # Setup refuses silent credential rotation/overwriting configuration.
@@ -268,13 +280,18 @@ def test_installed_router_without_ui_and_private_static_boundaries(tmp_path):
                 return conn
 
             a, b, agent = connect("a"), connect("b"), connect("agent")
+            b.send(json.dumps({"v": 2, "type": "status", "requestId": "policy"}))
+            visible = json.loads(b.recv())["destinations"]
+            expected = [] if config_version == 1 else ["a", "agent"]
+            assert [peer["id"] for peer in visible] == expected
             a.send(
                 json.dumps(
                     {"v": 2, "type": "route", "requestId": "one", "to": "b", "payload": None}
                 )
             )
             routed = json.loads(b.recv())
-            assert routed["from"] == {"id": "a", "kind": "page"}
+            assert routed["from"] == {"id": "a", "kind": "page",
+                                      **({"network": "default"} if config_version == 2 else {})}
             assert routed["payload"] is None
             assert json.loads(a.recv())["status"] == "forwarded"
             b.send(
@@ -328,7 +345,9 @@ def test_installed_router_without_ui_and_private_static_boundaries(tmp_path):
             node = shutil.which("node")
             if node:
                 if os.name == "posix":
-                    check_node_reply_recipe(tmp_path, node, tool_root, endpoints, connect("a"))
+                    check_node_reply_recipe(
+                        tmp_path, node, tool_root, endpoints, connect("a"), config_version
+                    )
                     deadline = time.monotonic() + 3
                     while json.load(urllib.request.urlopen(base + "/health"))["participantsConnected"]:
                         assert time.monotonic() < deadline

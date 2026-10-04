@@ -2,9 +2,13 @@
 
 ## Ask what *this client* may address
 
-`desk.status()` returns desk's configured destinations and their current connection presence. It is not a global participant directory or a reverse-permission query.
+`desk.status()` returns destinations permitted by the same central policy used
+for routing, with Network and current connection presence. It is not a global
+Node directory or reverse-permission query. Explicit blocks are absent even when
+same-Network defaults or an allow pair would otherwise permit the destination.
 
-Allowed-destination view for desk only: viewer and worker. These arrows are grants, not physical transport. Presence here assumes both are connected.
+desk's allowed view contains viewer and worker, assumed connected here. The arrows
+show permission, not transport:
 
 ```mermaid
 flowchart LR
@@ -27,15 +31,18 @@ console.log(status);
   "requestId": "<generated status request ID>",
   "status": "connected",
   "participant": "desk",
+  "network": "default",
   "destinations": [
-    {"id": "viewer", "kind": "page", "connected": true},
-    {"id": "worker", "kind": "agent", "connected": true}
+    {"id": "viewer", "kind": "page", "network": "default", "connected": true},
+    {"id": "worker", "kind": "node", "network": "work", "connected": true}
   ],
   "pending": 0
 }
 ```
 
-Destinations are sorted by ID. reviewer is absent because desk has no grant to reviewer—even if reviewer is online. An allowed destination stays listed with `connected: false` when offline.
+Destinations are sorted by ID. reviewer is absent because it belongs to another
+Network and desk has no explicit allow to reviewer—even if reviewer is online.
+An allowed destination stays listed with `connected: false` when offline.
 
 ## Presence is a snapshot, not a delivery guarantee
 
@@ -43,6 +50,8 @@ Destinations are sorted by ID. reviewer is absent because desk has no grant to r
 - `pending` counts active reply capabilities involving this connection as sender *or* recipient—not queued messages, unread messages, or durable work.
 - No tokens, global topology, other participants' grant lists, or history are returned.
 
-Call status when it informs a decision. There is no automatic reconnect, replay, durable queue, or implicit destination. Always choose the intended `to` explicitly.
+Call status when it informs a decision, then choose the intended `to` explicitly.
+For an offline allowed destination, follow [failure/reconnection guidance](./failures.md);
+status does not queue work or reconnect it.
 
 [Next: independent messages, replies and one-way notifications →](./send.md)

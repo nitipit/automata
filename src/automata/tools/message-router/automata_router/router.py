@@ -11,11 +11,11 @@ from __future__ import annotations
 import secrets
 import uuid
 from dataclasses import dataclass, field
-from typing import Any
 
+from .config import Grant
+from .config import validate_config as validate_config  # compatibility import
 from .protocol import (
     MAX_FRAME_BYTES,
-    SESSION_RE,
     Connection,
     JsonObject,
     json_bytes,
@@ -24,54 +24,8 @@ from .protocol import (
     validate_payload,
 )
 
-MAX_PARTICIPANTS = 128
 MAX_ROUTES_PER_CONNECTION = 64
 MAX_SEEN_IDS = 128
-
-
-@dataclass(frozen=True)
-class Grant:
-    kind: str
-    token: str
-    allow: frozenset[str]
-
-
-def validate_config(value: Any) -> dict[str, Grant]:
-    if (
-        not isinstance(value, dict)
-        or set(value) != {"v", "participants"}
-        or type(value["v"]) is not int
-        or value["v"] != 1
-    ):
-        raise ValueError("Expected version 1 participant configuration")
-    participants = value["participants"]
-    if not isinstance(participants, dict) or not 1 <= len(participants) <= MAX_PARTICIPANTS:
-        raise ValueError("Configure 1–128 participants")
-    grants = {}
-    tokens = set()
-    for identity, spec in participants.items():
-        if not SESSION_RE.fullmatch(identity):
-            raise ValueError("Participant IDs must contain only letters, numbers, '_' or '-'")
-        if not isinstance(spec, dict) or set(spec) != {"kind", "token", "allow"}:
-            raise ValueError("Participant requires kind, token and allow")
-        if spec["kind"] not in ("page", "agent"):
-            raise ValueError("Participant kind must be page or agent")
-        token = spec["token"]
-        if (
-            not isinstance(token, str)
-            or not 32 <= len(token) <= 256
-            or not token.isascii()
-            or token in tokens
-        ):
-            raise ValueError("Each participant needs a distinct 32–256 character ASCII token")
-        allowed = spec["allow"]
-        if not isinstance(allowed, list) or any(
-            not isinstance(item, str) or item not in participants for item in allowed
-        ):
-            raise ValueError("Allowed destinations must be configured participant IDs")
-        tokens.add(token)
-        grants[identity] = Grant(spec["kind"], token, frozenset(allowed))
-    return grants
 
 
 @dataclass
@@ -86,6 +40,7 @@ class Peer:
         return {
             "id": self.identity,
             "kind": self.grant.kind,
+            **({"network": self.grant.network} if self.grant.network is not None else {}),
             **({"sessionId": self.session_id} if self.session_id else {}),
         }
 
@@ -144,11 +99,14 @@ class Router:
         if grant.kind == "agent":
             session_id = require_string(hello.get("sessionId"), "agent session id")
         elif "sessionId" in hello:
-            raise ValueError("Page identity is not an agent session")
+            if grant.kind == "page":
+                raise ValueError("Page identity is not an agent session")
+            session_id = require_string(hello["sessionId"], "node session id")
         peer = Peer(identity, grant, connection, session_id)
         self.peers[identity] = peer
         if not await self.emit(
-            connection, {"v": 2, "type": "hello_ack", "participant": identity, "kind": grant.kind}
+            connection, {"v": 2, "type": "hello_ack", "participant": identity, "kind": grant.kind,
+                         **({"network": grant.network} if grant.network is not None else {})}
         ):
             await self.disconnected(connection)
             raise ValueError("Authentication acknowledgment delivery uncertain")
@@ -185,10 +143,13 @@ class Router:
                 result.update(
                     status="connected",
                     participant=peer.identity,
+                    **({"network": peer.grant.network} if peer.grant.network is not None else {}),
                     destinations=[
                         {
                             "id": name,
                             "kind": self.grants[name].kind,
+                            **({"network": self.grants[name].network}
+                               if self.grants[name].network is not None else {}),
                             "connected": name in self.peers,
                         }
                         for name in sorted(peer.grant.allow)

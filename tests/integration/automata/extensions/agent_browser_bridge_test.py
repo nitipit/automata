@@ -100,7 +100,8 @@ def test_agent_browser_bridge_native_pi_lifecycle(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_two_pi_adapters_over_real_router_transport(tmp_path: Path) -> None:
+@pytest.mark.parametrize("kind", ["agent", "node"])
+def test_two_pi_adapters_over_real_router_transport(tmp_path: Path, kind: str) -> None:
     """Actual extension + socket boundary with deterministic Pi API stubs, not live agents."""
     node, uv = shutil.which("node"), shutil.which("uv")
     if not node or not uv:
@@ -116,14 +117,16 @@ def test_two_pi_adapters_over_real_router_transport(tmp_path: Path) -> None:
             "setup",
             "--config-file",
             str(config),
-            "--agent",
+            "--" + kind,
             "agent",
-            "--agent",
+            "--" + kind,
             "peer",
-            "--page",
+            "--page" if kind == "agent" else "--node",
             "a",
-            "--page",
+            "--page" if kind == "agent" else "--node",
             "b",
+            "--network", "agent:work",
+            "--network", "peer:work",
             "--allow",
             "a:agent",
             "--allow",
@@ -173,6 +176,7 @@ def test_two_pi_adapters_over_real_router_transport(tmp_path: Path) -> None:
                     "AGENT_BROWSER_BRIDGE_TEST_ROOT": str(tmp_path),
                     "MESSAGE_ROUTER_ENDPOINTS": str(endpoints),
                     "MESSAGE_ROUTER_BROWSER": str(tool / "browser"),
+                    "MESSAGE_ROUTER_NODE_KIND": kind,
                 },
                 capture_output=True,
                 text=True,

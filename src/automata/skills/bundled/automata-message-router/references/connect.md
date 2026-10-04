@@ -2,25 +2,26 @@
 
 ## Every client connects to the router, not its peer
 
-After [Configure](./configure.md), authenticate each participant separately. These lines show WebSocket connections, not grants. An authenticated connection proves neither permission to every destination nor application readiness.
-
-Transport connections: desk, viewer, worker and reviewer each connect to the central Router service; no direct peer connections.
+After [Configure](./configure.md), authenticate each Node independently to the
+central service. These WebSocket connections are not Network permission or proof
+of application readiness; there are no direct peer connections.
 
 ```mermaid
 flowchart LR
     desk[desk · page] --- router[Router service]
     viewer[viewer · page] --- router
-    router --- worker[worker · agent]
-    router --- reviewer[reviewer · agent]
+    router --- worker[worker · node]
+    router --- reviewer[reviewer · node]
 ```
 
-## Optional same-origin browser session
+## Optional existing same-origin browser-session adapter
 
-The Router's opt-in `serve --auth-dir <private-directory>` supports local persistent
-page pairing inside the same process. Its private `pair --auth-dir ...
---participant desk` command issues a single-use code to deliver out of band.
-The browser submits only that code; the server binds the configured page identity.
-No permanent token is exposed and no grant list is supplied by the browser.
+Opt-in `serve --auth-dir <private-directory>` supports persistent page pairing in
+the Router process. Keep auth state/control outside public roots. Private
+`pair --auth-dir ... --participant desk` issues a fresh single-use code delivered
+out of band, not cached as setup knowledge. The browser submits only that code;
+the server binds the fixed configured page identity, without exposing a permanent
+token or accepting browser-supplied grants.
 
 ```javascript
 import {createBrowserSessionAuth} from "/assets/session.js";
@@ -42,18 +43,24 @@ HTTP 127.0.0.1 origin and mandatory same-origin cookie WebSocket Origin. Additio
 HttpOnly/SameSite=Strict, not Secure on HTTP or isolated by port; same-origin scripts
 and malicious same-user processes remain outside this boundary.
 
-Reconnect is explicit. Restart the owned service and bind the intended actual
-agent session explicitly; pairing never launches an agent. Old sends, events and
-reply capabilities do not recover or replay. Preserve the draft origin/profile.
-See the mapped tool's `docs/local-session.md` for lifetimes, private storage,
-operator revocation and limitations. Direct-token/Node integrations below remain
-supported independently; do not use them as a public-token fallback.
+Pairing, Connect, Disconnect and Forget are distinct controls. Check cookie status
+and reconnect explicitly after shutdown; restart the owned service and bind the
+actual agent session explicitly. Pairing never launches an agent, changes grants
+or restores reply/session bindings. A second tab cannot displace the active identity.
+Do not replay saved sends/events or revive lost capabilities; preserve the draft
+origin/profile. Authentication, destination presence, adapter admission and handling
+are separate evidence. See the tool's `docs/local-session.md` for lifetimes, exact
+Origin/Host boundaries, private operator commands and revocation. Pairing remains
+supported; removal/redesign is deferred. Direct-token/Node integrations below are
+independent paths, never an exposed-token fallback.
 
 ## The direct credential shape is the same; the provisioning path differs
 
-**Authentication:** the private token proves which configured participant is connecting. **Authorization:** the router's private `allow` list decides which destinations that identity may initiate toward. A token is not a grant list; neither adding an `allow` field to a client nor knowing a destination gives permission.
-
-`setup` generates the participant tokens in the private router config. `serve` reads that config and writes each participant's private endpoint record only after the listener starts. Each record supplies the same base fields below; agent-kind connections additionally need a `sessionId`.
+Use the intended private endpoint record emitted by `serve` after listener startup.
+Its token authenticates identity, not an ACL; client `network`/`allow` fields or
+knowledge of a destination cannot change central policy. Network membership comes
+from configuration, not the hello. Generic `node` may supply `sessionId` as
+provenance; `agent` requires it and `page` forbids it.
 
 ### Page: desk
 
@@ -66,30 +73,35 @@ supported independently; do not use them as a public-token fallback.
 }
 ```
 
-### Agent: worker
+### Generic Node: worker
 
 ```javascript
 {
   wsUrl: "ws://127.0.0.1:8787/ws",
   participant: "worker",
   token: "<worker's private token>",
-  sessionId: "worker-example"
+  sessionId: "worker-example" // optional for a generic node
 }
 ```
 
-The browser literal below and the Node `JSON.parse` + spread below are two ways to construct these same connection fields, not two credential formats. Node can read its authorized private file directly. An ordinary browser page cannot read that filesystem path, and this client does not automatically fetch an endpoint record.
+Node can read its authorized private file; an ordinary browser cannot read that
+filesystem path, and the client does not fetch endpoint records automatically.
+Both examples construct the same connection fields.
 
-### How does a direct-token browser receive its token?
+### Provision direct-token browser credentials privately
 
-**This is an explicit application-provisioning prerequisite for the direct path.**
-Prefer the opt-in session flow above when permanent browser tokens should remain
-server-side; do not mix the two authentication modes or silently fall back.
-
-The page owner must choose an authorized, private way to supply only that page's endpoint values into its runtime memory. “Out of band” means that this happens outside router message delivery and outside this static site. Do not replace the placeholder by committing a token into JS/HTML, publishing an endpoint file, or adding a public token-fetch URL. Until private provisioning is established, the browser example is illustrative and not ready to connect.
+The page owner must supply only that page's endpoint values into runtime memory,
+outside Router delivery and this static guide. Never commit tokens into JS/HTML,
+publish endpoint files or add a public token-fetch URL. Without private provisioning
+the browser example is not ready to connect. Choose the session adapter above if
+permanent browser tokens should stay server-side; do not mix modes or silently
+fall back. Generic nodes need no pairing.
 
 ## Browser page: desk (or viewer in its own page)
 
-In your own authorized frontend, import the shipped client module and its relative dependencies. The router serves them at `/assets/`; this static reference deliberately does not. A same-origin frontend can be served using the router's `--public-root` option with a public-safe directory. Never serve the repository or private setup directory.
+Import the shipped module and relative dependencies in an authorized frontend.
+The Router serves `/assets/`; this static guide does not. `--public-root` can serve
+a public-safe same-origin frontend, never the repository or private setup directory.
 
 ```javascript
 import {createMessageRouterClient} from "/assets/client.js";
@@ -112,14 +124,18 @@ console.log(await desk.connect(deskCredentials));
 ### Expected connect result
 
 ```json
-{"v": 2, "type": "hello_ack", "participant": "desk", "kind": "page"}
+{"v": 2, "type": "hello_ack", "participant": "desk", "kind": "page", "network": "default"}
 ```
 
-For viewer, use a separate page/context and replace `desk` with `viewer` in the client variable, credential variable, participant ID and private token. The viewer handler logs the one-way payload and sends no reply.
+viewer uses its own credential and client in a separate page/context; its one-way
+handler sends no reply. Logging in these examples is illustrative, not component
+handling; see [Send](./send.md).
 
-The browser Origin must match the router by default. For a separately hosted frontend, explicitly authorize its exact origin with `--origin http://127.0.0.1:3000` and copy/bundle the browser modules into that frontend. This guide's own CSP and permissions remain unchanged; it never connects.
+Browser Origin must match the Router by default. For a separate frontend, authorize
+its exact origin with `--origin http://127.0.0.1:3000` and copy/bundle the modules
+there. This guide's CSP and permissions remain unchanged; it never connects.
 
-## Node: a generic agent-kind client
+## Node.js: a generic Node client
 
 Use a Node runtime with built-in WebSocket (for example Node 22+) and run from the checkout root. Save this as a private `.mjs` file in that root or adjust the import path. Set `WORKER_ENDPOINT` to the private worker endpoint file emitted by your owned router.
 
@@ -145,11 +161,14 @@ console.log(await worker.connect(workerCredentials));
 // reviewer is a SEPARATE client/process: use its own endpoint + reviewer-example.
 ```
 
-Expected: `{"v":2,"type":"hello_ack","participant":"worker","kind":"agent"}`. Agent-kind authentication requires a `sessionId`. Page-kind authentication must not include one. A second connection cannot displace an already-connected identity.
+Expected: `{"v":2,"type":"hello_ack","participant":"worker","kind":"node","network":"work"}`.
+`worker-example` illustrates optional provenance; an agent must bind its actual
+current session. A second connection cannot displace an already-connected identity.
 
-Run the private file with `WORKER_ENDPOINT=/your/private/endpoints/participants/worker.json node worker-example.mjs`. For reviewer, make a separate copy: rename the `worker`/`workerCredentials` variables to `reviewer`/`reviewerCredentials`, use `REVIEWER_ENDPOINT` pointing at `reviewer.json`, and change the session ID to `reviewer-example`. Keep both processes connected for the independent initiation lesson.
-
-**This generic JavaScript handler does not launch a model turn or another agent.** It simply receives JSON and emits JSON. The Send page's worker/reviewer examples use these generic clients.
+Run with `WORKER_ENDPOINT=/your/private/endpoints/participants/worker.json node worker-example.mjs`.
+reviewer needs a separate client/process, its own `reviewer.json` and provenance;
+keep both connected for [Send](./send.md)'s independent initiation example.
+**This JavaScript handler receives/emits JSON, not model turns or agent launches.**
 
 ## An available agent adapter is an alternative owner of the identity
 

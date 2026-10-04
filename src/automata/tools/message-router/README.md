@@ -1,9 +1,15 @@
 # message-router
 
-Loopback WebSocket routing between authorized pages and agents. The router owns
-identity, directed permissions and connection-bound correlation—not Chat, model
-turns, Pi context buffers or UI construction. Page-to-page traffic never needs an
-agent. No automatic reconnect, replay, durable queue or implicit destination.
+Small loopback WebSocket router for a trusted network/application. A **Node** is
+an identified endpoint: a browser, agent or ordinary application process. Each
+connects independently with its configured private credential. A **Network** is
+a named logical routing group, not a LAN, VPN or sandbox. Unknown nodes are not
+admitted. No public-application authentication platform is provided.
+
+The router owns identity, central initiation policy and connection-bound
+correlation—not Chat, model turns, Pi context buffers or UI construction. Nodes
+name explicit destinations and exchange bounded JSON. No automatic reconnect,
+replay, durable queue or implicit destination.
 
 ## Setup and serve
 
@@ -13,30 +19,67 @@ uv run --offline --no-project --script .agents/tools/message-router/message_rout
 uv run --offline --no-project --script .agents/tools/message-router/message_router.py status
 ```
 
-Default setup creates `page` and `agent`, with one directed `page:agent` grant.
-Custom topologies require explicit grants:
+Default setup creates one generic `node` in the `default` Network. Add the nodes
+your application needs; same-Network peers may communicate without explicit grants:
 
 ```sh
 uv run --offline --no-project --script .agents/tools/message-router/message_router.py setup \
   --config-file /private/router.json \
-  --page dashboard --page inspector --agent primary --agent reviewer \
-  --allow dashboard:inspector --allow dashboard:primary \
-  --allow primary:reviewer --allow reviewer:primary
+  --node dashboard --node inspector --node primary --node reviewer \
+  --network primary:work --network reviewer:work \
+  --allow dashboard:primary --block inspector:dashboard
 uv run --offline --no-project --script .agents/tools/message-router/message_router.py serve \
   --config-file /private/router.json --endpoint-dir /private/endpoints --port 8787
 ```
 
 Setup only creates private configuration. It neither starts processes nor creates
 UI directories. A pre-existing config is never silently overwritten. Configuration
-is `{v:1,participants:{id:{kind:"page"|"agent",token,allow:[destinationIds]}}}`;
-review grants explicitly and restart the owned server after configuration changes.
-IDs are 1–128 ASCII letters, digits, `_` or `-`; tokens must be distinct. Up to 128
-participants are supported. An active identity cannot be displaced by reconnecting.
+version 2 is:
+
+```json
+{
+  "v": 2,
+  "nodes": {
+    "dashboard": {"token": "<private distinct 32–256 character token>"},
+    "inspector": {"token": "<another private token>"},
+    "primary": {"token": "<another private token>", "network": "work"},
+    "reviewer": {"token": "<another private token>", "network": "work"}
+  },
+  "allow": ["dashboard:primary"],
+  "block": ["inspector:dashboard"]
+}
+```
+
+`network` defaults to `default`; each node has exactly one Network. Networks are
+inferred from node assignments, so no separate registry is needed. `kind` defaults
+to `node`; optional `page` (browser-session adapter) and `agent` (requires session
+provenance) labels do not change routing permission. CLI `--page`/`--agent` select
+those adapters; generic nodes need neither label nor a pairing ceremony.
+
+Central policy for **new requests**, in precedence order:
+
+1. An exact directed `block` pair denies, including an explicit `allow` pair.
+2. An exact directed `allow` pair permits (including across Networks).
+3. Other peers in the same Network are permitted; cross-Network routing is denied.
+
+Pairs are `source:destination` node IDs, not network names, wildcard roles or client
+ACLs. The caller itself is excluded from the default peer set; explicit self-allow
+is possible. Replies use the original connection-bound capability and need no
+reverse initiation permission. `allow` and `block` may be omitted. Edit the private
+config and restart the owned router to change admission or policy; clients cannot
+change their own membership/rules.
+
+IDs and Network names are 1–128 ASCII letters, digits, `_` or `-`; tokens must be
+distinct 32–256-character ASCII strings. Up to 128 nodes are supported. An active
+identity cannot be displaced by reconnecting. Invalid/mixed configuration fails
+clearly before starting the listener.
 
 Serve publishes mode-0600 records **after binding**:
 
 - `<endpoint-dir>/server.json`: listener/owner metadata, without participant tokens.
-- `<endpoint-dir>/participants/<id>.json`: that participant's credential and URL.
+- `<endpoint-dir>/participants/<id>.json`: that node's credential, Network and URL.
+  The `participants` directory and wire `participant` field are retained to keep
+  actual clients/endpoint selection interoperable; neither limits nodes to agents.
 
 The historical state default remains `.agents/var/tools/agent-router/`, with
 configuration in `config.json` and endpoint records in `endpoints/`; the rename
@@ -91,7 +134,7 @@ const client = createMessageRouterClient({
   },
   onResponse: response => showResponse(response),
 });
-await client.connect(credentials); // wsUrl, participant, token; agents also sessionId
+await client.connect(credentials); // wsUrl, participant, token; node sessionId optional
 const request = client.send("inspector", {selection: "button#save"});
 await request.accepted; // transport forwarding only, not recipient handling
 // client.cancel(request.id) abandons correlation; it cannot retract peer actions.
@@ -104,7 +147,11 @@ requires true for admission/receipts and ignores fire-and-forget notifications.
 `respond(message.id,payload,{metadata?,final?})` sends a response; final defaults
 true. Intermediate receipts use false. A reply needs no reverse grant: only the
 exact recipient connection receives the original request's reply capability.
-`status()` lists only the caller's granted destinations and their current presence.
+`status()` lists only destinations permitted by the same central policy used for
+routing, including their Network and current presence. Blocked nodes are absent,
+not revealed as offline. v2 config adds authenticated `network` to hello/status and
+sender provenance; generic sender kind is `node`. Node `sessionId` is optional;
+`agent` requires it and `page` forbids it. These are adapter contracts, not ACLs.
 `close()` invalidates pending work. Reconnect explicitly and never auto-resend
 uncertain requests. The last 128 request IDs per connection detect duplicates;
 this is bounded suppression, not exactly-once execution.
@@ -125,11 +172,13 @@ tool; `agent_router` and `agent_browser_bridge` remain compatibility aliases sha
 one adapter and binding. Only the primary name is exposed by default; explicitly
 selected compatibility-only tool sets remain supported.
 
-- `open`: optional `endpoint` selects a private **agent** credential file. Defaults
+- `open`: optional `endpoint` selects a private **node or agent** credential file. Defaults
   to `AUTOMATA_MESSAGE_ROUTER_ENDPOINT`, then `AUTOMATA_AGENT_ROUTER_ENDPOINT`, then
   the historical `.agents/var/tools/agent-router/endpoints/participants/agent.json`.
   A failed explicit selection never falls back to another credential.
-  It binds the current Pi session; it never starts a server or another agent.
+  It binds the current Pi session (including for a generic node), not a caller-
+  supplied session; it never starts a server or another agent. Page credentials
+  cannot be opened by Pi.
 - `route`: explicit `to`, complete `payload`, optional Pi `delivery` options. Returns
   an outgoing id after transport acknowledgment, not a model/peer answer.
 - `receive`: use the outgoing id as `replyTo`. Pending returns the latest bounded
@@ -169,16 +218,28 @@ recreate invalidated reply channels or retract already admitted historical data.
   inspect local changes, retire old installed packages, install the renamed ones,
   then reload Pi or start a fresh session. Installers do not uninstall old names.
   Reload discards in-memory bindings and pending context; do not replay messages.
+- Existing config `{v:1,participants:{id:{kind,token,allow:[ids]}}}` remains supported
+  with **only its original explicit grants**, not same-Network defaults. No automatic
+  migration, rotation or widening occurs. To opt into v2, deliberately move entries
+  to `nodes`, retain tokens and adapter kinds, choose Network assignments, and
+  review allowed defaults plus directed `allow`/`block` pairs. Do not merely change
+  `v`: mixed/old per-node `allow` fields are rejected. Preserve an explicit-only
+  topology by assigning each node its own Network and translating its old grants
+  into central `allow` pairs. Restart explicitly after reviewing the result.
 - Existing browser imports `createAgentRouterClient` and `createAgentRouterChatClient`
-  remain aliases of the renamed exports. Wire protocols, grants, endpoint formats,
-  and state locations are unchanged. No credential rotation or automatic migration.
+  remain aliases of the renamed exports. Wire version 2, `participant` fields,
+  credential paths and state locations are retained. Generic-node consumers need
+  the updated client/Pi adapter accepting kind `node`; old page/agent clients may
+  retain their labels. New `setup` emits v2, with generic `node` rather than the old
+  implicit page/agent pair. Provision those adapters explicitly when required.
   Saved recipes may still live under the old owner name; update command paths when
   revalidating them, without moving or deleting their data merely for this rename.
 - Existing v1 browser clients can use the explicitly selected `legacy-serve`
   command or the bundled `agent_browser_bridge.py serve` entry. See [LEGACY.md](LEGACY.md).
   They cannot speak v2 merely by changing their URL; upgrade credentials/client
   together. The v1 adapter does not gain multiparty routing.
-- Python responsibilities: `protocol.py` validates JSON, `router.py` owns routing,
+- Python responsibilities: `config.py` validates admission and compiles central
+  policy, `protocol.py` validates JSON, `router.py` owns routing,
   `server.py` owns ASGI/static boundaries and the shared socket loop, `cli.py` owns
   process/endpoint lifecycle, `auth_store.py`/`auth.py` own opt-in private session
   state and same-origin/operator admission; `auth_requests.py` owns volatile request

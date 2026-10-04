@@ -28,7 +28,7 @@ class Service:
         self.public = root / "public"
         self.public.mkdir()
         (self.public / "index.html").write_text("<p>public-safe</p>")
-        self.run("setup", "--config-file", str(self.config))
+        self.run("setup", "--config-file", str(self.config), "--page", "page", "--agent", "agent")
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             self.port = sock.getsockname()[1]
@@ -135,7 +135,8 @@ def test_pair_restart_duplicate_grants_full_payload_and_logout(service):
     assert s.http("/session/pair", {"code": "bad", "participant": "agent"})[0] == 400
     assert s.http("/session/status", cookie=cookie)[0] == 200
     page, hello = s.ws(cookie=cookie)
-    assert hello == {"v": 2, "type": "hello_ack", "participant": "page", "kind": "page"}
+    assert hello == {"v": 2, "type": "hello_ack", "participant": "page", "kind": "page",
+                     "network": "default"}
     duplicate, denied = s.ws(cookie=cookie)
     assert denied["type"] == "error"
     duplicate.close()
@@ -168,7 +169,8 @@ def test_pair_restart_duplicate_grants_full_payload_and_logout(service):
     assert hello["participant"] == "page"
     status = packet(page, {"type": "status", "requestId": "restart-status"})
     assert status["pending"] == 0
-    assert status["destinations"] == [{"id": "agent", "kind": "agent", "connected": False}]
+    assert status["destinations"] == [{"id": "agent", "kind": "agent", "network": "default",
+                                       "connected": False}]
     assert s.http("/session/logout", {}, cookie=cookie)[0] == 200
     assert page.recv() == ""  # idle socket closed; no post-revocation JSON frame
     assert json.loads(s.http("/session/status", cookie=cookie)[1])["authenticated"] is False
@@ -252,7 +254,7 @@ def test_request_happy_path_cookie_guard_and_restart(service):
     s = service
     # Synthetic fixture config only: exercise a second existing configured page.
     config = json.loads(s.config.read_text())
-    config["participants"]["other"] = {"kind": "page", "token": "o" * 32, "allow": []}
+    config["nodes"]["other"] = {"kind": "page", "token": "o" * 32}
     s.config.write_text(json.dumps(config))
     s.start()
     capability = "a" * 64

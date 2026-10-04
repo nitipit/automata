@@ -1,5 +1,6 @@
 /** Explicit, authenticated v2 requests. No automatic reconnect or message replay.
  * send() returns {id, accepted}; responses can race the accepted transport promise.
+ * Nodes use {wsUrl, participant, token}; optional sessionId is adapter provenance.
  * respond() uses the received message.id, never a participant name, as its capability.
  * Call close() when finished; reconnect invalidates old pending work.
  */
@@ -72,11 +73,12 @@ export function createMessageRouterClient({
         if (packet.type === 'error') throw new Error('Router protocol error');
         if (packet.v !== 2) throw new Error('Expected router protocol version 2');
         if (packet.type === 'hello_ack') {
-          if (!opening || packet.participant !== participant || !['page','agent'].includes(packet.kind)) throw new Error('Invalid authentication acknowledgment');
+          if (!opening || packet.participant !== participant || !['node','page','agent'].includes(packet.kind)) throw new Error('Invalid authentication acknowledgment');
           connected = true;
           const ready = opening; opening = undefined; clearTimeout(ready.timer);
           ready.resolve(packet);
-          onState({status:'connected', participant, kind:packet.kind});
+          onState({status:'connected', participant, kind:packet.kind,
+            ...(packet.network === undefined ? {} : {network:packet.network})});
           return;
         }
         if (!connected) throw new Error('Router message before authentication');
@@ -90,7 +92,7 @@ export function createMessageRouterClient({
         }
         if (packet.type === 'message' || packet.type === 'response') {
           requireId(packet.id, 'route id');
-          if (!isRecord(packet.from) || !['page','agent'].includes(packet.from.kind)) throw new Error('Invalid sender provenance');
+          if (!isRecord(packet.from) || !['node','page','agent'].includes(packet.from.kind)) throw new Error('Invalid sender provenance');
           requireId(packet.from.id, 'sender');
           if (!Object.hasOwn(packet, 'payload')) throw new Error('Missing payload');
           serializePayload(packet.payload); serializeMetadata(packet.metadata);

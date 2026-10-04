@@ -1,206 +1,110 @@
 ---
 name: automata-message-router
-description: Use when exchanging JSON through established authorized connections between browser pages and agent sessions, or setting up or recovering them, including targeted page-to-page and agent-to-agent routes.
+description: Use when exchanging bounded JSON between configured nodes in a trusted Router network/application, or configuring, connecting, discovering permitted destinations, and recovering those connections.
 metadata:
   automata-tools: .agents/tools/message-router/message_router.py
 ---
 
 # Automata Message Router
 
-Use or connect the intended participants, verify targeted delivery and meaningful
-handling, and recover or close connections without confusing transport state with
-application outcomes.
+Connect the intended participants, verify targeted delivery and meaningful handling,
+and recover without confusing transport state with application outcomes. The Router
+is transport, not an agent launcher, task manager or shared transcript. Participants
+own payload meaning and action authority.
 
-## Choose an available connection
+## Choose or reuse the intended connection
 
-Reuse the shared service and shipped browser/Node client, or an actually exposed
-agent adapter. Consult the mapped tool's documentation for client recipes and the
-adapter's own contract for session admission and delivery controls. Installing
-this skill or the shell CLI does not register an agent tool or provide model wakeup.
+Consult saved setup before rediscovering commands. Reuse the shared service and
+shipped browser/Node client, or an actually exposed agent adapter; check current
+status, endpoints and ownership, not merely a listening port or old record.
+Installing this skill or the shell CLI does not expose an agent tool or model wakeup.
+An active agent may use an owned shell process with authorized loopback access,
+private credentials and a live connection; do not invent a tool, inject history,
+attach to an unrelated daemon or add a polling service as a fallback.
 
-An active agent can read and answer through an owned shell process with authorized
-loopback access, private credentials and a live connection. Do not invent a tool,
-inject history, attach to an unrelated daemon or add a polling service as a
-fallback. Transport receipts never prove model handling or a new agent turn.
-Collaboration ownership and process management remain separate from this transport.
+Use explicit configured identities, not page directories or whichever agent is
+online. An agent adapter must bind the actual current session under its admission
+contract; opening a client starts neither a server nor another agent. Revalidate
+bindings after session changes. Authentication and authenticated provenance do not
+grant shell, file, external-action or delegation authority.
 
-## One service, explicitly addressed participants
+This is a small trusted-network/application tool, not a public authentication
+platform. Use loopback unless broader access is authorized. Provision each client's
+own credentials privately, outside public assets and logs; serve only public-safe
+files. Generic nodes need no pairing. Optional browser-session pairing remains a
+separate supported path, not an admission prerequisite or automatic reconnect.
+[Connect](references/connect.md) owns client recipes and optional pairing mechanics;
+[Configure](references/configure.md) owns provisioning and migration.
 
-The Message Router carries bounded JSON between browser pages and agent sessions.
-Each participant connects to one central service with its own private identity.
-Direct clients use private tokens; an opt-in same-origin browser session can pair
-once and reconnect without exposing the permanent page token.
-A sender names a destination; the service checks permission and forwards the
-message to that connected participant.
+After successful setup discovery, retain verified startup, connection, status and
+owned cleanup commands with prerequisites, working directories and variable inputs
+in approved owner-scoped data. Report the recipe location; do not duplicate tool
+docs or retain live session IDs or pairing secrets there. Keep live endpoint state
+separate for reconnection and cleanup. Saved setup is not permission. Repair only
+invalid prerequisites within authority; missing installation needs authorization.
 
-It is transport—not an agent launcher, a task manager, a shared transcript, or
-proof that a recipient acted. Components and agents own the meaning of the payload
-and the authority to act on it.
+## Interpret identity, policy and presence separately
 
-Physical connections: desk and viewer pages, worker and reviewer agents each
-connect to one central Router service. The service is not a participant.
+A **Node** is an identified endpoint—browser, agent or application—connected
+independently to one central Router with its own private credential. Unknown nodes
+are not admitted. Each node has one **Network**, a logical routing group defaulting
+to `default`, not a LAN, VPN or sandbox. The service is not a participant.
 
-```mermaid
-flowchart LR
-    desk[desk · page] --- router[Router service]
-    viewer[viewer · page] --- router
-    router --- worker[worker · agent]
-    router --- reviewer[reviewer · agent]
-```
+Central policy decides who may initiate: same-Network peers default to allow,
+cross-Network to deny; exact directed `allow` pairs permit exceptions, and `block`
+pairs override both. Clients need no duplicate ACL. Version-1 configs retain only
+their explicit grants; adopting Network defaults requires deliberate migration.
+A reply is a connection-bound capability for an existing request, not a reverse
+initiation grant. Status lists only destinations the caller may initiate toward.
+Permission and current presence are separate; neither proves handler readiness.
+[Discover](references/discover.md) owns the status view and examples.
 
-## A connection is not a grant
+## Exchange with exact correlation and reply ownership
 
-Being online makes a participant reachable; it does not let that participant
-initiate toward everyone else. A directed grant says who may **start** a message
-toward whom. Here desk may start toward viewer or worker; worker and reviewer may
-each start toward the other.
+Send complete bounded JSON to an explicit authorized destination. Register
+correlation and inbound/response handling before sending; responses may precede
+the forwarding receipt. **Forwarded is not handled:** distinguish server receipt,
+adapter admission and component/model action. Consume requested terminal replies
+through the same client; do not busy-poll or count logs as application handling.
 
-Initiation grants only, not physical connections: desk may start toward viewer
-and worker; worker and reviewer may start toward each other.
+For an inbound reply-capable request, respond or reject using the exact delivered
+message ID and the complete component reply through the documented client/adapter.
+Do not manufacture IDs, confuse sender correlation with the inbound route ID, or
+silently change legacy delivery semantics. `expectReply: false` creates no return
+capability; do not reply, and check adapter admission because some adapters ignore
+one-way messages. Keep the connection open while interaction continues.
 
-```mermaid
-flowchart LR
-    desk[desk · page] -->|may start| viewer[viewer · page]
-    desk -->|may start| worker[worker · agent]
-    worker -->|may start| reviewer[reviewer · agent]
-    reviewer -->|may start| worker
-```
+Retain pending correlation until `final: true`, `route_closed` or explicit cancel;
+nonterminal progress may be applied only under the component's contract. Cancellation
+abandons the reply capability, not recipient actions. Connection loss invalidates
+capabilities; a replacement connection cannot recover them. [Send](references/send.md)
+owns API/ID examples, component correlation and adapter receipt interpretation.
 
-A reply uses a capability tied to an existing request and its connections. It does
-not require a reverse initiation grant and does not create one.
+For context delivery, respect the adapter's actual queue, steering, admission and
+turn-trigger limits. Pending data is not conversation history. Buffered, queued or
+attached receipts do not prove handling; outbound replies do not automatically
+trigger another model turn. Use canonical message/tool records, not duplicate
+transcripts.
 
-## Start a message; choose whether a reply is needed
+## Verify, recover and close within ownership
 
-- **Initiation:** an allowed sender starts a new message to an explicit destination.
-- **Optional reply:** a reply-capable request lets its recipient respond or reject
-  using the exact delivered message ID. This is a return path, not a new independent
-  initiation.
-- **One-way:** `expectReply: false` creates no reply capability. The generic client
-  supports this; verify whether the recipient's adapter accepts it. Some adapters
-  ignore one-way messages rather than creating a model turn.
+Verify a correlated exchange on the intended route, separating connection, server
+receipt, adapter admission, reply delivery and actual handling. For UI exchanges,
+verify the originating component applies the valid reply and represents failures
+or uncertainty; a transport receipt or terminal-only answer is not end-to-end proof.
+Check busy/disconnect behavior when relevant.
 
-**Forwarded ≠ handled.** Acceptance confirms forwarding, not application success.
-Correlate the terminal reply when one is requested; an uncertain send must not be
-blindly replayed.
+On rejection, uncertainty or stale evidence, diagnose the affected route and repair
+only authorized setup. Never blindly replay an uncertain send or reconnect/replay
+automatically. Revalidate endpoints and policy, reconnect explicitly when appropriate,
+and update repaired recipes after verification. In-memory correlation and bounded
+duplicate detection promise neither durable queues/history nor exactly-once business
+execution. [Handle failures](references/failures.md) owns rejection, cancellation
+races and route-closure details.
 
-## Reference
-
-1. [Configure](references/configure.md) private credentials and directed grants.
-1. [Connect](references/connect.md) the intended browser or agent clients.
-1. [Discover](references/discover.md) caller-visible, allowed destinations.
-1. [Send](references/send.md) independent requests, replies, and one-way messages.
-1. [Handle failures](references/failures.md) without confusing rejection,
-   cancellation, and uncertain effects.
-
-These Markdown files are the canonical reference; agent use requires no browser,
-build tools, or live router. The optional Skill Builder website renders these same
-files for people. Its diagrams and examples use a fixed illustrative topology;
-it is not a dashboard or simulator and never connects to a router.
-
-## Connect or reuse
-
-Consult relevant saved setup knowledge before reconstructing commands. Reuse a
-connection only after checking its status, intended endpoints and ownership—not
-merely a listening port or old record.
-Use the mapped tool's `--help` for commands and its browser API documentation for
-integration; reuse the shipped client and server rather than regenerating them.
-
-```bash
-uv run --offline --no-project --script .agents/tools/message-router/message_router.py --help
-```
-
-`setup` provisions private participant credentials and directed grants; `serve`
-starts the listener. Neither launches an agent. Open the intended agent credential
-with an available client bound to the actual session. Use explicit participant IDs
-and destinations, not page directories or whichever agent happens to be online.
-Static hosting is optional and independent of Adaptive UI; serve only public-safe
-files. Establish missing installation within existing authority.
-
-For the tool's opt-in local browser pairing, keep auth state/control outside public
-roots and provision fresh single-use codes privately. A persistent revocable
-cookie authenticates only its fixed page identity; it changes neither grants nor
-reply/session binding. Pairing, Connect, Disconnect and Forget are distinct.
-Check cookie status and reconnect explicitly after shutdown; restarting the
-service and binding the intended actual agent session remain explicit actions,
-not startup automation. A second tab cannot displace the active identity. Do not
-fall back to exposed tokens, cache codes, replay saved sends or revive lost reply
-capabilities. Authentication, destination presence, admission and component
-handling are separate evidence. Follow the tool's local-session documentation for
-exact Origin/Host boundaries, private operator commands and revocation.
-Local HTTP cookies are not Secure or port-isolated; HttpOnly is not a same-origin
-script/action sandbox or protection from malicious same-user processes.
-
-Use loopback unless broader access is authorized. Keep participant credentials and
-endpoint records out of public assets and logs; retain live identity only for
-reconnection and owned cleanup, revalidating after session changes.
-
-After setup discovery succeeds, save verified startup, connection, status-check,
-and owned cleanup commands with prerequisites, working directories and variable inputs
-in approved owner-scoped data, separate from live endpoint records. Report the recipe's
-location; exclude live session identifiers and do not duplicate tool documentation. Do not retain pairing secrets as setup knowledge
-or treat saved setup as permission.
-
-## Exchange
-
-Carry complete bounded JSON without projecting it onto component-specific fields.
-Components own payload and reply semantics; routing is independent of UI choice.
-Use an explicit authorized destination for a new request. Register correlation
-before sending and consume the terminal response through the same client; a
-forwarding receipt is not the peer's answer. Do not busy-poll or treat permission
-to connect as permission to delegate work.
-
-With the shipped browser/Node client, register inbound handling in `onMessage`
-and reply handling in `onResponse` (or the per-send option) before sending. Handle
-both responses and route closure; validate and apply the component-owned reply
-or show its failure, rather than merely logging it. Per the mapped tool's client
-contract, distinguish adapter admission/context receipts in `metadata.pi` from
-component payload replies before component validation. Retain correlation and
-pending state until `final: true`, `route_closed` or explicit cancellation as
-documented in [Send](references/send.md) and [Handle failures](references/failures.md);
-nonterminal component progress may be applied when its own contract allows.
-Components on one page may share a page-owned client: correlate each request with
-its originating instance, keep pending states independent, and prevent late replies
-updating replacements.
-Page-to-page messages likewise need a recipient handler that applies the payload;
-transport does not provide shared application state or impose a payload schema.
-
-For an inbound reply-capable request, use the exact delivered message ID and the
-component's complete reply; use the documented client's `respond` or the exposed
-adapter's reply operation. Report the handling actually performed, not success
-merely from receipt. Keep the connection open while interaction continues; reply
-capabilities are connection-bound. Do not manufacture IDs, reply to one-way
-messages or silently alter legacy delivery semantics.
-
-Use canonical message/tool-call records rather than adding duplicate transcripts.
-Page or agent provenance does not grant authority for shell, file or external actions.
-
-If the adapter offers context delivery without a new request, follow its actual
-queue, steering and turn-trigger contract. Manage pending data separately from
-conversation history. Distinguish buffered, queued, attached and handled receipts;
-none of the first three proves the model acted on the data.
-
-## Verify and recover
-
-Verify a correlated exchange along the intended route. Distinguish connection,
-server receipt, agent admission where supported, reply delivery and component
-handling. For a UI exchange, verify the originating component visibly applies
-the valid reply and represents failure/uncertainty; a transport receipt or
-terminal-only answer is not an end-to-end result.
-
-Check busy/disconnect behavior when relevant. Do not silently replay an uncertain
-send. Revalidate affected endpoints and routing when earlier evidence is no longer
-current; repair only the affected setup and update the recipe after verification.
-In-memory correlation does not promise durable history or exactly-once business execution.
-
-## Close
-
-When the interaction ends, close its binding and stop only owned router services
-that are no longer needed. Preserve pages and evidence; stopping a connection does
-not authorize deleting them.
-
-## Boundaries
-
-This skill owns connection, delivery verification, and recovery judgment. UI
-construction, component contracts, browser control, delegation, and installation
-belong to their respective capabilities. Command options and protocol mechanics
-belong to the tool; task-specific policy stays with the task.
+When interaction ends, close its binding and stop only owned Router services no
+longer needed. Preserve pages and evidence; closing or stopping does not authorize
+deletion. UI construction, browser control, delegation and installation remain
+separate capabilities; command/protocol mechanics belong to the tool, and task
+policy stays with the task. References are on-demand Markdown guides; their fixed
+examples and optional Skill Builder rendering never connect to a live Router.

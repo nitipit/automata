@@ -1,12 +1,17 @@
 # Send
 
-First [configure the grants](./configure.md) and [connect the clients](./connect.md). These snippets use the connected clients from that setup, in their separate participant contexts. No example runs in this guide.
+Examples use the [configured](./configure.md), [connected](./connect.md) clients in
+their separate contexts. This guide runs no examples. Use the shipped client's
+`send(to, payload, {metadata?, expectReply?, onResponse?})` and
+`respond(message.id, payload, {metadata?, final?})`; exact JSON limits and validation
+are in the mapped tool's client documentation.
 
 ## A new message needs no earlier request
 
-**worker → reviewer** is an explicit grant. Either agent can start independently because the reverse grant is also configured. A connection alone would not permit this.
-
-New-message transport: worker to router service to reviewer; the service returns a forwarding receipt.
+**worker → reviewer** is permitted by their shared `work` Network. Either Node
+can start independently under the same-Network default. A physical connection
+alone does not grant cross-Network access, and an explicit block would override
+this default.
 
 ```mermaid
 sequenceDiagram
@@ -16,7 +21,7 @@ sequenceDiagram
     W->>R: send reviewer, new payload
     R->>V: message, expectReply true
     R-->>W: accepted: forwarded
-    Note over W,V: reviewer may also start independently (own grant)
+    Note over W,V: reviewer may also start independently (same Network)
 ```
 
 ```javascript
@@ -42,9 +47,9 @@ console.log(await separate.accepted);
 
 ## Reply to the received message—not to a participant name
 
-**desk → worker** allows the request. worker can respond through its connection-bound return capability even though **worker → desk** is not a grant.
-
-Request passes through the router to worker; the optional response returns through the router using the received message ID.
+The explicit cross-Network **desk → worker** allow permits the request. worker
+can respond through its connection-bound return capability even though a new
+**worker → desk** initiation is denied.
 
 ```mermaid
 sequenceDiagram
@@ -86,20 +91,35 @@ console.log(await request.accepted); // transport receipt only
 {
   "v": 2, "type": "response", "id": "<message.id / routeId>",
   "requestId": "<request.id>",
-  "from": {"id": "worker", "kind": "agent", "sessionId": "worker-example"},
+  "from": {"id": "worker", "kind": "node", "network": "work", "sessionId": "worker-example"},
   "payload": {"answer": "Outline checked"}, "metadata": {}, "final": true
 }
 ```
 
-`message.id` (recipient) is the router's route ID; `request.id` (sender) is a different ID. Responses can arrive *before* `request.accepted` resolves, so register the handler first. `respond` defaults to `final: true`, releasing the capability; `final: false` emits an intermediate response.
+`message.id` is the recipient's route ID, distinct from the sender's `request.id`.
+Responses may precede `request.accepted`, so register handling first; the diagram
+is not an ordering guarantee. `respond` defaults to `final: true`, releasing the
+capability; `final: false` emits an intermediate response. A separate worker → desk
+initiation needs an explicit allow without an overriding block.
 
-The diagram shows one possible order, not an ordering guarantee. To initiate a separate worker → desk message, configure a separate grant; a reply never creates it.
+### Apply replies to the originating component
+
+Register inbound `onMessage` and response `onResponse` (or the per-send handler)
+before sending. Validate and apply complete component-owned replies, or represent
+failure, rather than merely logging. Multiple components may share a page-owned
+client: correlate each request to its originating instance, keep pending states
+independent and prevent late replies updating replacements. Page-to-page delivery
+also requires a handler that applies the payload; transport provides no shared
+application state or component schema.
+
+Separate adapter receipts in `response.metadata.pi` from complete component payload
+replies before component validation. Consult the mapped tool's adapter documentation
+for delivery options and context-control calls. An exposed agent adapter's reply
+operation uses the exact pending inbound ID, not the outgoing request ID.
 
 ## No reply requested, no return capability
 
 Send **desk → viewer** with `expectReply: false` when the receiving page needs only a notification.
-
-One-way notification from desk through router service to viewer. There is no response path.
 
 ```mermaid
 sequenceDiagram
@@ -124,7 +144,7 @@ console.log(await notification.accepted); // status: "forwarded", not "handled"
 ```json
 {
   "v": 2, "type": "message", "id": "<route ID>",
-  "from": {"id": "desk", "kind": "page"}, "to": "viewer",
+  "from": {"id": "desk", "kind": "page", "network": "default"}, "to": "viewer",
   "payload": {"notice": "Outline changed"}, "metadata": {}, "expectReply": false
 }
 ```

@@ -47,7 +47,7 @@ export class ControlClient {
           const value = parseRecord(event.data);
           if (value.type === "error") return failed();
           if (value.type !== "hello_ack") return;
-          if (endpoint.v === 2 ? value.v !== 2 || value.participant !== endpoint.participant || value.kind !== "agent" : value.role !== "control") return failed();
+          if (endpoint.v === 2 ? value.v !== 2 || value.participant !== endpoint.participant || value.kind !== endpoint.kind : value.role !== "control") return failed();
           finish();
         } catch { failed(); }
       };
@@ -202,7 +202,7 @@ export class ControlClient {
   }
 
   private receiveMessage(value: JsonRecord): void {
-    if (!isBoundedId(value.id) || !isRecord(value.from) || !isBoundedId(value.from.id) || !["page","agent"].includes(String(value.from.kind)) || value.to !== this.endpoint.participant) throw new Error("Invalid sender/destination");
+    if (!isBoundedId(value.id) || !isRecord(value.from) || !isBoundedId(value.from.id) || !["node","page","agent"].includes(String(value.from.kind)) || value.to !== this.endpoint.participant) throw new Error("Invalid sender/destination");
     // Pi admission always needs a receipt channel. Fire-and-forget notifications
     // are for non-Pi handlers; they never implicitly launch a model turn.
     if (value.expectReply !== true) return;
@@ -284,8 +284,8 @@ export async function readEndpoint(cwd: string, configuredPath?: string, legacy 
     const url = new URL(value.wsUrl);
     if (!["ws:","wss:"].includes(url.protocol) || url.username || url.password) throw new Error("Invalid endpoint URL");
     if (value.v === 2) {
-      if (!isBoundedId(value.participant) || typeof value.token !== "string" || !value.token || value.token.length > 256 || value.kind !== "agent") throw new Error("An agent participant credential is required");
-      return {v:2,wsUrl:value.wsUrl,publicUrl:value.publicUrl,participant:value.participant,token:value.token,kind:"agent"};
+      if (!isBoundedId(value.participant) || typeof value.token !== "string" || !value.token || value.token.length > 256 || !["node","agent"].includes(String(value.kind))) throw new Error("A node or agent credential is required for Pi session binding");
+      return {v:2,wsUrl:value.wsUrl,publicUrl:value.publicUrl,participant:value.participant,token:value.token,kind:value.kind as "node"|"agent"};
     }
     if (typeof value.controlToken !== "string") throw new Error("Missing legacy credential");
     return {wsUrl:value.wsUrl,publicUrl:value.publicUrl.replace(/\/$/,""),controlToken:value.controlToken};
