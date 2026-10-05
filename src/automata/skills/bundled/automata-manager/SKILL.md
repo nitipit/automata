@@ -44,9 +44,12 @@ needed. Scale detail to risk; do not require a fixed report template or full log
 
 Inspect the relevant evidence for goal alignment, coverage, freshness and
 contradictions. A concise summary is an entry point, not proof. Distinguish observed
-results from worker claims, test substitutes and reviewer judgments. Ask targeted
-questions when evidence does not support the claim; assign deeper technical checks
-to a suitable reviewer, independent of implementation when warranted.
+results from worker claims, test substitutes and reviewer judgments. Compare related
+team reports for consistent outcomes, revisions, assumptions and dependencies.
+Agreement based on shared sources is correlated evidence, not independent
+confirmation. Resolve material discrepancies or unsupported claims through targeted
+questions or deeper technical checks assigned to a suitable reviewer, independent
+of implementation when warranted.
 
 Accept outcomes only to the extent supported by evidence and within granted
 acceptance authority. Make gaps and unresolved disagreements visible. Assessing
