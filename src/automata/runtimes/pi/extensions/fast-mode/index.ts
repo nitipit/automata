@@ -51,7 +51,7 @@ export default function fastMode(pi: ExtensionAPI): void {
     return `Fast request policy ${enabled ? "on" : "off"}; ${eligibility}; response tier not tracked`;
   }
   const refresh = (ctx: ExtensionContext) => {
-    if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, status(ctx));
+    if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, `Fast: ${branchState(ctx.sessionManager.getBranch()).enabled ? "on" : "off"}`);
   };
 
   pi.registerFlag("fast", {
