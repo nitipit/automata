@@ -78,7 +78,7 @@ test("safe off, explicit premium, syntax, immutable payload and request-only sta
   const f = fixture();
   await f.emit("session_start", { reason: "startup" });
   assert.equal(f.state().enabled, false);
-  assert.equal(f.statuses.at(-1), "Fast: off");
+  assert.equal(f.statuses.at(-1), undefined, "status hidden when Fast mode is off");
   const original = payload();
   assert.deepEqual(await f.request(original), { ...original, service_tier: "default" });
   assert.equal(original.service_tier, "auto");
@@ -91,12 +91,12 @@ test("safe off, explicit premium, syntax, immutable payload and request-only sta
   assert.equal((await f.request(original)).service_tier, "priority");
   assert.deepEqual(f.ctx.model, selected);
   assert.match(f.notifications.at(-1).value, /premium.*auxiliary/);
-  assert.equal(f.statuses.at(-1), "Fast: on");
+  assert.equal(f.statuses.at(-1), "fast");
   assert.match(f.notifications.at(-1).value, /request policy on.*eligible selected route.*response tier not tracked/);
   await f.fast("off");
   assert.equal((await f.request({ ...original, service_tier: "fast" })).service_tier, "default");
   assert.deepEqual(f.command.getArgumentCompletions("o").map(item => item.value), ["on", "off"]);
-  assert.equal(f.statuses.at(-1), "Fast: off");
+  assert.equal(f.statuses.at(-1), undefined, "status hidden when Fast mode is off");
   f.ctx.hasUI = false;
   const statusCount = f.statuses.length;
   const output = await stderr(() => f.fast("status"));
@@ -105,16 +105,16 @@ test("safe off, explicit premium, syntax, immutable payload and request-only sta
   assert.equal(f.statuses.length, statusCount, "no footer writes without UI");
   f.ctx.hasUI = true;
   await f.emit("session_tree");
-  assert.equal(f.statuses.at(-1), "Fast: off");
+  assert.equal(f.statuses.at(-1), undefined, "status stays hidden when Fast mode is off");
   f.manager.appendCustomEntry(MODE_TYPE, { version: 1, enabled: true });
   f.ctx.model = undefined;
   await f.emit("model_select");
-  assert.equal(f.statuses.at(-1), "Fast: on", "footer shows policy even on unsupported routes");
+  assert.equal(f.statuses.at(-1), "fast", "status shows requested policy even on unsupported routes");
   await f.fast("status");
   assert.match(f.notifications.at(-1).value, /request policy on.*inactive.*tier not enforced.*not tracked/);
   f.manager.appendCustomEntry(MODE_TYPE, { version: 1, enabled: false });
   await f.emit("session_start", { reason: "reload" });
-  assert.equal(f.statuses.at(-1), "Fast: off");
+  assert.equal(f.statuses.at(-1), undefined, "reload clears status when Fast mode is off");
   await f.emit("session_shutdown");
   assert.equal(f.statuses.at(-1), undefined, "shutdown removes footer");
   assert.deepEqual([...f.handlers.keys()].sort(), ["before_provider_request", "model_select",
@@ -134,7 +134,7 @@ test("Codex on uses priority; off clears inherited tiers without mutating other 
   const f = fixture(undefined, m);
   await f.fast("on");
   assert.equal((await f.request(payload(m))).service_tier, "priority");
-  assert.equal(f.statuses.at(-1), "Fast: on");
+  assert.equal(f.statuses.at(-1), "fast");
   assert.match(f.notifications.at(-1).value, /request=priority/);
   await f.fast("off");
   for (const tier of ["priority", "fast", "auto", "default", undefined]) {
@@ -145,7 +145,7 @@ test("Codex on uses priority; off clears inherited tiers without mutating other 
     assert.equal(Object.hasOwn(result, "service_tier"), false);
     assert.equal(original.service_tier, tier);
   }
-  assert.equal(f.statuses.at(-1), "Fast: off");
+  assert.equal(f.statuses.at(-1), undefined);
   assert.match(f.notifications.at(-1).value, /request=omitted \(Codex standard request\).*not tracked/);
 });
 
@@ -171,7 +171,7 @@ test("static provider/API/endpoint guards, unknown payloads and 6.1/future IDs",
     await f.fast("off");
     const input = payload();
     assert.strictEqual(await f.request(input), input);
-    assert.equal(f.statuses.at(-1), "Fast: off");
+    assert.equal(f.statuses.at(-1), undefined);
     assert.match(f.notifications.at(-1).value, /inactive.*tier not enforced.*not tracked/);
   }
   const f = fixture();
