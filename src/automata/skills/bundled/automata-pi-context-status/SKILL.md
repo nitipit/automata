@@ -27,14 +27,15 @@ would inform the next step; do not call it merely to acknowledge a new run or si
 - Assistant messages contribute provider-reported input, output, cache, and total usage after
   the latest input anchor. Tool results, hidden signals, summaries, and other non-input entries
   do not reset the anchor.
-- Before each model request, the runtime checks pressure and injects a temporary reminder
-  at 75%, 80%, 85%, 90%, and 95%; the 50% moderate-pressure observation is also retained.
-  A jump produces one current reminder, not a backlog of crossed thresholds. The first
-  request after loading can report pressure already above a threshold.
-- Pressure reminders are deduplicated across user inputs. Successful compaction, session
-  changes, reload, or a changed effective model/window rearm them; ordinary fluctuations,
-  unknown readings and failed/cancelled compaction do not. Unknown usage produces no reminder.
-  These request-local messages do not accumulate in session history or start agent turns.
+- Before every model request, the runtime injects exactly one temporary pressure reminder
+  when measured usage is at least 80%, with stronger urgency at 90%+. Repeated requests
+  at the same pressure still receive advice; it does not claim a newly crossed threshold.
+  Below 80% or when usage is unknown, no pressure reminder is included. The independent
+  diagnostic pressure bands remain unchanged.
+- Pressure advice uses fresh readings, including after compaction, session changes, reload,
+  or effective model/window changes. Unknown readings do not imply successful compaction.
+  Old request-local pressure entries are removed before adding current advice. These messages
+  do not accumulate in session history, start agent turns, or queue a post-response wakeup.
 - Ten-minute elapsed-time observations still coalesce at safe runtime boundaries and are
   queued after the run settles for a subsequent turn. Neither signal path polls or injects
   into a streaming response.
@@ -51,9 +52,10 @@ would inform the next step; do not call it merely to acknowledge a new run or si
 
 ## Signal received
 
-A hidden context signal provides factual status and the threshold that triggered it.
-High-pressure reminders call attention to a stable compaction boundary; at 90%+ they express
-stronger urgency. They do not run compaction or replace its applicable policy and preferences.
+A hidden pressure reminder provides measured usage; elapsed-time signals report their
+crossed time threshold separately. Pressure reminders call attention to a stable compaction
+boundary; at 90%+ they express stronger urgency. They do not run compaction or replace its
+applicable policy and preferences.
 Decide the next safe action from the task and that guidance, without interrupting unfinished
 operations or treating an observation as new authority.
 

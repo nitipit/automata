@@ -12,20 +12,25 @@ const {
 function fixture() {
   const handlers = new Map();
   const tools = new Map();
+  const commands = new Map();
+  const notifications = [];
   const sent = [];
   register({
     on(name, handler) { handlers.set(name, handler); },
-    registerCommand() {},
+    registerCommand(name, command) { commands.set(name, command); },
     registerTool(tool) { tools.set(tool.name, tool); },
     sendMessage(...args) { sent.push(args); },
     appendEntry() { assert.fail("Temporary timestamps must not be persisted"); },
   });
   const ctx = {
+    hasUI: true,
+    ui: { notify(...args) { notifications.push(args); } },
     model: { provider: "offline", id: "test", contextWindow: 10000 },
     getContextUsage: () => ({ tokens: 100, contextWindow: 10000, percent: 1 }),
   };
   return {
-    ctx, handlers, sent,
+    ctx, handlers, sent, notifications,
+    commandStatus: () => commands.get("context-status").handler("", ctx),
     setPercent(percent, contextWindow = 10000) {
       ctx.model.contextWindow = contextWindow;
       ctx.getContextUsage = () => ({
@@ -120,40 +125,50 @@ test("thresholds are exact, bounded, and reject unknown/non-finite usage", () =>
   ]) assert.equal(pressureThresholdForPercent(percent), expected, String(percent));
 });
 
-test("each five-point high-pressure threshold reaches the next request during a run", () => {
+test("every request at 80+ carries one measured reminder, with urgency at 90+", () => {
   const f = fixture();
   f.emit("message_start", { message: { role: "user", timestamp: start } });
   f.emit("agent_start");
-  for (const value of [50, 75, 80, 85, 90, 95]) {
+  for (const value of [50, 75, 79.9, 80, 80, 85, 85, 90, 95, 95]) {
     f.setPercent(value);
     f.emit("turn_end");
     assert.deepEqual(f.sent, []);
-    const [signal] = pressure(f);
-    assert.equal(signal.details.observations.pressureThreshold, value);
-    assert.match(signal.content, new RegExp(`Usage: .*\\(${value}%\\)`));
-    assert.equal(signal.display, false);
-    if (value === 50) assert.doesNotMatch(signal.content, /compaction reminder/i);
-    else if (value < 90) assert.match(signal.content, /next stable boundary/);
-    else assert.match(signal.content, /Urgent compaction reminder/);
-    assert.deepEqual(pressure(f), []);
+    if (value < 80) {
+      assert.deepEqual(pressure(f), []);
+      continue;
+    }
+    for (let request = 0; request < 3; request++) {
+      const signals = pressure(f);
+      assert.equal(signals.length, 1);
+      const [signal] = signals;
+      assert.equal(signal.details.observations.pressureThreshold, value);
+      assert.match(signal.content, new RegExp(`Context pressure: ${value}%`));
+      assert.doesNotMatch(signal.content, /reached|crossed|Elapsed:|Model:/);
+      assert.equal(signal.display, false);
+      assert.equal(signal.details.kind, "pressure-reminder");
+      if (value < 90) {
+        assert.match(signal.content, /next stable boundary/);
+        assert.doesNotMatch(signal.content, /Urgent/);
+      } else assert.match(signal.content, /Urgent compaction reminder/);
+    }
   }
   assert.deepEqual(f.sent, []); // No steering, wakeup or end-of-run dependency.
 });
 
-test("first request at high pressure coalesces a jump and does not replay lower levels", () => {
+test("fluctuations use current measured pressure, with no backlog or hysteresis", () => {
   const f = fixture();
   f.setPercent(89);
   assert.equal(threshold(f), 85);
-  for (const value of [89.9, 84, 30, 50, 75, 85, 89]) {
+  for (const value of [89.9, 84, 30, 50, 75, 79.9, 80, 85, 89]) {
     f.setPercent(value);
-    assert.equal(threshold(f), undefined);
+    assert.equal(threshold(f), value < 80 ? undefined : pressureThresholdForPercent(value));
   }
   f.setPercent(110);
   assert.equal(threshold(f), 95);
-  assert.equal(threshold(f), undefined);
+  assert.equal(threshold(f), 95);
 });
 
-test("new user inputs reset telemetry, not pressure deduplication", async (t) => {
+test("new user inputs reset telemetry without suppressing recurring pressure", async (t) => {
   t.mock.method(Date, "now", () => start);
   const f = fixture();
   f.setPercent(80);
@@ -161,14 +176,14 @@ test("new user inputs reset telemetry, not pressure deduplication", async (t) =>
   for (const content of ["human input", "coordinator input"]) {
     f.emit("message_start", { message: { role: "user", timestamp: start, content } });
     f.emit("agent_start");
-    assert.equal(threshold(f), undefined);
+    assert.equal(threshold(f), 80);
     assert.equal((await f.status()).inputAnchorTimestamp, start);
   }
   f.setPercent(85);
   assert.equal(threshold(f), 85);
 });
 
-test("unknown usage neither warns nor rearms an already emitted threshold", () => {
+test("unknown usage never warns or invents a reading, and valid usage resumes advice", () => {
   const f = fixture();
   f.setPercent(null);
   assert.equal(threshold(f), undefined);
@@ -179,12 +194,16 @@ test("unknown usage neither warns nor rearms an already emitted threshold", () =
   f.setPercent(null);
   assert.equal(threshold(f), undefined);
   f.setPercent(80);
-  assert.equal(threshold(f), undefined);
+  assert.equal(threshold(f), 80);
+  for (const value of [undefined, NaN, Infinity]) {
+    f.ctx.getContextUsage = () => ({ tokens: null, percent: value, contextWindow: 10000 });
+    assert.equal(threshold(f), undefined);
+  }
   f.ctx.getContextUsage = () => ({ tokens: 8500, contextWindow: 10000 });
   assert.equal(threshold(f), 85); // Supported token/window fallback.
 });
 
-test("successful compaction rearms reminders without resetting time/usage telemetry", async (t) => {
+test("compaction lifecycle preserves time/usage telemetry and reads current pressure", async (t) => {
   let now = start;
   t.mock.method(Date, "now", () => now);
   const f = fixture();
@@ -197,13 +216,15 @@ test("successful compaction rearms reminders without resetting time/usage teleme
   assert.equal(threshold(f), 85);
   f.emit("session_before_compact");
   f.emit("session_compact_failed", { aborted: true });
-  assert.equal(threshold(f), undefined);
+  assert.equal(threshold(f), 85);
   now += 1000;
   f.emit("session_compact");
   f.setPercent(null); // Pi reports unknown until a post-compaction response.
   assert.equal(threshold(f), undefined);
   f.setPercent(76);
-  assert.equal(threshold(f), 75);
+  assert.equal(threshold(f), undefined);
+  f.setPercent(85);
+  assert.equal(threshold(f), 85);
   const status = await f.status();
   assert.equal(status.inputAnchorTimestamp, start);
   assert.equal(status.elapsedMs, 1000);
@@ -212,12 +233,12 @@ test("successful compaction rearms reminders without resetting time/usage teleme
   assert.equal(status.modelUsage.totalTokens, 120);
 });
 
-test("effective model/provider/window changes rearm, identical model objects do not", () => {
+test("effective model/provider/window changes always use fresh readings", () => {
   const f = fixture();
   f.setPercent(80);
   assert.equal(threshold(f), 80);
   f.ctx.model = { ...f.ctx.model };
-  assert.equal(threshold(f), undefined);
+  assert.equal(threshold(f), 80);
   f.ctx.model.id = "other";
   assert.equal(threshold(f), 80);
   f.ctx.model.provider = "other-provider";
@@ -230,7 +251,7 @@ test("effective model/provider/window changes rearm, identical model objects do 
   assert.equal(threshold(f), 80);
 });
 
-test("session start and tree navigation reset pressure; failed compaction does not", () => {
+test("session navigation and compaction do not suppress repeated current pressure", () => {
   const f = fixture();
   f.setPercent(95);
   assert.equal(threshold(f), 95);
@@ -239,7 +260,7 @@ test("session start and tree navigation reset pressure; failed compaction does n
     assert.equal(threshold(f), 95);
   }
   f.emit("session_compact_failed", { errorMessage: "offline failure" });
-  assert.equal(threshold(f), undefined);
+  assert.equal(threshold(f), 95);
   f.emit("session_compact");
   assert.equal(threshold(f), 95); // Compacted context may still be large.
 });
@@ -248,11 +269,18 @@ test("manual diagnostics and settlement do not consume or queue pressure reminde
   const f = fixture();
   f.setPercent(80);
   assert.equal((await f.status()).percent, 80);
+  await f.commandStatus();
+  assert.match(f.notifications[0][0], /Usage: 8,000 \/ 10,000 tokens \(80%\)/);
+  assert.equal(f.notifications[0][1], "info");
+  assert.equal(threshold(f), 80);
   f.emit("turn_end");
   f.emit("agent_end");
   f.emit("agent_settled");
   assert.deepEqual(f.sent, []);
   assert.equal(threshold(f), 80);
+  f.setPercent(75);
+  assert.equal((await f.status()).pressure, "high"); // Independent diagnostic bands stay useful.
+  assert.equal(threshold(f), undefined);
 });
 
 test("ephemeral reminders preserve history and tool pairs and never accumulate", () => {
@@ -267,8 +295,18 @@ test("ephemeral reminders preserve history and tool pairs and never accumulate",
   assert.deepEqual(first.slice(0, history.length), history);
   assert.equal(first.length, history.length + 1);
   const second = f.emit("context", { messages: first }).messages;
-  assert.deepEqual(second, history);
-  assert.equal(second.length, history.length);
+  assert.deepEqual(second.slice(0, history.length), history);
+  assert.equal(second.length, history.length + 1);
+  assert.equal(second.filter((message) => message.customType === RUNTIME_PRESSURE_TYPE).length, 1);
+  assert.notEqual(second.at(-1), first.at(-1));
+  for (const value of [79.9, null]) {
+    f.setPercent(value);
+    const stale = Object.freeze([...second, Object.freeze({
+      role: "custom", customType: RUNTIME_PRESSURE_TYPE, content: "old pressure", timestamp: 0,
+    })]);
+    assert.deepEqual(f.emit("context", { messages: stale }).messages, history);
+    assert.equal(stale.length, history.length + 2);
+  }
   assert.equal(history.length, 3);
   assert.deepEqual(f.sent, []);
 });
@@ -290,5 +328,5 @@ test("time observations still coalesce at settlement and do not duplicate pressu
   assert.doesNotMatch(f.sent[0][0].content, /compaction reminder/i);
   f.emit("agent_settled");
   assert.equal(f.sent.length, 1);
-  assert.equal(threshold(f), undefined);
+  assert.equal(threshold(f), 90);
 });

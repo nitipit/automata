@@ -286,15 +286,20 @@ interface TaskCheckpoint {
   seenAssistantMessages: WeakSet<object>;
 }
 
-/** Pressure belongs to the context lifecycle, not to the latest user-input checkpoint. */
-interface PressureCheckpoint {
-  identity: string;
-  highestThreshold: number;
+/** Request-local advice, not a new threshold crossing or a time-telemetry delivery. */
+function formatPressureReminder(status: ContextStatus): string {
+  const advice = (status.percent ?? 0) >= 90
+    ? "Urgent compaction reminder: preserve the minimum durable checkpoint and use the earliest safe boundary before substantial new work."
+    : "Compaction reminder: finish the current coherent unit, preserve durable state, and use the next stable boundary.";
+  return [
+    `Context pressure: ${formatPercent(status.percent)} (${formatTokenCount(status.tokens)} / ${formatWindow(status.contextWindow)} tokens).`,
+    advice,
+    "Apply the existing compaction policy and preferences. Do not interrupt an unfinished operation; this observation does not itself authorize or run compaction.",
+  ].join("\n");
 }
 
 export default function (pi: ExtensionAPI) {
   let checkpoint: TaskCheckpoint | undefined;
-  let pressureCheckpoint: PressureCheckpoint | undefined;
 
   const getStatus = (ctx: ContextSource): ContextStatus => {
     if (!checkpoint) return readContextStatus(ctx);
@@ -368,22 +373,17 @@ export default function (pi: ExtensionAPI) {
 
   const pressureSignal = (ctx: ExtensionContext, timestamp: number) => {
     const status = getStatus(ctx);
-    const identity = JSON.stringify([ctx.model?.provider, ctx.model?.id, status.contextWindow]);
-    if (pressureCheckpoint?.identity !== identity) {
-      pressureCheckpoint = { identity, highestThreshold: 0 };
-    }
-    // Unknown post-compaction usage is not evidence of low pressure or another reset.
-    const threshold = status.pressure === "unknown" ? null : pressureThresholdForPercent(status.percent);
-    if (threshold === null || threshold <= pressureCheckpoint.highestThreshold) return [];
-    pressureCheckpoint.highestThreshold = threshold;
-    const observations = { pressureThreshold: threshold };
+    // Read fresh on every request: compaction/session/model/window changes need no rearming
+    // state. Unknown usage suppresses advice; it never implies successful compaction.
+    if (status.pressure === "unknown" || status.percent === null || status.percent < 80) return [];
+    const observations = { pressureThreshold: pressureThresholdForPercent(status.percent)! };
     return [{
       role: "custom" as const,
       customType: RUNTIME_PRESSURE_TYPE,
-      content: formatContextSignal("pressure-transition", status, undefined, observations),
+      content: formatPressureReminder(status),
       display: false,
       timestamp,
-      details: { kind: "pressure-transition", status, observations },
+      details: { kind: "pressure-reminder", status, observations },
     }];
   };
 
@@ -402,12 +402,9 @@ export default function (pi: ExtensionAPI) {
 
   const resetSession = () => {
     checkpoint = undefined;
-    pressureCheckpoint = undefined;
   };
   pi.on("session_start", resetSession);
   pi.on("session_tree", resetSession);
-  // Only success rearms reminders. Failed/cancelled compaction leaves deduplication intact.
-  pi.on("session_compact", () => { pressureCheckpoint = undefined; });
 
   pi.on("agent_start", () => {
     // This is an internal checkpoint only; no model-visible telemetry is emitted here.

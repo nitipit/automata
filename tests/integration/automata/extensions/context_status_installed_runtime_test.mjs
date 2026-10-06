@@ -73,29 +73,60 @@ test("native pre-request transform carries the warning into LLM input without hi
   const warnings = llm.filter((message) => message.role === "user" && Array.isArray(message.content) &&
     message.content.some((block) => block.type === "text" && block.text.includes("Compaction reminder")));
   assert.equal(warnings.length, 1);
-  assert.match(warnings[0].content[0].text, /80% threshold/);
+  assert.match(warnings[0].content[0].text, /Context pressure: 80%/);
+  assert.doesNotMatch(warnings[0].content[0].text, /reached|crossed|Elapsed:|Model:/);
   assert.match(warnings[0].content[0].text, /existing compaction policy/);
-  assert.equal(reminders(await f.transform(history)).length, 0);
+  for (let request = 0; request < 3; request++) {
+    const repeated = await f.transform(transformed);
+    assert.equal(reminders(repeated).length, 1);
+    assert.equal(repeated.length, transformed.length);
+    assert.deepEqual(repeated.slice(0, history.length), history);
+  }
   assert.deepEqual(history, original);
 });
 
 test("native transformation observes tool-result growth without waiting for settlement", async () => {
   const f = fixture();
-  f.setPercent(74);
-  assert.equal(reminders(await f.transform(history))[0].details.observations.pressureThreshold, 50);
-  for (const percent of [75, 80, 85, 90, 95]) {
+  for (const percent of [50, 74, 75, 79.9, null]) {
+    f.setPercent(percent);
+    assert.equal(reminders(await f.transform(history)).length, 0);
+  }
+  for (const percent of [80, 85, 85, 90, 95, 95]) {
     f.setPercent(percent);
     const request = await f.transform([...history, {
       role: "custom", customType: "other-runtime-evidence", content: "preserve this", timestamp: 3,
     }]);
+    assert.equal(reminders(request).length, 1);
     assert.equal(reminders(request)[0].details.observations.pressureThreshold, percent);
+    assert.equal(reminders(request)[0].content.includes("Urgent"), percent >= 90);
     assert.equal(request.filter((message) => message.customType === "other-runtime-evidence").length, 1);
   }
   f.emit("session_compact_failed");
-  assert.equal(reminders(await f.transform(history)).length, 0);
+  assert.equal(reminders(await f.transform(history)).length, 1);
   f.emit("session_compact");
   f.setPercent(null);
   assert.equal(reminders(await f.transform(history)).length, 0);
   f.setPercent(76);
-  assert.equal(reminders(await f.transform(history))[0].details.observations.pressureThreshold, 75);
+  assert.equal(reminders(await f.transform(history)).length, 0);
+  f.setPercent(80);
+  assert.equal(reminders(await f.transform(history)).length, 1);
+});
+
+test("native transforms strip every stale pressure entry below 80 or unknown", async () => {
+  const f = fixture();
+  const unrelated = {
+    role: "custom", customType: "other-runtime-evidence", content: "keep this", timestamp: 3,
+  };
+  const stale = {
+    role: "custom", customType: RUNTIME_PRESSURE_TYPE, content: "old pressure", timestamp: 4,
+  };
+  const input = [...history, stale, unrelated, { ...stale }];
+  const original = structuredClone(input);
+  for (const percent of [85, 95, 79.9, null, 80]) {
+    f.setPercent(percent);
+    const request = await f.transform(input);
+    assert.deepEqual(request.slice(0, history.length + 1), [...history, unrelated]);
+    assert.equal(reminders(request).length, percent !== null && percent >= 80 ? 1 : 0);
+    assert.deepEqual(input, original);
+  }
 });
