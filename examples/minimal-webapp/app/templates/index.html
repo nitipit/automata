@@ -1,0 +1,14 @@
+{% extends "_base.html" %}
+{% block content %}
+<h1>Counter</h1>
+<p class="intro">A simple interaction, built with shared design tokens and an Adapter component.</p>
+<demo-counter></demo-counter>
+<h2 class="section-title">How It's Built</h2>
+<ui-card padding="lg">
+  <div class="layers">
+    <div class="layer">Pages<small>FastAPI renders Jinja pages that inherit _base.html.</small></div>
+    <div class="layer">Design<small>Typed semantic tokens and reusable components, based on Adaptive UI.</small></div>
+    <div class="layer">Browser<small>Deno + esbuild bundle base.ts into browser/base.js. Only built assets are public.</small></div>
+  </div>
+</ui-card>
+{% endblock %}
