@@ -35,15 +35,18 @@ export function branchState(entries: readonly SessionEntry[]): { enabled: boolea
   return { enabled };
 }
 
+/** Codex's Fast config label maps to priority on the wire; explicit standard
+ * routing omits the field. See the pinned official serializer in README.md.
+ */
 const requestedTier = (enabled: boolean, model: Route) =>
-  !enabled ? "default" : model.provider === "openai-codex" ? "fast" : "priority";
+  enabled ? "priority" : model.provider === "openai-codex" ? undefined : "default";
 
 export default function fastMode(pi: ExtensionAPI): void {
   function status(ctx: ExtensionContext): string {
     const { enabled } = branchState(ctx.sessionManager.getBranch());
     const model = ctx.model;
     const eligibility = supportedRoute(model) ?
-      `eligible selected route; request=${requestedTier(enabled, model)}` :
+      `eligible selected route; request=${requestedTier(enabled, model) ?? "omitted (Codex standard request)"}` :
       "inactive (unsupported selected route); tier not enforced";
     return `Fast request policy ${enabled ? "on" : "off"}; ${eligibility}; response tier not tracked`;
   }
@@ -96,7 +99,10 @@ export default function fastMode(pi: ExtensionAPI): void {
     if (!supportedRoute(model) || !record(event.payload) || event.payload.model !== model.id) return;
     // Intentional policy for ALL eligible hooked calls, including cache warming.
     // No main-request snapshots, response observers, prices or outcome records.
-    return { ...event.payload,
-      service_tier: requestedTier(branchState(ctx.sessionManager.getBranch()).enabled, model) };
+    const payload = { ...event.payload };
+    const tier = requestedTier(branchState(ctx.sessionManager.getBranch()).enabled, model);
+    if (tier === undefined) delete payload.service_tier; // Clear inherited premium, not just our own value.
+    else payload.service_tier = tier;
+    return payload;
   });
 }

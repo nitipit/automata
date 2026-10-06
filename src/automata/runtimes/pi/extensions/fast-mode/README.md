@@ -9,13 +9,18 @@ response records, cost correction, global configuration or new dependency.
 
 | Control | Effect |
 | --- | --- |
-| `/fast on` | Request `fast` on selected official Codex routes; `priority` on selected official OpenAI API routes |
-| `/fast off` | Explicitly request `default` on eligible hooked invocations, not inherited `auto`/premium |
+| `/fast on` | Request wire tier `priority` on selected official Codex and OpenAI API routes |
+| `/fast off` | Remove `service_tier` on Codex (standard request); explicitly request `default` on OpenAI API routes. Clear inherited premium values in both cases |
 | `/fast status` or `/fast` | Show desired policy, selected-route eligibility and requested tier; no toggle |
 | `--fast` | Opt the initial active branch into premium at CLI startup |
 
-OpenAI documents API `fast` and `priority` as equivalent for supported models;
-Codex uses its documented `fast` value. The initial policy is off unless branch
+OpenAI documents API `fast` and `priority` as equivalent for supported models.
+Codex's `fast` **CLI/config label is not its outgoing wire value**: official
+Codex normalizes it to `priority`. Its explicit standard/default selection omits
+`service_tier` on the wire. This extension follows those representations, removing
+any existing Codex tier when off rather than sending a literal `default`.
+Omission/default selection is a request policy, not proof of the actual tier used.
+The initial policy is off unless branch
 history or explicit startup `--fast` enables it. There is no model whitelist:
 GPT-6.1 Sol and future IDs may attempt the tier if Pi already provides them.
 Actual model/account/provider eligibility is unverified; the provider can reject
@@ -40,7 +45,7 @@ Status says **request policy** and **response tier not tracked**. An inactive
 route says **tier not enforced**, never Standard enforced. TUI/RPC use native UI
 feedback; status/command feedback in print/JSON goes to stderr, not protocol stdout.
 Native cost estimates remain unchanged and are not authoritative billing records
-(especially Codex `fast`, missing tier metadata and Chat Completions).
+(especially Codex premium requests, missing tier metadata and Chat Completions).
 
 ## Accepted operating boundary
 
@@ -108,9 +113,15 @@ For tmux, after approving the path and launch:
 tmux new-session -s fast 'pi --no-extensions -e /absolute/path/to/fast-mode --fast'
 ```
 
-Check `/fast status` before use. Without `--fast`, a resumed branch still follows
-its saved policy. Removing the extension also removes its explicit-default guard;
-it does not alter provider/project defaults.
+Check `/fast status` before use. Codex off shows `request=omitted (Codex standard
+request)`; API off shows `request=default`. Without `--fast`, a resumed branch
+still follows its saved policy. Removing the extension also removes its off-policy
+override; it does not alter provider/project defaults.
+
+Existing v1 branch entries store only on/off, not a tier string, so no session
+migration is needed. A separately approved install/reload applies this corrected
+mapping to future invocations, including eligible warming; in-flight requests
+remain unchanged. The already-installed copy is not corrected by editing source.
 
 ## Verification
 
@@ -122,5 +133,34 @@ exists. See `tests/integration/automata/extensions/fast_mode_test.py`. Set
 `PI_TEST_PACKAGE_ROOT` if installed Pi discovery fails. Package/install checks
 cover both bundle files. No live access, pricing, latency or race-isolation claim.
 
-Official references: [Codex speed](https://developers.openai.com/codex/speed/),
-[API Fast mode](https://developers.openai.com/api/docs/guides/fast-mode).
+## Primary wire-tier evidence
+
+Verified 6 October 2026 against official `openai/codex` commit
+`822e58cc3d666166c7446c5b1ea2e52f5d09594c`:
+
+- [Config types, lines 533–550](https://github.com/openai/codex/blob/822e58cc3d666166c7446c5b1ea2e52f5d09594c/codex-rs/protocol/src/config_types.rs#L533-L550):
+  `ServiceTier::Fast.request_value()` returns `"priority"`; both `"fast"` and
+  `"priority"` parse as Fast. `"default"` is a config/request sentinel for an
+  explicit standard selection, not a catalog tier ID.
+- [Config normalization, lines 3981–3996](https://github.com/openai/codex/blob/822e58cc3d666166c7446c5b1ea2e52f5d09594c/codex-rs/core/src/config/mod.rs#L3981-L3996):
+  parsed Fast becomes `ServiceTier::Fast.request_value().to_string()`.
+- [Request resolution, lines 998–1002](https://github.com/openai/codex/blob/822e58cc3d666166c7446c5b1ea2e52f5d09594c/codex-rs/protocol/src/openai_models.rs#L998-L1002):
+  `service_tier_for_request` filters out the explicit `"default"` sentinel.
+  [Client, lines 979–1007](https://github.com/openai/codex/blob/822e58cc3d666166c7446c5b1ea2e52f5d09594c/codex-rs/core/src/client.rs#L979-L1007)
+  uses that result as the outgoing request's `service_tier`.
+- [HTTP serializer, lines 279–285](https://github.com/openai/codex/blob/822e58cc3d666166c7446c5b1ea2e52f5d09594c/codex-rs/codex-api/src/common.rs#L279-L285)
+  and [WebSocket serializer, lines 330–337](https://github.com/openai/codex/blob/822e58cc3d666166c7446c5b1ea2e52f5d09594c/codex-rs/codex-api/src/common.rs#L330-L337):
+  `#[serde(skip_serializing_if = "Option::is_none")]` omits that field.
+
+Pi AI 1.0.4's native `dist/api/openai-codex-responses.js` invokes `onPayload`
+then serializes the returned body, with no Fast-label conversion. Offline native
+SSE tests check `priority` when on and field absence when off, including overriding
+an inherited provider `serviceTier: "priority"`. Fixture success proves payload
+construction, not backend acceptance, account/model entitlement, observed tier,
+latency or billing. No live provider tests were performed.
+
+[Codex speed](https://developers.openai.com/codex/speed/) documents the `fast`
+config label and eligibility caveats; it is not a wire serialization specification.
+[API Fast mode](https://developers.openai.com/api/docs/guides/fast-mode) documents
+API `fast`/`priority` equivalence. Codex backend acceptance of literal `default`
+was not established; off follows the official client's omission instead.

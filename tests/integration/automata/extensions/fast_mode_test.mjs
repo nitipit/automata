@@ -103,6 +103,30 @@ test("safe off, explicit premium, syntax, immutable payload and request-only sta
     type: "boolean", default: false });
 });
 
+// Wire policy, not a simulated proof of backend acceptance. Official Codex source:
+// openai/codex@822e58cc3d666166c7446c5b1ea2e52f5d09594c
+// protocol/src/config_types.rs: Fast.request_value() = priority;
+// protocol/src/openai_models.rs: explicit default -> None;
+// codex-api/src/common.rs: None service_tier omitted for HTTP and WebSocket.
+// Exact passages and pinned links are in the extension README.
+test("Codex on uses priority; off clears inherited tiers without mutating other fields", async () => {
+  const m = codexModel();
+  const f = fixture(undefined, m);
+  await f.fast("on");
+  assert.equal((await f.request(payload(m))).service_tier, "priority");
+  assert.match(f.statuses.at(-1), /request=priority/);
+  await f.fast("off");
+  for (const tier of ["priority", "fast", "auto", "default", undefined]) {
+    const original = { ...payload(m), service_tier: tier };
+    const { service_tier: _removed, ...expected } = original;
+    const result = await f.request(original);
+    assert.deepEqual(result, expected);
+    assert.equal(Object.hasOwn(result, "service_tier"), false);
+    assert.equal(original.service_tier, tier);
+  }
+  assert.match(f.statuses.at(-1), /request=omitted \(Codex standard request\).*not tracked/);
+});
+
 test("static provider/API/endpoint guards, unknown payloads and 6.1/future IDs", async () => {
   for (const m of [model(), codexModel(), model("openai", "openai-completions"),
     { ...model(), id: "future-model", baseUrl: "https://api.openai.com/v1/" },
@@ -110,7 +134,7 @@ test("static provider/API/endpoint guards, unknown payloads and 6.1/future IDs",
     assert.equal(supportedRoute(m), true);
     const f = fixture(undefined, m);
     await f.fast("on");
-    assert.equal((await f.request(payload(m))).service_tier, m.provider === "openai" ? "priority" : "fast");
+    assert.equal((await f.request(payload(m))).service_tier, "priority");
   }
   for (const m of [model("openrouter"), model("azure-openai"), model("openai", "anthropic-messages"),
     model("openai", "pi-virtual", ""), model("openai", "openai-codex-responses"),
@@ -219,7 +243,7 @@ for (const [name, provider, m] of [["Responses", responses, model()], ["Codex SS
       let sent;
       const result = await provider.streamSimple(m, context, {
         apiKey: m.provider === "openai-codex" ? fakeJwt : "offline", reasoning: "high",
-        transport: "sse", maxRetries: 0, temperature: 0.2,
+        transport: "sse", maxRetries: 0, temperature: 0.2, serviceTier: "priority",
         onPayload: body => f.request(body),
         fetch: async (_url, options) => {
           const body = new Headers(options.headers).get("content-encoding") === "zstd" ?
@@ -235,7 +259,8 @@ for (const [name, provider, m] of [["Responses", responses, model()], ["Codex SS
       }).result();
       assert.equal(result.stopReason, "stop", result.errorMessage);
       assert.equal(sent.model, m.id);
-      assert.equal(sent.service_tier, !enabled ? "default" : m.provider === "openai-codex" ? "fast" : "priority");
+      assert.equal(sent.service_tier, enabled ? "priority" : m.provider === "openai-codex" ? undefined : "default");
+      assert.equal(Object.hasOwn(sent, "service_tier"), enabled || m.provider !== "openai-codex");
       // Responses itself suppresses temperature for reasoning models; preserve that behavior.
       assert.equal(sent.temperature, m.api === "openai-responses" ? undefined : 0.2);
       assert.equal(m.api === "openai-completions" ? sent.reasoning_effort : sent.reasoning.effort, "high");
@@ -246,23 +271,26 @@ for (const [name, provider, m] of [["Responses", responses, model()], ["Codex SS
 }
 
 let sdkNumber = 0;
-async function nativeSession({ warming = "off", onFetch, flag = true, customTools = [] } = {}) {
+async function nativeSession({ warming = "off", onFetch, flag = true, customTools = [], useCodex = false } = {}) {
   const work = join(root, `sdk-${sdkNumber++}`);
   mkdirSync(work);
-  const m = { ...model(), promptCache: { short: 300 },
+  const m = { ...(useCodex ? codexModel() : model()), promptCache: { short: 300 },
     cost: { input: 50, output: 2, cacheRead: 0.1, cacheWrite: 0 } };
   const sent = [];
   const settings = sdk.SettingsManager.inMemory({ compaction: { enabled: false }, retry: { enabled: false },
     cacheWarming: warming });
   const resourceLoaderOptions = {
     noExtensions: true, noSkills: true, noContextFiles: true, noPromptTemplates: true, noThemes: true,
-    extensionFactories: [register, pi => pi.registerProvider("openai", {
-      api: m.api, apiKey: "offline", baseUrl: m.baseUrl, models: [m],
+    extensionFactories: [register, pi => pi.registerProvider(m.provider, {
+      api: m.api, apiKey: useCodex ? fakeJwt : "offline", baseUrl: m.baseUrl, models: [m],
       // Test fetch adapter only; the production extension does not register providers.
-      streamSimple: (actual, transcript, options) => responses.streamSimple(actual, transcript, {
-        ...options, apiKey: "offline", maxRetries: 0,
+      streamSimple: (actual, transcript, options) => (useCodex ? codex : responses).streamSimple(actual, transcript, {
+        ...options, apiKey: useCodex ? fakeJwt : "offline", maxRetries: 0,
+        transport: "sse", ...(useCodex ? { serviceTier: "priority" } : {}),
         fetch: async (_url, init) => {
-          const body = JSON.parse(init.body);
+          const raw = new Headers(init.headers).get("content-encoding") === "zstd" ?
+            zstdDecompressSync(init.body).toString() : init.body;
+          const body = JSON.parse(raw);
           const request = { body, warm: options.maxTokens === 1 };
           sent.push(request);
           return await onFetch?.(request, sent.length) ?? sse([terminal(undefined, `resp_${sent.length}`)]);
@@ -294,6 +322,26 @@ async function warm(session) {
   await warmer.refresh(warmer.run);
 }
 const policyEntries = session => session.sessionManager.getBranch().filter(entry => entry.type === "custom");
+
+test("native Codex warming uses priority on and omission off, overriding provider premium", async () => {
+  const { session, sent } = await nativeSession({ warming: "idle", useCodex: true });
+  try {
+    await session.prompt("Seed usage");
+    await warm(session);
+    assert.equal(sent[0].body.service_tier, "priority");
+    assert.equal(sent[1].warm, true);
+    assert.equal(sent[1].body.service_tier, "priority");
+    await stderr(() => session.prompt("/fast off"));
+    await warm(session);
+    assert.equal(sent[2].warm, true);
+    assert.equal(Object.hasOwn(sent[2].body, "service_tier"), false);
+    assert.equal(sent[2].body.model, "gpt-6.1-sol");
+    assert.equal(sent[2].body.reasoning.effort, "high");
+    await session.prompt("Future main");
+    assert.equal(Object.hasOwn(sent[3].body, "service_tier"), false);
+    assert.ok(policyEntries(session).every(entry => entry.customType === MODE_TYPE));
+  } finally { session.dispose(); }
+});
 
 test("native SDK startup flag, command-only no requests, unchanged effort, no outcome records", async () => {
   const { session, sent } = await nativeSession();
