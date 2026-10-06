@@ -42,6 +42,16 @@ This README is a quick orientation map; follow the relevant source for details.
 - [Storage](src/automata/skills/bundled/automata-storage/SKILL.md) and [task spaces](src/automata/skills/bundled/automata-task-space/SKILL.md): ownership, placement and cleanup.
 - [Testing](tests/README.md): test layout and verification scope.
 
+## Pi Fast mode
+
+The separate [`fast-mode` extension](src/automata/runtimes/pi/extensions/fast-mode/README.md)
+provides `/fast on|off|status` and startup `--fast` request policy, including
+eligible warming calls. It defaults off and follows session branch history;
+response tiers are not tracked. Use official direct routes with no proxies or
+model switches during dispatch: guards are best-effort, not physical-route
+isolation. Disable competing `/fast`/`--fast` extensions under separate approval
+before activation. Premium access and native costs are not billing evidence.
+
 ## Entry points
 
 Python project managed with `uv`; dependencies and CLI entry points are in

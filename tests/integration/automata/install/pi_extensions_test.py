@@ -37,6 +37,20 @@ def test_install_pi_extensions_copies_bundled_skill_activity(tmp_path: Path) -> 
     assert not (tmp_path / ".agents").exists()
 
 
+@pytest.mark.parametrize("mode", ["copy", "symlink"])
+def test_install_fast_mode_bundle(tmp_path: Path, mode: str) -> None:
+    target = tmp_path / "extensions"
+    results = install_pi_extensions(
+        target_root=target, extension_names=["fast-mode"], mode=mode
+    )
+    assert [result.name for result in results] == ["fast-mode"]
+    source = bundled_pi_extension_root() / "fast-mode"
+    for name in ("index.ts", "README.md"):
+        assert (target / "fast-mode" / name).read_bytes() == (source / name).read_bytes()
+    assert (target / "fast-mode").is_symlink() == (mode == "symlink")
+    assert not (tmp_path / ".agents").exists()
+
+
 def test_install_pi_extensions_copies_bundled_context_status(tmp_path: Path) -> None:
     target_root = tmp_path / ".pi" / "extensions"
 
@@ -97,7 +111,7 @@ def test_default_install_excludes_retired_control_without_uninstalling(tmp_path:
     retired.parent.mkdir(parents=True)
     retired.write_text("// existing user installation\n")
     expected = {
-        "codex-bridge", "context-compaction", "context-status", "message-router",
+        "codex-bridge", "context-compaction", "context-status", "fast-mode", "message-router",
         "message-timestamps", "pi-sessions", "skill-activity", "token-awareness",
     }
     assert set(list_pi_extensions(bundled_pi_extension_root())) == expected

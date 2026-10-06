@@ -146,6 +146,8 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
     sdist = next(output.glob("*.tar.gz"))
     expected = {
         "runtimes/pi/extensions/context-status.ts",
+        "runtimes/pi/extensions/fast-mode/index.ts",
+        "runtimes/pi/extensions/fast-mode/README.md",
         "runtimes/pi/extensions/message-timestamps.ts",
         "runtimes/pi/extensions/token-awareness.ts",
         "runtimes/pi/extensions/message-router/index.ts",
@@ -286,13 +288,15 @@ assert linked.is_symlink() and linked.resolve() == sources['automata-message-rou
 assert (linked / 'SKILL.md').read_bytes() == (router_skill / 'SKILL.md').read_bytes()
 installed = install_pi_extensions(target_root=work / 'extensions')
 assert {item.name for item in installed} == {
-    'codex-bridge', 'context-compaction', 'context-status', 'message-router',
+    'codex-bridge', 'context-compaction', 'context-status', 'fast-mode', 'message-router',
     'message-timestamps', 'pi-sessions', 'skill-activity', 'token-awareness',
 }
 assert not (work / 'extensions/thinking-control').exists()
 assert (work / 'extensions/message-router/index.ts').is_file()
 assert (work / 'extensions/skill-activity/store.py').is_file()
 assert (work / 'extensions/token-awareness.ts').is_file()
+assert (work / 'extensions/fast-mode/index.ts').is_file()
+assert (work / 'extensions/fast-mode/README.md').is_file()
 export_plugin(name='wheel-smoke', output=work / 'plugin',
               skill_names=['automata-storage', 'automata-pi-context-status'])
 assert (work / 'plugin/skills/automata-pi-context-status/SKILL.md').is_file()
