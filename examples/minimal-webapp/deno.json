@@ -1,0 +1,20 @@
+{
+  "nodeModulesDir": "auto",
+  "unstable": ["sloppy-imports"],
+  "compilerOptions": { "lib": ["dom", "dom.iterable", "deno.ns", "esnext"] },
+  "imports": {
+    "esbuild": "npm:esbuild@0.25.11",
+    "@devcapsule/adapter": "npm:@jsr/devcapsule__adapter@4.0.0",
+    "edictor": "npm:edictor@0.4.0",
+    "@adaptive/base": "../../src/automata/skills/bundled/automata-adaptive-ui/lib/src/ui/_components/base.ts",
+    "@adaptive/button": "../../src/automata/skills/bundled/automata-adaptive-ui/lib/src/ui/_components/button.ts",
+    "@adaptive/card": "../../src/automata/skills/bundled/automata-adaptive-ui/lib/src/ui/_components/card.ts",
+    "@adaptive/tokens": "../../src/automata/skills/bundled/automata-adaptive-ui/lib/src/ui/tokens.ts"
+  },
+  "tasks": {
+    "build": "deno run -A scripts/build.ts",
+    "watch": "deno run -A scripts/build.ts --watch",
+    "dev": "uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8017",
+    "check": "deno check app/templates/base.ts scripts/build.ts"
+  }
+}

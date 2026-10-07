@@ -1,0 +1,13 @@
+{% extends "_base.html" %}
+{% block title %}How it works · Minimal Webapp{% endblock %}
+{% block content %}
+<div class="kicker">Built to be understood</div>
+<h1>Pages inherit.<br>Components compose.</h1>
+<p class="intro">This second page uses the same _base.html layout and base.ts bundle. The design folder separates typed tokens from reusable components; no frontend directory or private-template route is needed.</p>
+<ui-card padding="lg">
+  <h2>Development loop</h2>
+  <p>Run <code>deno task watch</code> for TypeScript builds and <code>deno task dev</code> for the reloading FastAPI server. Refresh the browser to see frontend or template changes.</p>
+  <p>Component CSS belongs to the component. Document layout and theme overrides belong to the shared template. The counter is browser-local and resets on page navigation.</p>
+  <a href="/">Back to the playground →</a>
+</ui-card>
+{% endblock %}
