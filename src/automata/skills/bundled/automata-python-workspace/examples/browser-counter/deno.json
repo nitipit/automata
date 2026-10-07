@@ -1,0 +1,6 @@
+{
+  "nodeModulesDir": "auto",
+  "compilerOptions": {"lib": ["dom", "dom.iterable", "deno.ns", "esnext"]},
+  "imports": {"esbuild": "npm:esbuild@0.25.11", "@adaptive-ui": "./browser/lib/adaptive-ui.js"},
+  "tasks": {"build": "deno run -A scripts/build.ts", "check": "deno check web/live-counter.ts scripts/build.ts"}
+}

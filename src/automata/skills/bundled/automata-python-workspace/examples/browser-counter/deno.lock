@@ -1,8 +1,6 @@
 {
   "version": "5",
   "specifiers": {
-    "npm:@jsr/devcapsule__adapter@4.0.0": "4.0.0",
-    "npm:edictor@0.4.0": "0.4.0",
     "npm:esbuild@0.25.11": "0.25.11"
   },
   "npm": {
@@ -136,13 +134,6 @@
       "os": ["win32"],
       "cpu": ["x64"]
     },
-    "@jsr/devcapsule__adapter@4.0.0": {
-      "integrity": "sha512-ZdzRcypXV0eC72uQ2NGcZDwm9/oUjEInvmff8y+CZKowPqhGyqw/zCeNXdTrdEKfLQiof/GeFv9M3Qk2AErh1Q==",
-      "tarball": "https://npm.jsr.io/~/11/@jsr/devcapsule__adapter/4.0.0.tgz"
-    },
-    "edictor@0.4.0": {
-      "integrity": "sha512-jtvRl+bLl5mmg2naT/RmlB2eDIsNvuO/siXj/R6kSAmbWd9CFVANFNzHo46DNicCtMF4EDGJ/QvKMUNy/ELSDA=="
-    },
     "esbuild@0.25.11": {
       "integrity": "sha512-KohQwyzrKTQmhXDW1PjCv3Tyspn9n5GcY2RTDqeORIdIJY8yKIF7sTSopFmn/wpMPW4rdPXI0UE5LJLuq3bx0Q==",
       "optionalDependencies": [
@@ -179,8 +170,6 @@
   },
   "workspace": {
     "dependencies": [
-      "npm:@jsr/devcapsule__adapter@4.0.0",
-      "npm:edictor@0.4.0",
       "npm:esbuild@0.25.11"
     ]
   }

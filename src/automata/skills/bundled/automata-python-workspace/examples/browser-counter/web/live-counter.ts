@@ -1,12 +1,11 @@
-import { Base } from "@adaptive/base";
-import { Button } from "@adaptive/button";
-import { Card } from "@adaptive/card";
+/// <reference path="./adaptive-ui.d.ts" />
+import { Base, Button, Card } from "@adaptive-ui";
 Button.define("aui-button");
 Card.define("aui-card");
 
 type State = { count: number; object_id: string } | null;
 type RuntimeEvent = {
-  kind: string; source?: string; generation: number; seq?: number;
+  kind: string; source?: string; runtime_id?: string; generation: number; seq?: number;
   state?: State; busy?: boolean; healthy?: boolean; status?: string;
   error?: string; message?: string; reason?: string; events?: RuntimeEvent[];
 };
@@ -21,6 +20,7 @@ class LiveCounter extends Base {
   #healthy = true;
   #state: State = null;
   #generation = 0;
+  #runtimeID = "";
   #log: string[] = [];
 
   static {
@@ -103,6 +103,10 @@ class LiveCounter extends Base {
     socket.onopen = () => { this.#connected = true; this.#render(); };
     socket.onmessage = (message) => {
       const event = JSON.parse(message.data) as RuntimeEvent;
+      if (event.runtime_id && this.#runtimeID && event.runtime_id !== this.#runtimeID) {
+        this.querySelector("#notice")!.textContent = "Runtime replaced; previous live state lost. No command replay.";
+      }
+      this.#runtimeID = event.runtime_id || this.#runtimeID;
       if (event.kind === "snapshot") {
         this.#state = event.state ?? null;
         this.#busy = event.busy ?? false;
@@ -140,7 +144,8 @@ class LiveCounter extends Base {
   #render() {
     this.querySelector("#connection")!.textContent = !this.#connected ? "Disconnected" :
       !this.#healthy ? "Restart required" : this.#busy ? "Python busy" : "Connected · idle";
-    this.querySelector("#generation")!.textContent = `Generation ${this.#generation || "—"}`;
+    this.querySelector("#generation")!.textContent = `Generation ${this.#generation || "—"} · ${this.#runtimeID.slice(0, 8)}`;
+    this.querySelector("#generation")!.setAttribute("title", `Runtime ${this.#runtimeID}`);
     this.querySelector("output")!.textContent = this.#state ? String(this.#state.count) : "—";
     this.querySelector("#identity")!.textContent = this.#state?.object_id || "unavailable";
     this.querySelector("#log")!.textContent = this.#log.join("\n");

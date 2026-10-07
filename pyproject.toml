@@ -38,6 +38,7 @@ source-exclude = [
     "src/automata/skills/bundled/automata-adaptive-ui/lib/node_modules",
     "src/automata/skills/bundled/automata-adaptive-ui/lib/node_modules/**",
     "src/automata/skills/bundled/**/__pycache__/**",
+    "src/automata/tools/**/__pycache__/**",
 ]
 
 [tool.ruff]

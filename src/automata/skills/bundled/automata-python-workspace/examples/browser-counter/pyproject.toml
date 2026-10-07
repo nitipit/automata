@@ -1,0 +1,5 @@
+[project]
+name = "python-workspace-browser-counter"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.34,<1", "jupyter-client>=8.6,<9", "ipykernel>=6.29,<8"]
