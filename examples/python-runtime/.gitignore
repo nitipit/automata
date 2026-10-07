@@ -1,0 +1,6 @@
+.venv/
+node_modules/
+browser/
+.run/
+__pycache__/
+.pytest_cache/

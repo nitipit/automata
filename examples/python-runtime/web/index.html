@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python · Live workspace</title>
+  <script type="module" src="/assets/live-counter.js"></script>
+  <style>
+    :root { color-scheme: light; --aui-action: #23594d; --aui-actionHover: #19473d; --aui-focus: #287c69; }
+    body { margin: 0; background: #f3f6f3; color: #20382f; font: 16px/1.5 system-ui, sans-serif; }
+    main { max-width: 860px; margin: 0 auto; padding: 40px 20px; }
+    h1 { letter-spacing: -.04em; font-size: clamp(2rem, 5vw, 3rem); margin: 6px 0; }
+    header { margin-bottom: 24px; }
+    header p { color: #50695f; max-width: 65ch; }
+    .eyebrow { font-size: .75rem; text-transform: uppercase; letter-spacing: .15em; }
+    footer { color: #50695f; font-size: .85rem; margin-top: 20px; }
+    code { font-family: ui-monospace, monospace; }
+  </style>
+</head>
+<body>
+<main>
+  <header><span class="eyebrow">Persistent Python / local prototype</span>
+    <h1>One object. Two ways to work.</h1>
+    <p>These controls and the Python driver share <code>counter</code> in one live kernel.
+       The browser shows explicit Python state publications, not a second counter.</p>
+  </header>
+  <live-counter></live-counter>
+  <footer>Kernel is not a sandbox. Restart loses memory, not filesystem or external effects.
+    Browser controls cannot execute arbitrary Python.</footer>
+</main>
+</body>
+</html>
