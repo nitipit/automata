@@ -245,9 +245,10 @@ from automata.plugin import export_plugin
 assert Path(automata.__file__).is_relative_to(site)
 sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
-assert len(sources) == 38
+assert len(sources) == 39
 assert 'automata-thinking-control' not in sources
 assert 'automata-pi-sessions' in sources
+assert 'automata-web-dev' in sources
 assert 'automata-playspace' not in sources
 assert 'automata-codex-sessions' not in sources
 assert not (site / 'automata/runtimes/codex').exists()
@@ -268,6 +269,21 @@ install_skills(target_root=work / 'linked', skill_names=['automata-agent-design'
 linked = work / 'linked/automata-agent-design'
 assert linked.is_symlink() and linked.resolve() == sources['automata-agent-design']
 assert (linked / 'SKILL.md').read_bytes() == (work / 'skills/automata-agent-design/SKILL.md').read_bytes()
+# Copy the webapp from installed skills, resolving its installed sibling dependency.
+import subprocess, json
+web_skill = work / 'skills/automata-web-dev'
+project = work / 'webapp'
+created = subprocess.run([sys.executable, str(web_skill / 'scripts/create.py'),
+                          '--output', str(project)], capture_output=True, text=True)
+assert created.returncode == 0, created.stdout + created.stderr
+config = json.loads((project / 'deno.json').read_text())
+from urllib.parse import urlparse, unquote
+for key, value in config['imports'].items():
+    if key.startswith('@adaptive/'):
+        dependency = Path(unquote(urlparse(value).path))
+        assert dependency.is_file() and dependency.is_relative_to(work / 'skills')
+assert (project / 'app/main.py').is_file()
+assert not (project / 'node_modules').exists()
 installed = install_pi_extensions(target_root=work / 'extensions')
 assert {item.name for item in installed} == {
     'codex-bridge', 'context-compaction', 'context-status', 'fast-mode',

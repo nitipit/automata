@@ -77,6 +77,15 @@ def test_form_drafts_and_focus_in_light_and_shadow_dom(tmp_path: Path) -> None:
                     const field = form.querySelector('[name=person]');
                     field.value = 'Alex'; field.focus(); field.setSelectionRange(1, 3);
                     form.querySelector('[value=b]').checked = true;
+                    let submitted;
+                    host.addEventListener('aui-form-submit', event => {
+                      submitted = { values: event.detail.values, composed: event.composed,
+                        bubbles: event.bubbles };
+                    });
+                    form.querySelector('form').requestSubmit();
+                    const submission = submitted?.composed && submitted?.bubbles &&
+                      submitted.values.person === 'Alex' && submitted.values.team === 'b' &&
+                      field.value === 'Alex';
                     const root = form.getRootNode();
                     const before = root.activeElement === field;
                     form.setAttribute('title', 'New title');
@@ -100,7 +109,7 @@ def test_form_drafts_and_focus_in_light_and_shadow_dom(tmp_path: Path) -> None:
                     const replacement = form.querySelector('[name=team]');
                     replacement.value = 'Fresh';
                     form.querySelector('form').reset();
-                    results[mode] = {compatible, initialReset, removedChoice, changedKind,
+                    results[mode] = {submission, compatible, initialReset, removedChoice, changedKind,
                       reset: replacement.value === ''};
                   }
                   return results;

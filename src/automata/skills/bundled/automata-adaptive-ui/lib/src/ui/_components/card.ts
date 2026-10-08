@@ -56,7 +56,7 @@ export class Card extends Base<CardData> {
 
 Card.addStyle(`
   &[variant="outlined"] {
-    background: transparent;
+    background: ${tokens.outlinedBackground};
   }
 
   &[padding="sm"] {

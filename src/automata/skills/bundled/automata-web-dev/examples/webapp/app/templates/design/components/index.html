@@ -1,0 +1,43 @@
+{% extends "_base.html" %}
+{% block title %}Components · Minimal Webapp{% endblock %}
+{% block content %}
+<h1>Live components</h1>
+<p class="intro">Theme changes page, Button and Card paint without rebuilding them. Form and Chat remain legacy light presentations; this is not a complete dark catalog. All interactions are browser-local.</p>
+<style>
+  .examples { display: grid; gap: 1rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  #chat-example { --aui-chat-width: 100%; --aui-chat-height: 34rem; --aui-chat-min-height: 20rem; --aui-chat-font-size: 1rem; }
+</style>
+<h2 class="section-title">Button · native disabled behavior</h2>
+<ui-card id="theme-card-probe">
+  <label class="theme-probe">Local draft <input id="theme-input" type="text" value=""></label>
+  <div class="actions">
+    <ui-button id="primary-button" label="Primary"></ui-button>
+    <ui-button label="Danger" tone="danger"></ui-button>
+    <ui-button id="disabled-button" label="Disabled" disabled></ui-button>
+    <ui-button id="toggle-disabled" label="Toggle disabled"></ui-button>
+  </div>
+  <output id="button-result" aria-live="polite">Click Primary to try it.</output>
+</ui-card>
+<h2 class="section-title">Card · variants and padding</h2>
+<div class="examples">
+  <ui-card variant="surface" padding="sm">Surface · small padding</ui-card>
+  <ui-card variant="outlined" padding="lg">Outlined · large padding</ui-card>
+</div>
+<h2 class="section-title">Form · draft-preserving updates</h2>
+<ui-card class="legacy-preview">
+  <div id="form-example"></div>
+  <div class="actions">
+    <ui-button id="update-form" label="Update form title"></ui-button>
+    <ui-button id="reset-form" label="Reset drafts"></ui-button>
+  </div>
+  <pre id="form-result" role="status">Submit to inspect local values.</pre>
+</ui-card>
+<h2 class="section-title">Chat · local presentation only</h2>
+<p class="intro">Sample history and theme/sizing overrides. The composer stays disconnected and disabled: no sends, replies, or retries are simulated.</p>
+<ui-button id="chat-theme" label="Toggle message theme"></ui-button>
+<div id="chat-example" class="legacy-preview"></div>
+<h2 class="section-title">App-local counter</h2>
+<demo-counter></demo-counter>
+{% endblock %}

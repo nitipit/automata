@@ -20,3 +20,13 @@ def home(request: Request):
 @app.get("/about", response_class=HTMLResponse)
 def about(request: Request):
     return templates.TemplateResponse(request=request, name="about.html")
+
+
+@app.get("/design/tokens/", response_class=HTMLResponse)
+def design_tokens(request: Request):
+    return templates.TemplateResponse(request=request, name="design/tokens/index.html")
+
+
+@app.get("/design/components/", response_class=HTMLResponse)
+def design_components(request: Request):
+    return templates.TemplateResponse(request=request, name="design/components/index.html")

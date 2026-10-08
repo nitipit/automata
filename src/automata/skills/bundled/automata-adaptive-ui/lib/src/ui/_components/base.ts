@@ -1,6 +1,6 @@
 import { Adapter } from "../_lib/adapter.bundle.js";
 import { typography } from "../_tokens/primitives/typography.js";
-import { tokens } from "../tokens.js";
+import { baseTokens as tokens } from "./base.tokens.js";
 
 export type ComponentChild = Node | string;
 
@@ -23,7 +23,7 @@ export class Base<Data = unknown> extends Adapter {
       box-sizing: border-box;
       font-family: ${typography.family};
       line-height: ${typography.lineHeight};
-      color: ${tokens.text};
+      color: ${tokens.foreground};
     `;
   }
 

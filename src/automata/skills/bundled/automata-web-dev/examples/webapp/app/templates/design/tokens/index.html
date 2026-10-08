@@ -1,0 +1,39 @@
+{% extends "_base.html" %}
+{% block title %}Design tokens · Minimal Webapp{% endblock %}
+{% block content %}
+<h1>Design tokens</h1>
+<p class="intro">The small Theme paints page, Button and Card with concrete light/dark values. Use the shared toggle to compare modes; older component variables remain separate.</p>
+<style>
+  .token-list { display: grid; gap: 1rem; }
+  .token-row { display: grid; gap: .35rem; padding-bottom: 1rem; border-bottom: 1px solid var(--aui-border); }
+  .token-heading { display: flex; align-items: center; gap: .75rem; }
+  .swatch { width: 2rem; height: 2rem; flex-shrink: 0; border: 1px solid var(--aui-border); border-radius: .35rem; }
+  .token-row code { overflow-wrap: anywhere; font-size: .8rem; }
+  .token-row small { color: var(--aui-muted-text); }
+</style>
+<section aria-labelledby="palette-heading">
+  <h2 id="palette-heading" class="section-title">Official GNOME palette · 45 colors</h2>
+  <p class="intro"><a id="palette-source">Official GNOME palette reference</a>. Intended for icons and illustrations; this app deliberately selects these primitives for UI roles, not native-compliance certification.</p>
+  <div id="palette-tokens" class="token-list"></div>
+</section>
+<details>
+  <summary>Derived effects (not official swatches)</summary>
+  <div id="color-effects" class="token-list"></div>
+</details>
+<h2 class="section-title">Small Theme selections</h2>
+<div id="theme-tokens" class="token-list"></div>
+<h2 class="section-title">Legacy semantic color roles</h2>
+<p class="intro">These existing variable-based contracts are unchanged. They do not describe Theme's scoped concrete paint.</p>
+<div id="semantic-tokens" class="token-list"></div>
+<details>
+  <summary>Component color relationships</summary>
+  <div id="component-tokens" class="token-list"></div>
+</details>
+<h2 class="section-title">Application overrides</h2>
+<p class="intro">This app selects palette entries for semantic roles. Page-only roles use --app-*.</p>
+<div id="app-overrides" class="token-list"></div>
+<details>
+  <summary>Local Chat theme choices</summary>
+  <div id="demo-overrides" class="token-list"></div>
+</details>
+{% endblock %}

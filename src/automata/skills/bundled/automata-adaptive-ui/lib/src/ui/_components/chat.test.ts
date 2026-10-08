@@ -51,6 +51,12 @@ class FakeNode {
     this.attributes.set(name, value);
   }
 
+  toggleAttribute(name: string, force: boolean): boolean {
+    if (force) this.attributes.set(name, "");
+    else this.attributes.delete(name);
+    return force;
+  }
+
   getAttribute(name: string): string | null {
     return this.attributes.get(name) ?? null;
   }
@@ -255,7 +261,6 @@ function restoreFakes(): void {
 }
 
 function matches(node: FakeNode, selector: string): boolean {
-  if (selector === "aui-button button") return false;
   if (selector.startsWith(".")) return node.className.split(/\s+/).includes(selector.slice(1));
   if (selector.includes(" ")) return false;
   return node.tagName === selector;

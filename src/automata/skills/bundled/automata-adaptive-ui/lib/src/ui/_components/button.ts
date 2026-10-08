@@ -1,15 +1,18 @@
 import { Base } from "./base.js";
 import { type ButtonData, validateButtonData } from "./button.schema.js";
 import { buttonTokens as tokens } from "./button.tokens.js";
-import { tokens as semantic } from "../tokens.js";
 
-/** A native-button wrapper with validated catalog data and Adapter styles. */
+/**
+ * Native-button wrapper. `disabled` data reflects the boolean attribute: presence
+ * disables, including disabled="false". Removing it enables the native control.
+ * Validate data before direct applyData(); omitted disabled defaults to false.
+ */
 export class Button extends Base<ButtonData> {
   #button: HTMLButtonElement | null = null;
   #applyingData = false;
 
   static get observedAttributes(): string[] {
-    return ["label", "tone", "type"];
+    return ["label", "tone", "type", "disabled"];
   }
 
   static {
@@ -29,12 +32,17 @@ export class Button extends Base<ButtonData> {
       }
 
       button:focus-visible {
-        outline: 2px solid ${semantic.focus};
+        outline: 2px solid ${tokens.focus};
         outline-offset: 2px;
       }
 
-      button:hover {
+      button:hover:not(:disabled) {
         background: ${tokens.backgroundHover};
+      }
+
+      button:disabled {
+        opacity: .45;
+        cursor: not-allowed;
       }
     `;
   }
@@ -67,6 +75,9 @@ export class Button extends Base<ButtonData> {
       this.setAttributeIfChanged("label", data.label);
       this.setAttributeIfChanged("tone", data.tone);
       this.setAttributeIfChanged("type", data.type);
+      this.toggleAttribute("disabled", data.disabled);
+      this.setAttributeIfChanged("aria-disabled", String(data.disabled));
+      button.disabled = data.disabled;
       button.type = data.type;
       button.textContent = data.label;
     } finally {
@@ -79,6 +90,7 @@ export class Button extends Base<ButtonData> {
       label: this.getAttribute("label") ?? undefined,
       tone: this.getAttribute("tone") ?? undefined,
       type: this.getAttribute("type") ?? undefined,
+      disabled: this.hasAttribute("disabled"),
     }));
   }
 

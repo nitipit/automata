@@ -1,5 +1,5 @@
 import { Base } from "./base.js";
-import { tokens } from "../tokens.js";
+import { chatTokens as tokens } from "./chat.tokens.js";
 import {
   type ChatData,
   validateChatData,
@@ -18,7 +18,9 @@ let nextChatInputId = 0;
 /**
  * A literal/structured chat presentation with bridge-neutral events and explicit snapshots.
  * Register `Button` as `aui-button` before registering `Chat`; the catalog
- * example demonstrates that required composition wiring.
+ * example demonstrates that required composition wiring. Message colors use
+ * semantic tokens. Override --aui-chat-width/height/min-height/font-size on the
+ * host or an ancestor for presentation sizing; these never alter send state.
  */
 export class Chat extends Base<ChatData> {
   #mounted = false;
@@ -54,16 +56,16 @@ export class Chat extends Base<ChatData> {
     this.css = `
       display: flex;
       flex-direction: column;
-      width: min(48rem, 100%);
-      height: min(48rem, 90dvh);
-      min-height: 30rem;
+      width: var(--aui-chat-width, min(48rem, 100%));
+      height: var(--aui-chat-height, min(48rem, 90dvh));
+      min-height: var(--aui-chat-min-height, min(30rem, 90dvh));
       box-sizing: border-box;
       overflow: hidden;
       border: 1px solid ${tokens.border};
       border-radius: 1.25rem;
       background: ${tokens.surface};
-      box-shadow: 0 18px 65px #14283e12;
-      font-size: 1.2rem;
+      box-shadow: 0 18px 65px ${tokens.shadow};
+      font-size: var(--aui-chat-font-size, 1.2rem);
 
       header {
         padding: 1.4rem 1.6rem;
@@ -95,12 +97,14 @@ export class Chat extends Base<ChatData> {
         max-width: 85%;
         padding: .8rem 1rem;
         border-radius: 1rem;
-        background: #f1f5f9;
+        background: ${tokens.messageAgentSurface};
+        color: ${tokens.messageAgentText};
       }
 
       .message[data-role="user"] {
         align-self: flex-end;
-        background: #e9f0ff;
+        background: ${tokens.messageUserSurface};
+        color: ${tokens.messageUserText};
       }
 
       .message strong {
@@ -137,6 +141,8 @@ export class Chat extends Base<ChatData> {
         border: 1px solid ${tokens.border};
         border-radius: .65rem;
         font: inherit;
+        background: ${tokens.surface};
+        color: ${tokens.text};
       }
 
       textarea:focus-visible {
@@ -161,10 +167,6 @@ export class Chat extends Base<ChatData> {
         font-size: inherit;
       }
 
-      button:disabled {
-        opacity: .45;
-        cursor: not-allowed;
-      }
     `;
   }
 
@@ -542,10 +544,8 @@ export class Chat extends Base<ChatData> {
 
   #updateButton(): void {
     const disabled = this.#disposed || !this.#connected || this.#pending || this.#agentBusy;
-    const nativeButton = this.#form?.querySelector("aui-button button") as HTMLButtonElement | null;
-    if (nativeButton) nativeButton.disabled = disabled;
     const button = this.#form?.querySelector("aui-button");
-    if (button) button.setAttribute("aria-disabled", String(disabled));
+    button?.toggleAttribute("disabled", disabled);
   }
 
   #applyingAttributes(callback: () => void): void {

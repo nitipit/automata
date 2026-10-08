@@ -1,8 +1,9 @@
 import * as esbuild from "esbuild";
+import { fileURLToPath } from "node:url";
 
 const root = new URL("../", import.meta.url);
 const options: esbuild.BuildOptions = {
-  absWorkingDir: root.pathname,
+  absWorkingDir: fileURLToPath(root),
   entryPoints: ["app/templates/base.ts"],
   outdir: "browser",
   bundle: true,
@@ -10,13 +11,13 @@ const options: esbuild.BuildOptions = {
   platform: "browser",
   target: "es2022",
   // No source maps: source templates/internal modules are not served publicly.
-  nodePaths: [new URL("node_modules/", root).pathname],
+  nodePaths: [fileURLToPath(new URL("node_modules/", root))],
   alias: {
     "@devcapsule/adapter": "@jsr/devcapsule__adapter",
     ...Object.fromEntries(
-      ["base", "button", "card", "tokens"].map((name) => [
+      ["base", "button", "card", "form", "chat", "tokens", "colors", "theme"].map((name) => [
         `@adaptive/${name}`,
-        new URL(import.meta.resolve(`@adaptive/${name}`)).pathname,
+        fileURLToPath(import.meta.resolve(`@adaptive/${name}`)),
       ]),
     ),
   },

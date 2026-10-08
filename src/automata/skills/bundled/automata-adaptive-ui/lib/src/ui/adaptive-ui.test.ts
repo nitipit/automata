@@ -33,6 +33,14 @@ Deno.test("Adaptive UI exports Chat and Arrow reactive primitives", () => {
   assert(state.count === 1);
 });
 
+Deno.test("public Button/Card/Form validators expose normalized contracts", () => {
+  const button: import("./adaptive-ui.ts").ButtonData = ui.validateButtonData({ label: "Save" });
+  const card: import("./adaptive-ui.ts").CardData = ui.validateCardData({});
+  assert(button.disabled === false && button.tone === "primary");
+  assert(card.variant === "surface" && card.padding === "md");
+  assert(typeof ui.validateFormData === "function");
+});
+
 Deno.test("public Edictor exports validate custom component data", () => {
   class DraftDataModel extends ui.Model {}
 
@@ -70,12 +78,13 @@ Deno.test("public Edictor exports validate custom component data", () => {
 Deno.test("public semantic tokens use overridable CSS values with defaults", () => {
   for (const role of [
     "surface", "text", "mutedText", "border", "action", "actionHover",
-    "actionText", "danger", "focus", "status",
+    "actionText", "danger", "focus", "status", "messageAgentSurface",
+    "messageAgentText", "messageUserSurface", "messageUserText",
   ] as const) {
     assert(ui.tokens[role].startsWith("var(--aui-"));
     assert(ui.tokens[role].includes(", "));
   }
-  assert(ui.tokens.action === "var(--aui-action, #2563eb)");
+  assert(ui.tokens.action === "var(--aui-action, #1c71d8)");
 });
 
 function restoreGlobal(name: string, original: unknown): void {

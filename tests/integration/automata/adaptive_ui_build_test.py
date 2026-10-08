@@ -55,7 +55,8 @@ def installed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         )
     skill = tmp_path / "installed skills" / "automata-adaptive-ui"
     assert (skill / "lib" / "src" / "ui" / "_components" / "base.ts").is_file()
-    assert (skill / "lib" / "example" / "chat-with-agent.html").is_file()
+    assert (skill / "lib" / "example" / "index.html").is_file()
+    assert (skill / "lib" / "example" / "index.js").is_file()
     assert not (skill / "scripts" / "library").exists()
     assert not (skill / "lib" / "browser").exists()
     assert not (skill / "lib" / "node_modules").exists()
@@ -200,4 +201,4 @@ def test_adaptive_ui_keeps_arrow_and_reactive_component_contracts() -> None:
         assert export in ui
     assert 'from "@arrow-js/core"' in ui
     assert "attributeChangedCallback(" in button
-    assert 'return ["label", "tone", "type"]' in button
+    assert 'return ["label", "tone", "type", "disabled"]' in button

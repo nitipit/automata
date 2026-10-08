@@ -1,12 +1,16 @@
 import { Base } from "./base.js";
-import { tokens } from "../tokens.js";
+import { formTokens as tokens } from "./form.tokens.js";
 import {
   type FormData,
   type FormField,
   validateFormData,
 } from "./form.schema.js";
 
-/** A semantic choice/text form that remains independent of channel transport. */
+/**
+ * Transport-independent choice/text form. `aui-form-submit` bubbles and is
+ * composed, carrying { values } across containing ShadowRoots. Submission
+ * prevents native navigation; it does not reset drafts or move focus.
+ */
 export class Form extends Base<FormData> {
   #form: HTMLFormElement | null = null;
   #applyingData = false;
@@ -196,6 +200,7 @@ export class Form extends Base<FormData> {
         }
         this.dispatchEvent(new CustomEvent("aui-form-submit", {
           bubbles: true,
+          composed: true,
           detail: { values },
         }));
       });

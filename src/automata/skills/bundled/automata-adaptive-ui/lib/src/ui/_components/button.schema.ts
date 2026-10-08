@@ -4,11 +4,13 @@ export type ButtonData = {
   label: string;
   tone: "primary" | "danger";
   type: "button" | "submit";
+  disabled: boolean;
 };
 
 class ButtonDataModel extends Model {}
 
 ButtonDataModel.define({
+  disabled: defineField({ initial: false }).instance("boolean"),
   label: defineField({ required: true })
     .instance("string")
     .assert(
