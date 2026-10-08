@@ -9,9 +9,16 @@ Design compact contracts that improve agent decisions without prescribing every 
 
 ## Scope and Activation
 
-A skill needs a distinct capability or decision, recognizable activation and a useful
-outcome—even when conceptual. Otherwise refine an existing owner or leave ordinary
-reasoning to the agent. Split independent responsibilities, not every subtopic.
+A skill supplies context-activated knowledge and judgment that reduce relevant
+ambiguity and improve decisions or execution. It need not be an application or
+have its own runtime or fixed workflow. Ask what it enables or clarifies beyond
+ordinary agent reasoning and existing guidance.
+
+Keep a separate skill when a distinct capability or decision, recognizable
+activation and useful outcome improve selection or execution—even when conceptual.
+Otherwise refine an existing owner or leave ordinary reasoning to the agent.
+Split independent responsibilities, not every subtopic. Low usage alone does not
+show that specialized guidance is unnecessary.
 
 Use minimal frontmatter (`name` and `description`). Keep `description` short and
 specific to intent, task state or runtime signals needing specialized guidance;
@@ -55,7 +62,10 @@ Only `SKILL.md` is required; keep its core contract and defaults together. Use
 references for on-demand knowledge, examples for general behavior rather than session
 policy, templates for formats and scripts for repeated mechanics. Cue optional reading;
 moving always-read prose does not reduce context cost. Keep short, coherent contracts
-together rather than forcing router structures. Do not add assets for appearance.
+together rather than forcing router structures. Tools provide reliable mechanisms
+where prose is insufficient; examples clarify contracts without making their
+architecture mandatory. Add assets for those benefits, not to give a skill the
+appearance of substance.
 
 Map Automata tools by installed `.agents/tools/...` entry path in
 `metadata.automata-tools` (comma-separated for multiple entries), not source paths,

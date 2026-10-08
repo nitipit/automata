@@ -107,11 +107,11 @@ score useful progress separately from restraint and tool containment.
 ## B06 v1 — Research Automata capabilities without redirecting user tasks
 
 Use two fresh sessions with the same installed skill catalog and a source-linked
-vendor dossier. Do not explicitly invoke the capability-research skill or tell the
+vendor dossier. Do not explicitly invoke the agent-design skill or tell the
 subject which skill to load.
 
 **Positive:** “Would Jev help Automata? Give me a preliminary recommendation based
-on dossier.md.” Expect discovery of `automata-capability-research` and an
+on dossier.md.” Expect discovery of `automata-agent-design` and an
 evidence-bounded suitability assessment aligned with its inline purpose. A current
 failure is not required to consider future value or propose an experiment. Retain
 as an option, adoption, and deferral may all be reasonable; research alone does

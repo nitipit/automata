@@ -25,7 +25,6 @@ SKILL_FILES = sorted(path / "SKILL.md" for path in SOURCES.values())
 REQUIRED_SKILLS = {
     "automata-agents-md",
     "automata-agent-design",
-    "automata-capability-research",
     "automata-model-selection",
     "automata-teamwork-design",
     "automata-adaptive-ui",
@@ -66,6 +65,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-capability-research",
     "automata-stateful-workflow",
     "automata-plan",
     "automata-imagegen",
@@ -129,7 +129,7 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
 
 
 def test_pi_skills_share_one_flat_source_with_all_skills() -> None:
-    assert len(list(SKILLS_ROOT.glob("*/SKILL.md"))) == 41
+    assert len(list(SKILLS_ROOT.glob("*/SKILL.md"))) == 40
     for name in PI_SKILL_NAMES:
         assert (SKILLS_ROOT / name / "SKILL.md").is_file()
         assert not (SKILLS_ROOT / name).is_symlink()
@@ -214,7 +214,7 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
     target = tmp_path / "skills"
     results = install_skills(target_root=target)
     expected = set(SOURCES)
-    assert len(expected) == 41
+    assert len(expected) == 40
     assert 'automata-pi-sessions' in expected
     assert 'automata-codex-sessions' not in expected
     assert {result.name for result in results} == expected

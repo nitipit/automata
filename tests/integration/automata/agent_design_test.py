@@ -1,4 +1,4 @@
-"""Capability research delivery through installation, export and Python packages."""
+"""Agent design delivery through installation, export and Python packages."""
 
 import os
 import shutil
@@ -14,8 +14,8 @@ from automata.install.skills import install_skills
 from automata.plugin.export import export_plugin
 
 PROJECT = Path(__file__).parents[3]
-NAME = "automata-capability-research"
-RELATIVE = Path("skills/skill-ops") / NAME
+NAME = "automata-agent-design"
+RELATIVE = Path("skills/bundled") / NAME
 SOURCE = PROJECT / "src/automata" / RELATIVE
 
 
