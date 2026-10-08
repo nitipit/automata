@@ -8,11 +8,10 @@ from urllib.parse import unquote, urljoin, urlsplit
 
 SOURCE = Path(__file__).resolve().parent
 SKILLS = SOURCE / "bundled"
-LEGACY_URL_SLUGS = {"automata-message-router": "message-router"}
 
 
 def url_slug(skill: str) -> str:
-    return LEGACY_URL_SLUGS.get(skill, skill)
+    return skill
 
 
 def body(text: str) -> str:
@@ -58,9 +57,6 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
         raise ValueError("Choose exactly one skill name or --all")
     if selector and not re.fullmatch(r"[a-z0-9][a-z0-9-]*", selector):
         raise ValueError("Invalid skill name")
-    if selector and not (skills / selector).is_dir():
-        selector = next((name for name, slug in LEGACY_URL_SLUGS.items()
-                         if slug == selector), selector)
     roots = sorted(skills.iterdir()) if all_skills else [skills / selector]
     pages = []
     for root in roots:

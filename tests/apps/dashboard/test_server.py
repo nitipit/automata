@@ -3,7 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from automata.apps.dashboard import server
-from automata.apps.dashboard.routes import automata, message_router_guide
+from automata.apps.dashboard.routes import automata
 
 
 @pytest.fixture
@@ -83,28 +83,23 @@ def test_rendered_documents_not_template_sources(client, path, title):
     response = client.get(path)
     assert response.status_code == 200
     assert response.headers['content-type'].startswith('text/html')
-    site = 'Message Router' if 'message-router' in path else 'Anatomy'
-    assert title + ' · ' + site in response.text
+    assert title + ' · Anatomy' in response.text
     assert '{%' not in response.text and '{{' not in response.text
     assert 'script-src' in response.headers['content-security-policy']
     assert 'unsafe-eval' not in response.headers['content-security-policy']
     assert 'type="module"' in response.text
-    if 'message-router' in path:
-        assert 'components/monitor.js' not in response.text
-        assert 'id="auto"' not in response.text
+    assert 'href="http://127.0.0.1:8788/">Skill catalog</a>' in response.text
+    assert 'Message Router guide' not in response.text
 
 
 @pytest.mark.parametrize('name', ['index', 'configure', 'connect', 'discover', 'send', 'failures'])
-def test_router_redirects_to_separate_site(client, name):
-    response = client.get(f'/message-router/{name}.html', follow_redirects=False)
-    assert response.status_code == 307
-    suffix = '' if name == 'index' else 'references/' + name + '.html'
-    assert response.headers['location'] == message_router_guide.SITE + suffix
+def test_retired_router_routes_are_not_served(client, name):
+    assert client.get(f'/message-router/{name}.html').status_code == 404
+    assert client.get('/message-router/').status_code == 404
 
 
 def test_document_aliases(client):
-    for source, target in [('/', '/automata/index.html'), ('/automata/', '/automata/index.html'),
-                           ('/message-router/', '/message-router/index.html')]:
+    for source, target in [('/', '/automata/index.html'), ('/automata/', '/automata/index.html')]:
         response = client.get(source, follow_redirects=False)
         assert response.status_code == 302
         assert response.headers['location'] == target

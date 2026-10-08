@@ -10,7 +10,7 @@ from playwright.sync_api import expect, sync_playwright
 
 URL = os.environ.get("ANATOMY_URL", "http://127.0.0.1:8766/").rstrip("/")
 EVIDENCE = Path(os.environ["ANATOMY_EVIDENCE"])
-GUIDE = "http://127.0.0.1:8788/message-router/"
+GUIDE = "http://127.0.0.1:8788/"
 
 
 def main():
@@ -54,7 +54,7 @@ def main():
             expect(page.locator("#status")).to_contain_text("updated")
             page.locator("#auto").uncheck()
             page.locator("#tab-capabilities").click()
-            page.locator("#capability-filter").fill("router")
+            page.locator("#capability-filter").fill("design")
             page.locator("#setup-filter").select_option("installed")
             page.locator(".capability-select").first.click()
             selected = page.locator("#capability-detail h3").inner_text()
@@ -62,7 +62,7 @@ def main():
             page.locator("#timezone").fill("UTC")
             page.locator("#timezone").press("Tab")
             page.locator("#chart-limit").select_option("all")
-            page.locator("#skill").select_option("automata-message-router")
+            page.locator("#skill").select_option("automata-agent-design")
             page.locator("#range").select_option("custom")
             page.locator("#start").fill("2026-09-01")
             page.locator("#end").fill("2026-09-20")
@@ -72,7 +72,7 @@ def main():
             assert "paused=1" in page.url and "tab=statistics" in page.url
             monitor_url = page.url
             page.screenshot(path=str(EVIDENCE / "monitor-desktop.png"), full_page=True)
-            page.get_by_role("link", name="Message Router guide", exact=True).click()
+            page.get_by_role("link", name="Skill catalog", exact=True).click()
             expect(page).to_have_url(GUIDE)
             before = api_count
             page.wait_for_timeout(5600)
@@ -90,7 +90,7 @@ def main():
                 "start": "2026-09-01",
                 "end": "2026-09-20",
                 "chart-limit": "all",
-                "skill": "automata-message-router",
+                "skill": "automata-agent-design",
             }.items():
                 expect(page.locator("#" + key)).to_have_value(value)
             expect(page.locator("#auto")).not_to_be_checked()
@@ -98,7 +98,7 @@ def main():
             page.wait_for_timeout(5600)
             assert api_count == before
             page.locator("#tab-capabilities").click()
-            expect(page.locator("#capability-filter")).to_have_value("router")
+            expect(page.locator("#capability-filter")).to_have_value("design")
             expect(page.locator("#setup-filter")).to_have_value("installed")
             expect(page.locator("#capability-detail h3")).to_have_text(selected)
             page.locator("#tab-capabilities").focus()

@@ -67,9 +67,9 @@ def test_default_sources_share_one_flat_canonical_root() -> None:
     (root,) = bundled_skill_roots()
     sources = skill_sources()
     assert root.name == "bundled"
-    assert len(sources) == 39
+    assert len(sources) == 38
     assert 'automata-pi-sessions' in sources
-    assert 'automata-playspace' in sources
+    assert 'automata-playspace' not in sources
     assert 'automata-workplan' in sources
     assert 'automata-plan' not in sources
     assert 'automata-codex-sessions' not in sources
@@ -92,7 +92,7 @@ def test_explicit_skill_source_is_exclusive_and_recurses(tmp_path: Path) -> None
     make_grouped_skill(source, "nested", "automata-storage")
     assert skill_sources(source)["automata-storage"] == source / "nested" / "automata-storage"
     assert "automata-pi-context-status" not in skill_sources(source)
-    assert "automata-message-router" not in skill_sources(source)
+    assert "automata-agent-design" not in skill_sources(source)
     target = tmp_path / "dest"
     with pytest.raises(SkillInstallError, match="automata-pi-context-status"):
         install_skills(
@@ -134,12 +134,12 @@ def test_duplicate_names_across_bundled_roots_fail_before_install(
 
 
 @pytest.mark.parametrize("mode", ["copy", "symlink"])
-def test_canonical_router_preserves_install_name(tmp_path: Path, mode: str) -> None:
-    source = skill_sources()["automata-message-router"]
-    assert source.parts[-4:] == ("automata", "skills", "bundled", "automata-message-router")
+def test_canonical_agent_design_preserves_install_name(tmp_path: Path, mode: str) -> None:
+    source = skill_sources()["automata-agent-design"]
+    assert source.parts[-4:] == ("automata", "skills", "bundled", "automata-agent-design")
     target = tmp_path / "installed"
-    install_skills(target_root=target, skill_names=["automata-message-router"], mode=mode)
-    installed = target / "automata-message-router"
+    install_skills(target_root=target, skill_names=["automata-agent-design"], mode=mode)
+    installed = target / "automata-agent-design"
     assert installed.is_symlink() == (mode == "symlink")
     assert (installed / "SKILL.md").read_bytes() == (source / "SKILL.md").read_bytes()
     assert all(path.suffix == ".md" for path in installed.rglob("*") if path.is_file())
@@ -147,12 +147,12 @@ def test_canonical_router_preserves_install_name(tmp_path: Path, mode: str) -> N
 
 def test_explicit_same_name_is_isolated_from_bundled_source(tmp_path) -> None:
     source = tmp_path / "source"
-    make_skill(source / "automata-message-router")
-    assert skill_sources(source) == {"automata-message-router": source / "automata-message-router"}
+    make_skill(source / "automata-agent-design")
+    assert skill_sources(source) == {"automata-agent-design": source / "automata-agent-design"}
     target = tmp_path / "target"
     install_skills(source_root=source, target_root=target)
-    assert (target / "automata-message-router/SKILL.md").read_bytes() == (
-        source / "automata-message-router/SKILL.md"
+    assert (target / "automata-agent-design/SKILL.md").read_bytes() == (
+        source / "automata-agent-design/SKILL.md"
     ).read_bytes()
 
 

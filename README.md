@@ -38,7 +38,7 @@ This README is a quick orientation map; follow the relevant source for details.
 
 - [Skill design](src/automata/skills/bundled/automata-skill-design/SKILL.md): scope, activation and composition.
 - [Setup](src/automata/skills/bundled/automata-setup/SKILL.md): asset selection, install modes and readiness.
-- [Message router](src/automata/tools/message-router/README.md): shared transport and runtime adapter contracts.
+- [Communication](src/automata/skills/bundled/automata-communication/SKILL.md): receiver, channel and outcome judgment; transport is an external integration.
 - [Storage](src/automata/skills/bundled/automata-storage/SKILL.md) and [task spaces](src/automata/skills/bundled/automata-task-space/SKILL.md): ownership, placement and cleanup.
 - [Testing](tests/README.md): test layout and verification scope.
 

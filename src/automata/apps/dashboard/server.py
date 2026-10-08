@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 from .data import ROOT
-from .routes import automata, message_router_guide
+from .routes import automata
 
 SITE = ROOT / ".agents/var/apps/dashboard/public"
 TEMPLATES = automata.TEMPLATES
@@ -36,13 +36,7 @@ def index():
     return RedirectResponse("/automata/index.html", status_code=302)
 
 
-@app.get("/message-router/")
-def guide_index():
-    return RedirectResponse("/message-router/index.html", status_code=302)
-
-
 app.include_router(automata.router)
-app.include_router(message_router_guide.router)
 
 # Public-safe maintained assets only. Never mount templates or a filesystem tree.
 PUBLIC_ASSETS = (

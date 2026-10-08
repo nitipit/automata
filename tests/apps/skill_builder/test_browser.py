@@ -67,12 +67,11 @@ def test_catalog_sources_references_and_sse(site):
             errors, requests = [], []
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.on("request", lambda request: requests.append(request.url))
-            for slug, title in [("message-router", "Automata Message Router"),
+            for slug, title in [("automata-agent-design", "Automata Agent Design"),
                                 ("automata-storage", "Automata Storage"),
-                                ("automata-workplan", "Automata Workplan"),
-                                ("automata-playspace", "Automata Playspace")]:
+                                ("automata-workplan", "Automata Workplan")]:
                 page.goto(url + "/")
-                assert page.locator(".skill-card").count() == 39
+                assert page.locator(".skill-card").count() == 38
                 link = page.get_by_role("link", name=title, exact=True)
                 expect(link).to_have_attribute("href", f"/{slug}/")
                 link.click()
@@ -99,11 +98,10 @@ def test_catalog_sources_references_and_sse(site):
             page.goto(url + "/automata-agent-evaluation/references/scoring.html")
             expect(page.locator("article h1")).to_have_count(1)
             expect(page.locator("article")).to_contain_text("scor")
-            for slug, diagrams in [("configure", 1), ("connect", 1), ("discover", 1),
-                                   ("send", 3), ("failures", 2)]:
-                page.goto(url + f"/message-router/references/{slug}.html")
-                expect(page.locator("article h1")).to_have_count(1)
-                expect(page.locator("protocol-diagram svg")).to_have_count(diagrams, timeout=15000)
+            reference = root / 'bundled/automata-agent-evaluation/references/scoring.md'
+            reference.write_text('# Diagram fixture\n\n```mermaid\nflowchart LR\n  A --> B\n```\n')
+            page.goto(url + '/automata-agent-evaluation/references/scoring.html')
+            expect(page.locator('protocol-diagram svg')).to_have_count(1, timeout=15000)
             assert errors == []
             assert any("/__skill_builder/events" in request for request in requests)
             assert all(request.startswith(url + "/") for request in requests)

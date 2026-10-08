@@ -13,7 +13,7 @@ from automata.install.pi_extensions import (
 def test_bundled_pi_extension_root_is_under_pi_runtime() -> None:
     root = bundled_pi_extension_root()
     assert root.parts[-3:] == ("runtimes", "pi", "extensions")
-    assert root.joinpath("message-router", "index.ts").is_file()
+    assert not root.joinpath("message-router").exists()
     assert not root.parent.parent.parent.joinpath("extensions").exists()
 
 
@@ -92,17 +92,11 @@ def test_install_pi_extensions_copies_bundled_context_compaction(tmp_path: Path)
     assert (target_root / "context-compaction.ts").is_file()
 
 
-def test_install_pi_extensions_copies_bundled_message_router(tmp_path: Path) -> None:
-    target_root = tmp_path / ".pi" / "extensions"
-
-    results = install_pi_extensions(target_root=target_root, extension_names=["message-router"])
-
-    assert [result.name for result in results] == ["message-router"]
-    for file in ("index.ts", "transport.ts", "protocol.ts"):
-        assert (target_root / "message-router" / file).is_file()
-    assert not (target_root / "agent-router").exists()
-    assert not (target_root / "agent-browser-bridge.ts").exists()
-    assert not (tmp_path / ".agents" / "var").exists()
+def test_retired_router_selection_fails_before_install(tmp_path: Path) -> None:
+    target = tmp_path / "extensions"
+    with pytest.raises(PiExtensionInstallError, match="Source Pi extension does not exist"):
+        install_pi_extensions(target_root=target, extension_names=["message-router"])
+    assert not target.exists()
 
 
 def test_default_install_excludes_retired_control_without_uninstalling(tmp_path: Path) -> None:
@@ -111,7 +105,7 @@ def test_default_install_excludes_retired_control_without_uninstalling(tmp_path:
     retired.parent.mkdir(parents=True)
     retired.write_text("// existing user installation\n")
     expected = {
-        "codex-bridge", "context-compaction", "context-status", "fast-mode", "message-router",
+        "codex-bridge", "context-compaction", "context-status", "fast-mode",
         "message-timestamps", "pi-sessions", "skill-activity", "token-awareness",
     }
     assert set(list_pi_extensions(bundled_pi_extension_root())) == expected

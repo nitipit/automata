@@ -1,7 +1,7 @@
 # Anatomy (development)
 
 Read-only, loopback-only **FastAPI + Jinja monitoring app**, with Adaptive UI
-components and local ECharts. Its Message Router guide link opens the separately
+components and local ECharts. Its Skill catalog link opens the separately
 launched Skill Builder site; Anatomy neither renders nor serves installed skills.
 Normal links load independent documents. No SPA, router connection, simulator,
 or code executor.
@@ -9,12 +9,8 @@ or code executor.
 ## Pages
 
 - `/automata/index.html`: Identity, Capabilities and Statistics local tabs.
-- Message Router guide: `http://127.0.0.1:8788/message-router/` displays the complete
-  canonical `SKILL.md` as source code. Rendered references use
-  `/message-router/references/<name>.html` there.
-- Legacy `/message-router/index.html` redirects to that landing page;
-  `configure.html`, `connect.html`, `discover.html`, `send.html` and `failures.html`
-  redirect to the matching references on the separate site.
+- Skill catalog: `http://127.0.0.1:8788/` links canonical skill source and references.
+- Retired Message Router guide routes return 404.
 
 Guide usage belongs in the canonical Markdown, not this README. Examples are
 non-executing text. Anatomy never reads router endpoint records or starts the
@@ -60,13 +56,11 @@ link targets default port 8788; open a custom skill-site port directly.
 
 - `server.py`: FastAPI, loopback Host/Origin/CSP protections and closed asset list.
 - `routes/automata.py`: monitor document and compatible `/api/anatomy` endpoint.
-- `routes/message_router_guide.py`: narrow compatibility redirects to the
-  independently launched skill site; no asset serving or renderer.
 - `templates/base.html`: private monitor inheritance.
 - `templates/automata/index.html` and matching `index.css.js`: monitor page;
   `components/monitor.js`, `monitor-state.js`, `activity-chart.js` own its lifecycle.
-- `../../skills/bundled/automata-message-router/`: canonical `SKILL.md` and linked
-  `references/*.md`, shared by agents and the human website.
+- `../../skills/bundled/`: canonical skills and supporting assets shared by agents
+  and the human website.
 - `../../skills/templates/`: shared website templates, components, reviewed
   libraries and notices. Native Engrave output lives in owned temporary storage,
   never in the installed agent skill or dashboard templates.
@@ -94,9 +88,8 @@ connection destinations; the separate site's native localhost SSE supports refre
 
 ## Monitoring and navigation contract
 
-`/` and `/automata/` redirect to `/automata/index.html`; `/message-router/` redirects
-to the legacy `/message-router/index.html`, which redirects to the separate skill
-landing page. All five existing lesson URLs remain as compatibility redirects.
+`/` and `/automata/` redirect to `/automata/index.html`. The Skill catalog link
+opens the independently launched site; old Router lesson redirects are retired.
 Old hash-only SPA bookmarks are intentionally retired: the root redirect reaches
 the default monitor, and any retained fragment has no routing
 meaning. There is no hash router or arbitrary redirect input.

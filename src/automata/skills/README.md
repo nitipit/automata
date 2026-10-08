@@ -1,6 +1,6 @@
 # Skill Builder
 
-All 39 bundled skills live in `bundled/automata-*/`. Discovery follows each
+All 38 bundled skills live in `bundled/automata-*/`. Discovery follows each
 `SKILL.md` and linked Markdown under `references/` or `templates/`.
 There are no per-skill HTML wrappers, generated entry files or build output.
 Shared Jinja templates render each request directly from canonical Markdown.
@@ -17,18 +17,17 @@ PYTHONPATH=src uv run --offline --no-project \
 ```
 
 `serve` always includes all discovered skills. Open `http://127.0.0.1:8788/`.
-The catalog lists all 39 skills with immediate links and a client-side search over
+The catalog lists all 38 skills with immediate links and a client-side search over
 skill names, titles and descriptions. Search leaves the complete static catalog usable
 without JavaScript.
 
 Public views:
 
 - `/`: catalog; `/templates/index.html` redirects to `/` for compatibility.
-- `/templates/skill.html?name=automata-message-router` (or `name=automata-workplan`): source view.
-- `/templates/reference.html?name=automata-message-router&reference=references/connect.md`:
+- `/templates/skill.html?name=automata-agent-design`: source view.
+- `/templates/reference.html?name=automata-agent-evaluation&reference=references/scoring.md`:
   rendered reference view.
-- `/message-router/`, `/message-router/index.html`, and existing
-  `/message-router/references/<name>.html`: preserved direct-render aliases.
+- Retired Router and Playspace routes are no longer served.
 - `/automata-workplan/` and `/automata-workplan/index.html`: workplan source view.
   The retired `automata-plan` name and `/plan/` alias are no longer served.
 
@@ -88,15 +87,14 @@ styles are retained.
 
 `export-agent NAME --output DIR` copies the complete canonical skill (including
 references, scripts, libraries and templates) without importing FastAPI or a
-renderer. Use installed names such as `automata-message-router`; only its public
-URL retains the short `/message-router/` alias. Serving never installs or syncs
+renderer. Use installed names such as `automata-agent-design`. Serving never installs or syncs
 live skills; agents read canonical files, not human-rendered output. Installing the
 renamed `automata-workplan` does not remove an existing `automata-plan` installation;
 remove the obsolete installed name only under separate scoped migration authority.
 
 `tests/apps/skill_builder/test_build.py` covers direct public views, denial boundaries,
-reference Jinja/HTML literal handling, and disposable installation of both
-identities. `test_browser.py` covers opening both catalog entries with exact numbered
-source, Message Router reference diagrams, and one source edit reloading via SSE.
+reference Jinja/HTML literal handling, and disposable installation of selected
+skills. `test_browser.py` covers catalog entries with exact numbered
+source, a synthetic reference diagram, and one source edit reloading via SSE.
 Catalog search/navigation and CLI tests cover the direct serving contract;
 running focused checks does not claim the broader suite passed.

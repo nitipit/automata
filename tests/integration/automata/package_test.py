@@ -14,7 +14,6 @@ from automata import __version__
 PI_RUNTIME = ("runtimes", "pi")
 PI_SKILLS = ("skills", "bundled")
 PI_EXTENSIONS = (*PI_RUNTIME, "extensions")
-ROUTER_SKILL = ("skills", "bundled", "automata-message-router")
 
 
 def test_version() -> None:
@@ -67,7 +66,7 @@ def test_adaptive_ui_skill_ships_source_without_generated_library() -> None:
     assert source.joinpath("src", "ui", "adaptive-ui.ts").is_file()
     assert source.joinpath("package.json").is_file()
     assert source.parent.joinpath("scripts", "build.py").is_file()
-    assert source.joinpath("example", "chat-with-agent.html").is_file()
+    assert not source.joinpath("example", "chat-with-agent.html").exists()
     assert not source.parent.joinpath("scripts", "library").exists()
     assert not source.joinpath("example", "chat.html").exists()
     assert not source.joinpath("browser").is_dir()
@@ -125,6 +124,7 @@ def test_package_excludes_adaptive_ui_generated_trees_from_sdists_and_wheels() -
         "src/automata/skills/bundled/automata-adaptive-ui/lib/node_modules",
         "src/automata/skills/bundled/automata-adaptive-ui/lib/node_modules/**",
         "src/automata/skills/bundled/**/__pycache__/**",
+        "src/automata/tools/**/__pycache__/**",
     ]
 
 
@@ -150,17 +150,13 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "runtimes/pi/extensions/fast-mode/README.md",
         "runtimes/pi/extensions/message-timestamps.ts",
         "runtimes/pi/extensions/token-awareness.ts",
-        "runtimes/pi/extensions/message-router/index.ts",
         "skills/bundled/automata-pi-context-status/SKILL.md",
         "skills/bundled/automata-pi-context-compaction/SKILL.md",
         "skills/bundled/automata-pi-sessions/SKILL.md",
         "skills/bundled/automata-pi-imagegen/SKILL.md",
         "skills/bundled/automata-pi-skill-activity/SKILL.md",
-        "skills/bundled/automata-message-router/SKILL.md",
-        "tools/message-router/docs/node-client.md",
         "runtimes/pi/extensions/codex-bridge.ts",
         "skills/bundled/automata-workplan/SKILL.md",
-        "skills/bundled/automata-playspace/SKILL.md",
         "skills/bundled/automata-storage/SKILL.md",
         "skills/bundled/automata-adaptive-ui/scripts/build.py",
         "skills/bundled/automata-agent-evaluation/templates/evaluation-record.json",
@@ -184,12 +180,6 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
                        for path in paths)
         assert "skills/bundled/automata-time-awareness/SKILL.md" not in paths
         assert "skills/bundled/automata-timer/SKILL.md" in paths
-    webref_prefix = "skills/bundled/automata-message-router/"
-    source_skill = root / "src/automata" / webref_prefix
-    finished_skill = {
-        webref_prefix + path.relative_to(source_skill).as_posix()
-        for path in source_skill.rglob("*") if path.is_file()
-    }
     source_catalog = root / "src/automata/skills/bundled"
     catalog_files = {
         "skills/bundled/" + path.relative_to(source_catalog).as_posix()
@@ -203,13 +193,12 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
             "skills/bundled/automata-adaptive-ui/lib/example/index.css.js",
             "skills/bundled/automata-adaptive-ui/lib/example/catalog.svg",
         } <= paths
-        assert {path for path in paths if path.startswith(webref_prefix)} == finished_skill
-        assert webref_prefix + "references/overview.md" not in paths
-        assert not any(
-            path.startswith("runtimes/pi/skills/automata-message-router/") for path in paths
-        )
-        assert webref_prefix + "references/connect.md" in paths
-        assert all(path.endswith('.md') for path in finished_skill)
+        for retired in (
+            'skills/bundled/automata-message-router/',
+            'skills/bundled/automata-playspace/',
+            'tools/message-router/', 'runtimes/pi/extensions/message-router/',
+        ):
+            assert not any(path.startswith(retired) for path in paths)
         assert 'skills/templates/lib/mermaid.js' in paths
         assert 'skills/templates/lib/prism.js' in paths
         assert 'skills/templates/catalog.html' in paths
@@ -228,7 +217,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         pi_skill_names = (
             "automata-pi-context-status", "automata-pi-context-compaction",
             "automata-pi-sessions", "automata-pi-imagegen",
-            "automata-pi-skill-activity", "automata-message-router",
+            "automata-pi-skill-activity",
         )
         assert not any(
             path.startswith("skills/core/") and path.endswith(f"{name}/SKILL.md")
@@ -256,43 +245,36 @@ from automata.plugin import export_plugin
 assert Path(automata.__file__).is_relative_to(site)
 sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
-assert len(sources) == 39
+assert len(sources) == 38
 assert 'automata-thinking-control' not in sources
 assert 'automata-pi-sessions' in sources
-assert 'automata-playspace' in sources
+assert 'automata-playspace' not in sources
 assert 'automata-codex-sessions' not in sources
 assert not (site / 'automata/runtimes/codex').exists()
 assert not (site / 'automata/install/codex.py').exists()
 assert 'automata-time-awareness' not in sources
 assert 'automata-timer' in sources
 assert all(path.name == name for name, path in sources.items())
-canonical = site / 'automata/skills/bundled/automata-message-router'
-assert sources['automata-message-router'] == canonical
+assert 'automata-message-router' not in sources
 assert sources['automata-workplan'] == site / 'automata/skills/bundled/automata-workplan'
 assert 'automata-plan' not in sources
 assert not any(name in sys.modules for name in ('engrave', 'mistune', 'playwright'))
 results = install_skills(target_root=work / 'skills')
 assert {result.name for result in results} == set(sources)
 for name in ('automata-storage', 'automata-pi-context-status',
-             'automata-message-router', 'automata-workplan', 'automata-playspace'):
+             'automata-workplan', 'automata-agent-design'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
-router_skill = work / 'skills/automata-message-router'
-assert {path.name for path in router_skill.iterdir()} == {'SKILL.md', 'references'}
-for page in ('configure', 'connect', 'discover', 'send', 'failures'):
-    assert (router_skill / 'references' / (page + '.md')).is_file()
-assert all(path.suffix == '.md' for path in router_skill.rglob('*') if path.is_file())
-assert '(references/connect.md)' in (router_skill / 'SKILL.md').read_text()
-install_skills(target_root=work / 'linked', skill_names=['automata-message-router'], mode='symlink')
-linked = work / 'linked/automata-message-router'
-assert linked.is_symlink() and linked.resolve() == sources['automata-message-router']
-assert (linked / 'SKILL.md').read_bytes() == (router_skill / 'SKILL.md').read_bytes()
+install_skills(target_root=work / 'linked', skill_names=['automata-agent-design'], mode='symlink')
+linked = work / 'linked/automata-agent-design'
+assert linked.is_symlink() and linked.resolve() == sources['automata-agent-design']
+assert (linked / 'SKILL.md').read_bytes() == (work / 'skills/automata-agent-design/SKILL.md').read_bytes()
 installed = install_pi_extensions(target_root=work / 'extensions')
 assert {item.name for item in installed} == {
-    'codex-bridge', 'context-compaction', 'context-status', 'fast-mode', 'message-router',
+    'codex-bridge', 'context-compaction', 'context-status', 'fast-mode',
     'message-timestamps', 'pi-sessions', 'skill-activity', 'token-awareness',
 }
 assert not (work / 'extensions/thinking-control').exists()
-assert (work / 'extensions/message-router/index.ts').is_file()
+assert not (work / 'extensions/message-router').exists()
 assert (work / 'extensions/skill-activity/store.py').is_file()
 assert (work / 'extensions/token-awareness.ts').is_file()
 assert (work / 'extensions/fast-mode/index.ts').is_file()
@@ -304,9 +286,9 @@ assert (work / 'plugin/skills/automata-pi-context-status/SKILL.md').is_file()
 assert (work / 'extensions/codex-bridge.ts').is_file()
 from automata.install.tools import install_tools
 shared = install_tools(target_root=work / 'tools')
-assert {item.name for item in shared} == {'line', 'message-router', 'timer', 'tmux-message'}
-assert (work / 'tools/message-router/browser/client.js').is_file()
-assert (work / 'tools/message-router/docs/node-client.md').is_file()
+assert {item.name for item in shared} == {'line', 'python-runtime', 'timer', 'tmux-message'}
+assert not (work / 'tools/message-router').exists()
+assert (work / 'tools/python-runtime/python_runtime.py').is_file()
 """, str(site), str(tmp_path / "installed")],
         cwd=tmp_path, capture_output=True, text=True, timeout=30, check=False,
     )
@@ -328,28 +310,15 @@ def test_package_separates_pi_extensions_from_bundled_skills() -> None:
         assert not package.joinpath("skills", "skill-ops", name).exists()
 
 
-def test_package_includes_message_router_and_chat() -> None:
+def test_package_retires_router_and_playspace_but_keeps_chat() -> None:
     package_root = files("automata")
-    for name in ("index.ts", "transport.ts", "protocol.ts"):
-        assert package_root.joinpath(*PI_EXTENSIONS, "message-router", name).is_file()
+    assert not package_root.joinpath(*PI_EXTENSIONS, "message-router").exists()
     assert not package_root.joinpath(*PI_EXTENSIONS, "agent-router").exists()
     assert not package_root.joinpath("tools", "agent-router").exists()
     assert not package_root.joinpath(*PI_EXTENSIONS, "agent-browser-bridge.ts").exists()
-    tool = package_root.joinpath("tools", "message-router")
-    for path in (
-        "message_router.py",
-        "agent_browser_bridge.py",
-        "README.md",
-        "LEGACY.md",
-        "browser/client.js",
-        "browser/pi-client.js",
-        "browser/page.js",
-        "automata_router/router.py",
-        "automata_router/server.py",
-    ):
-        assert tool.joinpath(path).is_file(), path
-    skill = package_root.joinpath(*ROUTER_SKILL, "SKILL.md")
-    assert skill.is_file()
+    assert not package_root.joinpath("tools", "message-router").exists()
+    for name in ('automata-message-router', 'automata-playspace'):
+        assert not package_root.joinpath('skills', 'bundled', name).exists()
     components = adaptive_ui_source().joinpath("src", "ui", "_components")
     for path in ("chat.ts", "chat.schema.ts"):
         assert components.joinpath(path).is_file(), path

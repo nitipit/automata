@@ -10,7 +10,7 @@ test('closed monitor URL defaults and invalid values', () => {
   assert.equal(state.setup, 'all'); assert.equal(state.paused, false);
 });
 test('all useful state roundtrips including paused custom dates', () => {
-  const query = '?tab=statistics&query=router&setup=installed&selected=automata-message-router&range=custom&timezone=America%2FNew_York&skill=automata-message-router&limit=all&paused=1&start=2026-03-07&end=2026-03-09';
+  const query = '?tab=statistics&query=design&setup=installed&selected=automata-agent-design&range=custom&timezone=America%2FNew_York&skill=automata-agent-design&limit=all&paused=1&start=2026-03-07&end=2026-03-09';
   const state = parseMonitorState(query);
   assert.deepEqual(parseMonitorState(serializeMonitorState(state)), state);
   assert.equal(state.paused, true); assert.equal(state.start, '2026-03-07');

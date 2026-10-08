@@ -28,10 +28,8 @@ REQUIRED_SKILLS = {
     "automata-model-selection",
     "automata-teamwork-design",
     "automata-adaptive-ui",
-    "automata-playspace",
     "automata-browser-use",
     "automata-line-use",
-    "automata-message-router",
     "automata-pi-imagegen",
     "automata-question",
     "automata-pi-context-status",
@@ -65,6 +63,8 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-message-router",
+    "automata-playspace",
     "automata-capability-research",
     "automata-stateful-workflow",
     "automata-plan",
@@ -129,7 +129,7 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
 
 
 def test_pi_skills_share_one_flat_source_with_all_skills() -> None:
-    assert len(list(SKILLS_ROOT.glob("*/SKILL.md"))) == 40
+    assert len(list(SKILLS_ROOT.glob("*/SKILL.md"))) == 38
     for name in PI_SKILL_NAMES:
         assert (SKILLS_ROOT / name / "SKILL.md").is_file()
         assert not (SKILLS_ROOT / name).is_symlink()
@@ -137,13 +137,11 @@ def test_pi_skills_share_one_flat_source_with_all_skills() -> None:
 
 def test_changed_portable_guidance_keeps_runtime_details_external() -> None:
     for name in (
-        "automata-message-router", "automata-setup", "automata-skill-design", "automata-playspace"
+        "automata-setup", "automata-skill-design"
     ):
         for path in SOURCES[name].rglob("*.md"):
             assert not re.search(r"\b(?:Pi|Codex)\b", path.read_text()), path
-    assert (TOOLS_ROOT / "message-router/docs/node-client.md").is_file()
     assert not (SOURCES["automata-setup"] / "references/codex.md").exists()
-    assert not (SOURCES["automata-message-router"] / "references/node-client.md").exists()
 
 
 def test_renamed_pi_compaction_preserves_preference_paths() -> None:
@@ -155,7 +153,6 @@ def test_renamed_pi_compaction_preserves_preference_paths() -> None:
 
 def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
     expected = {
-        "automata-message-router": ".agents/tools/message-router/message_router.py",
         "automata-timer": ".agents/tools/timer/timer.py",
         "automata-line-use": ".agents/tools/line/line_cli.py",
         "automata-tmux-communication": ".agents/tools/tmux-message/tmux_message.py",
@@ -214,7 +211,7 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
     target = tmp_path / "skills"
     results = install_skills(target_root=target)
     expected = set(SOURCES)
-    assert len(expected) == 40
+    assert len(expected) == 38
     assert 'automata-pi-sessions' in expected
     assert 'automata-codex-sessions' not in expected
     assert {result.name for result in results} == expected

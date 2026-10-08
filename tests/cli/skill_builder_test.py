@@ -37,7 +37,7 @@ def test_help():
     "args",
     [
         ("serve", "--all"),
-        ("serve", "automata-message-router"),
+        ("serve", "automata-agent-design"),
         ("serve", "--port", "0"),
     ],
 )
@@ -61,13 +61,13 @@ def test_serve_defaults(monkeypatch):
 def test_export(tmp_path):
     result = subprocess.run(
         [sys.executable, "-c", "from automata.cli import app; app()",
-         "skill-builder", "export-agent", "automata-message-router", "--output", str(tmp_path)],
+         "skill-builder", "export-agent", "automata-delegation", "--output", str(tmp_path)],
         capture_output=True, text=True,
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert {p.name for p in tmp_path.iterdir()} == {"SKILL.md", "references"}
     assert (tmp_path / "SKILL.md").read_bytes() == (
-        SKILLS / "automata-message-router/SKILL.md"
+        SKILLS / "automata-delegation/SKILL.md"
     ).read_bytes()
     assert all(p.suffix == ".md" for p in tmp_path.rglob("*") if p.is_file())
 
@@ -87,7 +87,7 @@ def test_cli_signal_stops_preview_without_build_output(tmp_path):
             for _ in range(100):
                 try:
                     urllib.request.urlopen(
-                        f"http://127.0.0.1:{port}/message-router/", timeout=.5
+                        f"http://127.0.0.1:{port}/automata-agent-design/", timeout=.5
                     ).close()
                     break
                 except OSError:
