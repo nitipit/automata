@@ -105,18 +105,27 @@ or responsibilities instead.
 
 ## Select assurance
 
-The default is the minimal happy-path smoke check, not a test suite or review
-pipeline. Suggest edge-case, regression, integration, production-like or broader
-checks when useful, but obtain confirmation before adding or running them. An
-explicit request for such checks authorizes that scope; approval to implement a
-feature alone does not. Do not escalate automatically because a change involves
-state, interfaces, security or concurrency.
+Default to the smallest happy-path smoke check proving the requested outcome,
+not a suite or review pipeline. Once it passes, stop unless more assurance is
+approved. Extra checks are a separate proposal, not unfinished implementation;
+feature approval alone does not authorize adding or running them. State, interfaces,
+networking, security or concurrency do not automatically expand scope.
 
-When expanded assurance is approved, select checks for the agreed claim and keep
-them cohesive by behavior/boundary using repository placement conventions. Review
-critiques correctness/risk; verification executes checks. Independent review and
-delegation require their own authority; a fresh self-review is not independent.
-Make scope, evidence and non-goals explicit when useful, not a routine template.
+Calibrate assurance and advice to stage, local/internal/internet exposure, affected
+users, sensitive data and failure impact. Consider attacker access, incentive and
+effort, including cheap automated attacks; do not assume targeted attacks or safety
+from few users. Retain basic safeguards, not bank-grade hardening by default.
+Ask about usage only when it would materially change the approach.
+
+Mention only concrete risks that could change the user's decision at this stage.
+Explain impact and a proportionate next step briefly in plain language, with scope
+and estimated effort for proposed work. Otherwise report results and verification
+limits; avoid hypothetical threat lists and mandatory risk reports.
+
+For approved broader assurance, organize checks by behavior/boundary using project
+conventions. Review assesses correctness/risk; verification executes checks.
+Independent review and delegation need authorization; self-review is not independent.
+State scope, evidence and non-goals when useful, not as a routine template.
 
 ## Finish and report
 
