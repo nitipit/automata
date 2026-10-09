@@ -1,11 +1,10 @@
-import { paletteEntries, paletteName, paletteSource, resolveColor,
+import { paletteEntries, paletteName, resolveColor,
   lift, radius, spacing, typography, type PaletteColor } from "@adaptive/tokens";
 
 /** Designer-facing specimens; the library primitives remain the source of values. */
 export function mountTokenExamples(): void {
   const palette = document.querySelector("#palette-tokens");
   if (!palette) return;
-  document.querySelector("#palette-source")?.setAttribute("href", paletteSource);
   const families = new Map<string, HTMLElement>();
   for (const [key, value] of Object.entries(paletteEntries)) {
     const name = paletteName(key as PaletteColor);
