@@ -41,6 +41,18 @@
     .tokens-specimen .radius-surface strong { font-size: 1.25rem; font-weight: 600; }
     .tokens-specimen .radius-surface p { margin: 0; font-size: .85rem; }
     .tokens-specimen .radius-caption { max-width: 28rem; }
+    .tokens-specimen .lift-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1rem; }
+    .tokens-specimen .lift-stage { min-height: 8rem; display: grid; place-items: center; padding: 1.5rem .5rem; background: #f6f5f4; }
+    .tokens-specimen .lift-surface { width: 80%; min-height: 4rem; display: grid; place-items: center; border: 1px solid #deddda; font-size: .85rem; }
+    .tokens-specimen .lift-shape { display: block; width: 4rem; height: 4rem; overflow: visible; }
+    .tokens-specimen .lift-label { margin: .5rem 0 0; text-align: center; font-size: .85rem; }
+    .tokens-specimen .lift-kind { margin: 1.5rem 0 .5rem; font-size: .85rem; font-weight: 600; }
+    @media (max-width: 1100px) {
+      .tokens-specimen .lift-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 700px) {
+      .tokens-specimen .lift-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
     .tokens-specimen .effect-stage { min-height: 11rem; display: flex; align-items: center; justify-content: center; border-radius: .75rem; }
     .tokens-specimen .effect-surface { width: 65%; min-height: 6rem; display: grid; place-items: center; border: 1px solid #deddda; font-size: .85rem; }
     .tokens-specimen .effect-stage.is-clear { background-size: 1rem 1rem; }
@@ -83,8 +95,17 @@
     <div class="specimen-heading"><h2 id="radius-heading">Corners</h2><p>A radius on a real surface, rather than an isolated shape.</p></div>
     <div id="radius-tokens"></div>
   </section>
+  <section aria-labelledby="lift-heading">
+    <div class="specimen-heading"><h2 id="lift-heading">Lift</h2><p>Six levels of visual depth. 0 stays flat; 1–5 move the visible shape away from its backdrop.</p></div>
+    <h3 class="lift-kind">Surfaces</h3>
+    <div id="lift-surfaces" class="lift-grid"></div>
+    <h3 class="lift-kind">Shapes</h3>
+    <div id="lift-shapes" class="lift-grid"></div>
+    <p class="specimen-note">Uses filter: drop-shadow(), following painted pixels—not the box. Transparent containers lift their text and children. Nonzero filters create a stacking context.</p>
+    <p class="specimen-note"><code>element.style.filter = lift[3]</code></p>
+  </section>
   <section aria-labelledby="effects-heading">
-    <div class="specimen-heading"><h2 id="effects-heading">Surfaces &amp; light</h2><p>Transparency and two subtle alpha shadows. Derived effects, not additional palette colours.</p></div>
+    <div class="specimen-heading"><h2 id="effects-heading">Transparency</h2><p>Let the backdrop show through a surface.</p></div>
     <div id="effect-tokens" class="surface-grid"></div>
   </section>
 </div>

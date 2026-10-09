@@ -1,5 +1,5 @@
-import { paletteEntries, paletteName, paletteSource, colorEffects, resolveColor,
-  radius, spacing, typography, type PaletteColor } from "@adaptive/tokens";
+import { paletteEntries, paletteName, paletteSource, resolveColor,
+  lift, radius, spacing, typography, type PaletteColor } from "@adaptive/tokens";
 
 /** Designer-facing specimens; the library primitives remain the source of values. */
 export function mountTokenExamples(): void {
@@ -65,34 +65,43 @@ export function mountTokenExamples(): void {
     document.querySelector("#radius-tokens")!.append(surface, label);
   }
 
-  for (const name of Object.keys(colorEffects) as (keyof typeof colorEffects)[]) {
-    const effect = colorEffects[name];
-    const value = resolveColor(`effect.${name}`);
-    const stage = element("div", "effect-stage");
-    const surface = element("div", "effect-surface");
+  for (const [level, value] of Object.entries(lift)) {
+    const surface = element("div", "lift-surface", "Surface");
     surface.style.borderRadius = radius.md;
-    let caption: string;
-    if (effect.kind === "transparent") {
-      stage.classList.add("is-clear");
-      const checker = paletteEntries["light.3"];
-      stage.style.backgroundColor = paletteEntries["light.1"];
-      stage.style.backgroundImage = `linear-gradient(45deg, ${checker} 25%, transparent 25%, transparent 75%, ${checker} 75%), linear-gradient(45deg, ${checker} 25%, transparent 25%, transparent 75%, ${checker} 75%)`;
-      stage.style.backgroundPosition = "0 0, .5rem .5rem";
-      surface.style.backgroundColor = value;
-      surface.textContent = "Let the backdrop through";
-      caption = value;
-    } else {
-      stage.style.backgroundColor = paletteEntries["light.2"];
-      surface.style.backgroundColor = paletteEntries["light.1"];
-      surface.style.boxShadow = `0 4px 12px ${value}`;
-      surface.textContent = "A raised surface";
-      caption = `${effect.opacity * 100}% alpha`;
+    surface.style.backgroundColor = paletteEntries["light.1"];
+    surface.style.filter = value;
+
+    const shape = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    shape.setAttribute("viewBox", "0 0 100 100");
+    shape.setAttribute("aria-hidden", "true");
+    shape.classList.add("lift-shape");
+    shape.style.filter = value;
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M50 4 62 34 95 36 70 58 78 91 50 73 22 91 30 58 5 36 38 34Z");
+    path.setAttribute("fill", paletteEntries["blue.2"]);
+    shape.append(path);
+
+    for (const [target, sample] of [["#lift-surfaces", surface], ["#lift-shapes", shape]] as const) {
+      const stage = element("div", "lift-stage");
+      stage.append(sample);
+      const specimen = element("div", "lift-specimen");
+      specimen.append(stage, element("p", "lift-label", `Lift ${level}`));
+      document.querySelector(target)!.append(specimen);
     }
-    stage.append(surface);
-    const specimen = element("div");
-    specimen.append(stage, materialLabel(name, caption));
-    document.querySelector("#effect-tokens")!.append(specimen);
   }
+
+  const stage = element("div", "effect-stage is-clear");
+  const checker = paletteEntries["light.3"];
+  stage.style.backgroundColor = paletteEntries["light.1"];
+  stage.style.backgroundImage = `linear-gradient(45deg, ${checker} 25%, transparent 25%, transparent 75%, ${checker} 75%), linear-gradient(45deg, ${checker} 25%, transparent 25%, transparent 75%, ${checker} 75%)`;
+  stage.style.backgroundPosition = "0 0, .5rem .5rem";
+  const surface = element("div", "effect-surface", "Let the backdrop through");
+  surface.style.borderRadius = radius.md;
+  surface.style.backgroundColor = resolveColor("effect.clear");
+  stage.append(surface);
+  const specimen = element("div");
+  specimen.append(stage, materialLabel("clear", "transparent"));
+  document.querySelector("#effect-tokens")!.append(specimen);
 }
 
 function materialLabel(name: string, value: string): HTMLElement {
