@@ -1,28 +1,91 @@
 {% extends "_base.html" %}
 {% block title %}Tokens · Primitive foundation{% endblock %}
 {% block content %}
-<h1>Tokens</h1>
-<p class="intro">Raw design values, shown directly. Components own their CSS; there are no semantic roles or mode selectors.</p>
-<style>
-  .palette-family { margin-bottom: 1.25rem; }
-  .palette-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .75rem; }
-  .sample-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
-  .token-sample { display: grid; align-content: start; gap: .4rem; padding: .75rem; background: #ffffff; border: 1px solid #deddda; border-radius: .75rem; }
-  .swatch { height: 3rem; border: 1px solid #c0bfbc; border-radius: .5rem; }
-  .token-sample strong { font-size: .85rem; }
-  .physical-sample { min-height: 4rem; display: flex; align-items: center; justify-content: center; background: #f6f5f4; }
-  .effect-sample { width: 3rem; height: 3rem; background: #ffffff; }
-  .spacing-sample { height: 1rem; background: #1c71d8; }
-  .radius-sample { width: 3rem; height: 3rem; border: 2px solid #1c71d8; }
-  @media (max-width: 480px) { .palette-grid { gap: .35rem; } .palette-grid .token-sample { padding: .35rem; } .palette-grid code { font-size: .7rem; } }
-</style>
-<section aria-labelledby="palette-heading">
-  <h2 id="palette-heading">GNOME palette · 45 colors</h2>
-  <p class="intro"><a id="palette-source">Official GNOME palette</a>, intended for icons and illustrations. Using it for these UI primitives is an application choice, not native-compliance certification.</p>
-  <div id="palette-tokens"></div>
-</section>
-<section><h2>Effects</h2><p class="intro">Transparency and alpha values derived from the palette, not additional official colors.</p><div id="effect-tokens" class="sample-grid"></div></section>
-<section><h2>Radius</h2><div id="radius-tokens" class="sample-grid"></div></section>
-<section><h2>Spacing</h2><div id="spacing-tokens" class="sample-grid"></div></section>
-<section><h2>Typography</h2><div id="typography-tokens" class="sample-grid"></div></section>
+<div class="tokens-specimen">
+  <div class="specimen-intro">
+    <p class="specimen-eyebrow">Design materials</p>
+    <h1>Colour, space, and type.</h1>
+    <p class="intro">A small collection of primitives. Look at the surfaces, read the type, and feel the room between things.</p>
+  </div>
+  <style>
+    .tokens-specimen .specimen-intro { max-width: 42rem; margin-bottom: 3rem; }
+    .tokens-specimen .specimen-eyebrow { margin-bottom: .75rem; font-size: .85rem; color: #5e5c64; }
+    .tokens-specimen > section { margin-bottom: 3rem; }
+    .tokens-specimen .specimen-heading { margin-bottom: 1.5rem; }
+    .tokens-specimen .specimen-heading h2 { margin: 0 0 .35rem; }
+    .tokens-specimen .specimen-heading p { margin: 0; color: #5e5c64; font-size: .85rem; }
+    .tokens-specimen .palette-family { margin-bottom: 1.5rem; }
+    .tokens-specimen .palette-family h3 { margin: 0 0 .65rem; font-weight: 600; }
+    .tokens-specimen .palette-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .75rem; }
+    .tokens-specimen .palette-chip { min-width: 0; }
+    .tokens-specimen .swatch { height: 7rem; border: 1px solid #c0bfbc; border-radius: .75rem; }
+    .tokens-specimen .swatch-label { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .2rem .5rem; margin-top: .5rem; }
+    .tokens-specimen .swatch-label span { font-size: .85rem; }
+    .tokens-specimen .swatch-label code { color: #5e5c64; font-size: .75rem; }
+    .tokens-specimen .type-board { padding: 2rem; border: 1px solid #deddda; border-radius: .75rem; background: #ffffff; }
+    .tokens-specimen .type-eyebrow { margin: 0 0 1rem; color: #5e5c64; font-size: .85rem; }
+    .tokens-specimen .type-heading { margin: 0 0 1rem; font-size: 2rem; line-height: 1.25; letter-spacing: -.025em; }
+    .tokens-specimen .type-body { max-width: 58ch; margin: 0 0 1.5rem; font-size: 1rem; }
+    .tokens-specimen .type-label { display: block; font-size: .85rem; }
+    .tokens-specimen .specimen-note { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .75rem 0 0; color: #5e5c64; font-size: .85rem; }
+    .tokens-specimen .spacing-grid, .tokens-specimen .surface-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; align-items: start; }
+    .tokens-specimen .space-stage { border: 1px solid #deddda; border-radius: .75rem; background: #ffffff; }
+    .tokens-specimen .space-stack { display: grid; }
+    .tokens-specimen .space-stack p { margin: 0; }
+    .tokens-specimen .space-title { font-size: 1rem; font-weight: 600; }
+    .tokens-specimen .space-body { font-size: .85rem; }
+    .tokens-specimen .space-caption { color: #5e5c64; font-size: .85rem; }
+    .tokens-specimen .material-label { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-top: .75rem; font-size: .85rem; }
+    .tokens-specimen .material-label code { color: #5e5c64; font-size: .85rem; }
+    .tokens-specimen .radius-surface { min-height: 10rem; display: grid; align-content: end; gap: .5rem; max-width: 28rem; border: 1px solid #62a0ea; }
+    .tokens-specimen .radius-surface strong { font-size: 1.25rem; font-weight: 600; }
+    .tokens-specimen .radius-surface p { margin: 0; font-size: .85rem; }
+    .tokens-specimen .radius-caption { max-width: 28rem; }
+    .tokens-specimen .effect-stage { min-height: 11rem; display: flex; align-items: center; justify-content: center; border-radius: .75rem; }
+    .tokens-specimen .effect-surface { width: 65%; min-height: 6rem; display: grid; place-items: center; border: 1px solid #deddda; font-size: .85rem; }
+    .tokens-specimen .effect-stage.is-clear { background-size: 1rem 1rem; }
+    .tokens-specimen .effect-stage.is-clear .effect-surface { border-color: #77767b; }
+    @media (max-width: 700px) {
+      .tokens-specimen .spacing-grid, .tokens-specimen .surface-grid { grid-template-columns: 1fr; }
+      .tokens-specimen .space-stage, .tokens-specimen .effect-stage { max-width: 28rem; }
+      .tokens-specimen .material-label { max-width: 28rem; }
+      .tokens-specimen .type-board { padding: 1.5rem; }
+    }
+    @media (max-width: 480px) {
+      .tokens-specimen .palette-grid { gap: .4rem; }
+      .tokens-specimen .swatch { height: 5rem; border-radius: .5rem; }
+      .tokens-specimen .swatch-label span { font-size: .75rem; }
+      .tokens-specimen .swatch-label code { font-size: .7rem; }
+    }
+  </style>
+  <section aria-labelledby="palette-heading">
+    <div class="specimen-heading">
+      <h2 id="palette-heading">Colour</h2>
+      <p>45 colours from the <a id="palette-source">official GNOME palette</a>. Intended for icons and illustrations; UI use here is an application choice, not native certification.</p>
+    </div>
+    <div id="palette-tokens"></div>
+  </section>
+  <section aria-labelledby="type-heading">
+    <div class="specimen-heading"><h2 id="type-heading">Typography</h2><p>One familiar family. A heading, a paragraph, and a quiet label.</p></div>
+    <div id="typography-specimen" class="type-board">
+      <p class="type-eyebrow">Field notes</p>
+      <h3 class="type-heading">Make room for what matters.</h3>
+      <p class="type-body">A clear heading gives us a place to begin. Comfortable lines carry the thought forward, while a smaller label leaves the next step easy to find. The same family holds the whole composition together.</p>
+      <span class="type-label">Continue reading</span>
+    </div>
+    <p id="typography-values" class="specimen-note"></p>
+  </section>
+  <section aria-labelledby="spacing-heading">
+    <div class="specimen-heading"><h2 id="spacing-heading">Spacing</h2><p>The same small composition, with each primitive setting its padding and rhythm.</p></div>
+    <div id="spacing-tokens" class="spacing-grid"></div>
+  </section>
+  <section aria-labelledby="radius-heading">
+    <div class="specimen-heading"><h2 id="radius-heading">Corners</h2><p>A radius on a real surface, rather than an isolated shape.</p></div>
+    <div id="radius-tokens"></div>
+  </section>
+  <section aria-labelledby="effects-heading">
+    <div class="specimen-heading"><h2 id="effects-heading">Surfaces &amp; light</h2><p>Transparency and two subtle alpha shadows. Derived effects, not additional palette colours.</p></div>
+    <div id="effect-tokens" class="surface-grid"></div>
+  </section>
+</div>
 {% endblock %}
