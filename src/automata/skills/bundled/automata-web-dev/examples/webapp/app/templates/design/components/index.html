@@ -1,43 +1,64 @@
 {% extends "_base.html" %}
-{% block title %}Components · Minimal Webapp{% endblock %}
+{% block title %}Components · Primitive foundation{% endblock %}
 {% block content %}
-<h1>Live components</h1>
-<p class="intro">Theme changes page, Button and Card paint without rebuilding them. Form and Chat remain legacy light presentations; this is not a complete dark catalog. All interactions are browser-local.</p>
+<h1>Components</h1>
+<p class="intro">Three small primitives. Appearance belongs to component CSS; fields and constraints remain native HTML. Examples run locally in the browser.</p>
 <style>
-  .examples { display: grid; gap: 1rem; }
-  .actions { display: flex; flex-wrap: wrap; gap: .5rem; }
-  pre { white-space: pre-wrap; overflow-wrap: anywhere; }
-  #chat-example { --aui-chat-width: 100%; --aui-chat-height: 34rem; --aui-chat-min-height: 20rem; --aui-chat-font-size: 1rem; }
+  .component-example { margin-bottom: 2rem; }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+  ui-card h3, ui-card p { margin: 0; }
+  ui-form { max-width: 30rem; }
+  .choice { display: flex; align-items: center; gap: .5rem; }
 </style>
-<h2 class="section-title">Button · native disabled behavior</h2>
-<ui-card id="theme-card-probe">
-  <label class="theme-probe">Local draft <input id="theme-input" type="text" value=""></label>
+<section class="component-example" aria-labelledby="button-heading">
+  <h2 id="button-heading">Button</h2>
+  <p>Uses a native button for clicks, keyboard access, and disabled behavior.</p>
   <div class="actions">
-    <ui-button id="primary-button" label="Primary"></ui-button>
-    <ui-button label="Danger" tone="danger"></ui-button>
-    <ui-button id="disabled-button" label="Disabled" disabled></ui-button>
-    <ui-button id="toggle-disabled" label="Toggle disabled"></ui-button>
+    <ui-button id="example-button" label="Say hello"></ui-button>
+    <ui-button label="Disabled" disabled></ui-button>
+    <output id="button-result" aria-live="polite">Ready.</output>
   </div>
-  <output id="button-result" aria-live="polite">Click Primary to try it.</output>
-</ui-card>
-<h2 class="section-title">Card · variants and padding</h2>
-<div class="examples">
-  <ui-card variant="surface" padding="sm">Surface · small padding</ui-card>
-  <ui-card variant="outlined" padding="lg">Outlined · large padding</ui-card>
-</div>
-<h2 class="section-title">Form · draft-preserving updates</h2>
-<ui-card class="legacy-preview">
-  <div id="form-example"></div>
-  <div class="actions">
-    <ui-button id="update-form" label="Update form title"></ui-button>
-    <ui-button id="reset-form" label="Reset drafts"></ui-button>
-  </div>
-  <pre id="form-result" role="status">Submit to inspect local values.</pre>
-</ui-card>
-<h2 class="section-title">Chat · local presentation only</h2>
-<p class="intro">Sample history and theme/sizing overrides. The composer stays disconnected and disabled: no sends, replies, or retries are simulated.</p>
-<ui-button id="chat-theme" label="Toggle message theme"></ui-button>
-<div id="chat-example" class="legacy-preview"></div>
-<h2 class="section-title">App-local counter</h2>
-<demo-counter></demo-counter>
+  <pre><code>&lt;ui-button label="Say hello"&gt;&lt;/ui-button&gt;
+&lt;ui-button label="Disabled" disabled&gt;&lt;/ui-button&gt;</code></pre>
+</section>
+<section class="component-example" aria-labelledby="card-heading">
+  <h2 id="card-heading">Card</h2>
+  <p>A plain surface containing your own HTML. No appearance configuration model.</p>
+  <ui-card>
+    <h3>A small container</h3>
+    <p>Compose text, native controls, or other primitives here.</p>
+  </ui-card>
+  <pre><code>&lt;ui-card&gt;
+  &lt;h3&gt;A small container&lt;/h3&gt;
+  &lt;p&gt;Your content&lt;/p&gt;
+&lt;/ui-card&gt;</code></pre>
+</section>
+<section class="component-example" aria-labelledby="form-heading">
+  <h2 id="form-heading">Form</h2>
+  <p>A thin wrapper around a native form. Required fields use browser validation; submit emits local values without navigation or clearing drafts.</p>
+  <ui-form id="example-form">
+    <form>
+      <label>Name <input name="name" required autocomplete="name"></label>
+      <label>Format
+        <select name="format"><option value="text">Text</option><option value="html">HTML</option></select>
+      </label>
+      <label class="choice"><input type="checkbox" name="updates" value="yes"> Include updates</label>
+      <div class="actions">
+        <ui-button label="Show values" type="submit"></ui-button>
+        <ui-button label="Reset" type="reset"></ui-button>
+      </div>
+    </form>
+  </ui-form>
+  <pre id="form-result" role="status">Submit to see local values.</pre>
+  <pre><code>&lt;ui-form&gt;
+  &lt;form&gt;
+    &lt;label&gt;Name &lt;input name="name" required&gt;&lt;/label&gt;
+    &lt;ui-button label="Submit" type="submit"&gt;&lt;/ui-button&gt;
+  &lt;/form&gt;
+&lt;/ui-form&gt;
+
+form.addEventListener("aui-form-submit", event =&gt; {
+  console.log(event.detail.values);
+});</code></pre>
+</section>
 {% endblock %}

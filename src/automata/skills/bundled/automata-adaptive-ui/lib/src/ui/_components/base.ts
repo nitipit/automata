@@ -1,6 +1,6 @@
 import { Adapter } from "../_lib/adapter.bundle.js";
-import { typography } from "../_tokens/primitives/typography.js";
-import { baseTokens as tokens } from "./base.tokens.js";
+import { typography } from "../_tokens/typography.js";
+import { paletteEntries } from "../_tokens/color.js";
 
 export type ComponentChild = Node | string;
 
@@ -13,7 +13,7 @@ type ComponentClass<Data, Element extends Base<Data>> = {
   new (): Element;
   readonly name: string;
   readonly tagName?: string;
-  validateData(data: unknown): Data;
+  validateData(data: unknown): unknown;
 };
 
 /** Shared Adapter baseline and creation contract for catalog components. */
@@ -23,7 +23,7 @@ export class Base<Data = unknown> extends Adapter {
       box-sizing: border-box;
       font-family: ${typography.family};
       line-height: ${typography.lineHeight};
-      color: ${tokens.foreground};
+      color: ${paletteEntries["dark.4"]};
     `;
   }
 
@@ -52,7 +52,7 @@ export class Base<Data = unknown> extends Adapter {
     }
 
     const element = new this();
-    element.applyData(this.validateData(options.data));
+    element.applyData(this.validateData(options.data) as Data);
     element.append(...(options.children ?? []));
     return element;
   }
@@ -60,7 +60,8 @@ export class Base<Data = unknown> extends Adapter {
   /**
    * Override to apply normalized data; the base hook does nothing.
    * create() calls this before attachment and before appending supplied children.
-   * Direct callers must validate first; this hook does not run validateData().
+   * Custom callers can validate actual data first when needed; this hook itself
+   * does not validate data or configuration.
    */
   applyData(_data: Data): void {}
 }

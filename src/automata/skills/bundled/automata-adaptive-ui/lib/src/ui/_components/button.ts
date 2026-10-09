@@ -1,121 +1,68 @@
 import { Base } from "./base.js";
-import { type ButtonData, validateButtonData } from "./button.schema.js";
-import { buttonTokens as tokens } from "./button.tokens.js";
+import { paletteEntries as colors } from "../_tokens/color.js";
+import { radius } from "../_tokens/radius.js";
+import { spacing } from "../_tokens/spacing.js";
+import { typography } from "../_tokens/typography.js";
 
-/**
- * Native-button wrapper. `disabled` data reflects the boolean attribute: presence
- * disables, including disabled="false". Removing it enables the native control.
- * Validate data before direct applyData(); omitted disabled defaults to false.
- */
+export type ButtonData = {
+  label?: string;
+  type?: "button" | "submit" | "reset";
+  disabled?: boolean;
+};
+
+/** Light-DOM native button. Disabled follows attribute presence, not its text. */
 export class Button extends Base<ButtonData> {
   #button: HTMLButtonElement | null = null;
-  #applyingData = false;
 
   static get observedAttributes(): string[] {
-    return ["label", "tone", "type", "disabled"];
+    return ["label", "type", "disabled"];
   }
 
   static {
     this.css = `
       display: inline-block;
-
       button {
         min-height: 2.5rem;
         border: 0;
-        border-radius: ${tokens.radius};
-        padding: ${tokens.paddingBlock} ${tokens.paddingInline};
-        background: ${tokens.background};
-        color: ${tokens.foreground};
+        border-radius: ${radius.md};
+        padding: ${spacing.sm} ${spacing.md};
+        background: ${colors["blue.4"]};
+        color: ${colors["light.1"]};
         font: inherit;
-        font-weight: ${tokens.weight};
+        font-weight: ${typography.weightMedium};
         cursor: pointer;
       }
-
-      button:focus-visible {
-        outline: 2px solid ${tokens.focus};
-        outline-offset: 2px;
-      }
-
-      button:hover:not(:disabled) {
-        background: ${tokens.backgroundHover};
-      }
-
-      button:disabled {
-        opacity: .45;
-        cursor: not-allowed;
-      }
+      button:hover:not(:disabled) { background: ${colors["blue.5"]}; }
+      button:focus-visible { outline: 2px solid ${colors["blue.4"]}; outline-offset: 2px; }
+      button:disabled { opacity: .45; cursor: not-allowed; }
     `;
-  }
-
-  static override validateData(data: unknown): ButtonData {
-    return validateButtonData(data);
   }
 
   override connectedCallback(): void {
     super.connectedCallback();
-    this.applyAttributes();
+    this.syncButton();
   }
 
-  attributeChangedCallback(
-    _name: string,
-    oldValue: string | null,
-    newValue: string | null,
-  ): void {
-    if (
-      oldValue !== newValue && this.isConnected && !this.#applyingData
-    ) {
-      this.applyAttributes();
-    }
+  attributeChangedCallback(): void {
+    if (this.isConnected) this.syncButton();
   }
 
-  override applyData(data: ButtonData): void {
-    const button = this.ensureButton();
-    this.#applyingData = true;
-    try {
-      this.setAttributeIfChanged("label", data.label);
-      this.setAttributeIfChanged("tone", data.tone);
-      this.setAttributeIfChanged("type", data.type);
-      this.toggleAttribute("disabled", data.disabled);
-      this.setAttributeIfChanged("aria-disabled", String(data.disabled));
-      button.disabled = data.disabled;
-      button.type = data.type;
-      button.textContent = data.label;
-    } finally {
-      this.#applyingData = false;
-    }
+  override applyData(data: ButtonData = {}): void {
+    if (data.label !== undefined) this.setAttribute("label", data.label);
+    if (data.type !== undefined) this.setAttribute("type", data.type);
+    if (data.disabled !== undefined) this.toggleAttribute("disabled", data.disabled);
+    this.syncButton();
   }
 
-  private applyAttributes(): void {
-    this.applyData(validateButtonData({
-      label: this.getAttribute("label") ?? undefined,
-      tone: this.getAttribute("tone") ?? undefined,
-      type: this.getAttribute("type") ?? undefined,
-      disabled: this.hasAttribute("disabled"),
-    }));
-  }
-
-  private setAttributeIfChanged(name: string, value: string): void {
-    if (this.getAttribute(name) !== value) {
-      this.setAttribute(name, value);
-    }
-  }
-
-  private ensureButton(): HTMLButtonElement {
+  private syncButton(): void {
     if (!this.#button) {
-      const existing = this.querySelector(":scope > button");
-      this.#button = existing instanceof HTMLButtonElement
-        ? existing
-        : document.createElement("button");
-      if (!existing) {
-        this.append(this.#button);
-      }
+      this.#button = this.querySelector<HTMLButtonElement>(":scope > button") ??
+        document.createElement("button");
+      if (!this.#button.parentNode) this.append(this.#button);
     }
-    return this.#button;
+    const label = this.getAttribute("label");
+    if (label !== null) this.#button.textContent = label;
+    this.#button.type = (this.getAttribute("type") ?? "button") as HTMLButtonElement["type"];
+    this.#button.disabled = this.hasAttribute("disabled");
   }
 }
-
-Button.addStyle(`
-  &[tone="danger"] button {
-    background: ${tokens.dangerBackground};
-  }
-`);

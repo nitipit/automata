@@ -5,15 +5,11 @@
   "imports": {
     "esbuild": "npm:esbuild@0.25.11",
     "@devcapsule/adapter": "npm:@jsr/devcapsule__adapter@4.0.0",
-    "edictor": "npm:edictor@0.4.0",
     "@adaptive/base": "../../../automata-adaptive-ui/lib/src/ui/_components/base.ts",
     "@adaptive/button": "../../../automata-adaptive-ui/lib/src/ui/_components/button.ts",
     "@adaptive/card": "../../../automata-adaptive-ui/lib/src/ui/_components/card.ts",
     "@adaptive/form": "../../../automata-adaptive-ui/lib/src/ui/_components/form.ts",
-    "@adaptive/chat": "../../../automata-adaptive-ui/lib/src/ui/_components/chat.ts",
-    "@adaptive/tokens": "../../../automata-adaptive-ui/lib/src/ui/tokens.ts",
-    "@adaptive/colors": "../../../automata-adaptive-ui/lib/src/ui/color-catalog.ts",
-    "@adaptive/theme": "../../../automata-adaptive-ui/lib/src/ui/theme.ts"
+    "@adaptive/tokens": "../../../automata-adaptive-ui/lib/src/ui/tokens.ts"
   },
   "tasks": {
     "build": "deno run -A scripts/build.ts",

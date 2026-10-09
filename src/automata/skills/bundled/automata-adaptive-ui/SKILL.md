@@ -39,15 +39,17 @@ state. The page composes components and connects data sources without redefining
 those contracts or conflating independent pending actions. Logical ownership does
 not require separate files or permanent catalog components.
 
-Use JSON-compatible data at integration boundaries; parse JSON text before schema
-validation. For the shipped components, direct `applyData` callers validate with
-`validateData` first. Distinguish pending input, confirmed results, errors and
+Use JSON-compatible data at integration boundaries; parse JSON text before any
+needed actual-data validation. The shipped primitives use simple typed/native
+properties, not mandatory style/configuration schemas. Custom components can use
+Base's `validateData` hook when meaningful data needs it. Distinguish pending input,
+confirmed results, errors and
 unknown/disconnected state. A transport receipt is not completion. Apply a reply
 only to its originating, still-current component; do not replay uncertain actions.
 The component need not know whether its data came from Python, an agent or a file.
 
-Use public exports and semantic tokens rather than private library internals.
-Page styles own layout/theme; component styles own internals. Preserve useful input
+Use public exports and primitive values rather than private library internals.
+Page CSS owns layout; component CSS owns appearance and internals. Preserve useful input
 when updating a component: replacement, changed form fields and full reloads can
 lose drafts. Consult the affected component's contract before assuming preservation.
 Arrow and Shadow DOM are not security sandboxes.
@@ -58,14 +60,11 @@ The library, builder and examples ship with this skill. Resolve these paths agai
 its directory and treat installed assets as read-only. Read the relevant contract,
 not the entire library, before using an API:
 
-- `lib/example/index.html` and companions: catalog composition, registration,
-  page-local components and CSS-in-JS.
-- `lib/example/dashboard.html`: a custom `Base` component with `validateData` and
-  `applyData`, JSON-compatible sample rows, local filtering, loading/error states
-  and resize cleanup. Adapt its data source rather than copying a server design.
-- `lib/example/reactive-shadow.html`: optional Arrow reactivity and Shadow DOM.
+- The sibling `automata-web-dev/examples/webapp/README.md`: the two runnable
+  design pages, project-copy setup, primitive samples and short component usages.
 - `lib/src/ui/adaptive-ui.ts`, `lib/src/ui/tokens.ts` and relevant component modules:
-  exact exports, schemas, registration, styling and update semantics.
+  public exports, primitive values, registration and native-control behavior.
+  The current catalog is Button, Card and a thin native Form, plus shared Base.
 - `scripts/build.py --help`: prerequisites, build/preview commands and output layout.
 
 Build a missing or stale library only when needed and authorized, outside installed
@@ -89,8 +88,9 @@ can be evicted, and restoring a UI restores neither runtime objects nor connecti
 
 Promote a selected draft only with approval, capturing source, inputs, dependencies
 and resource cleanup in maintained files. Verify independence from browser caches
-and live injection. Reusable catalog additions need their own review, schemas and
-tests; do not promote by modifying an installed skill.
+and live injection. Reusable catalog additions need explicit scope and suitable data contracts;
+appearance belongs to CSS, not mandatory schemas or aesthetic assertion tests.
+Do not promote by modifying an installed skill.
 
 ## Preview and verify
 

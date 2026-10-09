@@ -45,10 +45,11 @@ recipes when they avoid rediscovery; recheck them after dependency or layout cha
 
 - Routes explicitly select templates and public assets; do not mount the source tree.
 - Shared templates own page structure; shared browser entries own initialization.
-- Component code owns its behavior and data contracts; page styles own layout/theme.
-- Semantic design tokens express purpose; demo palettes are not a finished design
-  system. For this example's GNOME-informed choices and browser-adaptation limits,
-  see [Design direction](examples/webapp/README.md#design-direction).
+- Component code owns behavior and concrete CSS; native controls own basic input
+  constraints. Actual-data schemas can be useful, but appearance needs no model.
+- The example exposes primitive color/effect/spacing/shape/typography values, not
+  a semantic role or mode system. It has only Tokens and Components pages; see
+  [Design references and limits](examples/webapp/README.md#design-references-and-limits).
 - Generated bundles, dependency trees and environments stay separate from maintained
   inputs. Rebuild from source rather than editing output.
 
@@ -63,7 +64,7 @@ production infrastructure merely to make a preview convenient.
 Build before starting a server whose static mount requires generated output. Use
 loopback for local previews and identify process ownership and shutdown. Backend reload,
 frontend rebuild and browser refresh are different operations; the example has no
-browser hot reload and its local counter resets on navigation.
+browser hot reload; local example input is not persisted across navigation.
 
 Check types/build, route responses and the rendered page. Exercise a relevant browser
 interaction, navigation, keyboard/focus behavior and failure states. For backend

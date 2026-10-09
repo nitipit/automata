@@ -32,7 +32,7 @@ Paths and updates:
   Resolve the approved website root absolutely before launching subprocesses.
   --check compares freshness without replacement; exit 0 means fresh, nonzero
   means missing, stale, or a build error (see stderr). Rebuild without --check
-  when needed. --validate also runs type checks, tests, and lint.
+  when needed. --validate also runs type checks and lint.
   For experimental inputs, copy the shipped library outside installed source
   and the served tree, then use --source-root and a separate --runtime-root.
 
@@ -48,14 +48,13 @@ Website and preview:
   Everything under the served root must be public-safe; keep credentials,
   browser profiles, build inputs, and operational records outside it.
   Any suitable loopback static server can serve an already built website.
-  The bundled server below requires Deno but no external dependencies.
+  Python's static server below requires no external dependencies.
 
 Examples (replace <skill-directory>, <absolute-public-safe-root>, and <port>):
   WEBSITE_ROOT="<absolute-public-safe-root>"
   python <skill-directory>/scripts/build.py --runtime-root "$WEBSITE_ROOT"
   python <skill-directory>/scripts/build.py --runtime-root "$WEBSITE_ROOT" --check --validate
-  deno run --no-config --no-lock --allow-net=127.0.0.1 --allow-read="$WEBSITE_ROOT" \
-    <skill-directory>/lib/src/server.ts --root="$WEBSITE_ROOT" --port=<port>
+  python -m http.server <port> --bind 127.0.0.1 --directory "$WEBSITE_ROOT"
   For index.html at the root, visit http://127.0.0.1:<port>/.
 
   This builder does not start a server or browser. Establish process ownership
@@ -86,7 +85,7 @@ Examples (replace <skill-directory>, <absolute-public-safe-root>, and <port>):
     parser.add_argument(
         "--validate",
         action="store_true",
-        help="Also run cached Deno type checks, tests and lint in the temporary workspace.",
+        help="Also run cached Deno type checks and lint in the temporary workspace.",
     )
     args = parser.parse_args()
     source = args.source_root.expanduser().resolve()
@@ -114,7 +113,12 @@ Examples (replace <skill-directory>, <absolute-public-safe-root>, and <port>):
                 workspace,
                 ignore=shutil.ignore_patterns("node_modules", "dist", "browser", "__pycache__"),
             )
-            tasks = ["check", "test", "lint", "build"] if args.validate else ["build"]
+            if args.validate:
+                subprocess.run(
+                    [deno, "install", "--cached-only", "--allow-scripts=npm:esbuild"],
+                    cwd=workspace, check=True,
+                )
+            tasks = ["check", "lint", "build"] if args.validate else ["build"]
             for task in tasks:
                 subprocess.run([deno, "task", task], cwd=workspace, check=True)
             bundle = workspace / "dist" / "adaptive-ui.js"

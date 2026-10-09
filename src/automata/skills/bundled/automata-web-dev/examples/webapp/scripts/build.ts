@@ -15,7 +15,7 @@ const options: esbuild.BuildOptions = {
   alias: {
     "@devcapsule/adapter": "@jsr/devcapsule__adapter",
     ...Object.fromEntries(
-      ["base", "button", "card", "form", "chat", "tokens", "colors", "theme"].map((name) => [
+      ["base", "button", "card", "form", "tokens"].map((name) => [
         `@adaptive/${name}`,
         fileURLToPath(import.meta.resolve(`@adaptive/${name}`)),
       ]),
