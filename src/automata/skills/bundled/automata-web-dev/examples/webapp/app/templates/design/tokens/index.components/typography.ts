@@ -12,11 +12,11 @@ export class Typography extends Base {
       .specimen-heading { margin-bottom: 1.5rem; }
       .specimen-heading h2 { margin: 0 0 .35rem; font-size: 1.25rem; }
       .specimen-heading p { margin: 0; color: #5e5c64; font-size: .85rem; }
-      .type-board { padding: 2rem; border: 1px solid #deddda; border-radius: .75rem; background: #ffffff; }
-      .type-eyebrow { margin: 0 0 1rem; color: #5e5c64; font-size: .85rem; }
-      .type-heading { margin: 0 0 1rem; font-size: 2rem; line-height: 1.25; letter-spacing: -.025em; }
-      .type-body { max-width: 58ch; margin: 0 0 1.5rem; font-size: 1rem; }
-      .type-label { display: block; font-size: .85rem; }
+      .type-board { padding: 2rem; border: 1px solid #deddda; border-radius: .75rem; background: #ffffff; font-size: ${typography.bodySize}; }
+      .type-eyebrow { margin: 0 0 1rem; color: #5e5c64; font-size: ${typography.labelSize}; }
+      .type-heading { margin: 0 0 1rem; font-size: ${typography.headingSize}; line-height: 1.25; letter-spacing: -.025em; }
+      .type-body { max-width: 58ch; margin: 0 0 1.5rem; font-size: 1em; }
+      .type-label { display: block; font-size: ${typography.labelSize}; }
       .specimen-note { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .75rem 0 0; color: #5e5c64; font-size: .85rem; }
       @media (max-width: 700px) { .type-board { padding: 1.5rem; } }
     `;
@@ -45,7 +45,8 @@ export class Typography extends Base {
     }
     const values = this.querySelector("#typography-values")!;
     for (const value of [typography.family, `Line height ${typography.lineHeight}`,
-      `Weight ${typography.weightMedium}`, "Heading 2rem · Body 1rem · Label .85rem"]) {
+      `Weight ${typography.weightMedium}`, "Body 15–17px · Heading 28–40px · Fluid across 600–1200px",
+      `Label ${typography.labelSize} of the body-sized parent`]) {
       values.append(element("span", "", value));
     }
   }
