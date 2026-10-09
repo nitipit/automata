@@ -20,21 +20,35 @@ export class Button extends Base<ButtonData> {
 
   static {
     this.css = `
-      display: inline-block;
+      display: inline-flex;
+      vertical-align: middle;
       button {
-        min-height: 2.5rem;
-        border: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        min-height: 2.25rem;
+        margin: 0;
+        border: 1px solid ${colors["blue.5"]};
         border-radius: ${radius.md};
         padding: ${spacing.sm} ${spacing.md};
         background: ${colors["blue.4"]};
         color: ${colors["light.1"]};
         font: inherit;
+        font-size: .875rem;
         font-weight: ${typography.weightMedium};
+        line-height: 1.25;
+        text-align: center;
         cursor: pointer;
       }
       button:hover:not(:disabled) { background: ${colors["blue.5"]}; }
-      button:focus-visible { outline: 2px solid ${colors["blue.4"]}; outline-offset: 2px; }
-      button:disabled { opacity: .45; cursor: not-allowed; }
+      button:focus-visible { outline: 2px solid ${colors["blue.4"]}; outline-offset: 3px; }
+      button:disabled {
+        background: ${colors["light.3"]};
+        border-color: ${colors["light.4"]};
+        color: ${colors["dark.2"]};
+        cursor: not-allowed;
+      }
     `;
   }
 
