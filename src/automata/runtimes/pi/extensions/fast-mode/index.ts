@@ -44,11 +44,8 @@ const requestedTier = (enabled: boolean, model: Route) =>
 export default function fastMode(pi: ExtensionAPI): void {
   function status(ctx: ExtensionContext): string {
     const { enabled } = branchState(ctx.sessionManager.getBranch());
-    const model = ctx.model;
-    const eligibility = supportedRoute(model) ?
-      `eligible selected route; request=${requestedTier(enabled, model) ?? "omitted (Codex standard request)"}` :
-      "inactive (unsupported selected route); tier not enforced";
-    return `Fast request policy ${enabled ? "on" : "off"}; ${eligibility}; response tier not tracked`;
+    const unavailable = enabled && !supportedRoute(ctx.model);
+    return `Fast mode ${enabled ? "on" : "off"}${unavailable ? " — unavailable for this model" : ""}`;
   }
   const refresh = (ctx: ExtensionContext) => {
     if (ctx.hasUI) ctx.ui.setStatus(STATUS_KEY, branchState(ctx.sessionManager.getBranch()).enabled ? "fast" : undefined);
@@ -60,19 +57,18 @@ export default function fastMode(pi: ExtensionAPI): void {
     default: false,
   });
   pi.registerCommand("fast", {
-    description: "Request policy for this branch: /fast on|off|status (premium when on)",
+    description: "Toggle Fast mode; /fast on|off|status for explicit control",
     getArgumentCompletions: prefix => ["on", "off", "status"].filter(value => value.startsWith(prefix))
       .map(value => ({ value, label: value })),
     handler: async (args, ctx) => {
-      const action = args.trim().toLowerCase() || "status";
+      const action = args.trim().toLowerCase() ||
+        (branchState(ctx.sessionManager.getBranch()).enabled ? "off" : "on");
       const valid = ["on", "off", "status"].includes(action);
       if (valid && action !== "status") {
         pi.appendEntry(MODE_TYPE, { version: 1, enabled: action === "on" });
       }
       refresh(ctx);
-      const text = valid ? status(ctx) + (action === "on" ?
-        "; premium usage/pricing may apply to eligible conversation and auxiliary calls." : "") :
-        "Usage: /fast on|off|status";
+      const text = valid ? status(ctx) : "Usage: /fast [on|off|status]";
       if (ctx.hasUI) ctx.ui.notify(text, valid ? "info" : "warning");
       else console.error(text); // Never corrupt JSON/RPC stdout with status text.
     },

@@ -1,6 +1,7 @@
 # Fast request policy for Pi
 
-A small separate extension for `/fast on|off|status` and startup `--fast`.
+A small separate extension for `/fast` toggling, explicit `/fast on|off|status`
+and startup `--fast`.
 **It requests a tier; it does not track the response tier or prove Fast access,
 speed, quotas or billing.** No model/reasoning change, provider replacement,
 response records, cost correction, global configuration or new dependency.
@@ -9,9 +10,10 @@ response records, cost correction, global configuration or new dependency.
 
 | Control | Effect |
 | --- | --- |
+| `/fast` | Toggle the active branch's desired Fast policy on/off |
 | `/fast on` | Request wire tier `priority` on selected official Codex and OpenAI API routes |
 | `/fast off` | Remove `service_tier` on Codex (standard request); explicitly request `default` on OpenAI API routes. Clear inherited premium values in both cases |
-| `/fast status` or `/fast` | Show desired policy, selected-route eligibility and requested tier; no toggle |
+| `/fast status` | Show desired on/off state without changing it |
 | `--fast` | Opt the initial active branch into premium at CLI startup |
 
 OpenAI documents API `fast` and `priority` as equivalent for supported models.
@@ -41,8 +43,14 @@ that branch. It is not reapplied by `/reload`, in-process `/new`, `/fork` or
 `--fast`. Omitting `--fast` does not turn a resumed on branch off; use `/fast off`.
 Pi treats a present boolean flag as true, so `--fast false` is not a disable control. There is no global enabled-state migration or agent tool.
 
-Status says **request policy** and **response tier not tracked**. An inactive
-route says **tier not enforced**, never Standard enforced. TUI/RPC use native UI
+Commands confirm **Fast mode on** or **Fast mode off**. When on with an
+unsupported selected route, they show **Fast mode on — unavailable for this model**.
+“On” confirms the desired request policy, not delivered priority or faster replies.
+The extension does not inspect provider responses to determine the actual served
+tier; response-tier and premium usage/pricing caveats stay in documentation rather
+than repeated notifications. Premium usage/pricing may apply to eligible conversation
+and auxiliary calls. Unsupported routes remain untouched even when off; an off
+confirmation does not enforce Standard on those routes. TUI/RPC use native UI
 feedback; status/command feedback in print/JSON goes to stderr, not protocol stdout.
 Native cost estimates remain unchanged and are not authoritative billing records
 (especially Codex premium requests, missing tier metadata and Chat Completions).
@@ -113,10 +121,11 @@ For tmux, after approving the path and launch:
 tmux new-session -s fast 'pi --no-extensions -e /absolute/path/to/fast-mode --fast'
 ```
 
-Check `/fast status` before use. Codex off shows `request=omitted (Codex standard
-request)`; API off shows `request=default`. Without `--fast`, a resumed branch
-still follows its saved policy. Removing the extension also removes its off-policy
-override; it does not alter provider/project defaults.
+Check `/fast status` before use. Off omits `service_tier` for Codex and requests
+`default` for OpenAI API routes; notifications show only the concise mode state.
+Without `--fast`, a resumed branch still follows its saved policy. Removing the
+extension also removes its off-policy override; it does not alter provider/project
+defaults.
 
 Existing v1 branch entries store only on/off, not a tier string, so no session
 migration is needed. A separately approved install/reload applies this corrected

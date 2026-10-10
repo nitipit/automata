@@ -74,7 +74,7 @@ async function stderr(action) {
 // No accidental networking outside explicit local test stubs.
 globalThis.fetch = () => assert.fail("Live HTTP requests forbidden");
 
-test("safe off, explicit premium, syntax, immutable payload and request-only status", async () => {
+test("safe off, bare toggle, explicit controls, syntax and concise status", async () => {
   const f = fixture();
   await f.emit("session_start", { reason: "startup" });
   assert.equal(f.state().enabled, false);
@@ -83,16 +83,29 @@ test("safe off, explicit premium, syntax, immutable payload and request-only sta
   assert.deepEqual(await f.request(original), { ...original, service_tier: "default" });
   assert.equal(original.service_tier, "auto");
   const selected = structuredClone(f.ctx.model);
-  for (const action of ["", "status", "toggle", "on extra"]) await f.fast(action);
+  await f.fast("status");
+  assert.equal(f.notifications.at(-1).value, "Fast mode off");
+  for (const action of ["toggle", "on extra"]) await f.fast(action);
   assert.equal(f.state().enabled, false);
   assert.equal(f.manager.getBranch().length, 0);
   assert.equal(f.notifications.at(-1).kind, "warning");
+  assert.equal(f.notifications.at(-1).value, "Usage: /fast [on|off|status]");
+  await f.fast("");
+  assert.equal(f.state().enabled, true);
+  assert.equal((await f.request(original)).service_tier, "priority");
+  assert.equal(f.notifications.at(-1).value, "Fast mode on");
+  await f.fast("status");
+  assert.equal(f.state().enabled, true);
+  assert.equal(f.manager.getBranch().length, 1, "status does not append policy entries");
+  await f.fast("   ");
+  assert.equal(f.state().enabled, false);
+  assert.equal(f.notifications.at(-1).value, "Fast mode off");
+  assert.deepEqual(f.manager.getBranch().map(entry => entry.data.enabled), [true, false]);
   await f.fast("ON");
   assert.equal((await f.request(original)).service_tier, "priority");
   assert.deepEqual(f.ctx.model, selected);
-  assert.match(f.notifications.at(-1).value, /premium.*auxiliary/);
+  assert.equal(f.notifications.at(-1).value, "Fast mode on");
   assert.equal(f.statuses.at(-1), "fast");
-  assert.match(f.notifications.at(-1).value, /request policy on.*eligible selected route.*response tier not tracked/);
   await f.fast("off");
   assert.equal((await f.request({ ...original, service_tier: "fast" })).service_tier, "default");
   assert.deepEqual(f.command.getArgumentCompletions("o").map(item => item.value), ["on", "off"]);
@@ -100,7 +113,7 @@ test("safe off, explicit premium, syntax, immutable payload and request-only sta
   f.ctx.hasUI = false;
   const statusCount = f.statuses.length;
   const output = await stderr(() => f.fast("status"));
-  assert.match(output[0], /request policy off.*request=default.*not tracked/);
+  assert.deepEqual(output, ["Fast mode off"]);
   for (const event of ["model_select", "session_tree", "session_shutdown"]) await f.emit(event);
   assert.equal(f.statuses.length, statusCount, "no footer writes without UI");
   f.ctx.hasUI = true;
@@ -111,7 +124,13 @@ test("safe off, explicit premium, syntax, immutable payload and request-only sta
   await f.emit("model_select");
   assert.equal(f.statuses.at(-1), "fast", "status shows requested policy even on unsupported routes");
   await f.fast("status");
-  assert.match(f.notifications.at(-1).value, /request policy on.*inactive.*tier not enforced.*not tracked/);
+  assert.equal(f.notifications.at(-1).value, "Fast mode on — unavailable for this model");
+  await f.fast("");
+  assert.equal(f.state().enabled, false);
+  assert.equal(f.notifications.at(-1).value, "Fast mode off");
+  await f.fast("");
+  assert.equal(f.state().enabled, true);
+  assert.equal(f.notifications.at(-1).value, "Fast mode on — unavailable for this model");
   f.manager.appendCustomEntry(MODE_TYPE, { version: 1, enabled: false });
   await f.emit("session_start", { reason: "reload" });
   assert.equal(f.statuses.at(-1), undefined, "reload clears status when Fast mode is off");
@@ -135,7 +154,7 @@ test("Codex on uses priority; off clears inherited tiers without mutating other 
   await f.fast("on");
   assert.equal((await f.request(payload(m))).service_tier, "priority");
   assert.equal(f.statuses.at(-1), "fast");
-  assert.match(f.notifications.at(-1).value, /request=priority/);
+  assert.equal(f.notifications.at(-1).value, "Fast mode on");
   await f.fast("off");
   for (const tier of ["priority", "fast", "auto", "default", undefined]) {
     const original = { ...payload(m), service_tier: tier };
@@ -146,7 +165,7 @@ test("Codex on uses priority; off clears inherited tiers without mutating other 
     assert.equal(original.service_tier, tier);
   }
   assert.equal(f.statuses.at(-1), undefined);
-  assert.match(f.notifications.at(-1).value, /request=omitted \(Codex standard request\).*not tracked/);
+  assert.equal(f.notifications.at(-1).value, "Fast mode off");
 });
 
 test("static provider/API/endpoint guards, unknown payloads and 6.1/future IDs", async () => {
@@ -172,7 +191,7 @@ test("static provider/API/endpoint guards, unknown payloads and 6.1/future IDs",
     const input = payload();
     assert.strictEqual(await f.request(input), input);
     assert.equal(f.statuses.at(-1), undefined);
-    assert.match(f.notifications.at(-1).value, /inactive.*tier not enforced.*not tracked/);
+    assert.equal(f.notifications.at(-1).value, "Fast mode off");
   }
   const f = fixture();
   for (const input of [null, [], "bad", {}, { model: "different", service_tier: "auto" }]) {
@@ -375,10 +394,14 @@ test("native SDK startup flag, command-only no requests, unchanged effort, no ou
     assert.equal(sent[0].body.reasoning.effort, "high");
     assert.equal(session.model.id, "gpt-6.1-sol");
     assert.equal(session.thinkingLevel, "high");
-    await stderr(() => session.prompt("/fast off"));
+    assert.deepEqual(await stderr(() => session.prompt("/fast")), ["Fast mode off"]);
+    assert.equal(sent.length, 1, "bare command dispatches no provider request");
     await session.prompt("Second fixture");
     assert.equal(sent[1].body.service_tier, "default");
     assert.equal(sent.length, 2);
+    assert.deepEqual(await stderr(() => session.prompt("/fast")), ["Fast mode on"]);
+    assert.equal(branchState(session.sessionManager.getBranch()).enabled, true);
+    assert.equal(sent.length, 2, "toggle back on is also command-only");
     assert.ok(policyEntries(session).every(entry => entry.customType === MODE_TYPE));
   } finally { session.dispose(); }
 });
@@ -436,7 +459,7 @@ test("native idle warming keeps useful refresh and cannot leave fake pending sta
     assert.equal(sent[1].warm, true);
     assert.equal(sent[1].body.service_tier, "priority");
     const output = await stderr(() => session.prompt("/fast status"));
-    assert.match(output[0], /request policy on.*not tracked/);
+    assert.deepEqual(output, ["Fast mode on"]);
     assert.doesNotMatch(output[0], /pending|observed=/);
     assert.ok(policyEntries(session).every(entry => entry.customType === MODE_TYPE));
   } finally { session.dispose(); }

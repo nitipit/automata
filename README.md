@@ -45,8 +45,8 @@ This README is a quick orientation map; follow the relevant source for details.
 ## Pi Fast mode
 
 The separate [`fast-mode` extension](src/automata/runtimes/pi/extensions/fast-mode/README.md)
-provides `/fast on|off|status` and startup `--fast` request policy, including
-eligible warming calls. It defaults off and follows session branch history;
+provides `/fast` toggling, `/fast on|off|status` and startup `--fast` request
+policy, including eligible warming calls. It defaults off and follows session branch history;
 response tiers are not tracked. Use official direct routes with no proxies or
 model switches during dispatch: guards are best-effort, not physical-route
 isolation. Disable competing `/fast`/`--fast` extensions under separate approval
