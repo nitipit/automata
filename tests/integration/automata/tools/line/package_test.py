@@ -22,6 +22,9 @@ def test_install_is_code_only_and_skill_mapping_is_neutral(tmp_path):
     install_skills(target_root=skills, skill_names=["automata-line-use"])
     assert {p.name for p in (tools / "line").iterdir()} == {
         "line_cli.py",
+        "line_contracts.py",
+        "line_mentions.py",
+        "line_read_evidence.py",
         "line_runtime.py",
         "line_schemas.py",
         "line_send.py",
@@ -115,6 +118,8 @@ def test_installed_cli_is_json_and_does_not_create_profile(tmp_path):
             "--confirm",
             "--draft",
             "--image",
+            "--mention-id",
+            "--mention-all",
             "Exact text",
             "One local PNG",
         ],

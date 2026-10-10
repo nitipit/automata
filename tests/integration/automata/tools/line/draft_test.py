@@ -108,7 +108,9 @@ class LineTests(unittest.TestCase):
 
     def test_legacy_token_without_identity_rejected(self):
         line.STATE.mkdir(parents=True, exist_ok=True)
-        line.save_state({"token": "legacy", "digest": "unused", "status": "prepared"})
+        (line.STATE / "draft.json").write_text(
+            '{"token":"legacy","digest":"unused","status":"prepared"}'
+        )
         with self.assertRaises(RuntimeError):
             self.client.send("group-a", "legacy", "Fixture Group")
         self.assertEqual(self.page.evaluate("sent"), 0)
@@ -129,56 +131,12 @@ class LineTests(unittest.TestCase):
         self.assertEqual(result["images"], 1)
         self.assertEqual(self.page.evaluate("sent"), 0)
 
-    def install_picker(self, duplicate=False):
-        self.page.evaluate(
-            """duplicate => {
-          document.querySelector('textarea').addEventListener('input', e => {
-            if(e.target.value !== '@') return;
-            const menu=document.createElement('div'); menu.id='picker';
-            for(let i=0;i<(duplicate?2:1);i++) {
-              const option=document.createElement('div'); option.role='option';
-              option.innerHTML='<button data-id="member-123"><span>Test Member</span></button>';
-              option.querySelector('button').onclick=()=>{
-                e.target.value='\\ue26e ';
-                const marker=document.createElement('span');
-                marker.setAttribute('part','block mention');
-                marker.textContent='native';
-                document.querySelector('.chatroom-module__chatroom__fixture').append(marker);
-                menu.remove();
-              };
-              menu.append(option);
-            }
-            document.body.append(menu);
-          });
-        }""",
-            duplicate,
-        )
-
-    def test_native_mention_and_suffix(self):
-        self.install_picker()
-        result = self.client.mention("group-a", "Test Member", "สวัสดี\nHello 🙂", "Fixture Group")
-        self.assertEqual(result["mention"], "Test Member")
-        self.assertEqual(self.page.locator('[part~="mention"]').count(), 1)
-        self.assertTrue(self.page.locator("textarea").input_value().endswith("สวัสดี\nHello 🙂"))
-        self.assertEqual(self.page.evaluate("sent"), 0)
-        # Same visible text with a removed mention must fail the draft fingerprint.
-        self.page.locator('[part~="mention"]').evaluate("(e)=>e.remove()")
-        with self.assertRaises(RuntimeError):
-            self.client.send("group-a", result["token"], "Fixture Group")
-
-    def test_ambiguous_mention_rejected(self):
-        self.install_picker(duplicate=True)
-        with self.assertRaises(RuntimeError):
-            self.client.mention("group-a", "Test Member", "", "Fixture Group")
-        self.assertEqual(self.page.evaluate("sent"), 0)
-
-    def test_all_mention_rejected(self):
-        with self.assertRaises(RuntimeError):
-            self.client.mention("group-a", "All", "", "Fixture Group")
-        self.assertEqual(self.page.locator("textarea").input_value(), "")
-
     def test_uncertain_receipt_blocks_fresh_preparation_even_when_empty(self):
-        line.save_state({"token": "uncertain", "status": "uncertain"})
+        self.client.draft("group-a", "prepared")
+        state = line.load_state()
+        state["status"] = "uncertain"
+        line.save_state(state)
+        self.page.locator("textarea").fill("")
         with self.assertRaisesRegex(RuntimeError, "uncertain"):
             self.client.draft("group-a", "do not duplicate")
         self.assertEqual(self.page.locator("textarea").input_value(), "")

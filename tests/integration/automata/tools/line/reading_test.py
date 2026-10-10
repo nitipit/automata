@@ -131,6 +131,35 @@ class BrowserReadingTests(unittest.TestCase):
             )
         self.assertEqual([m["id"] for m in result["messages"]], ["101-m3"])
 
+    def test_stalled_loading_is_unknown_not_complete_history(self):
+        with patch.object(self.reader, "open_id", return_value="Fixture"):
+            result = self.reader.read("chat1", {}, None, max_scrolls=4)
+        coverage = result["coverage"]
+        self.assertEqual(coverage["reason"], "no_more_loaded_messages")
+        self.assertEqual(coverage["older_history_availability"], "unknown")
+        self.assertTrue(coverage["older_history_unverified"])
+        self.assertFalse(coverage["result_overflow"])
+        self.assertEqual(coverage["freshness"], "unknown")
+        self.assertEqual(coverage["newest_loaded_timestamp_ms"], 100)
+        self.assertTrue(coverage["observed_at"])
+
+    def test_visible_chat_list_newer_evidence_and_result_overflow_are_separate(self):
+        self.page.evaluate("""() => {
+            const row=document.createElement('div');row.dataset.mid='chat1';
+            row.className='chatlistItem-module__chatlist_item__fixture';
+            row.innerHTML='<time datetime="1970-01-01T00:00:02Z"></time>';
+            document.body.append(row);
+        }""")
+        with patch.object(self.reader, "open_id", return_value="Fixture"):
+            result = self.reader.read("chat1", {}, None, limit=1, max_scrolls=0)
+        coverage = result["coverage"]
+        self.assertEqual(coverage["freshness"], "newer_chat_list_evidence")
+        self.assertEqual(coverage["chat_list_latest_timestamp_ms"], 2000)
+        self.assertTrue(coverage["result_overflow"])
+        self.assertEqual(coverage["reason"], "scroll_limit")
+        self.assertEqual(coverage["older_history_availability"], "unknown")
+        self.assertFalse(coverage["requested_window"]["returned_all_loaded_matches"])
+
     def test_state_unchanged_by_read(self):
         entry = {"anchor_id": "100-m1", "seen": {}}
         with patch.object(self.reader, "open_id", return_value="Fixture"):
