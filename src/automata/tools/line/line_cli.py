@@ -81,6 +81,9 @@ def read(options: Annotated[Read, Parameter(name="*")]):
 
     Newest-first, except --after is oldest-first. Dates use AUTOMATA_LINE_TIMEZONE
     (UTC default); timestamps require offsets. Inspect coverage before continuing.
+    more/result_overflow describe returned matches, not older server history.
+    Repeated unchanged IDs do not prove history complete. Freshness stays unknown
+    unless the chat list shows newer data than the loaded messages (second precision).
     """
     from line_runtime import connect
 
@@ -138,8 +141,12 @@ def dispatch_send(line, options):
         )
     elif options.image:
         prepared = line.attach(options.chat_id, options.image)
+    elif options.mention_all:
+        prepared = line.mention_all(options.chat_id, options.text or "")
     elif options.mention:
-        prepared = line.mention(options.chat_id, options.mention, options.text or "")
+        prepared = line.mention(
+            options.chat_id, options.mention, options.text or "", member_id=options.mention_id
+        )
     else:
         prepared = line.draft(options.chat_id, options.text)
     return prepared if options.draft else line.send(options.chat_id, prepared["token"])
@@ -151,6 +158,10 @@ def send(options: Annotated[Send, Parameter(name="*")]):
 
     Requires an empty composer for new content; failure may leave a partial draft.
     Consumes confirmation before dispatch. Never retry an uncertain send.
+    Individual mentions resolve a unique name/member ID; --mention-id pins the ID.
+    --mention-all is explicit and never a fallback. Public composer M/A metadata
+    must match after insertion, suffix and confirmation; no identity means no send.
+    Legacy/malformed composer receipts stop without migration or automatic replay.
     Sticker drafts are metadata-only. Success is not recipient delivery confirmation.
     """
     from line_runtime import connect

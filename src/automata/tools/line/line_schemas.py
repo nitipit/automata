@@ -116,7 +116,19 @@ class Send(Chat):
         str | None, Field(default=None), Parameter(help="Exact text; @Name is plain text.")
     ]
     mention: Annotated[
-        str | None, Field(default=None), Parameter(help="Exact individual native-mention name.")
+        str | None,
+        Field(default=None),
+        Parameter(help="Exact individual name; resolves one member ID, never All."),
+    ]
+    mention_id: Annotated[
+        str | None,
+        Field(default=None),
+        Parameter(help="Expected member ID; requires --mention NAME."),
+    ]
+    mention_all: Annotated[
+        bool,
+        Field(default=False),
+        Parameter(help="Explicit native @All; excludes --mention/--mention-id."),
     ]
     image: Annotated[Path | None, Field(default=None), Parameter(help="One local PNG file.")]
     sticker_package: Annotated[
@@ -135,11 +147,13 @@ class Send(Chat):
             if (
                 not self.confirm
                 or self.draft
+                or self.mention_all
                 or any(
                     x is not None
                     for x in (
                         self.text,
                         self.mention,
+                        self.mention_id,
                         self.image,
                         self.sticker_package,
                         self.sticker_id,
@@ -148,8 +162,14 @@ class Send(Chat):
             ):
                 raise ValueError("--confirm requires a token and excludes content options/--draft")
             return
+        if self.mention_all and (self.mention is not None or self.mention_id is not None):
+            raise ValueError("--mention-all excludes individual mention options")
+        if self.mention_id is not None and (
+            self.mention is None or not re.fullmatch(r"[A-Za-z0-9_-]+", self.mention_id)
+        ):
+            raise ValueError("--mention-id requires --mention NAME and a valid member ID")
         modes = (
-            self.text is not None or self.mention is not None,
+            self.text is not None or self.mention is not None or self.mention_all,
             self.image is not None,
             self.sticker_package is not None or self.sticker_id is not None,
         )
@@ -158,7 +178,7 @@ class Send(Chat):
         if modes[0]:
             if self.mention is not None and (not self.mention.strip() or self.mention == "All"):
                 raise ValueError("Mention requires a named individual, not All")
-            if not self.text and not self.mention:
+            if not self.text and not self.mention and not self.mention_all:
                 raise ValueError("Text must be nonempty")
             if self.text and len(self.text.encode("utf-16-le")) // 2 > 10000:
                 raise ValueError("Text exceeds 10000 UTF-16 units")

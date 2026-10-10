@@ -54,6 +54,12 @@ def test_dates_use_explicit_offset_or_configured_timezone(monkeypatch):
         {"confirm": ""},
         {"mention": "All"},
         {"mention": " "},
+        {"mention_id": "member-a", "text": "hi"},
+        {"mention": "Non", "mention_id": "bad id"},
+        {"mention": "Non", "mention_all": True},
+        {"mention_id": "member-a", "mention_all": True},
+        {"mention_all": True, "confirm": "token"},
+        {"mention_all": True, "image": Path("/missing.png")},
         {"image": Path("/no/such/image.png")},
     ],
 )
@@ -89,6 +95,25 @@ def test_shared_draft_and_direct_send_path():
     calls.clear()
     cli.dispatch_send(line, schemas.Send(chat_id="a", confirm="bound"))
     assert calls == [("send", "a", "bound")]
+
+
+def test_individual_and_explicit_all_share_one_shot_dispatch_path():
+    calls = []
+    line = SimpleNamespace(
+        mention=lambda chat, name, text, member_id=None: (
+            calls.append(("individual", chat, name, member_id, text)) or {"token": "bound"}
+        ),
+        mention_all=lambda chat, text: calls.append(("all", chat, text)) or {"token": "bound"},
+        send=lambda chat, token: calls.append(("send", chat, token)) or {"status": "dispatched"},
+    )
+    cli.dispatch_send(
+        line,
+        schemas.Send(chat_id="a", mention="Non", mention_id="member-non", text="hello", draft=True),
+    )
+    assert calls == [("individual", "a", "Non", "member-non", "hello")]
+    calls.clear()
+    cli.dispatch_send(line, schemas.Send(chat_id="a", mention_all=True, text="hello"))
+    assert calls == [("all", "a", "hello"), ("send", "a", "bound")]
 
 
 def test_cli_invalid_content_fails_before_browser_or_state(tmp_path):

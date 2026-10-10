@@ -8,12 +8,15 @@ import re
 import time
 import uuid
 
+from line_contracts import PreparedResult, validate_draft
+from line_mentions import composer_mentions, prepare_mention
 from line_runtime import HEADER, PREVIEW, ROOM, STATE, require
 
 CHAT_ID = re.compile(r"[A-Za-z0-9_-]+")
 
 
 def save_state(data):
+    data = validate_draft(data)
     temp = STATE / "draft.tmp"
     fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as handle:
@@ -29,7 +32,15 @@ def save_state(data):
 
 
 def load_state():
-    return json.loads((STATE / "draft.json").read_text())
+    try:
+        data = json.loads((STATE / "draft.json").read_text())
+    except (OSError, ValueError) as exc:
+        from reading_state import ApiError
+
+        raise ApiError(
+            "DRAFT_STATE_INVALID", "Cannot decode composer receipt; preserve it"
+        ) from exc
+    return validate_draft(data)
 
 
 class Line:
@@ -81,7 +92,10 @@ class Line:
         mentions = self.room.locator('[part~="mention"]').evaluate_all(
             "es => es.map(e => e.outerHTML)"
         )
+        identities = composer_mentions(self.room.locator("textarea"), required=bool(mentions))
+        require(len(identities) == len(mentions), "Composer marker and semantic identity differ")
         value = {
+            "mention_identities": identities,
             "chat": self.chat(),
             "chat_id": chat_id,
             "route": self.page.url,
@@ -104,10 +118,16 @@ class Line:
             "Existing draft found; refusing to overwrite or append",
         )
 
-    def prepare(self, chat_id):
+    def prepare(self, chat_id, expected_mention=None):
         value, digest = self.snapshot(chat_id)
         require(value["text"] or value["images"], "Composer is empty")
+        verified = value["mention_identities"][0] if value["mention_identities"] else None
+        require(verified == expected_mention, "Unexpected composer mention identity; stopped")
         state = {
+            "version": 1,
+            "kind": "composer",
+            "expected_mention": expected_mention,
+            "verified_mention": verified,
             "token": str(uuid.uuid4()),
             "digest": digest,
             "status": "prepared",
@@ -115,14 +135,18 @@ class Line:
             "route": value["route"],
         }
         save_state(state)
-        return {
-            "status": "prepared",
-            "chat": value["chat"],
-            "chat_id": chat_id,
-            "token": state["token"],
-            "characters": len(value["text"]),
-            "images": len(value["images"]),
-        }
+        return PreparedResult(
+            {
+                "status": "prepared",
+                "chat": value["chat"],
+                "chat_id": chat_id,
+                "token": state["token"],
+                "characters": len(value["text"]),
+                "images": len(value["images"]),
+                "mention": verified["name"] if verified else None,
+                "mention_identity": verified,
+            }
+        ).dict()
 
     def draft(self, chat_id, text, chat=None):
         require(
@@ -137,45 +161,11 @@ class Line:
         )
         return self.prepare(chat_id)
 
-    def mention(self, chat_id, member, text, chat=None):
-        require(
-            member.strip() and member != "All",
-            "A named individual is required; @All is unsupported",
-        )
-        self.empty(chat_id, chat)
-        editor = self.room.locator("textarea")
-        editor.fill("@")
-        options = self.page.get_by_role("option")
-        options.first.wait_for()
-        matches = options.filter(has=self.page.get_by_text(member, exact=True))
-        require(matches.count() == 1, "Member missing or ambiguous; inspect draft, nothing sent")
-        button = matches.locator("button[data-id]")
-        require(
-            button.count() == 1 and button.get_attribute("data-id"),
-            "Individual member identity missing; stopped",
-        )
-        self.verify(chat_id, chat)
-        button.click()
-        marker = self.room.locator('[part~="mention"]')
-        marker.wait_for(state="attached")
-        require(marker.count() == 1, "Native mention marker not verified")
-        # Preserve LINE custom-element mention metadata: never fill after selection.
-        before = editor.input_value()
-        if text:
-            require(
-                len((before + text).encode("utf-16-le")) // 2 <= 10000,
-                "Mention plus text is too long",
-            )
-            editor.press("Control+End")
-            editor.focus()
-            self.page.keyboard.insert_text(text)
-        require(
-            editor.input_value() == before + text and marker.count() == 1,
-            "Mention or suffix changed unexpectedly; inspect draft",
-        )
-        result = self.prepare(chat_id)
-        result["mention"] = member
-        return result
+    def mention(self, chat_id, member, text, chat=None, member_id=None):
+        return prepare_mention(self, chat_id, member, text, chat, member_id)
+
+    def mention_all(self, chat_id, text, chat=None):
+        return prepare_mention(self, chat_id, None, text, chat, mention_all=True)
 
     def attach(self, chat_id, path, chat=None):
         data = path.read_bytes()
@@ -217,8 +207,17 @@ class Line:
             "LINE navigation changed since preparation; stopped",
         )
         value, digest = self.snapshot(chat_id, chat)
+        actual = value["mention_identities"][0] if value["mention_identities"] else None
+        require(
+            actual == state["expected_mention"] == state["verified_mention"],
+            "Prepared mention identity changed; stopped",
+        )
         require(digest == state["digest"], "Chat or draft changed; stopped")
         require(value["text"] or value["images"], "Empty draft")
+        require(
+            self.page.get_by_role("option").count() == 0,
+            "Active picker would consume Enter instead of dispatching; stopped",
+        )
         # Consume before dispatch. Crashes/timeouts must never authorize replay.
         state["status"] = "uncertain"
         save_state(state)

@@ -314,6 +314,18 @@ class Reader:
                 coverage["more"] = False
         if coverage["history_gap"]:
             coverage["code"] = "HISTORY_GAP"
+        from line_read_evidence import chat_list_latest, reading_evidence
+
+        coverage = reading_evidence(
+            coverage,
+            list(messages.values()),
+            now_iso(),
+            chat_list_latest(self.page, ROW, chat_id),
+            since_ms,
+            until_ms,
+            before,
+            after,
+        )
         return {
             "chat": {"id": chat_id, "name": name},
             "messages": selected,
