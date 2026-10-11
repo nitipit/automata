@@ -18,8 +18,6 @@ export class Lift extends Base {
       .lift-shape { display: block; width: 4rem; height: 4rem; overflow: visible; }
       .lift-label { margin: .5rem 0 0; text-align: center; font-size: .85rem; }
       .lift-kind { margin: 1.5rem 0 .5rem; font-size: .85rem; font-weight: 600; }
-      .specimen-note { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .75rem 0 0; color: #5e5c64; font-size: .85rem; }
-      .specimen-note code { font-size: .85rem; overflow-wrap: anywhere; }
       @media (max-width: 1100px) { .lift-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
       @media (max-width: 700px) { .lift-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     `;
@@ -36,8 +34,6 @@ export class Lift extends Base {
         <div id="lift-surfaces" class="lift-grid"></div>
         <h3 class="lift-kind">Shapes</h3>
         <div id="lift-shapes" class="lift-grid"></div>
-        <p class="specimen-note">Uses filter: drop-shadow(), following painted pixels—not the box. Transparent containers lift their text and children. Nonzero filters create a stacking context.</p>
-        <p class="specimen-note"><code>element.style.filter = lift[3]</code></p>
       </section>`;
     for (const [level, value] of Object.entries(lift)) {
       const surface = element("div", "lift-surface", "Surface");
