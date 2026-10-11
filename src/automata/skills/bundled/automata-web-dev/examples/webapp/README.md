@@ -1,9 +1,10 @@
 # Primitive Foundation Example
 
-Two small design pages using FastAPI/Jinja2, Deno/esbuild and the maintained
-Adaptive UI source. `/` redirects to `/design/tokens/`; `/design/components/`
-shows Button, Card and a thin Form. No backend interaction or persistent state
-is demonstrated.
+Three small design pages using FastAPI/Jinja2, Deno/esbuild and the maintained
+Adaptive UI source. `/` redirects to `/design/tokens/`, with primitive references
+and a compact typography summary. `/design/typography/` owns the full reading
+specimen; `/design/components/` shows Button, Card and a thin Form. No backend
+interaction or persistent state is demonstrated.
 
 ## Run a project copy
 
@@ -39,12 +40,16 @@ preview requires restarting that backend, not just copying templates.
 ## Source layout
 
 ```text
-app/main.py                   # Two page routes, home redirect and built-assets mount
-app/templates/_base.html      # Shared ordinary page CSS and two-link navigation
+app/main.py                   # Three page routes, home redirect and assets mount
+app/templates/_base.html      # Shared ordinary page CSS and design navigation
 app/templates/base.ts         # Registers Button/Card/Form and mounts page examples
 app/templates/design/
-  tokens/index.html           # Primitive visual samples and values
-  tokens/page.ts              # Reads the shared primitive exports
+  tokens/index.html           # Primitive visual samples and compact type reference
+  tokens/index.ts             # Registers page-owned sections
+  tokens/_index/              # Section components and local helpers
+  typography/index.html      # Dedicated typography page composition
+  typography/index.ts        # Registers its reading specimen
+  typography/_index/         # Specimen rendering and component-owned CSS
   components/index.html      # One example and short usage per primitive
   components/index.ts        # Browser-local example responses
 browser/base.js               # Generated bundle, not maintained source

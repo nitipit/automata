@@ -22,6 +22,11 @@ def design_tokens(request: Request):
     return templates.TemplateResponse(request=request, name="design/tokens/index.html")
 
 
+@app.get("/design/typography/", response_class=HTMLResponse)
+def design_typography(request: Request):
+    return templates.TemplateResponse(request=request, name="design/typography/index.html")
+
+
 @app.get("/design/components/", response_class=HTMLResponse)
 def design_components(request: Request):
     return templates.TemplateResponse(request=request, name="design/components/index.html")
