@@ -1,12 +1,18 @@
-/** Typography characteristics shared by the component baseline. */
+/** A proportional type scale rooted in the document's fluid font size. */
 export const typography = {
   family: "system-ui, sans-serif",
+  // Linear growth from 15px at 600px to 17px at 1200px; fixed outside that range.
+  rootSize: "clamp(15px, calc(13px + 0.3333333333vw), 17px)",
+  bodySize: "1rem",
+  h1Size: "2.25rem",
+  h2Size: "1.875rem",
+  h3Size: "1.5rem",
+  h4Size: "1.25rem",
+  h5Size: "1.125rem",
+  h6Size: "1rem",
+  labelSize: ".85rem",
   lineHeight: "1.5",
+  headingLineHeight: "1.25",
+  weightRegular: "400",
   weightMedium: "600",
-  // Linear viewport sizing from 600px to 1200px, clamped outside that range.
-  // Body slope: (17 - 15) / 600; heading slope: (40 - 28) / 600.
-  bodySize: "clamp(15px, calc(13px + 0.3333333333vw), 17px)",
-  headingSize: "clamp(28px, calc(16px + 2vw), 40px)",
-  // Place labels directly inside a body-sized parent to avoid compounded scaling.
-  labelSize: ".85em",
 } as const;

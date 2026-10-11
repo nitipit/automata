@@ -9,14 +9,17 @@ export class Reading extends Base {
       display: block;
       margin-bottom: 3rem;
       .specimen-heading { margin-bottom: 1.5rem; }
-      .specimen-heading h2 { margin: 0 0 .35rem; font-size: 1.25rem; }
-      .specimen-heading p { margin: 0; color: #5e5c64; font-size: .85rem; }
-      .type-board { padding: 2rem; border: 1px solid #deddda; border-radius: .75rem; background: #ffffff; font-size: ${typography.bodySize}; }
+      .specimen-heading h2 { margin: 0 0 .35rem; }
+      .specimen-heading p { margin: 0; color: #5e5c64; font-size: ${typography.labelSize}; }
+      .type-board { padding: 2rem; border: 1px solid #deddda; border-radius: .75rem; background: #ffffff; font-size: ${typography.bodySize}; line-height: ${typography.lineHeight}; }
       .type-eyebrow { margin: 0 0 1rem; color: #5e5c64; font-size: ${typography.labelSize}; }
-      .type-heading { margin: 0 0 1rem; font-size: ${typography.headingSize}; line-height: 1.25; letter-spacing: -.025em; }
-      .type-body { max-width: 58ch; margin: 0 0 1.5rem; font-size: 1em; }
-      .type-label { display: block; font-size: ${typography.labelSize}; }
-      .specimen-note { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: .75rem 0 0; color: #5e5c64; font-size: .85rem; }
+      .type-heading { margin: 0 0 1rem; font-size: ${typography.h3Size}; line-height: ${typography.headingLineHeight}; letter-spacing: -.025em; }
+      .type-body { max-width: 58ch; margin: 0 0 1.5rem; font-size: ${typography.bodySize}; }
+      .type-lists { display: flex; flex-wrap: wrap; gap: 1.5rem 3rem; max-width: 58ch; margin-bottom: 1.5rem; }
+      .type-lists ul, .type-lists ol { flex: 1 1 14rem; margin: 0; padding-left: 1.5rem; }
+      .type-lists li + li { margin-top: .35rem; }
+      .type-label { display: block; font-size: ${typography.labelSize}; font-weight: ${typography.weightMedium}; }
+      .specimen-note { margin: .75rem 0 0; color: #5e5c64; font-size: ${typography.labelSize}; }
       @media (max-width: 700px) { .type-board { padding: 1.5rem; } }
     `;
   }
@@ -27,28 +30,19 @@ export class Reading extends Base {
     this.#mounted = true;
     this.innerHTML = `
       <section aria-labelledby="reading-heading">
-        <div class="specimen-heading"><h2 id="reading-heading">Reading specimen</h2><p>One familiar family. A heading, a paragraph, and a quiet label.</p></div>
-        <div id="typography-specimen" class="type-board">
+        <div class="specimen-heading"><h2 id="reading-heading">Reading specimen</h2><p>Paragraphs, weights, emphasis, links, lists and labels in one composition.</p></div>
+        <article id="typography-specimen" class="type-board">
           <p class="type-eyebrow">Field notes</p>
           <h3 class="type-heading">Make room for what matters.</h3>
           <p class="type-body">A clear heading gives us a place to begin. Comfortable lines carry the thought forward, while a smaller label leaves the next step easy to find. The same family holds the whole composition together.</p>
-          <span class="type-label">Continue reading</span>
-        </div>
-        <p id="typography-values" class="specimen-note"></p>
+          <p class="type-body">Regular text uses ${typography.weightRegular} weight. <strong>A stronger phrase uses ${typography.weightMedium}.</strong> <em>Emphasis changes the voice without changing the scale.</em> A <a href="#scale-heading">link to the type scale</a> gives the next thought a destination.</p>
+          <div class="type-lists">
+            <ul><li>Start with a clear heading.</li><li>Keep lines comfortable to read.</li><li>Leave room between ideas.</li></ul>
+            <ol><li>Read the composition.</li><li>Resize the viewport.</li><li>Notice what stays in proportion.</li></ol>
+          </div>
+          <span class="type-label">Field note · Typography study</span>
+        </article>
+        <p id="typography-values" class="specimen-note">Body ${typography.bodySize} / ${typography.lineHeight} · Label ${typography.labelSize} of the root · Reading measure 58ch</p>
       </section>`;
-    const type = this.querySelector<HTMLElement>("#typography-specimen")!;
-    type.style.fontFamily = typography.family;
-    type.style.lineHeight = typography.lineHeight;
-    for (const sample of type.querySelectorAll<HTMLElement>(".type-heading, .type-label")) {
-      sample.style.fontWeight = typography.weightMedium;
-    }
-    const values = this.querySelector("#typography-values")!;
-    for (const value of [typography.family, `Line height ${typography.lineHeight}`,
-      `Weight ${typography.weightMedium}`, "Body 15–17px · Heading 28–40px · Fluid across 600–1200px",
-      `Label ${typography.labelSize} of the body-sized parent`]) {
-      const note = document.createElement("span");
-      note.textContent = value;
-      values.append(note);
-    }
   }
 }

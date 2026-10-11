@@ -2,8 +2,8 @@
 
 Three small design pages using FastAPI/Jinja2, Deno/esbuild and the maintained
 Adaptive UI source. `/` redirects to `/design/tokens/`, with primitive references
-and a compact typography summary. `/design/typography/` owns the full reading
-specimen; `/design/components/` shows Button, Card and a thin Form. No backend
+and a compact typography summary. `/design/typography/` owns the h1–h6 scale
+and reading specimens; `/design/components/` shows Button, Card and a thin Form. No backend
 interaction or persistent state is demonstrated.
 
 ## Run a project copy
@@ -49,7 +49,7 @@ app/templates/design/
   tokens/_index/              # Section components and local helpers
   typography/index.html      # Dedicated typography page composition
   typography/index.ts        # Registers its reading specimen
-  typography/_index/         # Specimen rendering and component-owned CSS
+  typography/_index/         # Type scale, reading and component-owned CSS
   components/index.html      # One example and short usage per primitive
   components/index.ts        # Browser-local example responses
 browser/base.js               # Generated bundle, not maintained source
@@ -71,6 +71,13 @@ Deno's sloppy-imports option.
 That reference intends them for icons and illustrations; choosing them for UI
 primitives here is an application decision, not native compliance. Effects are
 separate transparency/alpha values, not extra official palette colors.
+
+The shared browser entry applies the typography primitives to all three pages:
+a fluid document root grows from 15px to 17px between 600px and 1200px. Body is
+`1rem`; h1–h6 use `2.25`, `1.875`, `1.5`, `1.25`, `1.125` and `1rem`. Labels use
+`.85rem`; local `em` sizing remains available when parent-relative sizing is
+wanted. All existing `rem` spacing scales with the root too. Headings use weight
+600 and line height 1.25; body uses weight 400 and line height 1.5.
 
 Component-owned CSS references primitive values and emits concrete CSS. Page CSS
 owns layout. There are no semantic role layers, custom-property override APIs,

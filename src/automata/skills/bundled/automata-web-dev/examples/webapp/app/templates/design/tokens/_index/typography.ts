@@ -28,9 +28,10 @@ export class Typography extends Base {
         <h2 id="type-heading">Typography</h2>
         <p class="type-values"><span>${typography.family}</span><span>Line height ${typography.lineHeight}</span><span>Weight ${typography.weightMedium}</span></p>
         <dl>
+          <dt>Root</dt><dd><code>${typography.rootSize}</code></dd>
           <dt>Body</dt><dd><code>${typography.bodySize}</code></dd>
-          <dt>Heading</dt><dd><code>${typography.headingSize}</code></dd>
-          <dt>Label</dt><dd><code>${typography.labelSize}</code> of a body-sized parent</dd>
+          <dt>Headings h1–h6</dt><dd><code>${typography.h1Size} · ${typography.h2Size} · ${typography.h3Size} · ${typography.h4Size} · ${typography.h5Size} · ${typography.h6Size}</code></dd>
+          <dt>Label</dt><dd><code>${typography.labelSize}</code> of the root</dd>
         </dl>
         <a href="/design/typography/">Explore typography →</a>
       </section>`;
