@@ -1,10 +1,10 @@
 # Primitive Foundation Example
 
 Three small design pages using FastAPI/Jinja2, Deno/esbuild and the maintained
-Adaptive UI source. `/` redirects to `/design/tokens/`, with primitive references
-and a compact typography summary. `/design/typography/` owns the h1–h6 scale
-and reading specimens; `/design/components/` shows Button, Card and a thin Form. No backend
-interaction or persistent state is demonstrated.
+Adaptive UI source. `/` redirects to `/design/tokens/`, with colour, spacing,
+corners, lift and transparency specimens. `/design/typography/` owns the h1–h6
+scale and reading specimens; `/design/components/` shows Button, Card and a thin
+Form. No backend interaction or persistent state is demonstrated.
 
 ## Run a project copy
 
@@ -44,7 +44,7 @@ app/main.py                   # Three page routes, home redirect and assets moun
 app/templates/_base.html      # Shared ordinary page CSS and design navigation
 app/templates/base.ts         # Registers Button/Card/Form and mounts page examples
 app/templates/design/
-  tokens/index.html           # Primitive visual samples and compact type reference
+  tokens/index.html           # Colour, spacing, corners, lift and transparency
   tokens/index.ts             # Registers page-owned sections
   tokens/_index/              # Section components and local helpers
   typography/index.html      # Dedicated typography page composition
