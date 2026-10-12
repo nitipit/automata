@@ -9,7 +9,7 @@ Form. No backend interaction or persistent state is demonstrated.
 ## Run a project copy
 
 Requires uv, Deno, Node and cached dependencies. Do not build inside installed
-skills. Resolve this helper against the web-dev skill directory:
+skills. Resolve this helper against the web-app skill directory:
 
 ```sh
 python scripts/create.py --output /path/to/owned/webapp

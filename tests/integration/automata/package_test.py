@@ -54,7 +54,9 @@ def test_package_excludes_native_codex_runtime() -> None:
 
 
 def adaptive_ui_source():
-    return files("automata").joinpath("skills", "bundled", "automata-adaptive-ui", "lib")
+    return files("automata").joinpath(
+        "skills", "bundled", "automata-web-design", "skills", "automata-adaptive-ui", "lib"
+    )
 
 
 def test_adaptive_ui_skill_ships_source_without_generated_library() -> None:
@@ -75,10 +77,10 @@ def test_package_excludes_adaptive_ui_generated_trees_from_sdists_and_wheels() -
     config = tomllib.loads((project_root / "pyproject.toml").read_text())
 
     assert config["tool"]["uv"]["build-backend"]["source-exclude"] == [
-        "src/automata/skills/bundled/automata-adaptive-ui/lib/dist",
-        "src/automata/skills/bundled/automata-adaptive-ui/lib/dist/**",
-        "src/automata/skills/bundled/automata-adaptive-ui/lib/node_modules",
-        "src/automata/skills/bundled/automata-adaptive-ui/lib/node_modules/**",
+        "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/dist",
+        "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/dist/**",
+        "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/node_modules",
+        "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/node_modules/**",
         "src/automata/skills/bundled/**/__pycache__/**",
         "src/automata/tools/**/__pycache__/**",
     ]
@@ -114,7 +116,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "runtimes/pi/extensions/codex-bridge.ts",
         "skills/bundled/automata-workplan/SKILL.md",
         "skills/bundled/automata-storage/SKILL.md",
-        "skills/bundled/automata-adaptive-ui/scripts/build.py",
+        "skills/bundled/automata-web-design/skills/automata-adaptive-ui/scripts/build.py",
         "skills/bundled/automata-agent-evaluation/templates/evaluation-record.json",
     }
     with zipfile.ZipFile(wheel) as archive:
@@ -196,10 +198,12 @@ from automata.plugin import export_plugin
 assert Path(automata.__file__).is_relative_to(site)
 sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
-assert len(sources) == 39
+assert len(sources) == 40
 assert 'automata-thinking-control' not in sources
 assert 'automata-pi-sessions' in sources
-assert 'automata-web-dev' in sources
+assert 'automata-web-design' in sources
+assert 'automata-web-app' in sources
+assert 'automata-web-dev' not in sources
 assert 'automata-playspace' not in sources
 assert 'automata-codex-sessions' not in sources
 assert not (site / 'automata/runtimes/codex').exists()
@@ -212,7 +216,7 @@ assert sources['automata-workplan'] == site / 'automata/skills/bundled/automata-
 assert 'automata-plan' not in sources
 assert not any(name in sys.modules for name in ('engrave', 'mistune', 'playwright'))
 results = install_skills(target_root=work / 'skills')
-assert {result.name for result in results} == set(sources)
+assert set(skill_sources(work / 'skills')) == set(sources)
 for name in ('automata-storage', 'automata-pi-context-status',
              'automata-workplan', 'automata-agent-design'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
@@ -222,7 +226,7 @@ assert linked.is_symlink() and linked.resolve() == sources['automata-agent-desig
 assert (linked / 'SKILL.md').read_bytes() == (work / 'skills/automata-agent-design/SKILL.md').read_bytes()
 # Copy the webapp from installed skills, resolving its installed sibling dependency.
 import subprocess, json
-web_skill = work / 'skills/automata-web-dev'
+web_skill = work / 'skills/automata-web-design/skills/automata-web-app'
 project = work / 'webapp'
 created = subprocess.run([sys.executable, str(web_skill / 'scripts/create.py'),
                           '--output', str(project)], capture_output=True, text=True)

@@ -1,9 +1,9 @@
 ---
-name: automata-web-dev
+name: automata-web-app
 description: Use when developing a web application's routes, templates, frontend build, project structure or development setup. Includes a runnable Python/TypeScript webapp example; not UI composition alone or general browser automation.
 ---
 
-# Automata Web Development
+# Automata Web Application
 
 Make web applications reproducible from maintained source, with explicit boundaries
 between backend state, rendered pages and browser assets. Respect an existing stack;
@@ -48,8 +48,8 @@ recipes when they avoid rediscovery; recheck them after dependency or layout cha
 - Component code owns behavior and concrete CSS; native controls own basic input
   constraints. Actual-data schemas can be useful, but appearance needs no model.
 - The example exposes primitive color/effect/spacing/shape/typography values, not
-  a semantic role or mode system. It has only Tokens and Components pages; see
-  [Design references and limits](examples/webapp/README.md#design-references-and-limits).
+  a semantic role or mode system. It has Tokens, Typography and Components pages;
+  see `examples/webapp/README.md` for design references and limits.
 - Generated bundles, dependency trees and environments stay separate from maintained
   inputs. Rebuild from source rather than editing output.
 

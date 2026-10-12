@@ -1,7 +1,9 @@
 # Skill Builder
 
-All 39 bundled skills live in `bundled/automata-*/`. Discovery follows each
-`SKILL.md` and linked Markdown under `references/` or `templates/`.
+The bundled catalog contains 40 skills, discovered recursively through `SKILL.md`.
+The web family lives in `bundled/automata-web-design/`, with Adaptive UI and Web App
+under its `skills/` directory. The viewer lists each skill independently and follows
+linked Markdown under `references/` or `templates/`.
 There are no per-skill HTML wrappers, generated entry files or build output.
 Shared Jinja templates render each request directly from canonical Markdown.
 
@@ -17,7 +19,7 @@ PYTHONPATH=src uv run --offline --no-project \
 ```
 
 `serve` always includes all discovered skills. Open `http://127.0.0.1:8788/`.
-The catalog lists all 39 skills with immediate links and a client-side search over
+The catalog lists all 40 skills with immediate links and a client-side search over
 skill names, titles and descriptions. Search leaves the complete static catalog usable
 without JavaScript.
 
@@ -88,7 +90,17 @@ styles are retained.
 `export-agent NAME --output DIR` copies the complete canonical skill (including
 references, scripts, libraries and templates) without importing FastAPI or a
 renderer. Use installed names such as `automata-agent-design`. Serving never installs or syncs
-live skills; agents read canonical files, not human-rendered output. Installing the
+live skills; agents read canonical files, not human-rendered output.
+
+Installing the web-design parent includes its nested children. Selecting both a
+parent and its descendants copies/exposes only the parent root, avoiding duplicate
+child packages; either child remains independently installable when selected alone.
+Pi advertises only the parent when discovering this nested package, and the parent
+guides selective child reading by path. Do not add separate child exposure unless
+independent runtime discovery is wanted. Existing flat child installations are not
+removed automatically; migrating those needs separate replacement/removal approval.
+
+Installing the
 renamed `automata-workplan` does not remove an existing `automata-plan` installation;
 remove the obsolete installed name only under separate scoped migration authority.
 

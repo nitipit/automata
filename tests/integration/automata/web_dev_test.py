@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 ROOT = Path(__file__).parents[3]
-SKILL = ROOT / "src/automata/skills/bundled/automata-web-dev"
+SKILL = ROOT / "src/automata/skills/bundled/automata-web-design/skills/automata-web-app"
 
 
 def test_create_webapp_from_skill(tmp_path):

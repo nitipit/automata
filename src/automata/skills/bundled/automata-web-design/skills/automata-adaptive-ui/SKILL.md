@@ -60,8 +60,10 @@ The library, builder and examples ship with this skill. Resolve these paths agai
 its directory and treat installed assets as read-only. Read the relevant contract,
 not the entire library, before using an API:
 
-- The sibling `automata-web-dev/examples/webapp/README.md`: the two runnable
+- The sibling `../automata-web-app/examples/webapp/README.md`: the three runnable
   design pages, project-copy setup, primitive samples and short component usages.
+  A standalone installation without that sibling can use the library contracts
+  below; application integration needs a selected web-app source.
 - `lib/src/ui/adaptive-ui.ts`, `lib/src/ui/tokens.ts` and relevant component modules:
   public exports, primitive values, registration and native-control behavior.
   The current catalog is Button, Card and a thin native Form, plus shared Base.

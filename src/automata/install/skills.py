@@ -68,16 +68,29 @@ def install_skills(
         if name not in sources:
             raise SkillInstallError(f"Source skill directory does not exist: {name}")
 
+    selected = outer_skill_sources({name: sources[name] for name in selected_names})
     return tuple(
         install_one(
-            source=sources[name],
+            source=source,
             target=Path(target_root).expanduser() / name,
             name=name,
             mode=mode,
             kind="skill",
         )
-        for name in selected_names
+        for name, source in selected.items()
     )
+
+
+def outer_skill_sources(sources: dict[str, Path]) -> dict[str, Path]:
+    """Keep a selected parent once: its package already contains nested skills.
+
+    Selecting children without their parent still installs them independently.
+    Results describe copied/exposed roots, not every skill inside those roots.
+    """
+    return {
+        name: path for name, path in sources.items()
+        if not any(parent in path.parents for parent in sources.values())
+    }
 
 
 def list_skill_dirs(source_root: Path) -> tuple[str, ...]:

@@ -23,7 +23,7 @@ From the repository root, with Python/Deno and pinned dependencies already cache
 ```sh
 # Reuse the existing built Adaptive UI library. If absent/stale, its documented
 # builder requires cached prerequisites; obtain approval before any download.
-python .agents/skills/automata-adaptive-ui/scripts/build.py \
+python .agents/skills/automata-web-design/skills/automata-adaptive-ui/scripts/build.py \
   --runtime-root .agents/var/apps/dashboard/public
 (cd src/automata/apps/dashboard/frontend && deno task build)
 PYTHONPATH="$PWD/src" uv run --offline --no-project \
