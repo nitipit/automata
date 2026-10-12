@@ -63,8 +63,11 @@ remote repositories.
 Default skill discovery uses the single bundled
 `skills/bundled/` catalog. Runtime-specific bindings and setup documentation live
 outside skill packages under `runtimes/`; shared tool contracts live under `tools/`. An explicit skill `--source-root` is exclusive and never adds
-bundled skills as a fallback. Discovery finds `SKILL.md` recursively and installs
-each containing directory by its directory name. Duplicate source names are errors.
+bundled skills as a fallback. Discovery finds `SKILL.md` recursively. Selected
+packages install by directory name; a selected parent includes its nested skills,
+so separately selected descendants are not also exposed as duplicate roots.
+Children selected without their parent install independently. Duplicate source
+names are errors.
 This installer check is not runtime precedence: a runtime may discover same-name
 skills from multiple roots. Do not promise nearest-wins behavior. Choose one exposure for
 each selected skill (direct install or plugin), inspecting relevant existing roots

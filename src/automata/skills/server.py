@@ -124,7 +124,7 @@ def create_app(root=SOURCE):
                     p.url.endswith("/") and path == p.url.lstrip("/") + "index.html"
                 )), None)
             if page is not None:
-                safe_file(page.source, skills / page.skill)
+                safe_file(page.source, lookup(pages, page.skill).source.parent)
                 return render(
                     "templates/skill.html", skill=page.skill, title=page.title,
                     document=page.document,
@@ -138,7 +138,7 @@ def create_app(root=SOURCE):
                         and path in (f"skills/{p.skill}/SKILL.md",
                                      f"skills/{url_slug(p.skill)}/SKILL.md")), None)
             if raw:
-                return FileResponse(safe_file(raw.source, skills / raw.skill),
+                return FileResponse(safe_file(raw.source, raw.source.parent),
                                     media_type="text/plain; charset=utf-8",
                                     headers={"Cache-Control": "no-cache"})
             assets = {

@@ -1,0 +1,19 @@
+{% extends "_base.html" %}
+{% block title %}Tokens · Primitive foundation{% endblock %}
+{% block content %}
+<div class="tokens-specimen">
+  <div class="specimen-intro">
+    <p class="specimen-eyebrow">Design materials</p>
+    <h1>Colour, space, and surfaces.</h1>
+    <p class="intro">A small collection of primitives. Look at the surfaces, explore the colours, and feel the room between things.</p>
+  </div>
+  <style>
+    .tokens-specimen .specimen-intro { max-width: 42rem; margin-bottom: 3rem; }
+    .tokens-specimen .specimen-eyebrow { margin-bottom: .75rem; font-size: .85rem; color: #5e5c64; }
+  </style>
+  <tokens-colour></tokens-colour>
+  <tokens-spacing></tokens-spacing>
+  <tokens-corners></tokens-corners>
+  <tokens-lift></tokens-lift>
+</div>
+{% endblock %}

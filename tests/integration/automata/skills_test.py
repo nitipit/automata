@@ -28,6 +28,8 @@ REQUIRED_SKILLS = {
     "automata-model-selection",
     "automata-teamwork-design",
     "automata-adaptive-ui",
+    "automata-web-design",
+    "automata-web-app",
     "automata-browser-use",
     "automata-line-use",
     "automata-pi-imagegen",
@@ -98,6 +100,7 @@ RETIRED_SKILLS = {
     "automata-agent-browser-bridge",
     "automata-ui-channel-setup",
     "automata-web-browser-control",
+    "automata-web-dev",
 }
 
 
@@ -128,8 +131,8 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
         assert not [path for root in SKILL_ROOTS for path in root.rglob(name)], name
 
 
-def test_pi_skills_share_one_flat_source_with_all_skills() -> None:
-    assert len(list(SKILLS_ROOT.glob("*/SKILL.md"))) == 38
+def test_pi_skills_share_one_catalog_with_all_skills() -> None:
+    assert len(list(SKILLS_ROOT.rglob("SKILL.md"))) == 40
     for name in PI_SKILL_NAMES:
         assert (SKILLS_ROOT / name / "SKILL.md").is_file()
         assert not (SKILLS_ROOT / name).is_symlink()
@@ -211,12 +214,13 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
     target = tmp_path / "skills"
     results = install_skills(target_root=target)
     expected = set(SOURCES)
-    assert len(expected) == 38
+    assert len(expected) == 40
     assert 'automata-pi-sessions' in expected
     assert 'automata-codex-sessions' not in expected
-    assert {result.name for result in results} == expected
-    assert {path.name for path in target.iterdir()} == expected
-    assert all((target / name / "SKILL.md").is_file() for name in expected)
+    roots = expected - {"automata-adaptive-ui", "automata-web-app"}
+    assert {result.name for result in results} == roots
+    assert {path.name for path in target.iterdir()} == roots
+    assert set(skill_sources(target)) == expected
 
 
 @pytest.mark.parametrize("skill_file", SKILL_FILES, ids=lambda p: p.parent.name)

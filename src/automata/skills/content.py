@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote, urljoin, urlsplit
 
+from automata.install.skills import skill_sources
+
 SOURCE = Path(__file__).resolve().parent
 SKILLS = SOURCE / "bundled"
 
@@ -57,7 +59,8 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
         raise ValueError("Choose exactly one skill name or --all")
     if selector and not re.fullmatch(r"[a-z0-9][a-z0-9-]*", selector):
         raise ValueError("Invalid skill name")
-    roots = sorted(skills.iterdir()) if all_skills else [skills / selector]
+    catalog = skill_sources(skills)
+    roots = list(catalog.values()) if all_skills else [catalog.get(selector, skills / selector)]
     pages = []
     for root in roots:
         if all_skills and not (root / "SKILL.md").is_file():
@@ -145,7 +148,7 @@ def render_markdown(page: Page) -> str:
 def export_agent(selector: str, output: Path, skills: Path = SKILLS) -> None:
     """Copy the complete canonical skill, including supporting nonpublic assets."""
     pages = discover(skills, selector, False)
-    root = (skills / pages[0].skill).resolve()
+    root = pages[0].source.parent.resolve()
     files = {p.relative_to(root): p for p in root.rglob("*") if p.is_file()}
     if any(not path.resolve().is_relative_to(root) for path in files.values()):
         raise ValueError("Skill asset escapes its source directory")

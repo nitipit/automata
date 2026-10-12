@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from automata.install.directory import CopyIgnore, DirectoryInstallError, validate_directory_name
-from automata.install.skills import find_skill_dir, skill_sources
+from automata.install.skills import find_skill_dir, outer_skill_sources, skill_sources
 from automata.install.tools import bundled_tool_root, tool_copy_ignore
 from automata.plugin.profiles import PluginProfile, get_profile
 
@@ -150,11 +150,11 @@ def copy_selected_skill_assets(
 
 
 def copy_skill_sources(*, sources: dict[str, Path], target_root: Path) -> None:
-    """Flatten already-resolved shared and runtime skill packages for export."""
+    """Copy selected package roots, retaining nested skills without duplicates."""
 
     target_root.mkdir(parents=True, exist_ok=True)
     ignore = shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo")
-    for name, source in sources.items():
+    for name, source in outer_skill_sources(sources).items():
         shutil.copytree(source, target_root / name, ignore=ignore)
 
 

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Primitive foundation{% endblock %}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; line-height: 1.5; color: #241f31; background: #f6f5f4; }
+    a { color: #1c71d8; text-underline-offset: .2em; }
+    a:focus-visible { outline: 2px solid #1c71d8; outline-offset: 3px; }
+    header { border-bottom: 1px solid #c0bfbc; background: #ffffff; }
+    nav { display: flex; flex-wrap: wrap; align-items: center; gap: 1.5rem; max-width: 1040px; margin: auto; padding: 1rem 1.5rem; }
+    nav strong { margin-right: auto; }
+    main { max-width: 1040px; margin: auto; padding: 2rem 1.5rem 3rem; }
+    h1 { margin: 0 0 .5rem; }
+    h2 { margin: 2rem 0 1rem; }
+    h3 { margin: 0 0 .5rem; }
+    p { margin: 0 0 1rem; }
+    .intro { color: #5e5c64; max-width: 65ch; }
+    code { font-size: .85rem; overflow-wrap: anywhere; }
+    pre { margin: 1rem 0 0; padding: 1rem; background: #deddda; border-radius: .75rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+    @media (max-width: 480px) { main, nav { padding-inline: 1rem; } }
+  </style>
+  <script type="module" src="{{ url_for('browser', path='base.js') }}"></script>
+</head>
+<body>
+  <header>
+    <nav aria-label="Design pages">
+      <strong>Primitive foundation</strong>
+      <a href="/design/tokens/">Tokens</a>
+      <a href="/design/typography/">Typography</a>
+      <a href="/design/components/">Components</a>
+    </nav>
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

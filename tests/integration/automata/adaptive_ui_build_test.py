@@ -18,6 +18,8 @@ SKILL = (
     / "automata"
     / "skills"
     / "bundled"
+    / "automata-web-design"
+    / "skills"
     / "automata-adaptive-ui"
 )
 SOURCE = SKILL / "lib"
@@ -55,7 +57,6 @@ def installed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         )
     skill = tmp_path / "installed skills" / "automata-adaptive-ui"
     assert (skill / "lib" / "src" / "ui" / "_components" / "base.ts").is_file()
-    assert (skill / "lib" / "example" / "chat-with-agent.html").is_file()
     assert not (skill / "scripts" / "library").exists()
     assert not (skill / "lib" / "browser").exists()
     assert not (skill / "lib" / "node_modules").exists()
@@ -84,15 +85,14 @@ def test_build_help_owns_operation_without_frontend_runtime(
         "after interruption, inspect ownership before cleanup",
         "relative roots resolve against the invocation cwd",
         "--check compares freshness without replacement",
-        "--validate also runs type checks, tests, and lint",
+        "--validate also runs type checks and lint",
         "--source-root and a separate --runtime-root",
         "no fixed directory layout is required",
         "import /lib/adaptive-ui.js",
         "pages in one root share that bundle",
         "next reload",
         "everything under the served root must be public-safe",
-        '--allow-net=127.0.0.1 --allow-read="$website_root"',
-        '--root="$website_root" --port=<port>',
+        'python -m http.server <port> --bind 127.0.0.1 --directory "$website_root"',
         "for index.html at the root, visit http://127.0.0.1:<port>/",
         "this builder does not start a server or browser",
     ):
@@ -177,7 +177,7 @@ def test_adaptive_ui_internal_tasks_are_cached_and_permissioned() -> None:
     assert "exports" not in config and "publish" not in config
     assert config["nodeModulesDir"] == "manual"
     assert "serve" not in tasks  # Serving requires an explicitly selected website root.
-    for name in ("build", "check", "test"):
+    for name in ("build", "check"):
         assert "--cached-only" in tasks[name]
     assert "--no-run" in tasks["check"]
     permissions = {
@@ -191,13 +191,10 @@ def test_adaptive_ui_internal_tasks_are_cached_and_permissioned() -> None:
     assert "clearEnv: true" in source
 
 
-def test_adaptive_ui_keeps_arrow_and_reactive_component_contracts() -> None:
+def test_adaptive_ui_keeps_arrow_dependency_and_exports() -> None:
     package = json.loads((SOURCE / "package.json").read_text())
     ui = (SOURCE / "src" / "ui" / "adaptive-ui.ts").read_text()
-    button = (SOURCE / "src" / "ui" / "_components" / "button.ts").read_text()
     assert package["dependencies"]["@arrow-js/core"] == "1.0.6"
     for export in ("component", "html", "nextTick", "onCleanup", "reactive"):
         assert export in ui
     assert 'from "@arrow-js/core"' in ui
-    assert "attributeChangedCallback(" in button
-    assert 'return ["label", "tone", "type"]' in button

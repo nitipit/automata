@@ -54,15 +54,14 @@ def test_package_excludes_native_codex_runtime() -> None:
 
 
 def adaptive_ui_source():
-    return files("automata").joinpath("skills", "bundled", "automata-adaptive-ui", "lib")
+    return files("automata").joinpath(
+        "skills", "bundled", "automata-web-design", "skills", "automata-adaptive-ui", "lib"
+    )
 
 
 def test_adaptive_ui_skill_ships_source_without_generated_library() -> None:
     source = adaptive_ui_source()
     assert source.joinpath("build.ts").is_file()
-    assert source.joinpath("example", "index.html").is_file()
-    assert source.joinpath("example", "reactive-shadow.html").is_file()
-    assert source.joinpath("src", "server.ts").is_file()
     assert source.joinpath("src", "ui", "adaptive-ui.ts").is_file()
     assert source.joinpath("package.json").is_file()
     assert source.parent.joinpath("scripts", "build.py").is_file()
@@ -73,56 +72,15 @@ def test_adaptive_ui_skill_ships_source_without_generated_library() -> None:
     assert not files("automata").joinpath("tools", "adaptive-ui").is_dir()
 
 
-def test_adaptive_ui_example_teaches_direct_web_component_composition() -> None:
-    example = adaptive_ui_source().joinpath("example", "index.html")
-    text = example.read_text()
-
-    assert text.index('<script type="module" src="./index.js"></script>') < text.index("<body>")
-    assert '<link rel="icon" href="./catalog.svg"' in text
-    for term in ("<aui-card", "<aui-button", "<aui-chat", "<example-note>"):
-        assert term in text
-    script = adaptive_ui_source().joinpath("example", "index.js").read_text()
-    for term in (
-        'import { Button, Card, Chat } from "/lib/adaptive-ui.js";',
-        'import { ExampleNote } from "./_components/example-note.js";',
-        'import { pageStyles } from "./index.css.js";',
-        'Card.define("aui-card");',
-        'Button.define("aui-button");',
-        'Chat.define("aui-chat");',
-    ):
-        assert term in script
-
-
-def test_adaptive_ui_example_teaches_reactive_shadow_composition() -> None:
-    example = adaptive_ui_source().joinpath("example", "reactive-shadow.html")
-    text = example.read_text()
-
-    assert text.index('<script type="module">') < text.index("<body>")
-    for term in (
-        'from "/lib/adaptive-ui.js";',
-        "class ReactivePage extends Base",
-        "const state = reactive({ count: 0 });",
-        "const Counter = component(() =>",
-        '@click="${() => state.count++}"',
-        'this.attachShadow({ mode: "open" })',
-        'Card.define("aui-card");',
-        'Button.define("aui-button");',
-        'ReactivePage.define("aui-reactive-page");',
-        'ReactiveShell.define("aui-reactive-shell");',
-        "<aui-reactive-shell>",
-    ):
-        assert term in text
-
-
 def test_package_excludes_adaptive_ui_generated_trees_from_sdists_and_wheels() -> None:
     project_root = Path(__file__).parents[3]
     config = tomllib.loads((project_root / "pyproject.toml").read_text())
 
     assert config["tool"]["uv"]["build-backend"]["source-exclude"] == [
-        "src/automata/skills/bundled/automata-adaptive-ui/lib/dist",
-        "src/automata/skills/bundled/automata-adaptive-ui/lib/dist/**",
-        "src/automata/skills/bundled/automata-adaptive-ui/lib/node_modules",
-        "src/automata/skills/bundled/automata-adaptive-ui/lib/node_modules/**",
+        "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/dist",
+        "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/dist/**",
+        "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/node_modules",
+        "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/node_modules/**",
         "src/automata/skills/bundled/**/__pycache__/**",
         "src/automata/tools/**/__pycache__/**",
     ]
@@ -158,7 +116,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "runtimes/pi/extensions/codex-bridge.ts",
         "skills/bundled/automata-workplan/SKILL.md",
         "skills/bundled/automata-storage/SKILL.md",
-        "skills/bundled/automata-adaptive-ui/scripts/build.py",
+        "skills/bundled/automata-web-design/skills/automata-adaptive-ui/scripts/build.py",
         "skills/bundled/automata-agent-evaluation/templates/evaluation-record.json",
     }
     with zipfile.ZipFile(wheel) as archive:
@@ -188,11 +146,6 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
     for paths in (wheel_paths, sdist_paths):
         assert expected <= paths
         assert catalog_files <= paths
-        assert {
-            "skills/bundled/automata-adaptive-ui/lib/example/index.js",
-            "skills/bundled/automata-adaptive-ui/lib/example/index.css.js",
-            "skills/bundled/automata-adaptive-ui/lib/example/catalog.svg",
-        } <= paths
         for retired in (
             'skills/bundled/automata-message-router/',
             'skills/bundled/automata-playspace/',
@@ -245,9 +198,12 @@ from automata.plugin import export_plugin
 assert Path(automata.__file__).is_relative_to(site)
 sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
-assert len(sources) == 38
+assert len(sources) == 40
 assert 'automata-thinking-control' not in sources
 assert 'automata-pi-sessions' in sources
+assert 'automata-web-design' in sources
+assert 'automata-web-app' in sources
+assert 'automata-web-dev' not in sources
 assert 'automata-playspace' not in sources
 assert 'automata-codex-sessions' not in sources
 assert not (site / 'automata/runtimes/codex').exists()
@@ -260,7 +216,7 @@ assert sources['automata-workplan'] == site / 'automata/skills/bundled/automata-
 assert 'automata-plan' not in sources
 assert not any(name in sys.modules for name in ('engrave', 'mistune', 'playwright'))
 results = install_skills(target_root=work / 'skills')
-assert {result.name for result in results} == set(sources)
+assert set(skill_sources(work / 'skills')) == set(sources)
 for name in ('automata-storage', 'automata-pi-context-status',
              'automata-workplan', 'automata-agent-design'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
@@ -268,6 +224,21 @@ install_skills(target_root=work / 'linked', skill_names=['automata-agent-design'
 linked = work / 'linked/automata-agent-design'
 assert linked.is_symlink() and linked.resolve() == sources['automata-agent-design']
 assert (linked / 'SKILL.md').read_bytes() == (work / 'skills/automata-agent-design/SKILL.md').read_bytes()
+# Copy the webapp from installed skills, resolving its installed sibling dependency.
+import subprocess, json
+web_skill = work / 'skills/automata-web-design/skills/automata-web-app'
+project = work / 'webapp'
+created = subprocess.run([sys.executable, str(web_skill / 'scripts/create.py'),
+                          '--output', str(project)], capture_output=True, text=True)
+assert created.returncode == 0, created.stdout + created.stderr
+config = json.loads((project / 'deno.json').read_text())
+from urllib.parse import urlparse, unquote
+for key, value in config['imports'].items():
+    if key.startswith('@adaptive/'):
+        dependency = Path(unquote(urlparse(value).path))
+        assert dependency.is_file() and dependency.is_relative_to(work / 'skills')
+assert (project / 'app/main.py').is_file()
+assert not (project / 'node_modules').exists()
 installed = install_pi_extensions(target_root=work / 'extensions')
 assert {item.name for item in installed} == {
     'codex-bridge', 'context-compaction', 'context-status', 'fast-mode',
@@ -310,7 +281,7 @@ def test_package_separates_pi_extensions_from_bundled_skills() -> None:
         assert not package.joinpath("skills", "skill-ops", name).exists()
 
 
-def test_package_retires_router_and_playspace_but_keeps_chat() -> None:
+def test_package_retires_router_and_playspace() -> None:
     package_root = files("automata")
     assert not package_root.joinpath(*PI_EXTENSIONS, "message-router").exists()
     assert not package_root.joinpath(*PI_EXTENSIONS, "agent-router").exists()
@@ -319,9 +290,6 @@ def test_package_retires_router_and_playspace_but_keeps_chat() -> None:
     assert not package_root.joinpath("tools", "message-router").exists()
     for name in ('automata-message-router', 'automata-playspace'):
         assert not package_root.joinpath('skills', 'bundled', name).exists()
-    components = adaptive_ui_source().joinpath("src", "ui", "_components")
-    for path in ("chat.ts", "chat.schema.ts"):
-        assert components.joinpath(path).is_file(), path
 
 
 def test_package_includes_bundled_codex_bridge_pi_extension() -> None:
