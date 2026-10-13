@@ -1,95 +1,48 @@
 ---
 name: automata-pi-context-compaction
-description: Use when an agent or user is considering intentional Pi context compaction after context-pressure observations, long-running work, or a stable task boundary.
+description: Use for deciding when to compact Pi context, preserving continuity and requesting deferred native summarization through context_compact.
 ---
 
 # Automata Pi Context Compaction
 
-Choose when to compact, preserve continuity and request deferred native summarization
-through `context_compact`. Pi owns automatic compaction; do not change its settings
-without approval or make compaction a task-completion requirement.
+Use the exposed `context_compact` extension; installation alone does not expose it.
+Report missing capability rather than injecting `/compact` or inventing a call.
+Pi owns automatic compaction; changing its settings needs separate approval.
 
-## When to compact
+1. **Choose a safe boundary.** Unless preferences override, trigger above 75%
+   measured usage when meaningful work remains; at 90% or higher, preserve a minimal
+   checkpoint and compact at the earliest safe boundary. Finish coherent edits and
+   record pending ownership/evidence first. Pressure is advice, not a command.
+   Unless explicitly requested, unknown usage or a just-completed compaction needs
+   a fresh reading above the trigger; time or a new phase alone is insufficient.
+   Briefly announce; do not require repeated approval or compact just to finish a task.
 
-Default to a trigger above 75% measured usage and an urgent threshold of 90%, unless
-approved preferences override them. Pressure is an observation, not a command.
+2. **Use approved selections.** Apply current instructions, project preferences,
+   global preferences, then session defaults. Existing paths remain:
+   - `.agents/var/skills/automata-context-compaction/preferences.md`
+   - `~/.agents/var/skills/automata-context-compaction/preferences.md`
+   Do not migrate these paths for the skill rename. Pass `model` as `provider/model`;
+   omission captures the current model when queued. Explicit `thinking` accepts
+   `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`; omission inherits session
+   effort at execution. Provider support applies; neither changes working settings.
+   Invalid selections or summary failures never authorize fallback. Budget preflight
+   is heuristic. Read `references/preferences.md` for customization; one-off choices
+   need no file and saved preferences do not change automatic compaction.
 
-- Above the trigger with meaningful work remaining, finish the coherent unit and
-  compact at the next stable boundary before substantial new work.
-- At or above the urgent threshold, preserve the minimum safe checkpoint and
-  compact at the earliest safe boundary.
-- Unless the user explicitly requests compaction, unknown usage or a just-completed
-  compaction requires a fresh measurement above the trigger. Time, long output or
-  a new phase alone is insufficient.
+3. **Preserve continuity.** Update existing authorized task state with goals,
+   constraints, decisions, checks, ownership, pending evidence, cleanup, blockers
+   and next actions. Do not save transcripts/secrets or create records just for
+   compaction. Use brief `customInstructions` for essential continuity guidance,
+   not a replacement summary; it reaches every native summary request.
 
-A stable boundary leaves edits coherent, decisions settled, and ownership and
-pending evidence recorded. Briefly announce the action; no per-use approval or
-setup questionnaire is needed within these rules.
+4. **Queue and continue.** Use `resumeMessage` only for remaining authorized work;
+   omit it when finished. Nonblank text is preserved; whitespace means compact-only.
+   It guides continuation, not summarization. The tool may wake an unchanged idle
+   session once; intervening work makes it non-triggering next-turn context.
+   Failure/cancellation/session changes do not wake it, and dispatch proves no resume.
+   Call as the sole final tool action when practical; the tool owns deferred queueing,
+   duplicate protection and notifications. Do not repeat a satisfied request or
+   automatically retry failure. Keep the checkpoint and reassess the cause.
 
-## Select model and thinking
-
-This workflow requires Pi's exposed `context_compact` extension tool. Installing
-this skill does not install or activate that extension. If it is unavailable,
-report the missing capability rather than inventing a call or injecting a command.
-
-Apply explicit current instructions, then project preferences, global preferences,
-and finally session defaults. Consult existing preferences at:
-
-- Project: `.agents/var/skills/automata-context-compaction/preferences.md`
-- Global: `~/.agents/var/skills/automata-context-compaction/preferences.md`
-
-These existing preference paths are retained across the skill rename; do not
-move or duplicate saved choices merely to match the new skill name.
-
-Pass a selected `model` as `provider/model`. Omission captures the current model
-when queued. Pass an explicit `thinking` level when selected: `off`, `minimal`,
-`low`, `medium`, `high`, `xhigh` or `max`. Omission inherits the session level at
-execution; an explicit level remains attached to the request. Provider/model
-support still applies. Neither argument changes working-session settings.
-
-For example, `model: "openai-codex/gpt-5.6-luna", thinking: "medium"` selects
-Luna/medium for the summary only. Do not silently replace an invalid preference.
-The tool checks model availability/authentication; selection or summary failure
-never triggers fallback. Initially defaulting to the current model is not fallback.
-Context-budget preflight is heuristic, not a guarantee against provider overflow.
-
-For customization of models, thresholds or saved defaults, read
-[Compaction preferences](references/preferences.md). One-off choices need no
-preference file. Saved preferences guide explicit tool arguments, not Pi automatic
-compaction or the tool's omitted-argument behavior.
-
-## Preserve continuity
-
-Update existing authorized task state with missing goal, constraints, decisions,
-validation, ownership, pending evidence, cleanup obligations, blockers,
-unfinished work and next action. Avoid transcripts, raw traces or secrets; do not
-create records solely for compaction or broaden persistence without approval.
-
-Supply brief `customInstructions` identifying what must survive, not a replacement
-summary or substitute for durable state. The working model provides guidance;
-the selected model summarizes. Guidance reaches every native summary request,
-including split-turn summaries, without an extra summary call.
-
-## Request and continue
-
-When authorized work remains, pass a brief `resumeMessage` for the next action.
-It guides continuation, not summarization; do not create another wakeup path.
-Omit it when no work remains. Whitespace-only text also means compact-only;
-nonblank text is preserved verbatim.
-
-After success, the tool may dispatch one wakeup for the unchanged session. If other
-work intervenes or the session is busy, guidance becomes non-triggering `nextTurn`
-context instead. Failure, cancellation or session changes do not trigger
-continuation. Fire-and-forget dispatch does not prove delivery or resumed work.
-
-Once preservation is complete and the turn can end, call `context_compact` as the
-sole final tool action when practical. It runs after the agent settles; the tool
-owns queueing, duplicate protection and notifications. If another compaction
-satisfies the request, do not repeat it.
-
-After failure or cancellation, keep the checkpoint and reassess on the next turn.
-Do not retry automatically; retry only when useful and the cause is understood.
-Compaction does not complete, accept, cancel or transfer work. Resume only the
-existing authorized assignment. Never inject `/compact` through tmux or as a user
-message; humans may use it directly. This skill does not measure context or change
-Pi settings.
+Compaction does not complete, accept, cancel or transfer work. Resume only existing
+assignments; do not create another wake path or change Pi settings.

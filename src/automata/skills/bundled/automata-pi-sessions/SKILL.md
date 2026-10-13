@@ -1,136 +1,64 @@
 ---
 name: automata-pi-sessions
-description: Use when discovering, inspecting an inactive session's visible status, copying or recoverably trashing Pi sessions, including exact-directory/global discovery and missing-directory review.
+description: Use for listing, inspecting inactive, copying or recoverably trashing Pi sessions, including missing-directory history. Not for scanning raw session files or permanently deleting them.
 ---
 
 # Automata Pi Sessions
 
-Use Pi's session tools, not raw session-store scans or manual file deletion.
-This skill owns scope, selection, consent and recovery judgment; tools enforce
-receipt binding and file-identity checks. Delegation records own worker assignment
-and completion, not a session's name or age.
+Use Pi session tools. This skill owns selection, consent and recovery; tools enforce
+receipts and identity checks but cannot detect all other active Pi processes.
 
-## Choose discovery scope
+1. **Choose discovery scope.** `pi_session_list()` uses the exact runtime CWD and
+   active store. `cwd` selects another exact directory; `scope="global"` searches
+   across projects. Both use Pi's default store, not other project settings/custom
+   stores, and require appropriate authority. Global scope cannot combine with CWD.
+   Matching is lexical, not recursive or symlink-expanded. Empty results prove no
+   absence elsewhere. Prefer recorded full IDs; duplicate IDs are non-selectable,
+   requiring narrower discovery rather than guessed identities.
 
-- `pi_session_list()` lists the exact runtime CWD using its active session store.
-- `pi_session_list(cwd="/project")` lists another exact CWD, including a deleted
-  directory, in Pi's default store. Relative paths resolve against the runtime CWD.
-- `pi_session_list(scope="global")` searches across projects in the default global
-  store. Ask for or reuse explicit global-discovery authority; do not broaden a
-  project-scoped request merely for convenience.
+2. **Respect pages and receipts.** Use `limit` 1–100; follow `nextCursor` with `cursor`
+   alone. Snapshot omissions appear as `unavailableCount`; restart to see changes.
+   Cursors expire or are superseded by discovery/CWD changes. Each page issues
+   separate `copyReceipt` and trash `receipt` values; next pages supersede them.
+   Re-list the page containing selected full IDs before acting, not reordered row
+   numbers. Receipts bind selection, not permission. `directoryStatus` distinguishes
+   `exists`, `missing` and `unknown`; missing may mean moved/offline, unknown may mean
+   access errors. Neither these statuses nor age establishes inactivity or cleanup
+   authority. Offer keep, copy or explicitly selected trash without assuming deletion.
 
-Global scope cannot be combined with `cwd`. Exact matching is lexical, not recursive
-or symlink-expanded; nested directories and worktrees may have separate identities.
-Other-directory/global discovery does not load project settings or search custom
-stores. Report this limitation; an empty listing is not proof that no history exists
-elsewhere. The current-directory default continues to support its active custom store.
+3. **Inspect only authorized inactive sessions.** Metadata is not conversation context.
+   Establish identity, store and inactivity from ownership/lifecycle evidence. An
+   owned detached tmux probe may run `pi --session <full-id>` from matching CWD, with
+   `--session-dir <store>` if needed; never guess using `--continue` or scan files.
+   Supply no prompt, file input or submitted text. Review startup hooks first: resume
+   can write state and cause effects. `--offline --no-extensions` limits networking
+   and discovered extensions, but explicit `-e` still executes code and offline is
+   not a model-call sandbox. Capture only needed visible status without changing
+   user layout. Report resource differences; persisted/rounded footer usage is not
+   fresh exact model context. Do not send prompts or compact for a better reading.
+   Stop owned probes and verify closure; retain history unless trash is authorized.
 
-Results contain IDs, optional names, recorded CWD, timestamps, message counts and
-current-session/directory status, not session-file paths or conversation contents.
-Prefer recorded full session IDs over rediscovery by name. Duplicate IDs within
-a search are non-selectable; narrow to an exact CWD and investigate ambiguity rather
-than choosing an arbitrary file.
+4. **Copy selected history.** Call `pi_session_copy` with exact `sessionIds`, fresh
+   `copyReceipt` and an existing authorized `targetCwd`. Confirm inactive sources
+   and a destination suitable for private content; active-session rejection is not
+   universal activity detection. Copies use new IDs and preserve provenance/history;
+   originals remain unchanged and malformed history is rejected. Project files,
+   external state and historical paths are not migrated. Destination storage is the
+   default store, not custom project configuration. Verify copied IDs by discovery;
+   copying does not authorize trashing originals or rebinding in place.
 
-## Pages and missing-directory review
+5. **Trash with scoped permission.** Call `pi_session_trash` with full `sessionIds`
+   (or legacy `sessionId`) and fresh trash `receipt`; no extra CWD is needed.
+   Establish authority and inactivity; reuse clear scoped removal permission or
+   ask for candidate selection. Membership, completion and age prove neither.
+   Keep uncertain sessions. Use recoverable OS trash only; failures never authorize
+   raw file operations or permanent deletion. Copy/trash receipts are not interchangeable.
 
-Use `limit` (1–100) for smaller pages. Follow `nextCursor` by supplying `cursor`
-alone. Pages share a short-lived snapshot; changed or inaccessible session files are
-omitted with `unavailableCount`. Restart discovery to see new/changed sessions.
-A cursor expires, is superseded by new discovery, or becomes invalid if runtime CWD
-changes. Do not present a page as the whole inventory when more remain.
-
-Filter with `directoryStatus` when relevant:
-
-- `exists`: the recorded path is currently a directory.
-- `missing`: lookup reports no such path/directory.
-- `unknown`: permission/access errors or a non-directory at that path.
-
-A missing directory may have moved or be on an unmounted volume. Unknown does not
-mean deleted. Neither condition, age, nor a successful copy authorizes cleanup.
-Offer keeping history, copying to an existing destination, or explicitly selected
-trash. Do not infer inactivity from unchanged timestamps or absent project files.
-
-Each page issues separate `copyReceipt` and trash `receipt` values covering only
-that page. The next page supersedes previous receipts. Review across pages if needed,
-then re-list the page containing the confirmed full IDs before acting. Do not rely
-on row numbers from a reordered listing. Receipts are evidence of selection, not
-user permission.
-
-## Inspect an inactive session without a model turn
-
-Listing metadata is not conversation context. For an authorized session, establish
-its exact identity, storage location and inactivity from ownership/lifecycle evidence,
-not age. Never resume a live agent or unrelated history to inspect it. If the path
-is unknown, use the recorded full ID with the matching CWD/store; do not scan raw
-session files or use `--continue`, which may select different history.
-
-An owned detached tmux session can run `pi --session <full-id>` from that CWD,
-with `--session-dir <store>` when needed. Supply no positional prompt, `@file`,
-piped input or submitted editor text. Capture only the needed visible pane/status
-lines, without attaching or changing the user's layout. Do not send a prompt or
-run compaction merely to obtain a fresher context number.
-
-Resume is not read-only: Pi can write session/settings state, migrate history and
-run extension startup hooks with external effects. Review the startup profile first.
-For an isolated inspection, `--offline --no-extensions` limits startup networking
-and discovered extensions; explicit `-e` still loads code, and offline is not a
-model-call sandbox. Disabling resources can change the displayed status and future
-context, so report those differences rather than claiming an identical environment.
-
-Separate saved transcript, visible footer and reconstructed model context. The
-footer may use persisted usage plus estimates, or show unknown usage (for example,
-after compaction without a later response). A rounded percentage is not an exact
-fresh measurement; visible history is not proof of what the next request contains.
-Current resources and extension context transformations may differ on resume.
-Record the observed model/status and limitations. Stop owned probe processes and
-verify closure; retain history unless separately authorized for recoverable trash.
-
-## Copy selected sessions
-
-Use `pi_session_copy` with exact `sessionIds`, a fresh `copyReceipt` and an existing
-`targetCwd`. Establish authorization for the selected history and destination;
-confirm sources are inactive. The current runtime session is rejected, but the tool
-cannot detect all other Pi processes. Ensure the destination can receive the private
-conversation content.
-
-Copies use Pi's fork API on a private snapshot: new IDs, destination CWD, original
-source provenance and preserved history. Originals remain untouched, even if the
-SDK would repair a missing final newline. Malformed history is rejected, not silently
-dropped. Project files, external assets, operational state and historical paths are
-not migrated or rewritten.
-
-Destination storage is Pi's default store, not target project custom configuration.
-Report that limitation. Verify discovery of the copied IDs in the destination.
-Copy does not authorize moving, rebinding in place or trashing the originals.
-
-## Trash selected sessions
-
-Use `pi_session_trash` with confirmed full `sessionIds` (or legacy `sessionId`) and
-one fresh trash `receipt`. Source directories and file identities come from the
-listing, including exact-directory/global listings; no separate trash `cwd` is needed.
-This supports sessions from known deleted directories without changing runtime CWD.
-
-Before calling, establish authorization and inactivity from context. A clear scoped
-removal request needs no repeated permission; otherwise present candidates with
-reasons and ask for explicit selection. Same-project membership, a completed task,
-or old timestamps do not establish ownership or inactivity. Keep uncertain sessions.
-
-The tool rejects the runtime's active session, rechecks every selected identity and
-directory status, and uses recoverable OS trash only. If trash fails, report the
-failure; never fall back to permanent deletion or raw file operations. A receipt for
-one operation cannot authorize the other, and listing alone authorizes neither.
-
-## Failure and recovery
-
-Both mutations validate all selected identities before starting and recheck between
-operations. After claiming a receipt, it is consumed even on partial failure. Results
-identify successes, failures and unattempted IDs; preserve them before deciding next
-steps. A failed copy may leave a destination file under its reported new ID. Do not
-automatically retry or delete it. Reconcile the outcome with the user and re-list
-before authorized recovery.
-
-If a session or its directory status changes, reassess rather than refreshing blindly.
-Expiration alone can be handled by re-listing the same approved scope without asking
-again. No move, permanent-delete, automatic-retention cleanup or custom-store discovery
-is provided. If required tools are unavailable, report the missing/reload-needed
-extension instead of bypassing its safeguards.
+6. **Reconcile failures before retrying.** Mutations validate selections and recheck
+   between operations. Claimed receipts are consumed even on partial failure.
+   Preserve successes, failures and unattempted IDs; failed copies may leave a new
+   destination file. Do not automatically retry or delete it. Reconcile with the
+   user and re-list for authorized recovery. Expiration allows same-scope relisting,
+   but identity or directory-status changes need reassessment. Unavailable tools
+   require reporting/reload, not bypasses. No automatic retention cleanup, move,
+   permanent-delete or custom-store discovery is provided.
