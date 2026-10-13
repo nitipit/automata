@@ -29,7 +29,6 @@ Public views:
 - `/templates/skill.html?name=automata-agent-design`: source view.
 - `/templates/reference.html?name=automata-agent-evaluation&reference=references/scoring.md`:
   rendered reference view.
-- Retired Router and Playspace routes are no longer served.
 - `/automata-workplan/` and `/automata-workplan/index.html`: workplan source view.
   The retired `automata-plan` name and `/plan/` alias are no longer served.
 

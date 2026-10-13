@@ -9,7 +9,7 @@ that the software works.
 
 | Claim | Useful evidence | Does not establish it |
 | --- | --- | --- |
-| Router authorization, correlation, lifecycle, installer behavior | Unit/CLI/integration tests against the relevant executable boundary | A sentence promising safety |
+| Executable tool and installer behavior | Unit/CLI/integration tests against the relevant executable boundary | A sentence promising safety |
 | Skill can be discovered and installed | Frontmatter, unique names, file/tool references, exact installed files | Counting mentions of a capability |
 | Agent recognizes a need, chooses an approach, respects authority | A realistic task with observed actions, results, and evaluator judgment | Required phrases, headings, word counts, or subject self-report |
 | Browser interaction works for a person | Visible target changes, usable controls, correct replies, recovery evidence | HTTP 200, injected input, or a successful transport acknowledgment |
@@ -38,10 +38,7 @@ uv run --offline ruff check src tests
 ```
 
 Some integration checks require installed runtimes and cached dependencies. Report
-skips and the boundaries replaced by stubs. For the opt-in native Pi SDK tests,
-set `AGENT_BROWSER_BRIDGE_NATIVE_PI_PACKAGE` to the installed Pi package directory.
-Those tests use a local model stub, not a real model. The legacy environment-variable
-name is retained by that test harness.
+skips and the boundaries replaced by stubs.
 
 For native session-management coverage, set `PI_SESSIONS_NATIVE_SDK` to the
 installed Pi package's `dist/index.js`. This exercises production fork/list/listAll/

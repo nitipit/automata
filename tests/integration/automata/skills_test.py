@@ -65,7 +65,6 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
-    "automata-message-router",
     "automata-playspace",
     "automata-capability-research",
     "automata-stateful-workflow",
@@ -81,7 +80,6 @@ RETIRED_SKILLS = {
     "automata-workspace",
     "automata-workspace-app",
     "automata-pc-ui-control",
-    "automata-agent-router",
     "automata-runtime-status",
     "automata-jev",
     "automata-agent-data",
@@ -97,7 +95,6 @@ RETIRED_SKILLS = {
     "automata-align",
     "automata-task-design",
     "automata-contract-diffusion",
-    "automata-agent-browser-bridge",
     "automata-ui-channel-setup",
     "automata-web-browser-control",
     "automata-web-dev",
