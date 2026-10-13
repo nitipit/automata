@@ -27,9 +27,11 @@ changes behavior, resolves ambiguity or preserves a necessary contract.
    context, with clear responsibilities, inputs, outputs and handoffs. Describe
    needed capabilities rather than requiring named skill-invocation chains.
    Keep portable contracts agent-CLI-brand-neutral; put runtime-dependent
-   interfaces and prerequisites with their runtime owner. Installation does not
-   prove that tools or extensions are exposed. Leave team topology and timing
-   flexible unless the contract requires them.
+   interfaces and prerequisites with their runtime owner. Refer to the owning
+   convention instead of duplicating concrete paths or environment-specific values.
+   Keep exact values only when they define a necessary interface or safety contract.
+   Installation does not prove that tools or extensions are exposed. Leave team
+   topology and timing flexible unless the contract requires them.
 
 4. **Keep the core small.** Keep essential obligations and defaults in `SKILL.md`,
    not optional reading. Use references for genuinely on-demand detail, examples
@@ -56,7 +58,7 @@ changes behavior, resolves ambiguity or preserves a necessary contract.
 
 7. **Verify meaning and behavior.** Preserve decisions and exceptions, not just
    shorter wording. Use proportionate behavior or interface checks; textual
-   assertions do not prove agent behavior. Above 8,000 characters, review
+   assertions do not prove agent behavior. Above 6,000 characters, review
    repetition and separable detail—not an automatic split or size target.
 
 8. **Report the change.** Capture pre-edit baselines. Report edited paths, bytes
