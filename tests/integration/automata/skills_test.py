@@ -57,7 +57,7 @@ REQUIRED_SKILLS = {
     "automata-documentation",
     "automata-runtime-environment",
     "automata-python-workspace",
-    "automata-software-development",
+    "automata-software-dev",
     "automata-tmux-background",
     "automata-tmux-communication",
     "automata-tmux-observation",
