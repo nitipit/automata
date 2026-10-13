@@ -46,7 +46,7 @@ def test_installed_skill_example_relocates_without_repo_imports_and_real_browser
     skills = tmp_path / "install/.agents/skills"
     install_tools(target_root=tools, tool_names=["python-runtime"])
     install_skills(
-        target_root=skills, skill_names=["automata-python-workspace", "automata-adaptive-ui"]
+        target_root=skills, skill_names=["automata-python-workspace", "automata-web-design"]
     )
     installed = skills / "automata-python-workspace"
     entry = tools / "python-runtime/python_runtime.py"
@@ -61,7 +61,7 @@ def test_installed_skill_example_relocates_without_repo_imports_and_real_browser
     run(
         [
             "python",
-            str(skills / "automata-adaptive-ui/scripts/build.py"),
+            str(skills / "automata-web-design/skills/automata-adaptive-ui/scripts/build.py"),
             "--runtime-root",
             str(work / "browser"),
         ]

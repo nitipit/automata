@@ -47,11 +47,18 @@ need a setup ceremony, and skills should not all acquire mandatory setup phases.
 3. Inspect only the selected destinations to determine whether this is a first install or
    an update.
 4. Confirm the install mode before running commands:
-   - `copy`: selected destination directories must not exist
-   - `replace`: remove selected existing destinations, then copy; do not merge
-   - `symlink`: expose the local source without copying; destinations must not exist
-5. Run the relevant `uv run automata` commands using bundled sources by default.
-6. Verify the selected installed files and report roots, mode, and replacements.
+   - `copy`: create selected destinations; existing changed skills are refused
+   - `replace`: replace selected destinations, then copy; do not merge
+   - `symlink`: expose the local source without copying; existing conflicting
+     destinations are refused
+   Skill synchronization skips identical copies or identical symlink exposures.
+   Other asset installers still require absent destinations for `copy`/`symlink`.
+5. For skills, preview with `--dry-run`. Unchanged installations are skipped in
+   every mode. A changed existing skill needs `--mode replace` and an explicitly
+   chosen `--backup-root`; replacements move the old directory there before copying.
+   Tools and runtime installers retain their documented mode behavior.
+6. Run the relevant `uv run automata` commands using bundled sources by default.
+7. Verify the selected installed files and report roots, mode, backups and replacements.
    Distinguish files installed from skills/extensions discovered by the intended
    runtime; use a fresh session or supported reload when discovery needs checking.
 
@@ -64,10 +71,12 @@ Default skill discovery uses the single bundled
 `skills/bundled/` catalog. Runtime-specific bindings and setup documentation live
 outside skill packages under `runtimes/`; shared tool contracts live under `tools/`. An explicit skill `--source-root` is exclusive and never adds
 bundled skills as a fallback. Discovery finds `SKILL.md` recursively. Selected
-packages install by directory name; a selected parent includes its nested skills,
-so separately selected descendants are not also exposed as duplicate roots.
-Children selected without their parent install independently. Duplicate source
-names are errors.
+packages preserve their source-relative layout, including grouping directories.
+Only outer parent skills are installation units: selecting a nested child is an
+error pointing to its outer parent, even when that parent is also selected. A
+parent includes nested children unchanged, without extra top-level exposures.
+Plugin export uses the same parent-only selection and relative layout. Duplicate
+source names are errors.
 This installer check is not runtime precedence: a runtime may discover same-name
 skills from multiple roots. Do not promise nearest-wins behavior. Choose one exposure for
 each selected skill (direct install or plugin), inspecting relevant existing roots
@@ -121,8 +130,45 @@ uv run automata skills install \
   --mode <mode>
 ```
 
-Omit `--source-root` for bundled skills. Omit `--skill` only when all discovered
-skills are intended.
+Omit `--source-root` for bundled skills. Omit `--skill` only when all outer parent
+skills are intended (unless using retirement-only selection).
+
+Preview synchronization, then apply approved replacements with backups:
+
+```bash
+uv run automata skills install --target-root <skills-root> --mode replace --dry-run
+uv run automata skills install --target-root <skills-root> --mode replace \
+  --backup-root <chosen-backup-root>
+```
+
+Preview reports `add`, `change`, `unchanged` and explicitly selected `retire`
+actions without creating destinations or backups. Preview can show changes in
+any mode; applying changed destinations still requires `replace`.
+
+Retire only confirmed installed parent names with repeatable/comma-separated
+`--retire <name>`. With no `--skill`, this is retirement-only, not an all-skills
+update. Missing retired names are unchanged. A legacy flat exposure can be retired
+by name even when that name is now a nested catalog child: for example,
+`--retire automata-adaptive-ui` removes only `<skills-root>/automata-adaptive-ui`,
+not its embedded copy inside `automata-web-design`. Repeated retirement of that
+absent flat exposure is unchanged. `--skill automata-adaptive-ui` still rejects;
+retirement never removes an embedded child from its parent package.
+Never infer retirement from absence in the catalog; custom skills and operational
+data remain untouched.
+
+```bash
+uv run automata skills install --target-root <skills-root> \
+  --retire <old-parent> --dry-run
+uv run automata skills install --target-root <skills-root> \
+  --retire <old-parent> --backup-root <chosen-backup-root>
+```
+
+Each changing run creates a unique `skills-*` directory inside the explicit
+backup root; results report each saved directory/link. Keep backups outside selected
+source and destination packages. To recover, move the saved directory/link back to
+its reported target after safely setting aside any replacement. Symlink backups
+preserve the link itself, not a copy of its referent. Filesystem failures may leave
+an incomplete run; inspect reported targets and the backup root before retrying.
 
 Install or update all bundled tools:
 

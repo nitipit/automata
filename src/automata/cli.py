@@ -133,7 +133,7 @@ def install(
         list[str] | None,
         Parameter(
             name="--skill",
-            help="Skill name to install. Repeat or use comma-separated names.",
+            help="Outer parent skill to install. Repeat or use comma-separated names.",
         ),
     ] = None,
     mode: Annotated[
@@ -144,8 +144,18 @@ def install(
         bool,
         Parameter(name="--json", help="Print machine-readable JSON output."),
     ] = False,
+    dry_run: Annotated[bool, Parameter(help="Preview without changing destinations.")] = False,
+    backup_root: Annotated[
+        Path | None, Parameter(help="Explicit backup directory for replacements and retirements."),
+    ] = None,
+    retire_names: Annotated[
+        list[str] | None,
+        Parameter(
+            name="--retire", help="Installed parent name to retire; repeat or comma-separate.",
+        ),
+    ] = None,
 ) -> None:
-    """Install all or selected skill directories."""
+    """Install or preview outer parent skills, or explicitly retire installations."""
 
     try:
         results = install_skills(
@@ -153,6 +163,9 @@ def install(
             target_root=target_root,
             skill_names=normalize_skill_names(skill_names),
             mode=mode,
+            dry_run=dry_run,
+            backup_root=backup_root,
+            retire_names=normalize_skill_names(retire_names),
         )
     except SkillInstallError as exc:
         raise SystemExit(str(exc)) from exc
@@ -306,7 +319,14 @@ def print_install_results(results, *, json_output: bool) -> None:
         return
 
     for result in results:
-        print(f"Installed {result.name}: {result.source} -> {result.target} ({result.mode})")
+        action = getattr(result, "action", "add")
+        label = {"add": "Installed", "change": "Updated", "unchanged": "Unchanged",
+                 "retire": "Retired"}[action]
+        if getattr(result, "dry_run", False):
+            label = f"Would {action}"
+        print(f"{label} {result.name}: {result.source} -> {result.target} ({result.mode})")
+        if getattr(result, "backup", None):
+            print(f"  Backup: {result.backup}")
 
 
 def print_names(names: tuple[str, ...]) -> None:

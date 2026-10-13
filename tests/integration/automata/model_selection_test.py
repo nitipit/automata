@@ -30,7 +30,9 @@ def test_selected_install_and_update_preserve_notes_and_other_skills(tmp_path: P
     other.write_text("Preserve this installed skill")
 
     for mode in ("copy", "replace"):
-        results = install_skills(target_root=target, skill_names=[NAME], mode=mode)
+        results = install_skills(
+            target_root=target, skill_names=[NAME], mode=mode, backup_root=tmp_path / "backups",
+        )
         assert [result.name for result in results] == [NAME]
         installed = target / NAME
         assert sorted(p.name for p in installed.iterdir()) == ["SKILL.md"]

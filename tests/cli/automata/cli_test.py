@@ -260,6 +260,83 @@ def test_cli_exports_json_summary(capsys: pytest.CaptureFixture[str], tmp_path: 
     assert (output / "plugin.json").is_file()
 
 
+def test_cli_skill_preview_and_retirement_json(capsys, tmp_path: Path) -> None:
+    source, target, backups = tmp_path / "source", tmp_path / "target", tmp_path / "backups"
+    make_skill(source / "parent")
+    make_skill(target / "legacy")
+    arguments = ["skills", "install", "--source-root", str(source),
+                 "--target-root", str(target), "--retire", "legacy", "--json"]
+    with pytest.raises(SystemExit) as preview:
+        app([*arguments, "--dry-run", "--backup-root", str(backups)])
+    assert preview.value.code == 0
+    result, = json.loads(capsys.readouterr().out)
+    assert result["action"] == "retire"
+    assert result["dry_run"] is True
+    assert not backups.exists()
+    assert (target / "legacy/SKILL.md").is_file()
+    with pytest.raises(SystemExit, match="--backup-root"):
+        app(arguments)
+    with pytest.raises(SystemExit) as applied:
+        app([*arguments, "--backup-root", str(backups)])
+    assert applied.value.code == 0
+    result, = json.loads(capsys.readouterr().out)
+    assert Path(result["backup"], "SKILL.md").is_file()
+    assert not (target / "legacy").exists()
+    assert not (target / "parent").exists()
+
+
+def test_cli_skill_child_rejection_and_help(capsys, tmp_path: Path) -> None:
+    with pytest.raises(SystemExit, match="select outer parent automata-web-design"):
+        app(["skills", "install", "--target-root", str(tmp_path / "target"),
+             "--skill", "automata-adaptive-ui"])
+    assert not (tmp_path / "target").exists()
+    with pytest.raises(SystemExit) as help_exit:
+        app(["skills", "install", "--help"])
+    assert help_exit.value.code == 0
+    output = capsys.readouterr().out
+    for flag in ["--dry-run", "--backup-root", "--retire"]:
+        assert flag in output
+    assert "Outer parent" in output
+
+
+def test_cli_retires_legacy_flat_child_without_touching_nested_copy(capsys, tmp_path: Path) -> None:
+    target, backups = tmp_path / "skills", tmp_path / "backups"
+    with pytest.raises(SystemExit) as installed:
+        app(["skills", "install", "--target-root", str(target),
+             "--skill", "automata-web-design"])
+    assert installed.value.code == 0
+    capsys.readouterr()
+    nested = target / "automata-web-design/skills/automata-adaptive-ui"
+    before = {path.relative_to(nested): (path.read_bytes(), path.stat().st_mtime_ns)
+              for path in nested.rglob("*") if path.is_file()}
+    flat = make_skill(target / "automata-adaptive-ui")
+    (flat / "SKILL.md").write_text("legacy flat copy")
+    arguments = ["skills", "install", "--target-root", str(target),
+                 "--retire", "automata-adaptive-ui", "--json"]
+    with pytest.raises(SystemExit) as preview:
+        app([*arguments, "--dry-run"])
+    assert preview.value.code == 0
+    result, = json.loads(capsys.readouterr().out)
+    assert result["action"] == "retire" and result["target"] == str(flat)
+    assert (flat / "SKILL.md").read_text() == "legacy flat copy"
+    with pytest.raises(SystemExit) as retired:
+        app([*arguments, "--backup-root", str(backups)])
+    assert retired.value.code == 0
+    result, = json.loads(capsys.readouterr().out)
+    assert Path(result["backup"], "SKILL.md").read_text() == "legacy flat copy"
+    assert not flat.exists()
+    assert {path.relative_to(nested): (path.read_bytes(), path.stat().st_mtime_ns)
+            for path in nested.rglob("*") if path.is_file()} == before
+    with pytest.raises(SystemExit) as repeated:
+        app(arguments)
+    assert repeated.value.code == 0
+    result, = json.loads(capsys.readouterr().out)
+    assert result["action"] == "unchanged" and result["target"] == str(flat)
+    with pytest.raises(SystemExit, match="select outer parent automata-web-design"):
+        app(["skills", "install", "--target-root", str(target),
+             "--skill", "automata-adaptive-ui"])
+
+
 def make_skill(path: Path) -> Path:
     path.mkdir(parents=True)
     (path / "SKILL.md").write_text("# Test Skill\n")

@@ -65,6 +65,15 @@ uv run automata pi-extension install --help
 uv run automata plugin export --help
 ```
 
+Skill installation units are outer parents, not nested children. Installation
+preserves source-relative layout; selecting a parent includes its nested skills
+without extra exposures. Use `skills install --dry-run` to preview additions,
+changes, unchanged packages and explicitly selected `--retire` names. Changed
+packages need `--mode replace --backup-root <chosen-root>`; retirements also need
+an explicit backup root. Unchanged packages are skipped. Missing catalog entries
+never authorize deletion. See [Setup](src/automata/skills/bundled/automata-setup/SKILL.md)
+for selection, backup recovery and retirement-only semantics.
+
 For development, use `uv run pytest` for the selected checks and
 `uv run ruff check .` for lint. Prepare dependencies only within approved scope;
 use offline execution when relying on already cached dependencies.

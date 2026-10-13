@@ -21,7 +21,7 @@ def test_list_skill_dirs_finds_grouped_skills(tmp_path: Path) -> None:
     assert list_skill_dirs(source_root) == ("automata-core", "automata-ops")
 
 
-def test_install_skills_flattens_grouped_source(tmp_path: Path) -> None:
+def test_install_skills_preserves_grouped_source(tmp_path: Path) -> None:
     source_root = tmp_path / "source"
     target_root = tmp_path / ".agents" / "skills"
     make_grouped_skill(source_root, "core", "automata-core")
@@ -30,13 +30,13 @@ def test_install_skills_flattens_grouped_source(tmp_path: Path) -> None:
     results = install_skills(source_root=source_root, target_root=target_root)
 
     assert [result.name for result in results] == ["automata-core", "automata-ops"]
-    assert (target_root / "automata-core" / "SKILL.md").is_file()
-    assert (target_root / "automata-ops" / "SKILL.md").is_file()
-    assert not (target_root / "core").exists()
-    assert not (target_root / "operations").exists()
+    assert (target_root / "core" / "automata-core" / "SKILL.md").is_file()
+    assert (target_root / "operations" / "automata-ops" / "SKILL.md").is_file()
+    assert not (target_root / "automata-core").exists()
+    assert not (target_root / "automata-ops").exists()
 
 
-def test_install_skills_supports_selected_nested_skill(tmp_path: Path) -> None:
+def test_install_skills_supports_selected_grouped_parent(tmp_path: Path) -> None:
     source_root = tmp_path / "source"
     target_root = tmp_path / "target"
     make_grouped_skill(source_root, "core", "automata-core")
@@ -49,9 +49,9 @@ def test_install_skills_supports_selected_nested_skill(tmp_path: Path) -> None:
         mode="symlink",
     )
 
-    assert (target_root / "automata-ops").is_symlink()
-    assert (target_root / "automata-ops" / "SKILL.md").is_file()
-    assert not (target_root / "automata-core").exists()
+    assert (target_root / "operations" / "automata-ops").is_symlink()
+    assert (target_root / "operations" / "automata-ops" / "SKILL.md").is_file()
+    assert not (target_root / "core").exists()
 
 
 def test_list_skill_dirs_rejects_duplicate_names(tmp_path: Path) -> None:
@@ -63,17 +63,19 @@ def test_list_skill_dirs_rejects_duplicate_names(tmp_path: Path) -> None:
         list_skill_dirs(source_root)
 
 
-def test_default_sources_share_one_flat_canonical_root() -> None:
+def test_default_sources_share_one_canonical_root() -> None:
     (root,) = bundled_skill_roots()
     sources = skill_sources()
     assert root.name == "bundled"
-    assert len(sources) == 39
+    assert sources
+    assert set(sources) == {path.parent.name for path in root.rglob("SKILL.md")}
     assert 'automata-pi-sessions' in sources
     assert 'automata-playspace' not in sources
     assert 'automata-workplan' in sources
     assert 'automata-plan' not in sources
     assert 'automata-codex-sessions' not in sources
-    assert all(source == root / name for name, source in sources.items())
+    assert all(root in source.parents for source in sources.values())
+    assert sources["automata-adaptive-ui"].parent.parent == sources["automata-web-design"]
 
 
 def test_install_skills_selects_shared_and_pi_skills_together(tmp_path: Path) -> None:
@@ -249,7 +251,11 @@ def test_install_skills_replaces_existing_target(tmp_path: Path) -> None:
     old_file.parent.mkdir(parents=True)
     old_file.write_text("old\n")
 
-    install_skills(source_root=source_root, target_root=tmp_path / "dest", mode="replace")
+    results = install_skills(
+        source_root=source_root, target_root=tmp_path / "dest", mode="replace",
+        backup_root=tmp_path / "backups",
+    )
+    assert Path(results[0].backup, "old.txt").read_text() == "old\n"
 
     assert not old_file.exists()
     assert (tmp_path / "dest" / "my-skill" / "SKILL.md").exists()

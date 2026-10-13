@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from automata.install.directory import CopyIgnore, DirectoryInstallError, validate_directory_name
-from automata.install.skills import find_skill_dir, outer_skill_sources, skill_sources
+from automata.install.skills import select_skill_sources, skill_relative_path, skill_sources
 from automata.install.tools import bundled_tool_root, tool_copy_ignore
 from automata.plugin.profiles import PluginProfile, get_profile
 
@@ -75,12 +75,7 @@ def export_plugin(
 
     try:
         sources = skill_sources(skill_source_root) if selected_skills else {}
-        for skill_name in selected_skills:
-            validate_directory_name(skill_name, kind="skill")
-            if skill_name not in sources:
-                raise DirectoryInstallError(
-                    f"Source skill directory does not exist: {skill_name}"
-                )
+        sources = select_skill_sources(sources, list(selected_skills))
     except DirectoryInstallError as exc:
         raise PluginExportError(str(exc)) from exc
     tool_root = Path(tool_source_root) if tool_source_root else bundled_tool_root()
@@ -97,8 +92,9 @@ def export_plugin(
     try:
         if selected_skills:
             copy_skill_sources(
-                sources={name: sources[name] for name in selected_skills},
+                sources=sources,
                 target_root=staging_path / "skills",
+                source_root=skill_source_root,
             )
         if selected_tools:
             copy_selected_assets(
@@ -141,21 +137,26 @@ def copy_selected_skill_assets(
     target_root: Path,
     names: Sequence[str],
 ) -> None:
-    """Copy selected skills from grouped sources into a flat package directory."""
+    """Copy selected outer parents, preserving their source-relative layout."""
 
     copy_skill_sources(
-        sources={name: find_skill_dir(source_root, name) for name in names},
+        sources=select_skill_sources(skill_sources(source_root), list(names)),
         target_root=target_root,
+        source_root=source_root,
     )
 
 
-def copy_skill_sources(*, sources: dict[str, Path], target_root: Path) -> None:
+def copy_skill_sources(
+    *, sources: dict[str, Path], target_root: Path, source_root: str | Path | None = None,
+) -> None:
     """Copy selected package roots, retaining nested skills without duplicates."""
 
     target_root.mkdir(parents=True, exist_ok=True)
     ignore = shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo")
-    for name, source in outer_skill_sources(sources).items():
-        shutil.copytree(source, target_root / name, ignore=ignore)
+    for source in sources.values():
+        shutil.copytree(
+            source, target_root / skill_relative_path(source, source_root), ignore=ignore,
+        )
 
 
 def copy_selected_assets(
@@ -253,7 +254,7 @@ def validate_selected_assets(source_root: Path, names: Sequence[str], *, kind: s
             raise PluginExportError(str(exc)) from exc
         if kind == "skill":
             try:
-                find_skill_dir(source_root, name)
+                select_skill_sources(skill_sources(source_root), [name])
             except DirectoryInstallError as exc:
                 raise PluginExportError(str(exc)) from exc
             continue

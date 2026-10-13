@@ -68,7 +68,8 @@ def test_export_custom_skill_root_is_exclusive(tmp_path: Path) -> None:
         skill_names=("automata-storage",), output=output,
     )
     assert result.skills == ("automata-storage",)
-    assert (output / "skills" / "automata-storage" / "SKILL.md").read_text() == "custom source\n"
+    installed = output / "skills" / "nested" / "automata-storage" / "SKILL.md"
+    assert installed.read_text() == "custom source\n"
 
 
 def test_export_missing_selection_does_not_create_output(tmp_path: Path) -> None:
@@ -144,3 +145,21 @@ def test_export_rejects_asset_path_traversal(tmp_path: Path) -> None:
             skill_names=("../outside",),
             output=tmp_path / "automata-core",
         )
+
+
+def test_export_rejects_child_and_preserves_parent_layout(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    parent = source / "group/parent"
+    child = parent / "skills/child"
+    child.mkdir(parents=True)
+    (parent / "SKILL.md").write_text("parent")
+    (child / "SKILL.md").write_text("child")
+    output = tmp_path / "plugin"
+    with pytest.raises(PluginExportError, match="select outer parent parent"):
+        export_plugin(name="child-only", skill_source_root=source,
+                      skill_names=["child"], output=output)
+    assert not output.exists()
+    export_plugin(name="parent-only", skill_source_root=source,
+                  skill_names=["parent"], output=output)
+    assert (output / "skills/group/parent/skills/child/SKILL.md").read_text() == "child"
+    assert not (output / "skills/child").exists()
