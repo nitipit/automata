@@ -5,124 +5,64 @@ description: Use when designing, reviewing, or modifying skills—their scope, a
 
 # Automata Skill Design
 
-Design compact contracts that improve agent decisions without prescribing every move.
+Write a short, concept-first contract: what the capability enables, when it
+applies, and the principles that guide good decisions. Add detail only when it
+changes behavior, resolves ambiguity or preserves a necessary contract.
 
-## Scope and Activation
+1. **Define the capability.** Identify its useful outcome, scope and recognizable
+   activation. A skill can supply judgment without an app or runtime. Keep a
+   separate skill only for a distinct capability or decision; different labels
+   or subtopics alone do not justify splitting. Check overlap and non-activation.
+   Use minimal name/description frontmatter and a lowercase, hyphen-separated
+   runtime name matching the installed directory; check name collisions.
 
-A skill supplies context-activated knowledge and judgment that reduce relevant
-ambiguity and improve decisions or execution. It need not be an application or
-have its own runtime or fixed workflow. Ask what it enables or clarifies beyond
-ordinary agent reasoning and existing guidance.
+2. **Summarize the judgment.** Prefer a few clear principles over long paragraphs,
+   exhaustive checklists and prescribed workflows. Keep necessary defaults,
+   conditions, exceptions, authority, success criteria and stopping boundaries.
+   Require fixed steps only for mechanical, interoperability or safety needs.
+   Clarity beats word-count reduction; do not force every skill into one template.
+   Ordinary response style belongs to character guidance.
 
-Keep a separate skill when a distinct capability or decision, recognizable
-activation and useful outcome improve selection or execution—even when conceptual.
-Otherwise refine an existing owner or leave ordinary reasoning to the agent.
-Split independent responsibilities, not every subtopic. Low usage alone does not
-show that specialized guidance is unnecessary.
+3. **Keep ownership clear.** Each skill stands independently and composes through
+   context, with clear responsibilities, inputs, outputs and handoffs. Describe
+   needed capabilities rather than requiring named skill-invocation chains.
+   Keep portable contracts agent-CLI-brand-neutral; put runtime-dependent
+   interfaces and prerequisites with their runtime owner. Installation does not
+   prove that tools or extensions are exposed. Leave team topology and timing
+   flexible unless the contract requires them.
 
-Use minimal frontmatter (`name` and `description`). Keep `description` short and
-specific to intent, task state or runtime signals needing specialized guidance;
-put details in the body. Review activation, nearby non-activation and overlap with
-another skill; no formal evaluation campaign is required.
+4. **Keep the core small.** Keep essential obligations and defaults in `SKILL.md`,
+   not optional reading. Use references for genuinely on-demand detail, examples
+   for general behavior, templates for formats and tools for repeated mechanics.
+   Moving always-read prose does not save context. Add assets only for a useful
+   purpose, not to make the skill look substantial. Map tools via installed
+   `.agents/tools/...` entries in `metadata.automata-tools`, not source paths.
 
-Use a lowercase, single-hyphen-separated runtime name matching the installed
-directory; check collisions with skills and runtime commands.
+5. **Separate instructions from state.** Keep mutable data outside the package
+   under its owner's convention. Separate reusable setup knowledge, temporary
+   handles, generated outputs and user inputs according to their lifetimes.
+   Consult verified recipes and recheck invalidated assumptions, not everything.
+   Retain useful commands, prerequisites, recovery and invalidation knowledge;
+   never secrets. Saved knowledge grants no authority. Define resource lifecycle,
+   retention and cleanup permission; completion does not authorize deletion.
+   Enforce concurrency and destructive-operation safeguards in tools, not prose.
 
-## Instructions and Composition
+6. **Improve the right owner.** Read the whole skill before editing. Diagnose
+   missing guidance versus failed discovery, loading, understanding or conflicting
+   instructions. Fix a weak obligation before adding another skill; remove overlap
+   rather than continually append rules. Do not universalize one incident.
+   Complete approved changes, but ask before expanding scope, storage or runtime
+   integrations. Discussion alone is not authorization.
 
-Keep portable skills agent-CLI-brand-neutral in names, activation, instructions and
-references. Describe capabilities and outcomes, not host branches. Name and scope
-runtime-dependent contracts in runtime-specific skills, not portable branches or
-counterparts for symmetry. Shared tool bindings and installation belong in tool or
-runtime docs. Installing a skill neither installs required extensions nor proves
-their interfaces are exposed.
+7. **Verify meaning and behavior.** Preserve decisions and exceptions, not just
+   shorter wording. Use proportionate behavior or interface checks; textual
+   assertions do not prove agent behavior. Above 8,000 characters, review
+   repetition and separable detail—not an automatic split or size target.
 
-Orient judgment through useful decisions and authority boundaries; let the agent
-adapt. Require fixed procedures only for mechanical, interoperability or safety needs.
-Action-oriented skills need success criteria, proportionate verification, authorized
-corrections and stop/escalation conditions. Authority boundaries remain necessary
-regardless of a model's claimed judgment.
-
-Each skill should stand independently and compose through context. Make activation,
-inputs, outputs and ownership clear. Describe needed capabilities, evidence or outcomes;
-let the agent select skills rather than prescribing named skill invocation. Documentation
-and interface links are not invocation instructions. Dependencies need a concrete
-interface, handoff or safety reason—not an invocation chain. Leave actors, topology,
-timing and message paths flexible when the situation should determine them.
-
-Every instruction should affect behavior. Remove filler and overlap while preserving
-decisions, conditions, exceptions and authority. Prefer clear language over brevity
-or cryptic abbreviations. Keep internal decisions separate from presentation; require
-announced modes, checklists or steps only for a real communication need. Ordinary
-response style belongs to character guidance.
-
-## Supporting Assets
-
-Only `SKILL.md` is required; keep its core contract and defaults together. Use
-references for on-demand knowledge, examples for general behavior rather than session
-policy, templates for formats and scripts for repeated mechanics. Cue optional reading;
-moving always-read prose does not reduce context cost. Keep short, coherent contracts
-together rather than forcing router structures. Tools provide reliable mechanisms
-where prose is insufficient; examples clarify contracts without making their
-architecture mandatory. Add assets for those benefits, not to give a skill the
-appearance of substance.
-
-Map Automata tools by installed `.agents/tools/...` entry path in
-`metadata.automata-tools` (comma-separated for multiple entries), not source paths,
-system commands or helpers. Reuse known entries; check changeable prerequisites when
-evidence warrants it. Mapping does not prove readiness. Keep scripts inspectable and
-document safe use.
-
-## State and Environment Boundaries
-
-Identify ownership before location. Keep mutable agent data outside the package;
-define its purpose and lifecycle under the owner's data convention. Keep generated
-outputs separate from user inputs with different lifecycles. Host-specific paths
-need an owning convention; let the generator implement concrete discovery paths.
-
-Separate setup from normal use and reusable knowledge from runtime state. Retain
-findable, verified setup recipes within storage authority when they avoid repeated
-work: commands, prerequisites, usage, cleanup and invalidation. Consult before
-rediscovery; check changeable prerequisites, repair only invalid parts within authority
-and update after verification. Each capability owns validity/invalidation; persist
-runtime state only for continuity or recovery. Saved knowledge grants no permission.
-Do not impose records or universal schemas. Judgment-only skills need no setup ceremony.
-Installation mechanics belong to setup.
-
-Define growth/retention review, cleanup authority and end-of-use conditions for
-accumulating data or resources. Distinguish disposable data from needed evidence,
-stopping activity from deleting records, and review triggers from deletion permission.
-Terminal status does not prove inactivity. Automatic deletion needs an agreed policy,
-not universal quotas or per-write checks. Enforce concurrency and deletion safeguards
-in tools, not prose alone.
-
-## Modification and Review
-
-Read the whole skill and resolve material ambiguity before editing. Complete approved
-changes and verification without repeated permission; ask before exceeding scope or
-adding unapproved storage, configuration or integrations. Discussion is not authority
-to mutate.
-
-For poor behavior, check missing guidance versus failed application: discovery,
-loading, understanding or conflicting instructions. Fix the cause at its owner,
-not by adding prose by default. Replace overlap rather than append requests. Review
-scope, activation, composition and authority together; explain misplaced additions
-or conflicts before implementing. Do not universalize one incident.
-
-Use proportionate behavior/interface checks; wording tests do not prove agent behavior.
-Review preservation of decisions, conditions and exceptions, not word count alone.
-Above 8000 characters, review repetition or separable supporting material—not an
-automatic split or size target.
-
-## Report skill edits
-
-Capture pre-edit baselines for edited skills and supporting files. Report a compact
-table: path, bytes and physical lines before → after, and added/deleted lines against
-that baseline. Exclude unrelated changes; disclose unavailable baselines, never invent
-values. Summarize meaningful changes, verification and limits beside the table. Counts
-show growth and churn, not exact tokens or quality; do not optimize wording merely
-to lower them. Honor an explicitly requested alternative format.
-
-## Boundaries
+8. **Report the change.** Capture pre-edit baselines. Report edited paths, bytes
+   and physical lines before → after, and added/deleted lines against that
+   baseline. Exclude unrelated changes; disclose missing baselines. Summarize
+   meaningful changes, verification and limits. Counts are not quality or exact
+   token measures; honor a requested alternative report format.
 
 This skill owns design and revision, not installation or runtime exposure.
