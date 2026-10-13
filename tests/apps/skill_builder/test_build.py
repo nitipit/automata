@@ -23,7 +23,7 @@ def test_export_and_installer_preserve_canonical_identities(tmp_path):
         install_skills(target_root=tmp_path / 'installed', skill_names=[name])
         assert snapshot(tmp_path / 'installed' / name) == snapshot(package)
     assert len(discover(SKILLS, 'automata-workplan', False)) == 1
-    assert len([p for p in discover(SKILLS, None, True) if p.document == 'SKILL.md']) == 43
+    assert len([p for p in discover(SKILLS, None, True) if p.document == 'SKILL.md']) == 42
     export_agent('automata-adaptive-ui', tmp_path / 'adaptive')
     assert snapshot(tmp_path / 'adaptive') == snapshot(SKILLS / 'automata-web-design/skills/automata-adaptive-ui')
     assert (tmp_path / 'adaptive/scripts/build.py').is_file()
@@ -88,14 +88,15 @@ def test_public_routes_and_allowed_roots(tmp_path):
             assert response.status_code == 404, (path, response.text)
             assert 'must not leak' not in response.text
         for retired in ('automata-playspace', 'automata-plan',
-                        'automata-thinking-control', 'automata-codex-sessions'):
+                        'automata-thinking-control', 'automata-codex-sessions',
+                        'automata-journal'):
             for path in (f'/{retired}/', f'/templates/skill.html?name={retired}',
                          f'/skills/{retired}/SKILL.md'):
                 assert client.get(path).status_code == 404, path
         assert client.get('/skills/automata-workplan/SKILL.md').content == (
             SKILLS / 'automata-workplan/SKILL.md'
         ).read_bytes()
-        assert client.get('/automata-journal/templates/entry.html').status_code == 200
+        assert client.get('/automata-journal/templates/entry.html').status_code == 404
         assert client.get('/automata-agent-evaluation/references/scoring.html').status_code == 200
         assert client.get('/automata-adaptive-ui/lib/package.json').status_code == 404
         assert client.get('/automata-workplan/index.html').status_code == 200

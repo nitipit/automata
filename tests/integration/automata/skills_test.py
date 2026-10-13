@@ -40,7 +40,6 @@ REQUIRED_SKILLS = {
     "automata-pi-skill-activity",
     "automata-delegation",
     "automata-cue",
-    "automata-journal",
     "automata-team-management",
     "automata-manager",
     "automata-workplan",
@@ -65,6 +64,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-journal",
     "automata-playspace",
     "automata-capability-research",
     "automata-stateful-workflow",
@@ -129,7 +129,7 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
 
 
 def test_pi_skills_share_one_catalog_with_all_skills() -> None:
-    assert len(list(SKILLS_ROOT.rglob("SKILL.md"))) == 43
+    assert len(list(SKILLS_ROOT.rglob("SKILL.md"))) == 42
     for name in PI_SKILL_NAMES:
         assert (SKILLS_ROOT / name / "SKILL.md").is_file()
         assert not (SKILLS_ROOT / name).is_symlink()
@@ -211,7 +211,7 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
     target = tmp_path / "skills"
     results = install_skills(target_root=target)
     expected = set(SOURCES)
-    assert len(expected) == 43
+    assert len(expected) == 42
     assert 'automata-pi-sessions' in expected
     assert 'automata-codex-sessions' not in expected
     roots = expected - {"automata-adaptive-ui", "automata-web-app"}
@@ -246,20 +246,8 @@ def test_selected_skill_installs_only_its_packaged_files(tmp_path: Path, skill_f
     assert contents(installed) == contents(skill_file.parent)
 
 
-def test_journal_template_metadata_supports_discovery() -> None:
-    path = SKILLS_ROOT / "automata-journal/templates/entry.md"
-    metadata = parse_frontmatter(path)
-    for field in ("id", "created", "kind", "title", "summary"):
-        assert isinstance(metadata[field], str) and metadata[field].strip(), field
-    assert isinstance(metadata["topics"], list) and metadata["topics"]
-    assert all(isinstance(topic, str) and topic for topic in metadata["topics"])
-    # Placeholders must not masquerade as actual event timestamps or evidence.
-    assert metadata["id"].startswith("REPLACE-")
-    assert metadata["created"].startswith("REPLACE-")
-
-
-def test_journal_and_cue_do_not_name_other_skills() -> None:
-    for name in ("automata-journal", "automata-cue"):
+def test_cue_does_not_name_other_skills() -> None:
+    for name in ("automata-cue",):
         root = SKILLS_ROOT / name
         for path in root.rglob("*.md"):
             names = set(re.findall(r"automata-[a-z0-9]+(?:-[a-z0-9]+)*", path.read_text()))
