@@ -33,7 +33,9 @@ def test_copy_and_replace_deliver_skill_outside_checkout(tmp_path: Path, monkeyp
     (installed / "SKILL.md").write_text("stale installed skill")
     (installed / "references").mkdir()
     (installed / "references/goal.md").write_text("obsolete reference")
-    install_skills(target_root=target, skill_names=[NAME], mode="replace")
+    install_skills(
+        target_root=target, skill_names=[NAME], mode="replace", backup_root=tmp_path / "backups",
+    )
     assert_skill_contents(installed)
 
 

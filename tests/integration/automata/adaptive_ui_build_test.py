@@ -53,9 +53,9 @@ def installed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     with monkeypatch.context() as environment:
         environment.setenv("PATH", "")
         install_skills(
-            target_root=tmp_path / "installed skills", skill_names=["automata-adaptive-ui"]
+            target_root=tmp_path / "installed skills", skill_names=["automata-web-design"]
         )
-    skill = tmp_path / "installed skills" / "automata-adaptive-ui"
+    skill = tmp_path / "installed skills/automata-web-design/skills/automata-adaptive-ui"
     assert (skill / "lib" / "src" / "ui" / "_components" / "base.ts").is_file()
     assert not (skill / "scripts" / "library").exists()
     assert not (skill / "lib" / "browser").exists()

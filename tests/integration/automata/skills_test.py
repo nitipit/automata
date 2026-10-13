@@ -7,7 +7,7 @@ from pathlib import Path, PurePosixPath
 import pytest
 import yaml
 
-from automata.install.skills import install_skills, skill_sources
+from automata.install.skills import SkillInstallError, install_skills, skill_sources
 
 PACKAGE_ROOT = Path(__file__).parents[3] / "src" / "automata"
 SKILLS_ROOT = PACKAGE_ROOT / "skills" / "bundled"
@@ -227,6 +227,11 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
 def test_selected_skill_installs_only_its_packaged_files(tmp_path: Path, skill_file: Path) -> None:
     name = parse_frontmatter(skill_file)["name"]
     target = tmp_path / "skills"
+    if name in {"automata-adaptive-ui", "automata-web-app"}:
+        with pytest.raises(SkillInstallError, match="select outer parent automata-web-design"):
+            install_skills(target_root=target, skill_names=[name])
+        assert not target.exists()
+        return
     results = install_skills(target_root=target, skill_names=[name])
     assert [result.name for result in results] == [name]
     assert list(tmp_path.iterdir()) == [target]
