@@ -9,6 +9,7 @@ from typing import Annotated
 
 from cyclopts import App, Parameter
 
+from automata.apps.team.cli import app as team_app
 from automata.character import CharacterError, compose_character, list_character_components
 from automata.install.directory import InstallMode
 from automata.install.pi_extensions import (
@@ -26,6 +27,7 @@ from automata.plugin import PluginExportError, export_plugin
 from automata.skills.cli import app as skill_builder_app
 
 app = App(help="Automata reusable agent guidance tools.")
+app.command(team_app, name="team")
 character_app = App(
     help=(
         "Render packaged character components as Markdown for an AI agent to read. "

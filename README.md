@@ -42,6 +42,15 @@ This README is a quick orientation map; follow the relevant source for details.
 - [Storage](src/automata/skills/bundled/automata-storage/SKILL.md) and [task spaces](src/automata/skills/bundled/automata-task-space/SKILL.md): ownership, placement and cleanup.
 - [Testing](tests/README.md): test layout and verification scope.
 
+## Automata Team
+
+[`automata team`](src/automata/apps/team/README.md) publishes one goal-scoped current
+work report per agent through trusted-local Unix ShelfDB. Its read-only board
+navigates manager → direct-report agents, never mirrored task rows. The bundled
+`automata-team-use` skill teaches the validated publishing contract. Install the
+optional `team` extra; help works without app dependencies. It is not a worker
+controller and does not invent runtime usage measurements.
+
 ## Pi Fast mode
 
 The separate [`fast-mode` extension](src/automata/runtimes/pi/extensions/fast-mode/README.md)

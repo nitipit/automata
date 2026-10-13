@@ -1,0 +1,9 @@
+{
+  "goals": [{"id": "example", "goal_id": "example", "name": "SAMPLE · Build a local feature", "manager_id": "manager"}],
+  "teams": [{"id": "root", "goal_id": "example", "name": "SAMPLE · Root", "manager_id": "manager", "parent_id": null, "agent_ids": ["manager", "owner"], "task_ids": ["task"]}],
+  "agents": [
+    {"id": "manager", "goal_id": "example", "name": "Manager", "model": "unavailable", "thinking": "unavailable", "updated_at": null, "context": {"used_tokens": null, "capacity_tokens": null, "observed_at": null, "source": "unavailable"}},
+    {"id": "owner", "goal_id": "example", "name": "Owner", "model": "unavailable", "thinking": "unavailable", "updated_at": null, "context": {"used_tokens": null, "capacity_tokens": null, "observed_at": null, "source": "unavailable"}}
+  ],
+  "tasks": [{"id": "task", "goal_id": "example", "name": "SAMPLE · Implement feature", "owner_id": "owner", "team_id": "root", "status": "pending", "status_changed_at": null, "updated_at": null, "elapsed_seconds": null, "estimate": {"min_seconds": null, "max_seconds": null, "target_finish": null}, "tokens": {"input": null, "output": null, "cache_read": null, "cache_write": null, "observed_at": null, "source": "unavailable"}, "note": "Example only; no live runtime measurements."}]
+}

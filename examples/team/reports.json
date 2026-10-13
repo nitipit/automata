@@ -1,0 +1,13 @@
+{
+  "goals": [{"id": "example-reports", "goal_id": "example-reports", "name": "SAMPLE · Agent current reports", "manager_id": "manager"}],
+  "teams": [
+    {"id": "root", "goal_id": "example-reports", "name": "Root", "manager_id": "manager", "parent_id": null, "agent_ids": ["manager", "alice", "bob"], "task_ids": []},
+    {"id": "alice-team", "goal_id": "example-reports", "name": "Alice's team", "manager_id": "alice", "parent_id": "root", "agent_ids": ["alice", "bob"], "task_ids": []}
+  ],
+  "agents": [
+    {"id": "manager", "goal_id": "example-reports", "name": "Manager", "model": "unavailable", "thinking": "unavailable", "updated_at": null, "report": null, "context": {"used_tokens": null, "capacity_tokens": null, "observed_at": null, "source": "unavailable"}},
+    {"id": "alice", "goal_id": "example-reports", "name": "Alice", "model": "unavailable", "thinking": "unavailable", "updated_at": null, "report": null, "context": {"used_tokens": null, "capacity_tokens": null, "observed_at": null, "source": "unavailable"}},
+    {"id": "bob", "goal_id": "example-reports", "name": "Bob", "model": "unavailable", "thinking": "unavailable", "updated_at": null, "report": null, "context": {"used_tokens": null, "capacity_tokens": null, "observed_at": null, "source": "unavailable"}}
+  ],
+  "tasks": []
+}

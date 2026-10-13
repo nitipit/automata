@@ -10,6 +10,13 @@ dependencies = [
     "cyclopts>=4.11.1",
 ]
 
+[project.optional-dependencies]
+team = [
+    "dictify>=5.0.2,<6",
+    "shelfdb>=3.0.2,<4",
+    "textual>=8.2.7,<9",
+]
+
 [project.scripts]
 automata = "automata.cli:app"
 
@@ -17,6 +24,8 @@ automata = "automata.cli:app"
 dev = [
     "apscheduler>=3.11,<4",
     "dictify>=5.0.2",
+    "shelfdb>=3.0.2,<4",
+    "textual>=8.2.7,<9",
     "playwright>=1.63.0",
     "pytest>=8.3.0",
     "pyyaml>=6.0.3",
