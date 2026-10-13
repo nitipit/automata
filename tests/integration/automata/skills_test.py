@@ -41,6 +41,7 @@ REQUIRED_SKILLS = {
     "automata-delegation",
     "automata-cue",
     "automata-team-management",
+    "automata-team-use",
     "automata-manager",
     "automata-workplan",
     "automata-skill-design",
@@ -131,7 +132,7 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
 
 
 def test_pi_skills_share_one_catalog_with_all_skills() -> None:
-    assert len(list(SKILLS_ROOT.rglob("SKILL.md"))) == 43
+    assert len(list(SKILLS_ROOT.rglob("SKILL.md"))) == 44
     for name in PI_SKILL_NAMES:
         assert (SKILLS_ROOT / name / "SKILL.md").is_file()
         assert not (SKILLS_ROOT / name).is_symlink()
@@ -213,7 +214,7 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
     target = tmp_path / "skills"
     results = install_skills(target_root=target)
     expected = set(SOURCES)
-    assert len(expected) == 43
+    assert len(expected) == 44
     assert 'automata-pi-sessions' in expected
     assert 'automata-codex-sessions' not in expected
     roots = expected - {"automata-adaptive-ui", "automata-web-app", "automata-documentation"}
