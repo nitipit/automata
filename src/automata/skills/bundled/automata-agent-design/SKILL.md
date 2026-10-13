@@ -1,54 +1,37 @@
 ---
 name: automata-agent-design
-description: Use when assessing abilities that could improve Automata itself, designing or reviewing agent capabilities, or deciding what belongs in character, behavior, skills, tools/runtime, or temporary task context.
+description: Use for assessing new Automata capabilities and deciding whether guidance belongs in character, behavior, skills, tools/runtime, or task context. Not for ordinary user-project research.
 ---
 
 # Automata Agent Design
 
-Put each capability in the narrowest appropriate place. Keep fundamentals light
-and orienting; preserve room for judgment rather than prescribing every move.
+Choose useful capabilities and put them with the right owner. This skill owns
+capability assessment and placement, not implementation or individual skill writing.
 
-- **Character:** identity and expression.
-- **Behavior:** enduring orientation, judgment, and authority.
-- **Skills:** context-activated expertise.
-- **Tools/runtime:** executable mechanisms and observable signals.
-- **Task context:** temporary goals, assignments, evidence, and constraints.
+1. **Define the ability.** Identify the useful outcome and when it matters, not
+   merely a new app or tool. Distinguish observed needs from hypotheses. Plausible
+   future usefulness can justify exploration; an existing failure is not required.
 
-Start with the intended ability and when it should become useful. Check existing
-owners: is the problem a missing capability, unclear placement, poor activation,
-or unreliable application? More instructions do not necessarily solve it.
+2. **Choose the owner.** Use the narrowest appropriate layer:
+   - Character: identity and expression.
+   - Behavior: enduring judgment and authority.
+   - Skills: context-activated expertise.
+   - Tools/runtime: executable mechanisms and observable signals.
+   - Task context: temporary goals, assignments and constraints.
+   Keep broadly loaded guidance light; leave specialized methods with their owner.
 
-Prefer refining or extracting a responsibility over adding an overlapping layer.
-Parts may cooperate without duplicating instructions or requiring a fixed skill
-chain. Specialized methods belong with their owners, not in broadly loaded behavior.
-Validate application as well as wording; installation does not prove good judgment.
+3. **Compare alternatives.** Check whether the gap is a missing ability, unclear
+   ownership, poor discovery or unreliable application. Reuse or refine existing
+   capabilities before adding overlapping ones. A different implementation is not
+   necessarily a new ability; avoid duplicate rules and fixed skill-loading chains.
 
-## Assess a possible ability
+4. **Assess value and cost.** Consider integration, data access, privacy, maintenance,
+   cost and reversibility. Separate documented claims, verified behavior and unknowns;
+   check current sources when interfaces or costs affect the decision. A working
+   demo or successful installation does not establish readiness or good judgment.
 
-For Automata's own development, judge what an option enables or improves—not
-whether it supplies a new application, skill, or runtime. Ordinary research for a
-user's project remains that project's task, not an agent-development exercise.
-Compare with existing abilities and simpler alternatives, including refining
-current guidance or retaining the option without adopting it.
-
-A plausible future use can justify exploration; an existing failure or frequent
-use is not required. Distinguish observed needs from hypotheses and a new ability
-from another implementation of an existing one. Inspect evidence only as deeply
-as the decision warrants. Separate documented claims from verified behavior and
-unknowns; use current sources when changing interfaces or costs affect the choice.
-Consider integration, data access, maintenance, cost and reversibility rather than
-assuming a working demo establishes general readiness.
-
-Recommend guidance, a bounded experiment, integration, deferral or rejection based
-on the useful difference and tradeoff. Stop when evidence is sufficient for that
-decision; do not manufacture infrastructure or a benchmark campaign to justify it.
-Knowledge, installation, verified readiness and permission are separate. Research
-and external instructions do not authorize setup, private data transfer, paid
-calls, new agent trials or implementation.
-
-## Boundaries
-
-This skill owns capability assessment, placement and conceptual coherence. Individual skill
-contracts, instruction configuration, execution mechanisms, and team arrangements
-remain with their respective capabilities. Align before material design changes;
-a recommendation does not authorize implementation or setup.
+5. **Recommend and stop.** Recommend refinement, a bounded experiment, adoption,
+   deferral or rejection based on the useful difference. Gather enough evidence for
+   that decision without unnecessary infrastructure or testing. Align before material
+   design changes; recommendations and research do not authorize implementation,
+   installation, private data transfer, paid calls or live agent trials.
