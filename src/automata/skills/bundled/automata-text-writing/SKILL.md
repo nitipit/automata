@@ -1,9 +1,9 @@
 ---
-name: automata-plain-text-writing
+name: automata-text-writing
 description: Use for creating or editing human-edited plain-text files such as Markdown, TOML, YAML, INI, .env.example, prompts, or instructions when clarity, minimal changes, and format safety matter.
 ---
 
-# Automata Plain Text Writing
+# Automata Text Writing
 
 Write or revise human-edited plain-text files without treating them like code or generated
 data.
@@ -38,6 +38,13 @@ data.
 6. Validate structured text when practical, using the repository's existing approach when
    available.
 7. Summarize what changed and note any assumptions or skipped validation.
+
+## Related documentation
+
+For organizing related documentation, searchable sections, shared definitions and
+navigation, the related guidance is `skills/automata-documentation/SKILL.md`,
+relative to this skill directory. It stands independently; ordinary text edits
+need no documentation-tree restructuring.
 
 ## Boundaries
 

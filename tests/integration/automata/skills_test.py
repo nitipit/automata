@@ -53,7 +53,8 @@ REQUIRED_SKILLS = {
     "automata-goal",
     "automata-git-worktree",
     "automata-gnome-desktop-control",
-    "automata-plain-text-writing",
+    "automata-text-writing",
+    "automata-documentation",
     "automata-runtime-environment",
     "automata-python-workspace",
     "automata-software-development",
@@ -64,6 +65,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-plain-text-writing",
     "automata-journal",
     "automata-playspace",
     "automata-capability-research",
@@ -129,7 +131,7 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
 
 
 def test_pi_skills_share_one_catalog_with_all_skills() -> None:
-    assert len(list(SKILLS_ROOT.rglob("SKILL.md"))) == 42
+    assert len(list(SKILLS_ROOT.rglob("SKILL.md"))) == 43
     for name in PI_SKILL_NAMES:
         assert (SKILLS_ROOT / name / "SKILL.md").is_file()
         assert not (SKILLS_ROOT / name).is_symlink()
@@ -211,10 +213,10 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
     target = tmp_path / "skills"
     results = install_skills(target_root=target)
     expected = set(SOURCES)
-    assert len(expected) == 42
+    assert len(expected) == 43
     assert 'automata-pi-sessions' in expected
     assert 'automata-codex-sessions' not in expected
-    roots = expected - {"automata-adaptive-ui", "automata-web-app"}
+    roots = expected - {"automata-adaptive-ui", "automata-web-app", "automata-documentation"}
     assert {result.name for result in results} == roots
     assert {path.name for path in target.iterdir()} == roots
     assert set(skill_sources(target)) == expected
@@ -224,8 +226,13 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
 def test_selected_skill_installs_only_its_packaged_files(tmp_path: Path, skill_file: Path) -> None:
     name = parse_frontmatter(skill_file)["name"]
     target = tmp_path / "skills"
-    if name in {"automata-adaptive-ui", "automata-web-app"}:
-        with pytest.raises(SkillInstallError, match="select outer parent automata-web-design"):
+    nested_parents = {
+        "automata-adaptive-ui": "automata-web-design",
+        "automata-web-app": "automata-web-design",
+        "automata-documentation": "automata-text-writing",
+    }
+    if name in nested_parents:
+        with pytest.raises(SkillInstallError, match=f"select outer parent {nested_parents[name]}"):
             install_skills(target_root=target, skill_names=[name])
         assert not target.exists()
         return
