@@ -1,118 +1,62 @@
 ---
 name: automata-adaptive-ui
-description: Use when creating or revising browser interfaces, choosing component and state ownership, or previewing and promoting UI experiments. Applies to websites, dashboards, forms and interactive tools; not general browser automation or transport setup.
+description: Use for composing browser interfaces, choosing component/state ownership and previewing or promoting UI drafts. Not for browser control or transport setup.
 ---
 
 # Automata Adaptive UI
 
-Build an interface around what the user needs to see, decide or change. Choose the
-least-complex composition that supports that interaction; a useful UI does not
-require an application framework, agent connection or persistent runtime.
+Choose the simplest interface for what users need to see, decide or change. A UI
+needs neither an application framework nor an agent connection by default.
 
-## Choose the surface and state
+1. **Choose surface and state.** Reuse suitable interfaces and verify preview identity.
+   Respect existing stacks; for new standalone work default to the shipped catalog
+   and task-local `Base` extensions. User choice or incompatibility can justify an
+   alternative, not a missing prerequisite alone. Render static content directly;
+   keep drafts/filtering in the browser and use Arrow only where reactivity helps.
+   External computation/state needs explicit owner commands and validated results,
+   not a second authoritative browser snapshot. Persistent runtimes serve object
+   continuity; ordinary controls need no agent turn. Different state owners may coexist.
 
-Reuse a suitable interface and verify its preview identity before creating another.
-Respect an existing application's stack and maintained source. For a new standalone
-interface, use the shipped library by default: reuse suitable catalog components
-and extend `Base` for task-local components rather than rebuilding its foundation.
-An explicit user stack choice or incompatible requirement can justify an alternative;
-explain the reason. A missing build prerequisite is not itself a reason to switch.
+2. **Compose through contracts.** Components own data contracts, validation and local
+   interaction state; pages compose them without redefining contracts or mixing pending
+   actions. Logical ownership need not imply separate files/catalog components.
+   Use JSON-compatible boundary data; parse text before actual-data validation.
+   Primitives use typed/native properties, not required appearance schemas; custom
+   components may use `Base.validateData` for meaningful data. Distinguish pending,
+   confirmed, error and disconnected states; receipts are not completion. Apply replies
+   only to originating current components and never replay uncertain actions.
+   Use public exports; page CSS owns layout, component CSS owns internals. Preserve
+   useful drafts and inspect contracts before replacement. Arrow/Shadow DOM are not sandboxes.
 
-Distinguish the work an interaction requires:
+3. **Read relevant implementation details.** Installed assets remain read-only:
+   - `../automata-web-app/examples/webapp/README.md`: runnable design pages and usages.
+     Without the sibling, library contracts still work; app integration needs a source.
+   - `lib/src/ui/adaptive-ui.ts`, `lib/src/ui/tokens.ts` and relevant modules: public
+     exports, primitive values, native behavior. Catalog: Button, Card, native Form, Base.
+   - `scripts/build.py --help`: build/preview prerequisites and output layout.
+   Build missing/stale assets only when needed and authorized, outside installed source.
+   Share builds within website roots; isolate disruptive experiments. Missing dependencies
+   or runtimes need approval, not silent fetching or a different mandatory transport.
 
-- **Static content:** render information directly; no reactive state is needed.
-- **Browser-local interaction:** keep selection, input drafts and local filtering
-  in the browser. Use Arrow when reactive rendering helps, not for every element.
-- **External computation or state:** send explicit commands to its owner and render
-  validated results. A browser snapshot is not a second authoritative dataset or
-  live Python object. Use a persistent runtime only when object continuity helps.
-- **Agent judgment:** request interpretation or a new action when needed; ordinary
-  controls should not require an agent turn just to update their display.
+4. **Revise and promote deliberately.** Browser-local drafts suit comparison;
+   maintained source suits reproducibility. Preserve inputs and validate replacements;
+   dispose listeners/timers and fence stale callbacks. Custom-element registration
+   cannot be undone, so revisions may need new names. Save public-safe serializable
+   draft state only within useful recovery authority, never credentials, live handles
+   or pending actions. Cached code needs trusted provenance; restoring UI restores
+   neither runtime objects nor connections and browser storage may be evicted.
+   Promotion/catalog additions need explicit scope and maintained source/dependencies/
+   cleanup; verify independence from injection/caches. CSS owns appearance, not schemas
+   or aesthetic assertion tests. Never promote by editing installed skills.
 
-These can coexist in one page. Identify the owner of each state rather than making
-one framework, transport or storage mechanism mandatory for the whole interface.
+5. **Preview and check useful behavior.** Serve only a public-safe loopback website
+   root, excluding private operational state and profiles. Reuse setup, recheck affected
+   prerequisites and save useful discoveries only in approved owner storage, not live
+   handles. Check rendering, relevant interaction, keyboard/labels/focus, responsive
+   layout and draft preservation. External operations need observed effect and displayed
+   result, not HTTP success. Report limits; own preview shutdown, with no implied
+   source/storage/evidence deletion.
 
-## Compose around data contracts
-
-Each component owns its input/output data contract, validation and interaction
-state. The page composes components and connects data sources without redefining
-those contracts or conflating independent pending actions. Logical ownership does
-not require separate files or permanent catalog components.
-
-Use JSON-compatible data at integration boundaries; parse JSON text before any
-needed actual-data validation. The shipped primitives use simple typed/native
-properties, not mandatory style/configuration schemas. Custom components can use
-Base's `validateData` hook when meaningful data needs it. Distinguish pending input,
-confirmed results, errors and
-unknown/disconnected state. A transport receipt is not completion. Apply a reply
-only to its originating, still-current component; do not replay uncertain actions.
-The component need not know whether its data came from Python, an agent or a file.
-
-Use public exports and primitive values rather than private library internals.
-Page CSS owns layout; component CSS owns appearance and internals. Preserve useful input
-when updating a component: replacement, changed form fields and full reloads can
-lose drafts. Consult the affected component's contract before assuming preservation.
-Arrow and Shadow DOM are not security sandboxes.
-
-## Find the implementation details
-
-The library, builder and examples ship with this skill. Resolve these paths against
-its directory and treat installed assets as read-only. Read the relevant contract,
-not the entire library, before using an API:
-
-- The sibling `../automata-web-app/examples/webapp/README.md`: the three runnable
-  design pages, project-copy setup, primitive samples and short component usages.
-  A standalone installation without that sibling can use the library contracts
-  below; application integration needs a selected web-app source.
-- `lib/src/ui/adaptive-ui.ts`, `lib/src/ui/tokens.ts` and relevant component modules:
-  public exports, primitive values, registration and native-control behavior.
-  The current catalog is Button, Card and a thin native Form, plus shared Base.
-- `scripts/build.py --help`: prerequisites, build/preview commands and output layout.
-
-Build a missing or stale library only when needed and authorized, outside installed
-source. Share built assets within a website root; isolate experiments that could
-disrupt another preview. Obtain approval before fetching missing dependencies or
-installing runtimes. No separate UI tool or particular communication channel is
-required; an external integration retains its own setup and authority boundaries.
-
-## Revise and retain deliberately
-
-Use temporary browser-local drafts for quick comparison; use maintained source when
-reproducibility matters. Preserve useful inputs and validate a replacement before
-retiring good instances. Dispose old listeners/timers and fence stale callbacks.
-Custom-element registrations cannot be undone; a revision may need a distinct name.
-
-Save draft state only when recovery is useful, in owned storage appropriate to its
-lifetime. Keep it public-safe and serializable, excluding credentials, live handles
-and pending actions. Cached code needs trusted provenance before evaluation; cache
-presence is not permission. Verify restoration before promising it: browser storage
-can be evicted, and restoring a UI restores neither runtime objects nor connections.
-
-Promote a selected draft only with approval, capturing source, inputs, dependencies
-and resource cleanup in maintained files. Verify independence from browser caches
-and live injection. Reusable catalog additions need explicit scope and suitable data contracts;
-appearance belongs to CSS, not mandatory schemas or aesthetic assertion tests.
-Do not promote by modifying an installed skill.
-
-## Preview and verify
-
-Keep generated source with its established task and maintained changes in the
-application. Serve a public-safe website root on loopback—not the entire task area;
-exclude credentials, browser profiles and private operational state. Reuse verified
-setup recipes and recheck changed prerequisites. Retain useful discovered commands
-in approved owner-scoped data, separate from live server/browser handles.
-
-Verify actual rendering and relevant interactions, including keyboard access, labels,
-focus, responsive layout and draft preservation. For external state, check both the
-command's observed effect and its displayed result, not merely HTTP success. Report
-unverified boundaries; a demo does not establish general reliability.
-
-Establish ownership and shutdown for preview processes. Stopping a preview does not
-authorize deleting source, browser storage or evidence.
-
-## Boundaries
-
-This skill owns UI composition, state-boundary judgment and preview/draft lifecycle.
-Browser control, task-space placement, installation, backend execution and transport
-remain with their owners. The builder and component sources own mechanical APIs;
-examples illustrate contracts without requiring their architecture.
+This skill owns UI composition and draft/preview judgment. Builders/components own
+mechanical APIs; examples illustrate, not mandate, architecture. Placement, browser
+control, installation, backends and transport remain with their owners.
