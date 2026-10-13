@@ -1,43 +1,38 @@
 ---
 name: automata-text-writing
-description: Use for creating or editing human-edited plain-text files such as Markdown, TOML, YAML, INI, .env.example, prompts, or instructions when clarity, minimal changes, and format safety matter.
+description: Use for creating or editing human-maintained text such as Markdown, TOML, YAML, JSON, INI, .env.example, prompts or instructions when clarity, proportionate changes and format safety matter.
 ---
 
 # Automata Text Writing
 
-Write or revise human-edited plain-text files without treating them like code or generated
-data.
+Make the intended meaning clear while preserving the file's format and role.
+Apply these principles to the approved change, not a fixed editing workflow.
 
-## Principles
+1. **Understand the text.** Inspect the relevant content and context. Distinguish
+   prose, structured configuration and generated output; their correctness checks
+   differ. Identify the intended meaning and the maintained source before editing.
 
-- Default to minimal edits that satisfy the request.
-- Be interactive when scope, wording, formatting, or restructuring level is unclear.
-- Allow broader restructuring when the user asks for it or confirms it.
-- Preserve meaning, surrounding structure, and local conventions unless change is needed.
-- Exclude JSON by default. Handle it only when the user clearly wants this skill for that
-  file.
+2. **Edit proportionately.** Make the smallest useful change that satisfies the
+   request; broader revision is appropriate when approved. Preserve unrelated
+   content, surrounding structure and local conventions. Ask when ambiguity
+   materially affects meaning, scope or formatting, not for ordinary wording
+   decisions within the request.
 
-## Formatting
+3. **Protect format and semantics.** Use clear, direct language. Preserve syntax,
+   comments, ordering and significant whitespace unless the intended change
+   requires otherwise. Follow local wrapping conventions; around 80 characters is
+   a useful prose default, not a limit. Avoid unrelated reflow and do not wrap
+   URLs, code, tables or structured values when readability or semantics suffer.
+   For structured text, change the intended values without altering unrelated
+   behavior; a syntactically valid file can still mean the wrong thing.
 
-- Prefer clear, direct wording over decorative or overly compressed phrasing.
-- Prefer prose lines around 80 characters when practical.
-- Preserve clear file-local formatting conventions when they are obvious.
-- Ask the user when wrapping or formatting preference is unclear and changing it would cause
-  noticeable reflow.
-- Do not reflow unrelated content just to normalize line length.
-- Do not wrap lines when the format, semantics, or readability would suffer, such as URLs,
-  tables, code fences, examples, or structured values.
-
-## Workflow
-
-1. Inspect the target file first.
-2. Identify whether the task is prose editing, structured-text editing, or mixed.
-3. Clarify ambiguity before making broad wording or structure changes.
-4. Make the smallest useful edit unless the user wants broader revision.
-5. Preserve comments, ordering, headings, and surrounding layout unless the change needs more.
-6. Validate structured text when practical, using the repository's existing approach when
-   available.
-7. Summarize what changed and note any assumptions or skipped validation.
+4. **Verify the result.** Review the changed text for intended meaning and
+   preservation of necessary conditions and exceptions. Use existing parsers,
+   validators or relevant checks for structured text when practical; parsing alone
+   does not verify semantics. Correct defects caused by the edit within scope.
+   Stop when the approved result is verified, or report the blocker. Summarize
+   meaningful changes, assumptions and skipped checks without claiming unperformed
+   validation.
 
 ## Related documentation
 
@@ -48,8 +43,7 @@ need no documentation-tree restructuring.
 
 ## Boundaries
 
-- Do not treat plain-text editing as code implementation or configuration-system design.
-- Do not make broad rewrites or file-wide reformatting unless the user asks for it or confirms
-  it.
-- Do not silently reinterpret ambiguous policy, requirements, or instruction text.
-- Do not skip practical structured-text validation without saying so.
+Text editing does not authorize configuration-system redesign, broader
+restructuring or editing generated outputs. Change their maintained source when
+that is within scope; direct output edits need explicit approval. Do not silently
+reinterpret policy, requirements or instructions, or expose secrets in examples.
