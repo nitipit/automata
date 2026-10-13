@@ -1,63 +1,38 @@
 ---
 name: automata-zellij-observation
-description: Use when gathering read-only identity, process state, or bounded output evidence from an owned or assigned Zellij terminal pane.
+description: Use for read-only identity, process state or bounded output from owned/assigned Zellij terminal panes. Not for sending, focusing or polling.
 ---
 
 # Automata Zellij Observation
 
-Gather bounded evidence from an owned or assigned terminal pane. Observation grants
-no authority to send, focus, start or stop anything; the caller interprets results.
+Gather evidence for the caller's question, not authority to control the session.
 
-## Establish the target
+1. **Verify the target.** Resolve the exact session and `terminal_N` pane; ownership
+   requires creation/assignment. Check unknown CLI support and use:
+   ```bash
+   zellij --session "$SESSION" action list-panes --json
+   ```
+   Match numeric ID with `is_plugin: false`, command, CWD and exit state; plugin IDs
+   can share numbers and fields may be absent. Process/focus labels do not prove
+   readiness or human visibility. `action list-clients` is only for relevant authorized
+   client questions; detachment survival does not prove survival after server exit/reboot.
 
-Consult existing setup knowledge in an appropriate, authorized location. Reuse the
-established storage convention; retain useful methods only within storage authority.
-Keep current IDs and captures separate from reusable knowledge. Do not create records
-just to repeat CLI help, and do not persist captures by default.
+2. **Capture narrowly.** Read without changing focus:
+   ```bash
+   zellij --session "$SESSION" action dump-screen --pane-id "$PANE_ID"
+   ```
+   Prefer viewport; use `--full` only as needed with bounded excerpts. `--ansi` retains
+   styling; `--path` persists output and needs storage authority. Avoid unrelated or
+   sensitive collection. Recheck affected identity after restarts/version changes or
+   failures. Report uncertainty instead of following neighbors, installing, attaching
+   or changing configuration to repair access.
 
-Resolve the exact named session and explicit `terminal_N` pane. Ownership requires
-creation or assignment, not a familiar name. Check Zellij and relevant CLI support
-when unknown or changed; installing this skill does not install the program.
+3. **Return facts and limits.** Include identity, relevant time and the smallest useful
+   evidence. Stale/partial screen output differs from raw process output; it is not
+   readiness, receipt, completion or delivery through an agreed return path. Do not
+   poll for replies or start open-ended watchers. Never send keys, dismiss prompts,
+   create panes or manage processes as observation.
 
-Begin with metadata from the authorized session:
-
-```bash
-zellij --session "$SESSION" action list-panes --json
-```
-
-Match numeric `id` with `is_plugin: false`, expected command, CWD and exit state.
-Plugin and terminal panes can share a number; command fields may be absent. A process
-label or focus field does not prove readiness or what a human sees.
-
-Use `action list-clients` only when the question requires client evidence for that
-session. Pane existence does not prove client attachment; continuing activity after
-detachment does not prove survival after server exit or reboot.
-
-## Capture what answers the question
-
-Read the viewport without changing focus:
-
-```bash
-zellij --session "$SESSION" action dump-screen --pane-id "$PANE_ID"
-```
-
-Prefer the viewport to full scrollback. Use `--full` only when needed and bound the
-returned excerpt. `--ansi` preserves styling; `--path` saves output and requires
-storage authority. Do not collect unrelated or sensitive output for convenience.
-
-Re-establish affected assumptions after restarts, version changes, mismatches or
-failed lookups. Report unavailable sessions, refusals and uncertain outcomes rather
-than assuming the process ended or following nearby targets. Never install, attach,
-switch focus or change configuration to repair an observation failure.
-
-## Report evidence, not completion
-
-Return session and terminal pane identity, observation time when relevant, and the
-smallest useful excerpt. Output can be stale, incomplete or differ from raw process
-output. Separate observation from inferred readiness, message receipt and task
-completion. Captured acknowledgement text is not delivery through an agreed return
-route.
-
-Do not poll because a worker has not replied or start an open-ended watcher.
-Observation never authorizes sending keys, dismissing prompts, creating panes or
-managing processes. Saved setup knowledge grants no additional authority.
+4. **Keep knowledge separate.** Reuse useful setup through authorized owner conventions,
+   not repeated discovery or copied help. Live IDs/captures stay separate; captures
+   are not persisted by default. Saved setup grants no additional access authority.

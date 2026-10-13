@@ -1,67 +1,39 @@
 ---
 name: automata-toolsmith
-description: Use when deciding whether to create a helper for repeated or risky mechanical work, or when creating, improving, reviewing, or maintaining task helpers, skill-owned helpers, or reusable tools.
+description: Use for deciding whether to automate repeated/risky mechanics or creating, reviewing and maintaining task helpers and reusable tools. Not for replacing judgment with frameworks.
 ---
 
 # Automata Toolsmith
 
-Turn mechanical friction into small, inspectable helpers or tools with clear
-inputs, outputs, and effects. Prefer existing tools or direct commands for simple
-one-off work. Automate only when reduced repetition, context cost, or operational
-risk justifies maintenance; do not automate unclear judgment or build a framework.
+Build small inspectable mechanisms when reduced repetition, context cost or risk
+justifies maintenance. Prefer existing tools or direct commands for simple work.
 
-## Authority and ownership
+1. **Confirm owner and authority.** Task helpers need covered location, dependencies,
+   effects and lifecycle. Packaged-source promotion and deployment need their own
+   authority. Use the actual owner's storage conventions; keep operational helpers
+   out of maintained/installed surfaces until promoted. Do not move assets or create
+   directories merely for a model. Failure is investigation evidence, not repair
+   permission; distinguish defects from invocation/setup problems and task workarounds
+   from source repairs. Report unresolved defects even when alternatives work.
 
-Distinguish an operational helper from a maintained tool. Generate a helper within
-an approved task only when its location, dependencies, effects, and lifecycle are
-covered by that authority; otherwise propose it first. Permission to accomplish a
-task does not authorize adding packaged source, installing a tool, or changing the
-system. Promotion requires an explicit user request or confirmation; deployment
-requires its own applicable authority.
+2. **Make operation clear.** Use cohesive CLI-first interfaces with explicit inputs,
+   destinations, exit codes, useful errors and observable state. Provide JSON or
+   human-readable output for actual consumers; add correlation/provenance when
+   dispatch, completion and success could be confused. Put repeated preparation
+   inside the tool. Tiny helpers need help or a short usage comment; maintained
+   CLIs need defaults, surprising effects and recovery guidance. Process tools
+   need status and graceful stop, not hidden unmanaged leftovers.
 
-Identify the actual owner and intended lifetime before writing. Use that owner's
-storage conventions for temporary work, reusable operational helpers, and state;
-Toolsmith develops mechanisms but does not own every tool or define a second
-storage policy. Keep generated helpers out of maintained source and installed tool
-surfaces until promotion is approved. Do not create directories or move existing
-assets merely to fit a model.
+3. **Keep implementation proportionate.** Follow project conventions; shell suits
+   tiny glue, structured languages suit parsing/state/retries. Read
+   `references/stacks.md` for undecided stacks; preferences grant no installs.
+   Prefer Cyclopts/Dictify for substantive Python agent CLIs when compatible,
+   standard-library helpers when simpler. Verify real binding/schema behavior,
+   not duplicate validation. Change interfaces for actual consumers and update
+   mappings/docs; do not invent wrapper skills just to assign ownership.
 
-A failure is evidence to investigate, not repair authority. Distinguish a defect
-from incorrect invocation or missing setup. Separate task workarounds from repairs
-to maintained source; repair and deploy only within scope, preserving permission
-checks. Report unresolved defects even when an alternative works.
-
-## Interface and implementation
-
-Prefer cohesive, CLI-first commands with explicit inputs/output destinations,
-meaningful exit codes, useful errors, and observable state. JSON is useful for
-agent callers; readable output is useful for humans. Include correlation IDs or
-provenance when needed to distinguish dispatch, completion, and actual success.
-Keep mechanical preparation inside the tool, not repeated instructions to its user.
-
-Make operation discoverable without reading source: tiny helpers need `--help` or
-a short top comment; maintained CLIs need concise command/parameter help, defaults,
-surprising effects, and recovery. State/process tools need status and graceful stop.
-Avoid duplicate help documents, hidden processes, and unmanaged leftovers.
-
-Follow project conventions and keep dependencies proportionate. Ask before effects
-outside authority, including global installation, heavy dependencies, or system
-changes. Prefer shell for tiny glue and a real language for parsing/state/retries.
-When a stack is undecided, consult [Stack defaults](references/stacks.md); these
-are preferences, not installation permission. For substantive Python agent CLIs,
-prefer Cyclopts with Dictify when compatible; keep standard-library helpers when
-simpler. Verify actual binding/schema behavior rather than duplicating validation.
-
-Change interfaces for actual consumers, not imagined compatibility. Update affected
-entry mappings and documentation when replacing a maintained interface; do not
-invent a wrapper skill solely to assign ownership.
-
-## Verification
-
-Before relying on a helper, check its usage discovery and a representative command.
-A repair needs the failure regression and a normal successful path. Match assurance
-to authorized scope: one-off helpers normally need a smoke check, not a large suite;
-maintained or risky tools need focused failure checks where justified and approved.
-Report tested behavior and limits. Keep useful setup knowledge with its owner,
-separate from transient runtime identities; do not promote a successful experiment
-merely because it worked once.
+4. **Verify before relying.** Check usage discovery and a representative operation.
+   Repairs need the failure regression and a normal path. One-off helpers generally
+   need smoke checks; maintained/risky tools need focused failure checks where
+   justified and authorized. Report evidence and limits. Keep verified setup with
+   its owner, separate from live handles; one successful experiment is not promotion.

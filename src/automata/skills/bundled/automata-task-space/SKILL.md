@@ -1,48 +1,35 @@
 ---
 name: automata-task-space
-description: Use when choosing locations for delegated-agent work, Git worktrees, experiments, or temporary project copies; also when organizing, sharing, resuming, or cleaning up a task-specific working area.
+description: Use for placing, organizing, sharing, resuming or cleaning task-specific workspaces, experiments and temporary project copies. Not for reusable capability state.
 ---
 
 # Automata Task Space
 
-A task space holds task-specific drafts, experiments, temporary dependencies,
-outputs, and evidence. Keep reusable capability state with its owner, not copied
-into each task. Task-space guidance owns placement; Git-worktree guidance owns
-creating and managing an isolated checkout at the chosen location.
+Keep task drafts, experiments, dependencies, outputs and evidence together. Reusable
+capability state stays with its owner; Git owns worktree creation and lifecycle.
 
-## Choose and use
+1. **Choose a suitable location.** Reuse approved conventions and suitable areas.
+   Otherwise use repository-local `.agents/var/task-space/<task-name>/`; no workspace
+   is mandatory for every request. Ask before storage outside approved scope.
+   Check contents, ownership and symlinks before reuse. Nested scratch must be ignored
+   and excluded from unintended builds, watchers, serving and cleanup; Git ignore
+   alone is insufficient. Choose another suitable authorized location rather than
+   silently editing configuration.
 
-- Follow an established location convention and reuse a suitable working area.
-  Otherwise, `.agents/var/task-space/<task-name>/` is a repository-local fallback,
-  not a mandatory directory for every request. Ask before establishing storage
-  outside the authorized scope.
-- Before creating or reusing a location, check existing contents, ownership, and
-  symlink resolution; do not overwrite or take over unrelated work. For a nested
-  location, verify scratch artifacts are ignored by Git and will not be
-  unintentionally built, watched, served, or cleaned by project tooling. An ignore
-  rule alone does not establish tooling safety. If unsuitable, choose another
-  location within approved scope; do not silently change project configuration.
-- A task space belongs to the work, not one agent. Share or hand it over when
-  useful; coordinate changes to shared files and avoid duplicate working copies.
-- Use a simple layout that separates user inputs, useful evidence, and disposable
-  outputs. Do not impose a fixed template or create empty bookkeeping files.
-- For continuation, leave enough context to find relevant artifacts, understand
-  decisions and validation, and identify remaining work. Reuse existing notes
-  rather than duplicating authoritative project records.
-- Serve only public-safe files for previews; the whole workspace is not a public
-  website. Keep credentials and private state outside the served root.
+2. **Keep ownership and layout clear.** A workspace belongs to the task, not one
+   agent. Coordinate shared writes and handoffs; avoid duplicate working copies.
+   Separate inputs, useful evidence and disposable outputs without fixed templates
+   or empty bookkeeping. Serve only public-safe preview files, never private state,
+   credentials or the whole task area.
 
-## Promote and retire
+3. **Preserve continuity.** Leave enough context to find artifacts, understand decisions
+   and checks, and resume pending work. Reuse owner records instead of duplicating
+   them. Promote outputs only within authority; normal project operation must not
+   depend on scratch files.
 
-Promote useful outputs into maintained locations only within approved scope;
-normal project operation must not depend on scratch files.
-
-Review accumulation at natural maintenance boundaries. Completion or age alone
-is not deletion permission. Before authorized cleanup, identify exact owned
-candidates, confirm they are inactive, and preserve valuable edits, evidence, and
-user inputs. Stop owned processes through their responsible interfaces first.
-Retire contained managed resources through their owning mechanisms before removing
-an enclosing directory; for example, remove registered worktrees through Git,
-not generic directory deletion. Each retirement still needs its own authority.
-Prefer recoverable removal; do not touch another owner's data or follow links
-outside the cleanup scope. Ask when authority is unclear.
+4. **Retire safely.** Completion/age is not cleanup permission. Identify owned inactive
+   candidates and preserve valuable edits, inputs and evidence. Stop owned processes
+   and retire managed resources through their interfaces before deleting containers:
+   remove registered worktrees with Git, not directory deletion. Each action retains
+   its authority boundary. Prefer recoverable removal; do not touch another owner's
+   data or follow links beyond scope. Ask when authority is unclear.

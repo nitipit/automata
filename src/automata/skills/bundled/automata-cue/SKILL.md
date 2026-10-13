@@ -1,70 +1,41 @@
 ---
 name: automata-cue
-description: Use when asked to remember, retain, or carry decisions or conventions into future work; create, consult, update, or forget cues; or recover relevant context for orientation or handoff using durable anchors.
+description: Use for remembering lasting decisions or preferences, recalling context through durable reminders, and updating or forgetting cues. Not for task tracking or full conversation archives.
 ---
 
 # Automata Cue
 
-Make quick notes that help a future agent recall something useful. A cue is a
-reminder, not complete memory, an authoritative instruction, or the source of truth.
+Save short reminders that help future agents recover useful context. A cue is not
+an authoritative instruction, complete memory or source of truth.
 
-## Keep the useful reminder
+1. **Keep useful reminders.** Capture reusable decisions, preferences, discoveries
+   and pointers. Keep one understandable idea per Markdown bullet; link to existing
+   details instead of duplicating them. A cue does not require a fuller record.
+   Leave changing task status with its existing owner.
 
-Capture reusable decisions, preferences, discoveries, and pointers. Prefer one idea
-per Markdown bullet, usually 15–40 words excluding its timestamp and source pointer.
-This is a soft target: recall matters more than word count. Keep enough meaning to
-recognize the idea; link to details rather than compressing everything into the note.
-When fuller context, reasoning, or outcomes already exist in a durable record,
-link to it rather than duplicating its detail. Keep the reminder independently
-understandable. A reminder does not require creating a fuller record, or vice versa.
-Leave changing task status in its existing owner records.
+2. **Recall and verify.** Read relevant cues when they help orientation or handoff.
+   Follow pointers and verify consequential claims at their source before acting;
+   a saved reminder is not current evidence or permission.
 
-Start each new or revised note with the actual save-time ISO 8601 timestamp and
-UTC offset. Add a source pointer when needed to recover context; verify consequential
-claims at their source before acting. Preserve the surrounding file's structure.
+3. **Save with clear intent.** Save when asked to remember, given a clearly lasting
+   instruction, or covered by approved automatic capture. Future intent matters,
+   not specific words such as "always." Incidental remarks, one-off directions and
+   task completion do not authorize saving. Resolve unclear intent, scope,
+   conflicting notes or sensitive content; do not ask again about approved mechanics.
+   Check the target file and update a matching note; leave unchanged notes alone.
 
-Useful:
-```markdown
-- 2026-09-13T09:44:00+07:00 — Be an engineering partner, not an echo. Choose teams
-  for real benefit; revise recommendations for evidence, not merely agreement.
-```
+4. **Use the right location.** Prefer established destinations for the confirmed
+   scope. Use project scope for project conventions; global scope needs clear
+   cross-project intent. Otherwise, use these defaults:
+   - Project: `.agents/var/skills/automata-cue/cues.md` under the project root.
+   - Global: `~/.agents/var/skills/automata-cue/cues.md`.
+   A save request covers creating the default file and missing parent directories.
+   Start new or revised notes with the actual save-time ISO 8601 timestamp and UTC
+   offset; include source pointers where needed and preserve surrounding structure.
 
-Too much: a transcript of every team proposal, objection, and tool call. Keep the
-lesson, not the whole conversation. Example timestamps are illustrative, not facts
-to copy into a new note.
-
-## Recall and save
-
-Read relevant cues when they help orientation. Before saving, check the intended
-file and revise a matching note rather than duplicating it; unchanged notes need
-no rewrite.
-
-Save on a request to remember, a clearly lasting user instruction, or approved
-automatic capture. “Always,” “from now on,” and “make this our convention” count
-when context establishes a future rule—not merely when those words occur.
-Do not require the phrase “remember this.” Incidental remarks, one-off directions,
-and task completion alone do not authorize saving.
-
-Choose scope before location. A repo discussion supports saving repo-specific
-conventions locally; use global scope only when cross-project intent is clear.
-Ask before writing if intent or scope is unclear. Follow an established destination
-or data convention for that scope; otherwise use:
-
-- Project-specific knowledge: `.agents/var/skills/automata-cue/cues.md` under the
-  project root.
-- Global preferences: `~/.agents/var/skills/automata-cue/cues.md`.
-
-A save request authorizes creating the missing default file and parent directories;
-no separate file-creation approval is needed. Clarify conflicting notes or sensitive
-content before saving—not routine storage mechanics.
-
-## Boundaries
-
-Do not store secrets or raw transcripts, duplicate task records, or edit instruction
-files merely to remember a convention. Remove notes only with scoped authorization;
-prefer recoverable removal and never delete their referenced sources. Removing a
-cue does not erase conversation history. Delegated agents return cue candidates to
-their owner rather than writing shared notes without authority.
-
-Cue owns anchor selection, retrieval, and maintenance—not task tracking or a
-separate memory system.
+5. **Maintain safely.** Do not save secrets, raw transcripts or duplicate task
+   records. Do not edit instruction files merely to remember a convention.
+   Remove notes only with scoped permission; prefer recoverable removal and never
+   delete referenced sources. Forgetting a cue does not erase conversation history.
+   Delegated agents return cue candidates to their owner unless authorized to write
+   shared notes.

@@ -1,191 +1,72 @@
 ---
 name: automata-setup
-description: Use when installing, exposing, or updating skills from bundled or custom sources, installing Automata tools or runtime integrations, or preparing a global or repo-local agent environment for use.
+description: Use for installing or updating Automata skills, tools and runtime integrations, or preparing approved global/repository capabilities. Not for skill authoring or character composition.
 ---
 
 # Automata Setup
 
-Install or expose skills and Automata runtime assets through the `automata` CLI, and clarify
-whether the user also wants selected capabilities ready to use. Installation and
-capability readiness are different outcomes. Keep changes explicit, local, and
-reversible; use existing installers rather than copying files manually or creating
-another orchestration command.
+Use the `automata` CLI, not manual copies or a new installer wrapper. Installation,
+exposure and verified readiness are different outcomes.
 
-## Scope
+1. **Confirm the scope.** Resolve source (bundled by default), global/repository roots,
+   resource types, selected names or explicitly all assets, and install mode. Reuse
+   existing approval; ask only about missing choices. Default roots are global
+   `~/.agents/skills`, `~/.agents/tools` or repository `.agents/skills`, `.agents/tools`.
+   Identify runtime from intent/evidence, not model name; read its documented help
+   and supported discovery paths. Respect narrower requests. Observers need explicit
+   transcript/state-root consent. Character composition requires separate configuration.
 
-Resolve whether assets belong in the global agent environment or the current repository.
-Reuse explicit scope and replacement approval; ask only for missing choices. Use these
-default roots unless the user chooses custom paths:
+2. **Preview and install.** Inspect selected destinations, then choose:
+   - `copy`: create; changed existing skill destinations are refused.
+   - `replace`: replace then copy, never merge.
+   - `symlink`: expose source; conflicting existing destinations are refused.
+   Skills skip identical copies/links in every mode. Other installers retain their
+   own mode behavior. Skills require `--dry-run`; changed replacements need `replace`
+   and an explicit `--backup-root`. Preview never creates targets or backups.
+   ```bash
+   uv run automata skills install --target-root <skills-root> \
+     --skill <name-a>,<name-b> --mode replace --dry-run
+   uv run automata skills install --target-root <skills-root> \
+     --skill <name-a>,<name-b> --mode replace --backup-root <backup-root>
+   ```
+   Omit `--skill` only for all outer parents, except retirement-only requests.
+   Custom `--source-root <local-path-or-file-url>` is exclusive, not bundled fallback;
+   remote sources must first become confirmed local sources. Recursive discovery
+   preserves source-relative layout and rejects duplicate names. Only outer parents
+   install/export; nested children come with the parent, not flat extra exposures.
+   Inspect relevant exposures; neither parent selection nor installation proves
+   runtime precedence or nearest-wins behavior. Avoid duplicate exposures.
 
-| scope | skills | tools |
-| --- | --- | --- |
-| global | `~/.agents/skills` | `~/.agents/tools` |
-| repository | `.agents/skills` | `.agents/tools` |
+3. **Retire only selected names.** `--retire <name>` is explicit and requires backups.
+   With no `--skill`, it means retirement-only, not install-all. Absent retired names
+   are unchanged. A legacy flat nested-child name may be retired without touching
+   its embedded parent copy; selecting that child for installation still rejects.
+   Never infer retirement from catalog absence; preserve custom skills and data.
+   ```bash
+   uv run automata skills install --target-root <skills-root> \
+     --retire <old-name> --dry-run
+   uv run automata skills install --target-root <skills-root> \
+     --retire <old-name> --backup-root <backup-root>
+   ```
+   Each changing run creates a unique `skills-*` backup directory outside packages.
+   Links back up as links. Recovery restores the reported backup after safely setting
+   aside replacements. Inspect partial failures before retrying.
 
-Identify the intended runtime from user intent and environment evidence, not its
-model/provider name. Use the package's runtime documentation and CLI help for
-supported integrations, native discovery paths, configuration and exact install
-commands. Offer only relevant, supported integrations alongside shared skills and
-tools. Asset placement does not activate hooks, grant trust or register tools.
-Observers that read session transcripts or persist metadata need explicit scope
-and state-root consent. Do not infer native discovery or runtime precedence from
-successful installation.
+4. **Verify the requested result.** Check installed files and report roots, modes,
+   replacements and backups. Use fresh sessions/supported reload for runtime discovery;
+   placement alone activates no hooks, trust or native tools. For tools use
+   `uv run automata tools install --target-root <tools-root> --mode <mode>`; for runtime
+   integrations use their documented installer and approved asset/state roots.
+   Do not replace working symlinks just to refresh source changes.
 
-Respect skills-only or other narrower requests. Confirm selected assets before
-making changes. Keep character composition separate: it renders instructions rather
-than installing assets and needs its own confirmed configuration.
+5. **Establish readiness only when requested.** Follow the capability owner's smallest
+   useful checks and recovery guidance. Installation alone permits no external tests,
+   messages, dependency changes, services or agents. Reuse covered permissions; report
+   missing prerequisites and untested limits. For communication, sending is not
+   receiver handling or a working return path. Retain useful setup knowledge only
+   within approved owner storage; do not create mandatory readiness registries or
+   live-handle records. Recheck affected facts, not every installed capability.
 
-For a ready-to-use environment, identify the capabilities the user intends to use;
-ask only if that is unclear. Offer relevant environment-dependent setup, not every
-installed skill. Respect installation-only requests. Judgment-only skills do not
-need a setup ceremony, and skills should not all acquire mandatory setup phases.
-
-## Installation
-
-1. Confirm source (bundled by default), scope, and destination roots.
-2. Confirm selected resource types and names, or explicitly all discovered assets.
-3. Inspect only the selected destinations to determine whether this is a first install or
-   an update.
-4. Confirm the install mode before running commands:
-   - `copy`: create selected destinations; existing changed skills are refused
-   - `replace`: replace selected destinations, then copy; do not merge
-   - `symlink`: expose the local source without copying; existing conflicting
-     destinations are refused
-   Skill synchronization skips identical copies or identical symlink exposures.
-   Other asset installers still require absent destinations for `copy`/`symlink`.
-5. For skills, preview with `--dry-run`. Unchanged installations are skipped in
-   every mode. A changed existing skill needs `--mode replace` and an explicitly
-   chosen `--backup-root`; replacements move the old directory there before copying.
-   Tools and runtime installers retain their documented mode behavior.
-6. Run the relevant `uv run automata` commands using bundled sources by default.
-7. Verify the selected installed files and report roots, mode, backups and replacements.
-   Distinguish files installed from skills/extensions discovered by the intended
-   runtime; use a fresh session or supported reload when discovery needs checking.
-
-Use `--source-root` for an explicitly chosen custom source; do not assume a checkout
-path for bundled assets. Skill sources accept local paths and `file://` URLs. For
-remote sources, first obtain a confirmed local source; the installer does not fetch
-remote repositories.
-
-Default skill discovery uses the single bundled
-`skills/bundled/` catalog. Runtime-specific bindings and setup documentation live
-outside skill packages under `runtimes/`; shared tool contracts live under `tools/`. An explicit skill `--source-root` is exclusive and never adds
-bundled skills as a fallback. Discovery finds `SKILL.md` recursively. Selected
-packages preserve their source-relative layout, including grouping directories.
-Only outer parent skills are installation units: selecting a nested child is an
-error pointing to its outer parent, even when that parent is also selected. A
-parent includes nested children unchanged, without extra top-level exposures.
-Plugin export uses the same parent-only selection and relative layout. Duplicate
-source names are errors.
-This installer check is not runtime precedence: a runtime may discover same-name
-skills from multiple roots. Do not promise nearest-wins behavior. Choose one exposure for
-each selected skill (direct install or plugin), inspecting relevant existing roots
-before adding another copy. Keep installation a copy/exposure operation, not a
-skill-content review or extra package-structure audit.
-
-## Capability Readiness
-
-Use the selected capability's own guidance to establish readiness. It owns acceptance
-criteria, safe checks, runtime resources, reusable setup knowledge, and recovery.
-This skill keeps the requested setup scope clear; it does not implement neighboring
-capabilities or prescribe a fixed skill invocation chain.
-
-Review relevant existing setup evidence before proposing changes. Agree on the
-smallest useful verification and its allowed effects. Installation approval alone
-does not authorize test messages, external actions, dependency installation,
-configuration changes, or persistent processes. Reuse explicit permission already
-covering those effects; ask only for uncovered scope. Do not launch workers merely
-to make installation appear complete.
-
-A file, executable, loaded tool, or open endpoint is not proof that the intended
-capability works. For communication, a verified result includes intended receiver
-handling and the return path when a response is required—not just a send receipt.
-When a test is not authorized or prerequisites are missing, report what remains
-untested or blocked rather than claiming readiness.
-
-When reusable setup knowledge is useful, let its capability owner record it in the
-approved data location, with scope, evidence, limitations, and reuse/invalidation
-guidance. Do not require a setup record for every capability, create a central
-readiness registry, or persist live handles as permanent identity. On later use,
-revalidate changeable prerequisites and repair only the affected setup within
-authority. Report installed assets separately from verified, untested, or blocked
-capabilities; do not turn that distinction into a mandatory report template.
-
-## CLI Usage
-
-Install or update all bundled skills:
-
-```bash
-uv run automata skills install --target-root <skills-root> --mode <mode>
-```
-
-Select skills with repeatable or comma-separated `--skill` values. For example,
-from a confirmed custom source:
-
-```bash
-uv run automata skills install \
-  --source-root <local-path-or-file-url> \
-  --target-root <skills-root> \
-  --skill <skill-a>,<skill-b> \
-  --mode <mode>
-```
-
-Omit `--source-root` for bundled skills. Omit `--skill` only when all outer parent
-skills are intended (unless using retirement-only selection).
-
-Preview synchronization, then apply approved replacements with backups:
-
-```bash
-uv run automata skills install --target-root <skills-root> --mode replace --dry-run
-uv run automata skills install --target-root <skills-root> --mode replace \
-  --backup-root <chosen-backup-root>
-```
-
-Preview reports `add`, `change`, `unchanged` and explicitly selected `retire`
-actions without creating destinations or backups. Preview can show changes in
-any mode; applying changed destinations still requires `replace`.
-
-Retire only confirmed installed parent names with repeatable/comma-separated
-`--retire <name>`. With no `--skill`, this is retirement-only, not an all-skills
-update. Missing retired names are unchanged. A legacy flat exposure can be retired
-by name even when that name is now a nested catalog child: for example,
-`--retire automata-adaptive-ui` removes only `<skills-root>/automata-adaptive-ui`,
-not its embedded copy inside `automata-web-design`. Repeated retirement of that
-absent flat exposure is unchanged. `--skill automata-adaptive-ui` still rejects;
-retirement never removes an embedded child from its parent package.
-Never infer retirement from absence in the catalog; custom skills and operational
-data remain untouched.
-
-```bash
-uv run automata skills install --target-root <skills-root> \
-  --retire <old-parent> --dry-run
-uv run automata skills install --target-root <skills-root> \
-  --retire <old-parent> --backup-root <chosen-backup-root>
-```
-
-Each changing run creates a unique `skills-*` directory inside the explicit
-backup root; results report each saved directory/link. Keep backups outside selected
-source and destination packages. To recover, move the saved directory/link back to
-its reported target after safely setting aside any replacement. Symlink backups
-preserve the link itself, not a copy of its referent. Filesystem failures may leave
-an incomplete run; inspect reported targets and the backup root before retrying.
-
-Install or update all bundled tools:
-
-```bash
-uv run automata tools install --target-root <tools-root> --mode <mode>
-```
-
-For a runtime integration, select its documented installer command and confirmed
-asset/state roots. Do not replace it with the runtime's unrelated package manager.
-Run only commands for confirmed resource types. A symlinked asset reflects source
-changes, so do not replace it merely to refresh content.
-
-## Boundaries
-
-- Do not install, replace, or symlink anything before the user confirms roots, selected
-  resources, and mode.
-- Do not edit `AGENTS.md`, compose character instructions, or modify installed asset
-  contents as part of setup.
-- Do not infer global versus repository scope from convenience; ask the user.
-- Skill authoring and review belong to `automata-skill-design`, not installation.
+Do not edit installed asset contents or `AGENTS.md` as setup, expand resource scope,
+or infer global placement from convenience. Skill design and capability owners
+retain their own responsibilities.

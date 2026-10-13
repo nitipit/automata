@@ -1,77 +1,42 @@
 ---
 name: automata-zellij-background
-description: Use when starting, inspecting, reusing, or stopping a persistent command in an isolated Zellij session without changing the user's terminal workspace.
+description: Use for starting, reusing, inspecting or stopping authorized persistent commands in isolated Zellij sessions without disturbing the user's workspace.
 ---
 
 # Automata Zellij Background
 
-Manage an authorized background command's lifecycle, not application behavior or
-message transport. Use a direct shell call for short-lived work.
+Own background lifecycle, not application behavior or message transport. Use direct
+shell calls for short work. Approved commands cover dedicated sessions, not installs
+or global configuration changes.
 
-## Establish ownership
+1. **Confirm ownership.** Reuse relevant setup and check unknown CLI support.
+   Use task-specific names; `zellij list-sessions --short --no-formatting` resolves
+   collisions, not unrelated work. Creation/assignment establishes ownership;
+   `attach --create-background` may reuse a name, so never take over or resurrect
+   unowned sessions. Keep live identities separate from reusable setup knowledge.
 
-Consult existing setup knowledge in an appropriate, authorized location. Reuse the
-established storage convention; retain new knowledge only when it avoids useful
-rediscovery. Keep reusable methods separate from task-specific sessions and logs.
-Saved knowledge grants no permission to manage a resource.
+2. **Launch without changing the view.** For a collision-free name and authorized
+   command/CWD, use separate arguments (`ARGS=()` if empty):
+   ```bash
+   zellij attach --create-background "$SESSION" || exit 1
+   PANE_ID=$(zellij --session "$SESSION" action new-pane \
+     --name "$PROCESS_NAME" --cwd "$WORKING_DIRECTORY" \
+     -- "$PROGRAM" "${ARGS[@]}") || exit 1
+   [[ "$PANE_ID" =~ ^terminal_[0-9]+$ ]] || exit 1
+   zellij --session "$SESSION" action list-panes --json
+   zellij --session "$SESSION" action dump-screen --pane-id "$PANE_ID"
+   ```
+   Use shells only for required semantics and custom configuration only when approved.
+   Match numeric ID with `is_plugin: false`, command, CWD and exit state; fields may
+   be absent and plugin IDs may share numbers. Record session, returned pane, owner
+   and startup evidence. Output alone is not readiness; inspect failure before relaunch.
+   Always name the session. Never add panes to user-facing/unrelated sessions, attach
+   clients, switch focus or change layouts/keys—even detached actions can disturb views.
 
-Check Zellij availability and relevant CLI support when unknown or changed; skill
-installation does not install Zellij. Starting an approved command covers a dedicated
-background session, not software installation or changes to global configuration.
-
-Use a task-specific session name. Check exact collisions with
-`zellij list-sessions --short --no-formatting`, without inspecting unrelated work.
-`attach --create-background` can reuse an existing session; do not take over an
-unowned name or resurrect saved commands without authority. Ownership requires
-workflow creation or assignment, not familiarity.
-
-## Launch without changing the user's view
-
-For a collision-free name, this Bash example assumes the command, CWD and argument
-array `ARGS` have been chosen within scope. Use `ARGS=()` for no arguments:
-
-```bash
-zellij attach --create-background "$SESSION" || exit 1
-PANE_ID=$(zellij --session "$SESSION" action new-pane \
-  --name "$PROCESS_NAME" --cwd "$WORKING_DIRECTORY" \
-  -- "$PROGRAM" "${ARGS[@]}") || exit 1
-[[ "$PANE_ID" =~ ^terminal_[0-9]+$ ]] || exit 1
-```
-
-Pass arguments separately; invoke a shell only when the command needs shell
-semantics. Use an explicitly approved task configuration when required, rather
-than treating particular input modes or serialization settings as defaults.
-
-Record the session, returned terminal pane ID, command, CWD and lifecycle owner
-with the task. Verify startup without attaching:
-
-```bash
-zellij --session "$SESSION" action list-panes --json
-zellij --session "$SESSION" action dump-screen --pane-id "$PANE_ID"
-```
-
-Match numeric `id` with `is_plugin: false`, expected command, CWD and exit state.
-Plugin and terminal IDs can share a number; fields may be absent. Output alone
-does not prove readiness. Report failed or uncertain startup before relaunching.
-
-Always name the session. Do not create panes in user-facing or unrelated sessions,
-attach clients, switch focus, change layouts or alter keybindings to make work
-available. A detached command can still disturb an attached workspace.
-
-## Reuse and stop
-
-Reuse only the same owned lifecycle. Revalidate affected identity and readiness
-facts after restarts, changed settings or failures; do not follow nearby matches.
-Pane IDs are session-local and are not permanent across restarts.
-
-Before shutdown, match the exact session to its recorded owner. Use application
-shutdown where required, then stop only that session:
-
-```bash
-zellij kill-session "$SESSION"
-```
-
-Verify absence from the active listing and check application-owned children
-separately. Client detachment, server shutdown and saved-session deletion are
-different outcomes. Cleanup needs authority; never use all-session kill/delete
-commands or infer permission to stop from idleness.
+3. **Reuse and stop precisely.** Reuse only the same owned lifecycle; verify affected
+   identity after restarts/settings changes or failures, not nearby targets. Pane IDs
+   are session-local. Use application shutdown as needed, then
+   `zellij kill-session "$SESSION"` only with lifecycle authority. Verify active-list
+   absence and owned children separately. Detachment, server exit and saved-session
+   deletion differ. Idleness grants no stop/cleanup authority; never kill/delete all
+   sessions. Save useful verified methods only within the owner's storage convention.

@@ -40,7 +40,6 @@ REQUIRED_SKILLS = {
     "automata-pi-skill-activity",
     "automata-delegation",
     "automata-cue",
-    "automata-journal",
     "automata-team-management",
     "automata-team-use",
     "automata-manager",
@@ -55,10 +54,11 @@ REQUIRED_SKILLS = {
     "automata-goal",
     "automata-git-worktree",
     "automata-gnome-desktop-control",
-    "automata-plain-text-writing",
+    "automata-text-writing",
+    "automata-documentation",
     "automata-runtime-environment",
     "automata-python-workspace",
-    "automata-software-development",
+    "automata-software-dev",
     "automata-tmux-background",
     "automata-tmux-communication",
     "automata-tmux-observation",
@@ -66,6 +66,8 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-plain-text-writing",
+    "automata-journal",
     "automata-playspace",
     "automata-capability-research",
     "automata-stateful-workflow",
@@ -215,7 +217,7 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
     assert len(expected) == 44
     assert 'automata-pi-sessions' in expected
     assert 'automata-codex-sessions' not in expected
-    roots = expected - {"automata-adaptive-ui", "automata-web-app"}
+    roots = expected - {"automata-adaptive-ui", "automata-web-app", "automata-documentation"}
     assert {result.name for result in results} == roots
     assert {path.name for path in target.iterdir()} == roots
     assert set(skill_sources(target)) == expected
@@ -225,8 +227,13 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
 def test_selected_skill_installs_only_its_packaged_files(tmp_path: Path, skill_file: Path) -> None:
     name = parse_frontmatter(skill_file)["name"]
     target = tmp_path / "skills"
-    if name in {"automata-adaptive-ui", "automata-web-app"}:
-        with pytest.raises(SkillInstallError, match="select outer parent automata-web-design"):
+    nested_parents = {
+        "automata-adaptive-ui": "automata-web-design",
+        "automata-web-app": "automata-web-design",
+        "automata-documentation": "automata-text-writing",
+    }
+    if name in nested_parents:
+        with pytest.raises(SkillInstallError, match=f"select outer parent {nested_parents[name]}"):
             install_skills(target_root=target, skill_names=[name])
         assert not target.exists()
         return
@@ -247,20 +254,8 @@ def test_selected_skill_installs_only_its_packaged_files(tmp_path: Path, skill_f
     assert contents(installed) == contents(skill_file.parent)
 
 
-def test_journal_template_metadata_supports_discovery() -> None:
-    path = SKILLS_ROOT / "automata-journal/templates/entry.md"
-    metadata = parse_frontmatter(path)
-    for field in ("id", "created", "kind", "title", "summary"):
-        assert isinstance(metadata[field], str) and metadata[field].strip(), field
-    assert isinstance(metadata["topics"], list) and metadata["topics"]
-    assert all(isinstance(topic, str) and topic for topic in metadata["topics"])
-    # Placeholders must not masquerade as actual event timestamps or evidence.
-    assert metadata["id"].startswith("REPLACE-")
-    assert metadata["created"].startswith("REPLACE-")
-
-
-def test_journal_and_cue_do_not_name_other_skills() -> None:
-    for name in ("automata-journal", "automata-cue"):
+def test_cue_does_not_name_other_skills() -> None:
+    for name in ("automata-cue",):
         root = SKILLS_ROOT / name
         for path in root.rglob("*.md"):
             names = set(re.findall(r"automata-[a-z0-9]+(?:-[a-z0-9]+)*", path.read_text()))

@@ -1,78 +1,44 @@
 ---
 name: automata-agents-md
-description: Use when configuring or reviewing AGENTS.md instruction surfaces, character components, or durable agent behavior.
+description: Use for configuring or reviewing AGENTS.md, character components and durable agent instructions. Not for temporary task assignments or runtime settings.
 ---
 
 # Automata AGENTS.md
 
-Configure the intended instruction surface, not every file an agent might read.
-Keep durable behavior separate from temporary assignments and runtime configuration.
+Configure durable instructions in the right scope. This skill owns instruction
+configuration, not installation or temporary delegation briefs.
 
-## Scope and authority
+1. **Choose the target.** Inspect the instruction hierarchy, runtime and owning
+   inputs. Confirm global, repository or nested scope and the destination file;
+   do not assume the nearest file is the owner. Resolve competing surfaces before
+   editing; approval for one file does not cover others.
 
-Inspect the relevant instruction hierarchy and available character components.
-Identify the runtime, intended scope, and target file: personal/global, repository,
-or nested working context. Do not assume the nearest file is always the owner.
-If several surfaces could apply, explain the choice and resolve it before editing.
+2. **Align behavior.** Discuss material choices before writing. For new setups,
+   consider role, action versus discussion, and follow-up preferences. For targeted
+   changes, resolve only affected choices. Drafts and partial agreement are not
+   editing permission; apply explicit approval without asking again for the same
+   scope. Translate preferences into plain instructions, not unexplained labels.
 
-Discuss material behavior choices before writing. Drafts, examples, labels, and
-partial agreement are not permission to edit. Apply an explicitly approved setup
-or change without asking again for the same scope; return unresolved personality,
-authority, or integration decisions to the user. Do not extend approval to other
-instruction surfaces.
+3. **Compose from components.** Reuse suitable character components and inspect
+   their actual content. Ask only about unresolved choices. For generated files,
+   update owning inputs so regeneration preserves the change. Preview with:
 
-For a new configuration, consider role, request detection, follow-up behavior, and
-discussion versus implementation. For a targeted revision, stay with the affected
-behavior rather than repeating a full setup interview.
+   ```bash
+   automata character list
+   automata character compose --personality <name> --behavior <name>
+   ```
 
-## Character components
+   Composition prints Markdown; write it only to the approved destination.
+   `--agents-md <directory>` selects additional-instruction discovery, not the
+   output file. Keep those instructions in their skill-owned agent-data location.
 
-Prefer existing reusable components when they express the confirmed intent.
-Inspect their rendered contents rather than inferring behavior from names:
+4. **Keep instructions focused.** Use broadly applicable principles; leave
+   specialized methods with their owner and temporary goals, permissions and
+   evidence in task assignments. Resolve conflicts instead of appending more rules.
+   Signal when specialized guidance matters, not a mandatory reading chain. Avoid
+   copying additional instructions into generated files or putting host-specific
+   paths in portable guidance.
 
-```bash
-automata character list
-automata character compose --personality <name> --behavior <name>
-automata character compose --personality <name> --behavior <name> --agents-md <path>
-```
-
-Choose components interactively when the request leaves material choices open;
-do not require another selection when the user has already specified it. Render
-or adapt only into the confirmed destination. For generated surfaces, update the
-owning inputs so regeneration preserves the change.
-
-Labels are discussion shorthand, not instruction text. For example, `Assistant`
-can mean an active thinking partner who challenges assumptions and suggests better
-approaches. Follow-up preferences might be `Quiet` (stop after completion),
-`Focused` (one useful next step), or `Forward` (a short prioritized set). Translate
-confirmed choices into plain language rather than imposing these labels or defaults.
-
-## Instruction design
-
-Distinguish action requests from thoughts, preferences, observations, and
-acknowledgements. Low-intent messages usually need a brief response, not an automatic
-plan or implementation; clarify only when ambiguity or a material risk warrants it.
-
-Keep broadly loaded guidance orienting. Link specialized material with cues for
-when it matters, not a reading checklist before every edit. Check overlapping
-instructions for contradictions instead of appending compensating rules.
-
-Keep additional local instructions in the appropriate skill-owned agent-data location
-and use the generator's supported discovery mechanism when available. Do not duplicate
-their contents into every generated file or invent host paths in portable guidance.
-
-## Verify and finish
-
-Review the resulting Markdown against the approved behavior and intended scope.
-When practical, use the runtime's prompt/debug discovery to confirm visibility;
-distinguish a correct file from instructions actually loaded by a session. Report
-what changed and any unverified discovery or reload requirement.
-
-## Boundaries
-
-This skill owns durable instruction configuration, not temporary delegation briefs,
-multi-session setup, runtime-specific configuration, or broad repository policy.
-A spawned agent uses its intended working directory and applicable AGENTS.md hierarchy;
-put temporary responsibility, scope, permissions, return paths, and evidence in its
-assignment instead of a new durable instruction file. Do not edit instructions merely
-because another skill could benefit from being linked there.
+5. **Check and report.** Review the result against approved behavior and scope.
+   When practical, check runtime discovery; a correct file is not proof that a
+   session loaded it. Report changes, unverified visibility and reload requirements.

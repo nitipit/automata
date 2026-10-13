@@ -1,54 +1,37 @@
 ---
 name: automata-web-design
-description: Use when creating or revising websites and browser interfaces, designing UI, integrating web applications, or building and previewing them. Selects relevant nested UI or application guidance; not general browser automation.
+description: Use for designing websites/browser interfaces and connecting UI with application integration. Select relevant nested guidance; not general browser automation.
 ---
 
 # Automata Web Design
 
-Connect the intended user experience to a working web application. Keep design,
-reusable UI and application integration coherent without making every task load
-all implementation guidance. Respect an existing stack and approved scope.
+Connect the intended experience to a working application while respecting the
+existing stack and approved scope.
 
-## Start with the experience
+1. **Start with the experience.** Identify what the user needs to see, decide or
+   change and the smallest useful interaction. Separate exploration from production
+   requirements. Align on consequential choices; do not introduce frameworks or
+   backend state merely to demonstrate a visual idea.
 
-Identify what the user needs to see, decide or change, and the smallest useful
-interaction that demonstrates it. Separate exploratory design from production
-requirements. Agree on consequential design choices before implementing them;
-do not introduce backend state or a framework just to make a visual idea tangible.
+2. **Select only relevant guidance.** Resolve children relative to this directory;
+   hierarchy does not load them automatically:
+   - `skills/automata-adaptive-ui/SKILL.md`: components, tokens, interaction/state,
+     UI drafts and previews.
+   - `skills/automata-web-app/SKILL.md`: routes, templates, project setup, builds
+     and serving.
+   Either child can stand alone. For end-to-end work carry UI/data contracts into
+   integration instead of redesigning each layer.
 
-## Select the relevant child
+3. **Keep layers coherent.** Reusable behavior/primitives belong in the UI library;
+   page composition, routes and backend state belong in the app. Local preview
+   components are not automatically catalog additions. Reuse public contracts and
+   maintained examples, not another foundation. Keep children as siblings so example
+   source dependencies resolve.
 
-Resolve these paths against this skill directory. Read a child's `SKILL.md` when
-its responsibility is needed; the directory hierarchy does not imply automatic
-loading or an obligation to read both.
+4. **Verify the experience.** Reuse suitable owned previews. Distinguish maintained
+   source, generated assets and live browser state; builds prove no design quality.
+   Check relevant integrated browser behavior and report unverified limits, not
+   production readiness from a demo.
 
-- `skills/automata-adaptive-ui/SKILL.md`: interface composition, shared tokens and
-  components, interaction/state ownership, and UI draft/preview decisions.
-- `skills/automata-web-app/SKILL.md`: application routes, templates, integration,
-  project creation, frontend builds and backend serving.
-
-For UI-only or application-only work, the relevant child can stand alone. For
-end-to-end work, carry the selected UI composition and its data contracts into
-application integration rather than redesigning them at each layer.
-
-## Connect the layers
-
-Keep reusable UI behavior and primitive values in the UI library; keep page
-composition, routes and backend state in the application. A task-local component
-does not become a library component merely because it appears in a preview.
-Reuse the children's maintained examples and public interfaces instead of copying
-another foundation into the parent. Their directories remain siblings inside
-`skills/`, so the web-app example can resolve its Adaptive UI source dependency.
-
-Reuse an owned preview where suitable. Distinguish maintained source, generated
-browser assets and live browser state; a successful build is not proof of a good
-experience. Verify the integrated result with a bounded browser check appropriate
-to the agreed goal. Report design choices and unverified boundaries without
-claiming production readiness from an exploratory demonstration.
-
-## Boundaries
-
-This skill owns the design-to-application connection and layer decisions, not the
-children's mechanical APIs. Installation, browser control, process lifecycle and
-external integrations retain their own authority. Grouping skills grants no
-permission to install dependencies, launch services or promote a draft.
+Grouping grants no installation, service-launch or promotion authority. Browser
+control, process lifecycle and external integrations retain their own boundaries.

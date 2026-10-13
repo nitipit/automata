@@ -1,69 +1,33 @@
 ---
 name: automata-pi-context-status
-description: Use when interpreting Pi context-status extension signals or checking its context pressure, elapsed time, or model-token usage.
+description: Use for interpreting Pi context-status signals or checking context pressure, elapsed time and model-token usage. Not for compaction or automatic task control.
 ---
 
 # Automata Pi Context Status
 
-This contract requires Pi's context-status extension. Installing the skill does
-not expose its diagnostic or signals. If the extension is unavailable, report
-that limitation rather than inventing measurements or a tool call.
+Interpret telemetry from the installed context-status extension. This skill does
+not measure context or emit signals; report unavailable diagnostics instead of
+inventing readings. Call `context_status` only when a snapshot informs the next step.
 
-The runtime silently creates a task checkpoint at the start of a user-driven agent run.
-It anchors time and model-usage telemetry to the latest Pi input message, including
-coordinator or subagent inputs delivered as `role: "user"` messages. The agent does not
-create or inspect that checkpoint automatically.
+1. **Read the fields correctly.** Usage is current tokens relative to the model
+   window; pressure is its observational band. Elapsed is wall-clock time, not
+   active effort, since the latest input anchor. Model usage aggregates provider-
+   reported input/output/cache/total since that anchor. User-role inputs, including
+   worker messages, reset it; tools, summaries and hidden signals do not. Runtime
+   checkpoints are automatic, not something to create or inspect on every turn.
 
-`context_status` remains an optional manual diagnostic. Use it only when a status snapshot
-would inform the next step; do not call it merely to acknowledge a new run or signal.
+2. **Understand signal timing.** Before each model request, one temporary reminder
+   appears at measured usage of at least 80%, with stronger urgency at 90%+. Below
+   80% or with unknown readings, none appears. Repeated advice is not a newly crossed
+   threshold; diagnostic bands are independent. Readings refresh after compaction,
+   session/reload/model-window changes; unknown does not prove compaction succeeded.
+   Old request-local reminders are replaced, not accumulated or used to start turns.
+   Ten-minute elapsed observations coalesce at safe boundaries and queue after the
+   run settles; neither path polls or injects into streaming output. Message timestamps
+   are a separate extension, and no active/idle timer or timer integration is implied.
 
-## Runtime observations
-
-- Conversational timestamps belong to the separate `message-timestamps` extension.
-  Context-status no longer injects a changing clock on each request. Its elapsed-time
-  and usage telemetry remain independent of those stable message annotations.
-- Time is wall-clock elapsed since the latest input message. There is no active/idle timer
-  distinction and no `automata-timer` integration.
-- Assistant messages contribute provider-reported input, output, cache, and total usage after
-  the latest input anchor. Tool results, hidden signals, summaries, and other non-input entries
-  do not reset the anchor.
-- Before every model request, the runtime injects exactly one temporary pressure reminder
-  when measured usage is at least 80%, with stronger urgency at 90%+. Repeated requests
-  at the same pressure still receive advice; it does not claim a newly crossed threshold.
-  Below 80% or when usage is unknown, no pressure reminder is included. The independent
-  diagnostic pressure bands remain unchanged.
-- Pressure advice uses fresh readings, including after compaction, session changes, reload,
-  or effective model/window changes. Unknown readings do not imply successful compaction.
-  Old request-local pressure entries are removed before adding current advice. These messages
-  do not accumulate in session history, start agent turns, or queue a post-response wakeup.
-- Ten-minute elapsed-time observations still coalesce at safe runtime boundaries and are
-  queued after the run settles for a subsequent turn. Neither signal path polls or injects
-  into a streaming response.
-- `context_status` reports the same context, pressure, elapsed-time, input-anchor, and model-
-  usage fields that appear in runtime signals.
-
-## Read status
-
-- **Usage** is current tokens relative to the model context window.
-- **Pressure** is the observational band derived from context percentage.
-- **Elapsed** is wall-clock time since the latest input anchor.
-- **Anchor** is the local timestamp used for elapsed time and usage aggregation.
-- **Model** is provider-reported usage accumulated since that anchor.
-
-## Signal received
-
-A hidden pressure reminder provides measured usage; elapsed-time signals report their
-crossed time threshold separately. Pressure reminders call attention to a stable compaction
-boundary; at 90%+ they express stronger urgency. They do not run compaction or replace its
-applicable policy and preferences.
-Decide the next safe action from the task and that guidance, without interrupting unfinished
-operations or treating an observation as new authority.
-
-Signals do not automatically delegate, stop, or change ownership. Delegation still requires
-the assigned caller or owner's approval and return path.
-
-## Boundaries
-
-This skill does not measure context, create checkpoints, emit signals, compact, delegate, or
-persist transient status. It does not turn every signal into a user-facing reply or require a
-fixed response sequence. Manual `context_status` use is optional and diagnostic only.
+3. **Use observations as evidence.** Consider a safe compaction boundary without
+   interrupting coherent work; follow compaction policy and preferences rather than
+   treating pressure as an action request. Signals grant no delegation, stopping or
+   ownership authority. Manual diagnostics report the same fields as signals; do
+   not persist transient status or turn every signal into a user-facing reply.
