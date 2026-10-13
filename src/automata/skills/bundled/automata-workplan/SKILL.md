@@ -1,114 +1,50 @@
 ---
 name: automata-workplan
-description: Use when work needs an adaptive approach, outcome decomposition, dependencies, acceptance checks, resource tradeoffs, or decisions about review, next evidence and reporting during execution.
+description: Use for planning adaptive work, dependencies, acceptance checks, resource tradeoffs, evidence timing and reporting. Not for a mandatory plan on every small task.
 ---
 
 # Automata Workplan
 
-Choose the next useful action and how to judge it. Treat the route as a working
-hypothesis toward the established goal, not a fixed script. Clear, bounded work
-needs no formal plan, separate document, team or invocation sequence.
+Choose the next useful action and evidence. A plan is a working hypothesis, not
+permission to execute or a fixed script.
 
-## Shape the approach
+1. **Shape the route.** Reuse established goals and constraints; translate useful
+   outcomes into concrete checks, dependencies and coherent milestones. Keep later
+   steps coarse until detail matters; reason further ahead for costly or irreversible
+   choices. Resolve decision-changing uncertainty, not every unknown. Adapt methods
+   within authority; align before changing goals, material constraints or scope.
+   Surface infeasibility rather than quietly lowering success standards.
 
-Use the established outcome, priorities and material constraints; do not reopen
-clear intent merely to plan. Translate outcome-level success evidence into concrete
-acceptance checks. Identify coherent outcomes, dependencies and operational
-constraints, not a rigid worker-sized checklist. Keep later steps coarse until
-knowledge makes detail useful; reason further ahead for costly commitments,
-coordination or irreversible effects.
+2. **Balance resources.** Consider quality, risk, time, tokens, coordination and user
+   availability. Compare simpler alternatives without manufacturing teams or optimization
+   exercises. Scale estimates to the decision, covering preparation, implementation,
+   checks, corrections and integration when consequential. Distinguish active/elapsed,
+   observed/projected and context/cumulative usage; token counts are not cost quotes.
+   State basis, range and exclusions. Use a bounded first slice if evidence is weak;
+   revise estimates with evidence, not agreement. Present enough scope and tradeoffs
+   for approval without mandatory team/time/token templates.
 
-Resolve unknowns that could materially change the next move. If feasibility exposes
-conflicting constraints, explain the tradeoff and align with the user rather than
-silently lowering success standards. Adapt methods within approved scope; changing
-the goal, a material constraint or scope needs alignment. A plan, proposal or
-discussion does not authorize execution, delegation or new effects.
+3. **Choose meaningful checkpoints.** Identify next evidence, its timing and assessor
+   from risks, dependencies and exposure. At coherent boundaries compare progress,
+   assumptions and diminishing value; continue, simplify, escalate or stop. Avoid
+   repeated unaffected checks or interrupting unfinished operations. Before asynchronous
+   work establish a real callback wake and bounded adaptive fallback; logs/process
+   exits are not wakes. Without a path choose synchronous work or an agreed alternative.
+   Reassess authority on wake; maintain only needed checks, cancel obsolete triggers
+   and never treat late callbacks as resume permission. Mechanisms stay with delegation,
+   timer and communication owners.
 
-## Use resources proportionately
+4. **Set reporting expectations.** Separate internal evidence from user reports.
+   Report meaningful milestones, blockers and changed estimates; honor agreed cadence
+   without imposing one. Confirm reachable delivery before promising it. Use current
+   chat by default; external channels need authority. Keep updates decision-useful,
+   not internal reasoning dumps or activity logs.
 
-Balance quality, risk, time, tokens and coordination costs against the priorities.
-User involvement or coordinator availability can outweigh minimum elapsed time or
-token use. Compare useful alternatives when the choice matters, including a simpler
-route; do not manufacture a team or optimization exercise for small work.
+5. **Close clearly.** Stop when work is checked, blocked, no longer useful or outside
+   authority. Explain completed, partial and blocked outcomes, deliverables, checks
+   and limits without treating smoke tests as live verification. Give a next action
+   only when useful; avoid indefinite polishing or unnecessary detail.
 
-Estimate only as precisely as the decision needs. For consequential commitments,
-cover preparation, implementation, verification, review, corrections and integration,
-including briefing, repeated context and waiting where relevant. Distinguish active
-effort from elapsed time, observations from estimates, and measured usage from
-projections. Give ranges, basis, uncertainty and material exclusions; token estimates
-are not cost quotes and context size is not cumulative usage. If the basis is weak,
-choose a bounded first slice to calibrate it instead of inventing precision.
-
-Present the approach, resource tradeoff and work arrangement together when they
-support approval or coordination. A brief risk or decision boundary may be enough;
-exhaustive steps, model lists and time/token estimates are not a universal proposal
-requirement. Revise affected estimates when evidence changes, not merely to agree.
-
-## Choose the next evidence and review
-
-Decide what evidence would change the next decision, when it should be available,
-and who must assess it. Use meaningful milestones, dependency deadlines, uncertainty
-and resource exposure to choose checkpoints. After substantial work or resource use,
-review at a coherent boundary: compare verified progress with acceptance checks,
-changed assumptions and diminishing returns. Continue, simplify, change approach,
-escalate or stop accordingly. Time and token observations can prompt review; they
-are neither mandatory thresholds nor proof of progress. Avoid interrupting unfinished
-operations or repeatedly reviewing unaffected decisions.
-
-Before asynchronous work, establish a real wake path to the responsible agent and
-an owner for the next check. Prefer callbacks carrying meaningful evidence, with a
-bounded, adaptive time fallback when evidence may be delayed or lost. A log, artifact
-write or process exit alone does not wake an agent. If a wake path is unavailable,
-use bounded synchronous work or agree on another reachable arrangement before
-launch. Choose why and when to check here; handoff, scheduling and communication
-capabilities implement the path and its delivery evidence.
-
-On wake, assess the expected evidence and current authority, not just activity or
-the trigger's arrival. Update the next check only while work still needs it; do not
-replace callbacks with polling, fixed heartbeats or activity spam. Cancel obsolete
-triggers on completion, pause, abandonment or changed expectations. A late callback
-or old deadline does not authorize resuming paused work.
-
-## Set user-report expectations
-
-Keep internal evidence checks separate from user reports. Choose reporting from
-user needs, meaningful milestones, blockers, changed estimates and completion—not
-every internal checkpoint. Honor requested or agreed reporting cadence and deadlines;
-do not impose a universal cadence. For longer work, establish what the user can
-expect next and when an update matters. Confirm a supported delivery path before
-promising updates; if unavailable, explain the limit and agree on an alternative.
-Use the current chat by default; external channels require authority and a verified
-path. User-report timing need not match internal checks, and agent wake-up is not
-itself a user notification.
-
-Keep working reasoning separate from presentation. Report verified outcomes,
-material uncertainty and decisions needing input in the recipient's requested format.
-Add detail only when it helps a real decision or coordinates dependent work.
-
-## Close the work
-
-Stop when the result is verified, a blocker needs input, value is exhausted or the
-next action exceeds authority; do not polish indefinitely. After substantial work,
-leave a decision-useful summary rather than a bare completion claim or chronological
-activity log. Relate the outcome to the original goal and distinguish completed,
-partial and blocked work. Identify important deliverables or changes and where to
-find them; summarize verification results and scope, including unperformed checks.
-Make remaining work, blockers and material limitations explicit. Include a next
-action only when useful, identifying any decision or action needed from the user.
-
-Scale detail to the work and honor the requested format and brevity; these are
-reporting concerns, not mandatory headings or a template for trivial tasks. The
-user should understand the result without reconstructing the conversation. Do not
-turn implementation, an artifact or a passing substitute check into a claim of
-verified behavior at an untested boundary.
-
-## Boundaries
-
-Goal reasoning owns desired outcomes, priorities and material constraints. Workplan
-owns the adaptive route, outcome decomposition, dependencies, concrete acceptance
-checks, resource judgment and reasons/timing for review and reporting. Teamwork
-design owns assignment, model and context choices; delegation owns executable
-handoffs and individual acceptance; management owns active coordination and
-aggregate status. Timer and communication capabilities implement scheduling and
-delivery; pause owns stopping activity and preserving resumability. Preserve these
-specialist contracts without mandatory chains or duplicating their mechanics.
+Goals own outcomes; teamwork design owns arrangements; delegation owns handoffs,
+management owns aggregate coordination and pause owns resumability. Planning owns
+the route, checks and reasons for review/report timing, not their mechanisms.

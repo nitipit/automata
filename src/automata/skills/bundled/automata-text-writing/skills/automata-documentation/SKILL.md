@@ -1,60 +1,33 @@
 ---
 name: automata-documentation
-description: Use when writing or restructuring related documentation for discoverability, clear information ownership, navigation and source traceability. Not ordinary text formatting or configuration editing.
+description: Use for organizing related documentation, discoverability, navigation and authoritative information. Not for ordinary formatting or configuration schemas.
 ---
 
 # Automata Documentation
 
-Make related documents easy for humans and agents to find, understand and maintain.
-A reader should locate the relevant answer, inspect little unrelated content and
-trace a maintained claim to its authoritative owner.
+Help readers find the answer, understand little unrelated text and trace maintained
+claims to their source. This skill owns documentation relationships, not storage,
+configuration schemas or skill interfaces.
 
-## Write for retrieval
+1. **Write for retrieval.** Use descriptive names/headings and consistent terms.
+   Lead with the answer, then necessary conditions and examples. Put useful search
+   terms in visible prose without keyword stuffing or duplication; excerpts should
+   stand without unexplained "above" references. Split independently useful topics,
+   not arbitrary lengths, and provide navigation when needed.
 
-Use descriptive filenames, explicit headings and consistent domain terminology.
-Put important search terms in visible prose, not only metadata. Lead a section
-with its answer or governing idea, then necessary conditions, exceptions and
-examples. Keep search excerpts understandable without unexplained references to
-"this" or "the above". Do not stuff keywords or repeat paragraphs for search.
+2. **Define shared facts once.** Give definitions, rules and procedures an authoritative
+   owner; link relatively rather than duplicating values. Include enough local
+   orientation without creating a competing contract. Resolve conflicting claims
+   against the intended source; single ownership does not ensure freshness.
 
-Give each section a clear purpose. Prefer useful headings before splitting files;
-split when a topic has an independently useful responsibility, not to meet an
-arbitrary length. Keep related material together and provide navigation when the
-structure would otherwise be difficult to discover.
+3. **Make links usable.** Use descriptive text and relevant headings; preserve stable
+   destinations where practical. Update affected incoming links/navigation when
+   moving pages within scope; ask before expanding it. Targets must be accessible
+   to the reader. Mark derived content and its source, linking relevant code,
+   tests or decisions. Distinguish proposals, interpretations and verified behavior.
 
-## Define shared information once
-
-Within a documentation tree, give shared facts, definitions, rules and procedures
-one authoritative page or section. Reference that owner using relative links
-instead of maintaining duplicate definitions. Do not repeat concrete paths or
-values already defined by another owner.
-
-Keep enough local orientation to explain why a reference matters; a brief summary
-may help, but must not become a competing contract. If definitions conflict,
-identify the intended owner and verify the claim rather than silently choosing the
-newest wording. Single ownership does not guarantee freshness.
-
-## Make references useful
-
-Use descriptive link text and link to the relevant heading when it helps. Preserve
-stable destinations where practical. When moving, renaming or restructuring pages,
-update affected incoming links and navigation within scope; ask before changes
-outside it. A link is useful only if the intended reader can access its target.
-
-For derived documentation, identify the authoritative source and keep the derived
-representation distinct. Link engineering claims to relevant code, tests, issues
-or decisions where useful. Distinguish observed behavior, interpretation, proposals
-and verified outcomes; do not present a proposal as current behavior.
-
-## Verify and stop
-
-Check affected links, headings and navigation, using existing renderers or link
-checks when available. Verify changed claims against their owners and review that
-conditions and exceptions survived restructuring. Report skipped or inaccessible
-checks. Stop when the approved documentation outcome is clear and navigable; do
-not expand into a repository-wide rewrite.
-
-This guidance owns documentation structure and information relationships, not
-configuration schemas, skill interfaces or storage policy. Do not impose universal
-frontmatter, directory layouts or templates. Standalone prompts and configuration
-files may need self-contained values; links cannot replace their required content.
+4. **Check and stop.** Check affected claims, links and navigation with existing tools
+   when available; preserve conditions and exceptions. Report inaccessible/skipped
+   checks. Stop when the approved outcome is clear and navigable, not a repository-
+   wide rewrite. Do not impose universal frontmatter or templates; self-contained
+   prompts/configurations still need required values rather than replacement links.

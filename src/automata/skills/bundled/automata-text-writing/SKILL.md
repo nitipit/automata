@@ -1,49 +1,31 @@
 ---
 name: automata-text-writing
-description: Use for creating or editing human-maintained text such as Markdown, TOML, YAML, JSON, INI, .env.example, prompts or instructions when clarity, proportionate changes and format safety matter.
+description: Use for writing or editing human-maintained prose, Markdown, configuration, prompts and instructions where meaning and format matter. Not for editing generated output directly.
 ---
 
 # Automata Text Writing
 
-Make the intended meaning clear while preserving the file's format and role.
-Apply these principles to the approved change, not a fixed editing workflow.
+Make meaning clear while preserving the text's format and role.
 
-1. **Understand the text.** Inspect the relevant content and context. Distinguish
-   prose, structured configuration and generated output; their correctness checks
-   differ. Identify the intended meaning and the maintained source before editing.
+1. **Understand the source.** Read relevant content and context. Identify maintained
+   prose, structured configuration or generated output; each needs different checks.
+   Edit the owning source when authorized, not generated files without explicit approval.
 
-2. **Edit proportionately.** Make the smallest useful change that satisfies the
-   request; broader revision is appropriate when approved. Preserve unrelated
-   content, surrounding structure and local conventions. Ask when ambiguity
-   materially affects meaning, scope or formatting, not for ordinary wording
-   decisions within the request.
+2. **Change only what serves the request.** Preserve unrelated content and conventions.
+   Broader revision is appropriate when approved. Ask about ambiguity that changes
+   meaning, scope or format, not ordinary wording choices. Do not silently reinterpret
+   policy or requirements, redesign configuration or expose secrets in examples.
 
-3. **Protect format and semantics.** Use clear, direct language. Preserve syntax,
-   comments, ordering and significant whitespace unless the intended change
-   requires otherwise. Follow local wrapping conventions; around 80 characters is
-   a useful prose default, not a limit. Avoid unrelated reflow and do not wrap
-   URLs, code, tables or structured values when readability or semantics suffer.
-   For structured text, change the intended values without altering unrelated
-   behavior; a syntactically valid file can still mean the wrong thing.
+3. **Protect meaning and syntax.** Use plain language. Preserve comments, ordering,
+   syntax and significant whitespace unless the change requires otherwise. Follow
+   local wrapping; roughly 80 characters is a prose default, not a limit. Avoid
+   unrelated reflow and wrapping code, URLs, tables or values that become less usable.
+   Parsing successfully does not prove the intended meaning is preserved.
 
-4. **Verify the result.** Review the changed text for intended meaning and
-   preservation of necessary conditions and exceptions. Use existing parsers,
-   validators or relevant checks for structured text when practical; parsing alone
-   does not verify semantics. Correct defects caused by the edit within scope.
-   Stop when the approved result is verified, or report the blocker. Summarize
-   meaningful changes, assumptions and skipped checks without claiming unperformed
-   validation.
+4. **Check and report.** Review conditions and exceptions; use available parsers or
+   relevant checks for structured text. Fix defects caused by the edit within scope.
+   Stop once the approved result is checked or explain the blocker. Report changes,
+   assumptions and skipped checks without claiming unperformed validation.
 
-## Related documentation
-
-For organizing related documentation, searchable sections, shared definitions and
-navigation, the related guidance is `skills/automata-documentation/SKILL.md`,
-relative to this skill directory. It stands independently; ordinary text edits
-need no documentation-tree restructuring.
-
-## Boundaries
-
-Text editing does not authorize configuration-system redesign, broader
-restructuring or editing generated outputs. Change their maintained source when
-that is within scope; direct output edits need explicit approval. Do not silently
-reinterpret policy, requirements or instructions, or expose secrets in examples.
+For organizing related documents and navigation, use the independent guidance at
+`skills/automata-documentation/SKILL.md`; ordinary edits need no tree restructuring.
