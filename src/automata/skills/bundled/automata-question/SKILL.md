@@ -1,61 +1,34 @@
 ---
 name: automata-question
-description: Use before asking the user a task-related question for clarification, preferences, choices, confirmation, permission, or feedback—including simple questions, not only consequential or ambiguous ones. Excludes casual conversation and rhetorical questions.
+description: Use before any task-related clarification, choice, confirmation, permission or feedback question, including simple ones. Excludes casual conversation and rhetorical questions.
 ---
 
 # Automata Question
 
-Shape task-related questions before presenting them to the user, including simple
-clarifications and confirmations. Do not wait for a question to seem consequential
-or ambiguous. Make the needed response clear and easy to give. Ask only when the
-response materially affects the next move; stop once there is enough context to
-use judgment.
+Make the needed response clear and easy to give. Ask only when it affects the next
+move; stop once there is enough context to use judgment.
 
-## Identify the Response
+1. **Know what the answer means.** Distinguish clarification, preference, agreement,
+   permission and acceptance. Confirmation of understanding is not action authority;
+   permission covers only the named scope. Acceptance does not also authorize commits,
+   installs, pushes or deletion. Seek explicit consent for sensitive, external or
+   destructive effects. Do not expose internal question labels unless useful.
 
-Understand the intended response before wording the question. Common intents include:
+2. **Choose the response shape.** Use an open question for free-form context and a
+   short yes/no question for one clear proposition or action. Do not force exploration
+   or ordinary acknowledgements into options. Name what a yes would authorize when
+   several proposals are in view.
 
-- clarification or open discovery;
-- selection, preference, priority, trade-off, or scope;
-- confirmation of shared understanding;
-- authorization, consent, or permission to proceed;
-- acceptance, rejection, or revision of completed work;
-- diagnostic evidence, recovery choice, ownership, timing, or focused feedback.
+3. **Make choices easy.** Put each alternative on its own numbered line so the user
+   can answer by number. State choose-one, multiple-choice or ranking. Keep options
+   concrete, explain important consequences and include an Other path when needed.
+   Mark recommendations without hiding alternatives. For multiple independent
+   questions, number questions and use nested choices such as `1.1`, `1.2`, `2.1`.
+   Keep references stable; never reuse a number for a different meaning.
 
-Treat these as useful distinctions, not labels that must appear in the conversation.
-Confirmation verifies understanding; it does not authorize action. Permission to proceed
-covers only the action and scope named in that question. Acceptance of a result does not also
-authorize a commit, installation, push, deletion, or other next action unless stated. Use
-explicit consent when privacy, accounts, external effects, destructive actions, or other
-material consequences are involved.
+4. **Ask only what is needed.** Ask one unlocking question when later decisions
+   depend on it; group a few independent questions when helpful. Do not interrogate
+   or offload ordinary adaptable decisions to the user.
 
-## Make the Answer Clear
-
-Ask a direct open question when free-form context is needed; do not force options that would
-constrain the discussion. For a single confirmation with one clear action or proposition,
-ask a short yes/no question without unnecessary numbering.
-
-When presenting alternatives, put each answer option on its own numbered line so the user can
-reply with just a number. Number the answers, not merely the question, even when there is only
-one question. Do not bury alternatives inside a question or paragraph. State whether the user
-should choose one, choose any that apply, rank the options, or add a free-form answer.
-
-For several independent questions, number the questions and use nested choice references such
-as `1.1`, `1.2`, `2.1`, and `2.2`. Keep those references stable during follow-up discussion;
-do not reuse a number for a different meaning.
-
-Make options concrete and distinguishable. Name material consequences where they affect the
-decision, include an `Other` path when the options are not exhaustive, and mark a recommendation
-when useful without disguising it as the only valid choice. Avoid ambiguous `yes` or `no` when
-several proposals or actions are in view; name what would be confirmed or authorized.
-
-Ask one unlocking question at a time when later questions depend on its answer. Group a small
-set of independent questions when that reduces unnecessary turns. Do not turn exploration into
-an interrogation or ask the user to decide details that can safely remain adaptive.
-
-## Boundaries
-
-This skill owns the clarity, response shape, and stable references of explicit questions. It
-does not decide the underlying product policy, safety threshold, plan, or action authority.
-Do not force ordinary acknowledgements or low-intent conversation into numbered choices, and
-do not expose internal question-type labels unless they help the user respond.
+This skill owns question wording and answer structure, not underlying policy,
+planning or authority decisions.
