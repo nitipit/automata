@@ -1,110 +1,55 @@
 ---
 name: automata-delegation
-description: Use when assigning work across an agent, process, working context, or other ownership boundary.
+description: Use for assigning work across agents, processes or working contexts, managing handoffs, receiving results and recovering missing delegation evidence.
 ---
 
 # Automata Delegation
 
-Hand off bounded work with explicit ownership, a usable return path and observable
-completion evidence. Task approval alone does not authorize unrestricted delegation.
+Hand off bounded work with clear ownership, a usable return path and evidence for
+acceptance. Task approval alone does not authorize unrestricted delegation.
 
-## Establish the handoff
+1. **Confirm authority and ownership.** Get an approved user/parent delegation
+   envelope. Launch, replace or rebalance within it without per-worker approval;
+   ask before exceeding it. Resolve model and supported effort choices before
+   dispatch. Use native launch controls and verify actual settings, not just flags;
+   report mismatches rather than silently substituting. Later changes need supported
+   human controls or relaunch, not an assumed worker-side setter.
 
-Initial delegation requires an approved user/parent envelope. Within it, launch,
-replacement and rebalancing need no per-worker approval; missing authority or work
-outside the envelope requires approval before dispatch.
+2. **Brief the work.** Define the goal, owner, scope, working directory, applicable
+   instructions, allowed effects, checks and completion evidence. Include stopping,
+   escalation and cleanup conditions, plus the next meaningful evidence and deadline.
+   Provide essential task facts and accessible pointers, not the whole conversation.
+   Keep durable policy in `AGENTS.md`; limit discovery to authorized paths. If the
+   worker needs broad unrelated context, reconsider the assignment boundary.
 
-Define the smallest sufficient contract:
+3. **Establish the return path.** Verify exact worker and coordinator targets,
+   transport and lifecycle ownership. Prefer tmux when shared-server owned targets
+   are available; otherwise agree on a return-capable alternative or bounded
+   synchronous execution. Pause if the path is missing, stale or unreachable.
+   Before asynchronous dispatch, establish a real callback wake path and one bounded
+   coordinator-targeted watchdog for the next evidence, with task correlation.
+   Logs and artifacts do not wake the coordinator; a message to a stuck worker is
+   not a coordinator wake-up. Synchronous returns need no communication watchdog;
+   process/time limits are separate safety backstops.
 
-- Goal, temporary responsibility, scope and verifiable completion criteria.
-- Allowed corrections, required checks and stopping boundaries.
-- Owner, working context/directory and applicable `AGENTS.md` instructions.
-- Transport, exact return path and terminal-session lifecycle owner.
-- Next meaningful evidence and deadline; intermediate milestones for longer work.
-- Recovery, escalation, cancellation and cleanup conditions.
+4. **Dispatch, yield and review.** Send work once. End the turn when no independent
+   work remains; the session stays available for callbacks. Do not wait through
+   sleeps or repeated pane, process or artifact checks. Assess callbacks or fallback
+   notices, not activity alone. Choose milestones by risk, duration and dependencies;
+   require meaningful updates, not periodic activity. Review results before acceptance.
+   Preserve correlation and completion evidence until acceptance or abandonment so
+   results can be resent through the agreed path. Cancel or re-arm watchdogs as
+   expectations change; late results do not authorize resuming paused work.
 
-Resolve model and supported effort choices before dispatch; select them through
-native launch options and verify exact runtime identifiers when uncertain. Confirm
-the effective launched settings match the assignment; requested flags alone may
-not prove this if the runtime clamps values. Report unknowns or mismatches; do not
-substitute outside agreed choices or rely on a worker self-changing its effort.
-Any later change must stay within the approved scope and use native human controls
-or relaunch, rather than an assumed agent-side setter.
+5. **Update or recover safely.** Relay accepted decisions as bounded updates with
+   the same correlation, revised evidence and ETA. Never edit worker-owned files
+   concurrently. For transfers, preserve partial work, resolve outstanding effects
+   and verify the new owner's context and return path before releasing the old owner.
+   Align callback, watchdog and cleanup ownership; launching a replacement alone
+   does not complete a transfer. For overdue evidence or delivery failure, read
+   `references/missing-evidence.md`; diagnose only owned resources without busy-polling.
+   Replace unsafe wake paths before removing still-needed coverage. Do not silently
+   leave active work unwatched.
 
-Put task-specific decisions, interfaces, dependencies and expected evidence in the
-brief, not the entire conversation. Keep durable policy in `AGENTS.md`. Include
-essential facts directly and accessible pointers for selective reading. Constrain
-discovery to authorized paths, not neighboring workspaces. If useful work requires
-reconstructing broad unrelated context, revisit the assignment boundary rather than
-merely shortening the brief.
-
-## Establish the return path
-
-Prefer tmux when the caller and worker share a tmux server and exact owned panes
-can be verified. Follow the tmux communication/background contracts: verify a safe
-receiver, use an explicitly owned detached session when persistence is needed, and
-record exact worker and return targets. Otherwise agree on a return-capable
-transport or bounded synchronous execution.
-
-If ownership or the return path is missing, stale, ambiguous or unreachable, pause
-the handoff. Preserve the task and ask for a verified path or agreed alternative;
-do not send work with an abstract or guessed return destination.
-
-## Dispatch, yield and assess
-
-For asynchronous work:
-
-```text
-dispatch + coordinator-targeted watchdog → yield → callback or notice → assess
-```
-
-Before dispatch, establish a real coordinator wake path for callbacks and one
-bounded watchdog for the next meaningful evidence chosen by the workplan. Address
-its notice to the coordinator's wakeable input, identifying expected evidence and
-task correlation. Logs and artifacts alone are not wake-up; a scheduled request to
-a stuck worker cannot wake the coordinator. Send work once, then end the turn when
-no independent work remains.
-
-Ending an interactive turn leaves the session available for callbacks; it does not
-abandon the assignment or close the terminal. Do not wait through sleeps or repeated
-artifact, process or pane checks. A callback may queue during dialogue; its arrival,
-not process presence or pane activity, is the normal completion trigger.
-
-Bounded synchronous work returns directly and needs no communication watchdog.
-A process/time limit is a separate safety backstop, not a callback.
-
-Choose intermediate milestones and deadlines from duration, risk and dependencies.
-Workers report meaningful changes through the agreed path, not periodic activity
-for its own sake. Keep the expectation and watchdog current: cancel or re-arm when
-evidence arrives or work completes, pauses, blocks, fails, is abandoned or
-relaunched. Preserve late results without treating them as permission to resume
-paused work.
-
-Review a worker's result before acceptance. Preserve task correlation in the brief,
-results and resends when callbacks could be confused. Keep completed evidence until
-acceptance or abandonment so a valid status request can prompt a resend through the
-original return path.
-
-## Revisions and recovery
-
-Relay accepted user/parent decisions as bounded updates under the same correlation,
-including changed scope, evidence and ETA. Do not edit worker-owned files concurrently.
-For a transfer, preserve partial results and pending decisions, confirm the receiving
-owner's context and return path, and resolve outstanding writes/effects before
-releasing the old owner. Align callbacks, watchdogs and cleanup responsibility;
-a replacement launch alone does not complete the handoff.
-
-When evidence is overdue or a concrete delivery failure needs diagnosis, read
-[Missing evidence](references/missing-evidence.md). Inspect only owned resources;
-observation is bounded diagnosis, not a way to wait for completion. If a still-needed
-watchdog path becomes unsafe or unavailable, establish an agreed replacement before
-removing coverage. Never silently leave active work unwatched.
-
-## Boundaries
-
-Delegation owns handoff, evidence, waiting, recovery and acceptance. Work design
-proposes responsibilities and context boundaries; workplan owns decomposition,
-acceptance checks and reasons/timing for evidence and review; management coordinates
-within the approved envelope.
-`AGENTS.md` owns durable policy. Model, transport, terminal lifecycle and timer
-skills own their mechanisms; keep participant topology and evidence timing contextual.
+This skill owns handoff and acceptance. Work design, planning, management, models,
+transport, terminal lifecycle and timers retain their own decisions and mechanisms.
