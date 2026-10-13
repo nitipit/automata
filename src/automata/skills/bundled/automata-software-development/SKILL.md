@@ -51,7 +51,6 @@ requested happy path, not production readiness by default.
    do not polish indefinitely. Report what works, what was verified and remaining
    limits. Distinguish implemented, tested, committed and published results.
 
-Setup recipes belong under `.agents/var/skills/automata-software-development/`
-or approved user defaults under `~/.agents/var/skills/automata-software-development/`.
-Project constraints take precedence; recipes do not authorize installations or
-shared-environment changes.
+This capability owns the validity of its setup recipes. Keep them findable under
+the applicable storage convention, respecting project constraints and storage
+authority. Recipes do not authorize installations or shared-environment changes.
