@@ -1,6 +1,6 @@
 # Skill Builder
 
-The bundled catalog contains 40 skills, discovered recursively through `SKILL.md`.
+The bundled catalog contains 43 skills, discovered recursively through `SKILL.md`.
 The web family lives in `bundled/automata-web-design/`, with Adaptive UI and Web App
 under its `skills/` directory. The viewer lists each skill independently and follows
 linked Markdown under `references/` or `templates/`.
@@ -19,7 +19,7 @@ PYTHONPATH=src uv run --offline --no-project \
 ```
 
 `serve` always includes all discovered skills. Open `http://127.0.0.1:8788/`.
-The catalog lists all 40 skills with immediate links and a client-side search over
+The catalog lists all 43 skills with immediate links and a client-side search over
 skill names, titles and descriptions. Search leaves the complete static catalog usable
 without JavaScript.
 
