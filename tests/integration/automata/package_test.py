@@ -196,6 +196,7 @@ assert all(path.is_relative_to(site) for path in sources.values())
 assert len(sources) == 44
 assert 'automata-team-use' in sources
 assert (sources['automata-team-use'] / 'SKILL.md').is_file()
+assert (sources['automata-team-use'] / 'assets/reports.json').is_file()
 assert 'automata-thinking-control' not in sources
 assert 'automata-pi-sessions' in sources
 assert 'automata-web-design' in sources

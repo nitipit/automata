@@ -10,8 +10,8 @@ from automata.apps.team.store import validate_state
 from tests.apps.team.conftest import report
 
 
-def test_documented_sample_is_valid_and_has_no_invented_measurements():
-    path = Path(__file__).resolve().parents[4] / "examples/team/goal.json"
+def test_legacy_fixture_is_valid_and_has_no_invented_measurements():
+    path = Path(__file__).resolve().parents[1] / "fixtures/legacy-goal.json"
     document = json.loads(path.read_text())
     state = {
         kind: {row["id"]: canonical(kind, row) for row in rows} for kind, rows in document.items()

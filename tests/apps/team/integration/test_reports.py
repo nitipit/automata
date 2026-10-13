@@ -5,7 +5,6 @@ import json
 import re
 import shlex
 import subprocess
-from pathlib import Path
 
 import pytest
 from shelfdb.client import Client
@@ -236,7 +235,8 @@ def test_concurrent_report_patches_and_identical_ids_across_goals(report_service
 
 def test_bundled_skill_discovery_and_literal_publishing_examples(service):
     skill = skill_sources()["automata-team-use"] / "SKILL.md"
-    root = Path(__file__).resolve().parents[4]
+    asset = skill.parent / "assets/reports.json"
+    assert asset.is_file()
     blocks = re.findall(r"```sh\n(.*?)\n```", skill.read_text(), re.S)
     console = shlex.quote(service.argv()[0])
     executed = []
@@ -246,12 +246,9 @@ def test_bundled_skill_discovery_and_literal_publishing_examples(service):
         lines = [line for line in lines if not line.startswith("automata team board ")]
         script = "\n".join(lines).replace("automata ", console + " ")
         script = script.replace(".agents/var/apps/agent-team", shlex.quote(str(service.root)))
-        script = script.replace(
-            "examples/team/reports.json", shlex.quote(str(root / "examples/team/reports.json"))
-        )
         result = subprocess.run(
             ["bash", "-e", "-c", script],
-            env=service.env,
+            env=service.env | {"SKILL_DIR": str(skill.parent)},
             text=True,
             capture_output=True,
             timeout=10,

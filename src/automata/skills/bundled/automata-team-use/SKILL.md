@@ -26,11 +26,13 @@ A manager's highest managed team establishes its parent. Avoid ambiguous sibling
 membership; the board diagnoses competing managers rather than guessing.
 No worker starts/stops, assignments or delegation authority come from this app.
 
-In an Automata checkout, this sample has the hierarchy above and no tasks/usage:
+The optional [sample graph](assets/reports.json) has this hierarchy and no
+invented tasks/usage. Set `SKILL_DIR` to the absolute directory containing this
+loaded `SKILL.md` (source or installed copy), not the current working directory.
 
 ```sh
 automata team init --goal example-reports --actor manager \
-  --file examples/team/reports.json --state-root .agents/var/apps/agent-team
+  --file "$SKILL_DIR/assets/reports.json" --state-root .agents/var/apps/agent-team
 ```
 
 For another goal, change the goal record's `id`, every record's `goal_id` and

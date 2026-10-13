@@ -19,12 +19,15 @@ uv run --offline automata team --help
 uv run --offline automata team serve --state-root .agents/var/apps/agent-team
 ```
 
-In terminal B from the same repository:
+In terminal B from the same repository, use the optional Team-use skill asset
+below. For an installed skill, resolve `assets/reports.json` relative to its
+`SKILL.md` instead of using this source-checkout path.
 
 ```sh
 # One NEW graph; never resets another goal. Explicitly labelled example, no tasks.
 uv run --offline automata team init --goal example-reports --actor manager \
-  --file examples/team/reports.json --state-root .agents/var/apps/agent-team
+  --file src/automata/skills/bundled/automata-team-use/assets/reports.json \
+  --state-root .agents/var/apps/agent-team
 uv run --offline automata team update --goal example-reports --actor alice \
   --kind agent --id alice --file - --state-root .agents/var/apps/agent-team <<'JSON'
 {"report":{"summary":"Implementing current-report publishing","status":"working","blocker":"","elapsed_seconds":null,"estimate":{"min_seconds":null,"max_seconds":null,"target_finish":null},"tokens":{"input":null,"output":null,"cache_read":null,"cache_write":null,"observed_at":null,"source":"unavailable"}}}
