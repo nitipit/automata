@@ -79,7 +79,7 @@ effects, timestamps and any evaluator intervention.
 
 ## B04 v1 — Recover without guessing or exceeding scope
 
-**Fixture:** An approved reusable browser/router recipe, a stale connection record,
+**Fixture:** An approved reusable browser connection recipe, a stale connection record,
 a reachable owned target, and an unrelated target outside scope. Support a controlled
 disconnect after forwarding a request but before confirming its handling.
 

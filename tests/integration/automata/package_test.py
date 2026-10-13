@@ -146,12 +146,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
     for paths in (wheel_paths, sdist_paths):
         assert expected <= paths
         assert catalog_files <= paths
-        for retired in (
-            'skills/bundled/automata-message-router/',
-            'skills/bundled/automata-playspace/',
-            'tools/message-router/', 'runtimes/pi/extensions/message-router/',
-        ):
-            assert not any(path.startswith(retired) for path in paths)
+        assert not any(path.startswith('skills/bundled/automata-playspace/') for path in paths)
         assert 'skills/templates/lib/mermaid.js' in paths
         assert 'skills/templates/lib/prism.js' in paths
         assert 'skills/templates/catalog.html' in paths
@@ -211,7 +206,6 @@ assert not (site / 'automata/install/codex.py').exists()
 assert 'automata-time-awareness' not in sources
 assert 'automata-timer' in sources
 assert all(path.name == name for name, path in sources.items())
-assert 'automata-message-router' not in sources
 assert sources['automata-workplan'] == site / 'automata/skills/bundled/automata-workplan'
 assert 'automata-plan' not in sources
 assert not any(name in sys.modules for name in ('engrave', 'mistune', 'playwright'))
@@ -245,7 +239,6 @@ assert {item.name for item in installed} == {
     'message-timestamps', 'pi-sessions', 'skill-activity', 'token-awareness',
 }
 assert not (work / 'extensions/thinking-control').exists()
-assert not (work / 'extensions/message-router').exists()
 assert (work / 'extensions/skill-activity/store.py').is_file()
 assert (work / 'extensions/token-awareness.ts').is_file()
 assert (work / 'extensions/fast-mode/index.ts').is_file()
@@ -258,7 +251,6 @@ assert (work / 'extensions/codex-bridge.ts').is_file()
 from automata.install.tools import install_tools
 shared = install_tools(target_root=work / 'tools')
 assert {item.name for item in shared} == {'line', 'python-runtime', 'timer', 'tmux-message'}
-assert not (work / 'tools/message-router').exists()
 assert (work / 'tools/python-runtime/python_runtime.py').is_file()
 """, str(site), str(tmp_path / "installed")],
         cwd=tmp_path, capture_output=True, text=True, timeout=30, check=False,
@@ -281,15 +273,9 @@ def test_package_separates_pi_extensions_from_bundled_skills() -> None:
         assert not package.joinpath("skills", "skill-ops", name).exists()
 
 
-def test_package_retires_router_and_playspace() -> None:
+def test_package_retires_playspace() -> None:
     package_root = files("automata")
-    assert not package_root.joinpath(*PI_EXTENSIONS, "message-router").exists()
-    assert not package_root.joinpath(*PI_EXTENSIONS, "agent-router").exists()
-    assert not package_root.joinpath("tools", "agent-router").exists()
-    assert not package_root.joinpath(*PI_EXTENSIONS, "agent-browser-bridge.ts").exists()
-    assert not package_root.joinpath("tools", "message-router").exists()
-    for name in ('automata-message-router', 'automata-playspace'):
-        assert not package_root.joinpath('skills', 'bundled', name).exists()
+    assert not package_root.joinpath('skills', 'bundled', 'automata-playspace').exists()
 
 
 def test_package_includes_bundled_codex_bridge_pi_extension() -> None:

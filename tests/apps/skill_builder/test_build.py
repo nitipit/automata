@@ -47,8 +47,7 @@ def test_workplan_canonical_identity_discovery_and_export(tmp_path):
     assert lookup(pages, 'automata-workplan') == pages[0]
     export_agent('automata-workplan', tmp_path / 'export')
     assert snapshot(tmp_path / 'export') == snapshot(SKILLS / 'automata-workplan')
-    for selector in ('automata-plan', 'plan', 'automata-message-router', 'message-router',
-                     'automata-playspace'):
+    for selector in ('automata-plan', 'plan', 'automata-playspace'):
         with pytest.raises(FileNotFoundError):
             discover(SKILLS, selector, False)
         with pytest.raises(ValueError, match='Unknown skill document'):
@@ -84,13 +83,11 @@ def test_public_routes_and_allowed_roots(tmp_path):
                      '/templates/../server.py', '/%2e%2e/private.txt',
                      '/templates/skill.html?name=../private',
                      '/templates/reference.html?name=automata-agent-evaluation&reference=../../private.txt',
-                     '/docs', '/openapi.json', '/plan/', '/plan/index.html',
-                     '/message-router/', '/message-router/index.html',
-                     '/message-router/references/connect.html']:
+                     '/docs', '/openapi.json', '/plan/', '/plan/index.html']:
             response = client.get(path)
             assert response.status_code == 404, (path, response.text)
             assert 'must not leak' not in response.text
-        for retired in ('automata-message-router', 'automata-playspace', 'automata-plan',
+        for retired in ('automata-playspace', 'automata-plan',
                         'automata-thinking-control', 'automata-codex-sessions'):
             for path in (f'/{retired}/', f'/templates/skill.html?name={retired}',
                          f'/skills/{retired}/SKILL.md'):

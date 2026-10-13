@@ -3,18 +3,15 @@
 Read-only, loopback-only **FastAPI + Jinja monitoring app**, with Adaptive UI
 components and local ECharts. Its Skill catalog link opens the separately
 launched Skill Builder site; Anatomy neither renders nor serves installed skills.
-Normal links load independent documents. No SPA, router connection, simulator,
-or code executor.
+Normal links load independent documents. No SPA, simulator, or code executor.
 
 ## Pages
 
 - `/automata/index.html`: Identity, Capabilities and Statistics local tabs.
 - Skill catalog: `http://127.0.0.1:8788/` links canonical skill source and references.
-- Retired Message Router guide routes return 404.
 
 Guide usage belongs in the canonical Markdown, not this README. Examples are
-non-executing text. Anatomy never reads router endpoint records or starts the
-skill-site server.
+non-executing text. Anatomy never starts the skill-site server.
 
 ## Offline build and run
 
@@ -89,7 +86,7 @@ connection destinations; the separate site's native localhost SSE supports refre
 ## Monitoring and navigation contract
 
 `/` and `/automata/` redirect to `/automata/index.html`. The Skill catalog link
-opens the independently launched site; old Router lesson redirects are retired.
+opens the independently launched site.
 Old hash-only SPA bookmarks are intentionally retired: the root redirect reaches
 the default monitor, and any retained fragment has no routing
 meaning. There is no hash router or arbitrary redirect input.
@@ -161,4 +158,4 @@ validation/outage recovery, desktop/mobile, keyboard and themes. Both API reads 
 the guide destination are intercepted by synthetic fixtures. Native skill-site
 rendering, diagrams and canonical Markdown edit/rebuild/browser refresh are tested
 separately in `tests/apps/skill_builder/`. Temporary browsers always close.
-Screenshots supplement assertions. No live router service is contacted.
+Screenshots supplement assertions.

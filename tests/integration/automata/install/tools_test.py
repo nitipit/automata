@@ -130,13 +130,6 @@ def test_tool_bytecode_exclusions_are_defaults(tmp_path: Path, declaration: str)
         assert (source / name).is_file(), name
 
 
-def test_retired_router_is_not_installable(tmp_path: Path) -> None:
-    target = tmp_path / "tools"
-    with pytest.raises(ToolInstallError, match="Source tool directory does not exist"):
-        install_tools(target_root=target, tool_names=["message-router"])
-    assert not target.exists()
-
-
 def test_install_tools_copies_bundled_tmux_message(tmp_path: Path) -> None:
     target_root = tmp_path / ".agents" / "tools"
 

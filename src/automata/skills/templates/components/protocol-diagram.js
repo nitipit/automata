@@ -1,7 +1,7 @@
 import { Base } from '../lib/adaptive-ui.js';
 
 // Render only the authored Mermaid block embedded by the Markdown build.
-// No URL, API, router payload or interactive input supplies diagram source.
+// No URL, API payload or interactive input supplies diagram source.
 class ProtocolDiagram extends Base {
   static {
     this.css = `

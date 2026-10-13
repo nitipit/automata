@@ -1,4 +1,4 @@
-Message Router web reference — build and license provenance
+Shared skill-viewer browser assets — build and license provenance
 
 The authoring build copies two existing central browser bundles byte-for-byte.
 It does not rebuild their dependency graphs. SHA-256 checks recognize the reviewed

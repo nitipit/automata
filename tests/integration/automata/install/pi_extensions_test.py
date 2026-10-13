@@ -13,7 +13,6 @@ from automata.install.pi_extensions import (
 def test_bundled_pi_extension_root_is_under_pi_runtime() -> None:
     root = bundled_pi_extension_root()
     assert root.parts[-3:] == ("runtimes", "pi", "extensions")
-    assert not root.joinpath("message-router").exists()
     assert not root.parent.parent.parent.joinpath("extensions").exists()
 
 
@@ -90,13 +89,6 @@ def test_install_pi_extensions_copies_bundled_context_compaction(tmp_path: Path)
 
     assert [result.name for result in results] == ["context-compaction"]
     assert (target_root / "context-compaction.ts").is_file()
-
-
-def test_retired_router_selection_fails_before_install(tmp_path: Path) -> None:
-    target = tmp_path / "extensions"
-    with pytest.raises(PiExtensionInstallError, match="Source Pi extension does not exist"):
-        install_pi_extensions(target_root=target, extension_names=["message-router"])
-    assert not target.exists()
 
 
 def test_default_install_excludes_retired_control_without_uninstalling(tmp_path: Path) -> None:
