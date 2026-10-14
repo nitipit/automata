@@ -175,17 +175,17 @@ Refresh/navigation are read-only; the goal never changes in that board.
 
 ## Usage skill and checks
 
-The bundled `automata-team-use` skill teaches this app's hierarchy/publishing
+The bundled `automata-team-use` skill teaches this tool's hierarchy/publishing
 contract with exercised CLI/JSON examples. It is discoverable through the existing
 Automata skill catalog; packaging is not a global installation or activation.
-Its scope is app use, not generic management/delegation/runtime setup.
+Its scope is tool use, not generic management/delegation/runtime setup.
 
 Saved unit, actual console/ShelfDB integration and headless UI tests are under
-`tests/apps/team/{unit,integration,ui}`:
+`tests/tools/team/{unit,integration,ui}`:
 
 ```sh
-uv run --offline pytest -q tests/apps/team
-uv run --offline ruff check src/automata/tools/team tests/apps/team
+uv run --offline pytest -q tests/tools/team
+uv run --offline ruff check src/automata/tools/team tests/tools/team
 ```
 
 Integration fixtures own private Unix servers/writers and stop them in `finally`.

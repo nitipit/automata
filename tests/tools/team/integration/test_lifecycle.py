@@ -65,7 +65,7 @@ def test_duplicate_server_refused_and_graceful_restart_preserves_db(service):
     service.stop()
     assert service.process.returncode == 0
     assert not socket.exists()
-    from tests.apps.team.conftest import Service
+    from tests.tools.team.conftest import Service
 
     restarted = Service(service.root)
     try:

@@ -1,6 +1,6 @@
 from automata.tools.team.panels import agent_panel, label_value_grid
 from automata.tools.team.view import report_projection
-from tests.apps.team.conftest import report
+from tests.tools.team.conftest import report
 
 
 def test_headerless_grid_wraps_values_under_values():

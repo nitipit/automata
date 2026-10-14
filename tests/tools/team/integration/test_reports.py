@@ -12,7 +12,7 @@ from shelfdb.client import Client
 from automata.install.skills import skill_sources
 from automata.install.tools import install_tools
 from automata.tools.team.store import snapshot
-from tests.apps.team.conftest import report
+from tests.tools.team.conftest import report
 
 
 def update(service, patch, actor="alice", ok=True):
@@ -184,7 +184,7 @@ def test_report_ownership_on_replace_and_explicit_unavailable(report_service):
 
 
 def test_concurrent_report_patches_and_identical_ids_across_goals(report_service):
-    from tests.apps.team.conftest import report_documents
+    from tests.tools.team.conftest import report_documents
 
     report_service.call(
         "init", "--goal", "second", "--actor", "manager", document=report_documents("second")

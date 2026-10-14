@@ -1,7 +1,7 @@
 import copy
 import json
 
-from tests.apps.team.conftest import documents
+from tests.tools.team.conftest import documents
 
 
 def test_public_stdin_snapshot_and_patch(service):

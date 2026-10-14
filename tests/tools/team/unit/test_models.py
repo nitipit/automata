@@ -7,7 +7,7 @@ from dictify import Model
 
 from automata.tools.team.models import canonical
 from automata.tools.team.store import validate_state
-from tests.apps.team.conftest import report
+from tests.tools.team.conftest import report
 
 
 def test_legacy_fixture_is_valid_and_has_no_invented_measurements():

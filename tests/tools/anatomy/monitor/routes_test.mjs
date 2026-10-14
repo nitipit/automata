@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { parseMonitorState, serializeMonitorState } from '../../../src/automata/tools/anatomy/templates/automata/components/monitor-state.js';
+import { parseMonitorState, serializeMonitorState } from '../../../../src/automata/tools/anatomy/templates/automata/components/monitor-state.js';
 
 test('closed monitor URL defaults and invalid values', () => {
   const state = parseMonitorState('?tab=unsafe&range=invalid&timezone=Invalid&limit=500&setup=invalid&paused=wat', 'UTC');

@@ -16,7 +16,7 @@ from automata.tools.team.view import (
     token_count,
     tokens_cell,
 )
-from tests.apps.team.conftest import report
+from tests.tools.team.conftest import report
 
 
 def test_manager_alice_bob_direct_hierarchy_ignores_ancestor_overlap_and_tasks(graph):

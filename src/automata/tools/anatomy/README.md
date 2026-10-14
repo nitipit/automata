@@ -148,10 +148,11 @@ all project skills. Invalid selections return readable 422 details.
 Use the already-prepared development environment and an owned test-output root:
 
 ```sh
-PYTHONPATH=src python -B -m pytest -q tests/apps/dashboard tests/apps/skill_builder \
+PYTHONPATH=src python -B -m pytest -q tests/tools/anatomy \
   tests/cli/skill_builder_test.py
-node --test tests/apps/dashboard/*_test.mjs tests/apps/skill_builder/*_test.mjs
-ruff check src/automata/tools/anatomy tests/apps/dashboard tests/apps/skill_builder
+node --test tests/tools/anatomy/monitor/*_test.mjs \
+  tests/tools/anatomy/catalog/*_test.mjs
+ruff check src/automata/tools/anatomy tests/tools/anatomy
 ```
 
 Native skill browser tests cover exact numbered source, reference diagrams and

@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import Prism from '../../../src/automata/tools/anatomy/templates/skills/lib/prism.js';
-import lineNumbersCSS from '../../../src/automata/tools/anatomy/templates/skills/components/prism-line-numbers.css.js';
+import Prism from '../../../../src/automata/tools/anatomy/templates/skills/lib/prism.js';
+import lineNumbersCSS from '../../../../src/automata/tools/anatomy/templates/skills/components/prism-line-numbers.css.js';
 
 const root = 'src/automata/tools/anatomy/templates/skills/';
 const digest = path => createHash('sha256').update(readFileSync(root + path)).digest('hex');
