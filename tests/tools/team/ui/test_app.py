@@ -122,7 +122,7 @@ def test_leaf_legacy_no_report_multiple_tasks_never_add_rows(service):
 
 
 def test_root_without_children_keeps_own_report_and_navigation_noops(report_service):
-    from tests.apps.team.conftest import report_documents
+    from tests.tools.team.conftest import report_documents
 
     doc = report_documents("solo")
     doc["teams"] = [dict(doc["teams"][0], agent_ids=["manager"])]

@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from automata.install.tools import install_tools
-from tests.apps.team.conftest import report_documents
+from tests.tools.team.conftest import report_documents
 
 
 @pytest.fixture
@@ -180,7 +180,7 @@ def test_installed_help_ignores_ambient_automata(installed_tool):
 
 
 def test_installed_board_in_real_terminal(installed_tool, report_service, tmp_path):
-    from tests.apps.team.integration.test_lifecycle import (
+    from tests.tools.team.integration.test_lifecycle import (
         test_public_board_in_real_83_column_pty_q_leaves_service_running as check_board,
     )
 
