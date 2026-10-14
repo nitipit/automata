@@ -246,6 +246,11 @@ def install_tools_command(
         bool,
         Parameter(name="--json", help="Print machine-readable JSON output."),
     ] = False,
+    dry_run: Annotated[bool, Parameter(help="Preview without changing destinations.")] = False,
+    backup_root: Annotated[
+        Path | None,
+        Parameter(help="Explicit backup directory for tool replacements."),
+    ] = None,
 ) -> None:
     """Install all or selected bundled or local tool directories."""
 
@@ -255,6 +260,8 @@ def install_tools_command(
             target_root=target_root,
             tool_names=normalize_tool_names(tool_names),
             mode=mode,
+            dry_run=dry_run,
+            backup_root=backup_root,
         )
     except ToolInstallError as exc:
         raise SystemExit(str(exc)) from exc

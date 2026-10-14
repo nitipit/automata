@@ -93,6 +93,15 @@ an explicit backup root. Unchanged packages are skipped. Missing catalog entries
 never authorize deletion. See [Setup](src/automata/skills/automata-setup/SKILL.md)
 for selection, backup recovery and retirement-only semantics.
 
+Tool installation also supports `--dry-run`. Use `--mode replace --backup-root
+<chosen-root>` for recoverable replacements, with backups outside selected packages.
+Replacements are staged before the old tool moves; a reported publication failure
+restores it when possible, otherwise the error identifies its preserved backup.
+Earlier successful tools in a batch remain applied and are listed on failure.
+Use exclusive destination write ownership: batches are not transactions, and abrupt
+process termination can require manual recovery. Legacy replacement without
+`--backup-root` retains its prior behavior; existing tools preview as changes.
+
 For development, use `uv run pytest` for the selected checks and
 `uv run ruff check .` for lint. Prepare dependencies only within approved scope;
 use offline execution when relying on already cached dependencies.
