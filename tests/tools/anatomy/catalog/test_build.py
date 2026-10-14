@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from automata.install.skills import install_skills
-from automata.skills.content import SKILLS, discover, export_agent, lookup
+from automata.tools.anatomy.content import SKILLS, discover, export_agent, lookup
 from automata.tools.anatomy.server import TEMPLATES, create_app
 
 

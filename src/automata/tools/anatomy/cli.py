@@ -40,7 +40,7 @@ def export_agent(
 ) -> None:
     """Copy a complete canonical skill; no viewer HTML, install or sync."""
     try:
-        from automata.skills.content import export_agent as export
+        from .content import export_agent as export
 
         export(skill, output)
     except (ImportError, OSError, ValueError) as error:

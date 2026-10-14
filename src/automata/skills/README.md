@@ -1,8 +1,9 @@
 # Canonical skills
 
-This directory owns canonical skills, nested skills and all supporting assets,
-plus Markdown discovery and agent export in `content.py`. Every skill is discovered
-recursively through `SKILL.md`; there is no `bundled/` layer or duplicate catalog.
+This directory owns canonical skills, nested skills and all supporting assets.
+Markdown discovery and agent export belong to `../tools/anatomy/content.py`.
+Every skill is discovered recursively through `SKILL.md`; there is no `bundled/`
+layer or duplicate catalog.
 The current catalog has 44 skills, including nested children.
 
 The web family lives in `automata-web-design/`, with Adaptive UI and Web App under
@@ -22,9 +23,8 @@ With the optional `anatomy` dependencies already prepared:
 
 ```sh
 automata-anatomy serve --port 8766
-# Compatibility aliases use the same server:
-automata skill-builder serve --port 8766
-python -m automata.skills.cli serve --port 8766
+automata anatomy serve --port 8766
+python -m automata.tools.anatomy.cli serve --port 8766
 ```
 
 Open `http://127.0.0.1:8766/skills/`. Serving reads canonical Markdown directly and

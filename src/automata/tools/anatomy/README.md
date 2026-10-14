@@ -24,8 +24,8 @@ from the project to monitor: project roots and activity scope follow the invocat
 CWD; canonical bundled inventories come from the Automata package, not a guessed
 checkout path. No service is detached automatically. Ctrl+C/SIGTERM stops it.
 
-`automata anatomy`, `automata skill-builder` and `python -m automata.skills.cli`
-remain lightweight aliases for the same tool. Their `export-agent` command keeps
+`automata anatomy` and `python -m automata.tools.anatomy.cli` also invoke this
+tool. Its `export-agent` command keeps
 whole canonical skill export without importing viewer dependencies. The default
 serve port is now 8766; use `/skills/`, not a second server at port 8788.
 The retired `automata.apps.dashboard.server` module is replaced by the command
@@ -74,7 +74,8 @@ No installed-copy or old dashboard-cache migration happens automatically.
   view URLs remain supported. Retired skill names remain unavailable.
 
 Canonical skills and supporting assets live directly in `../../skills/`.
-`catalog.py` owns website routes; `templates/skills/` owns viewer templates,
+`content.py` owns Markdown discovery, rendering and export; `catalog.py` owns
+website routes; `templates/skills/` owns viewer templates,
 components, reviewed libraries and notices. `server.py` owns one lifespan/watcher,
 Host/Origin/CSP protections and a closed public asset registry.
 `routes/automata.py`, `data.py` and `activity.py` retain the monitor projection.
@@ -115,7 +116,7 @@ make no monitoring API requests. Back-forward cache restoration establishes a fr
 owned lifecycle.
 
 One watcher watches canonical skills and the complete Anatomy template tree.
-`/__anatomy/events` (old `/__skill_builder/events` alias retained) has bounded SSE
+`/__anatomy/events` has bounded SSE
 subscribers. Markdown and shared template/component changes reload both monitor
 and skill documents without build/sync. Serving writes neither source nor generated
 output. Python changes require restart. If watched roots disappear or the watcher
@@ -149,7 +150,7 @@ Use the already-prepared development environment and an owned test-output root:
 
 ```sh
 PYTHONPATH=src python -B -m pytest -q tests/tools/anatomy \
-  tests/cli/skill_builder_test.py
+  tests/cli/anatomy_catalog_test.py
 node --test tests/tools/anatomy/monitor/*_test.mjs \
   tests/tools/anatomy/catalog/*_test.mjs
 ruff check src/automata/tools/anatomy tests/tools/anatomy

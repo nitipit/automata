@@ -5,9 +5,8 @@ from pathlib import Path
 
 import yaml
 
-from automata.skills.content import SKILLS
-
 from .activity import activity, make_window
+from .content import SKILLS
 
 # Invocation directory is the monitored project; inventory comes from the package.
 ROOT = Path.cwd().resolve()

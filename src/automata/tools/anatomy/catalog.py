@@ -8,7 +8,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 
-from automata.skills.content import discover, lookup, render_markdown, url_slug
+from .content import discover, lookup, render_markdown, url_slug
 
 BUNDLES = {
     "prism.js": "db64933eccbb6f8edb10f1d0e0a94c1d5d4889fbc1c3705096a17dad9ffef8a2",
@@ -55,7 +55,6 @@ def register_catalog(app, skills: Path, templates: Path, subscribers: set):
         return HTMLResponse(environment.get_template(template).render(section="skills", **context))
 
     @app.get("/__anatomy/events")
-    @app.get("/__skill_builder/events")
     async def events(request: Request):
         async def stream():
             queue = asyncio.Queue(maxsize=1)

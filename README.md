@@ -47,7 +47,7 @@ This README is a quick orientation map; follow the relevant source for details.
 and canonical skill catalog/source/reference viewer, with shared navigation,
 appearance and live reload. Serving is foreground by default. Prepare the optional
 `anatomy` extra and cached chart assets only with setup authority; core CLI does not
-require web dependencies. Existing `automata skill-builder` commands remain aliases.
+require web dependencies. Use `automata anatomy` or `automata-anatomy`.
 There is no maintained `src/automata/apps/` category or separate skill-site server.
 
 ## Automata Team

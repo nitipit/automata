@@ -2,7 +2,7 @@
 
 import pytest
 
-from automata.skills.content import discover
+from automata.tools.anatomy.content import discover
 
 
 def test_discovery_rejects_escape_and_missing_references(tmp_path):

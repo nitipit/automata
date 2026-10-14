@@ -10,7 +10,7 @@ import urllib.request
 import pytest
 from playwright.sync_api import expect, sync_playwright
 
-from automata.skills.content import SKILLS
+from automata.tools.anatomy.content import SKILLS
 from automata.tools.anatomy.server import TEMPLATES
 
 from .browser_assertions import assert_line_numbers

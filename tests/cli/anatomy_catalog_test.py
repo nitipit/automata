@@ -8,12 +8,12 @@ import urllib.request
 
 import pytest
 
-from automata.skills.content import SKILLS, body
+from automata.tools.anatomy.content import SKILLS, body
 
 
 def cli(*args):
     return subprocess.run(
-        [sys.executable, "-m", "automata.skills.cli", *map(str, args)],
+        [sys.executable, "-m", "automata.tools.anatomy.cli", *map(str, args)],
         capture_output=True,
         text=True,
     )
@@ -22,7 +22,7 @@ def cli(*args):
 def test_help():
     assert "export-agent" in cli("--help").stdout
     public = subprocess.run(
-        [sys.executable, "-c", "from automata.cli import app; app()", "skill-builder", "--help"],
+        [sys.executable, "-c", "from automata.cli import app; app()", "anatomy", "--help"],
         capture_output=True,
         text=True,
     )
@@ -49,7 +49,7 @@ def test_errors_are_bounded(args):
 
 
 def test_serve_defaults(monkeypatch):
-    from automata.skills import cli as commands
+    from automata.tools.anatomy import cli as commands
     from automata.tools.anatomy import server
 
     calls = []
@@ -65,7 +65,7 @@ def test_export(tmp_path):
             sys.executable,
             "-c",
             "from automata.cli import app; app()",
-            "skill-builder",
+            "anatomy",
             "export-agent",
             "automata-delegation",
             "--output",
@@ -94,7 +94,7 @@ def test_cli_signal_stops_preview_without_build_output(tmp_path):
                 sys.executable,
                 "-c",
                 "from automata.cli import app; app()",
-                "skill-builder",
+                "anatomy",
                 "serve",
                 "--port",
                 str(port),
@@ -116,7 +116,7 @@ def test_cli_signal_stops_preview_without_build_output(tmp_path):
                 pytest.fail("FastAPI CLI did not become ready")
             assert "engrave.main" not in log_path.read_text()
             stream = urllib.request.urlopen(
-                f"http://127.0.0.1:{port}/__skill_builder/events", timeout=5
+                f"http://127.0.0.1:{port}/__anatomy/events", timeout=5
             )
             assert stream.readline().startswith(b": connected")
         finally:
@@ -133,6 +133,64 @@ def test_cli_signal_stops_preview_without_build_output(tmp_path):
     assert process.returncode in (0, -15)
     with socket.socket() as sock:
         assert sock.connect_ex(("127.0.0.1", port)) != 0
+
+
+def test_legacy_skill_builder_is_retired(tmp_path):
+    from importlib.util import find_spec
+
+    assert find_spec("automata.skills.cli") is None
+    assert find_spec("automata.skills.content") is None
+    assert not list(SKILLS.glob("*.py"))
+    # --help is globally intercepted by Cyclopts even for unknown commands.
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from automata.cli import app; app()",
+            "skill-builder",
+            "export-agent",
+            "automata-delegation",
+            "--output",
+            str(tmp_path / "retired-export"),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+
+
+def test_legacy_event_route_is_retired():
+    from fastapi.testclient import TestClient
+
+    from automata.tools.anatomy.server import create_app
+
+    with TestClient(create_app(), base_url="http://127.0.0.1:8766") as client:
+        assert client.get("/__skill_builder/events").status_code == 404
+
+
+def test_copied_tool_export_uses_package_inventory(tmp_path):
+    from automata.install.tools import install_tools
+
+    tools = tmp_path / "tools"
+    output = tmp_path / "export"
+    install_tools(target_root=tools, tool_names=("anatomy",))
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-B",
+            str(tools / "anatomy/anatomy.py"),
+            "export-agent",
+            "automata-delegation",
+            "--output",
+            str(output),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (output / "SKILL.md").read_bytes() == (
+        SKILLS / "automata-delegation/SKILL.md"
+    ).read_bytes()
 
 
 def test_frontmatter_and_literal_code():

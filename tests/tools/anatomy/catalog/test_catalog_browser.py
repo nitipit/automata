@@ -4,7 +4,7 @@ import shutil
 
 from playwright.sync_api import expect, sync_playwright
 
-from automata.skills.content import SKILLS, discover
+from automata.tools.anatomy.content import SKILLS, discover
 
 from . import test_browser
 

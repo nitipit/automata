@@ -9,9 +9,8 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from watchfiles import awatch
 
-from automata.skills.content import SKILLS
-
 from .catalog import register_catalog
+from .content import SKILLS
 from .data import ROOT
 from .routes import automata
 
