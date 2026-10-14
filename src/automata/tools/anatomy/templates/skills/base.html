@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block scripts %}
+  <script type="module" src="/templates/{% block module %}skill{% endblock %}.css.js"></script>
+  <script type="module" src="/templates/components/navigation.js"></script>
+{% endblock %}
+{% block content %}{% block body %}{% endblock %}{% endblock %}

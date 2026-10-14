@@ -9,7 +9,6 @@ from typing import Annotated
 
 from cyclopts import App, Parameter
 
-from automata.apps.team.cli import app as team_app
 from automata.character import CharacterError, compose_character, list_character_components
 from automata.install.directory import InstallMode
 from automata.install.pi_extensions import (
@@ -24,7 +23,8 @@ from automata.install.skills import (
 )
 from automata.install.tools import ToolInstallError, install_tools, normalize_tool_names
 from automata.plugin import PluginExportError, export_plugin
-from automata.skills.cli import app as skill_builder_app
+from automata.tools.anatomy.cli import app as anatomy_app
+from automata.tools.team.cli import app as team_app
 
 app = App(help="Automata reusable agent guidance tools.")
 app.command(team_app, name="team")
@@ -38,7 +38,8 @@ character_app = App(
 app.command(character_app, name="character")
 skills_app = App(help="Install or expose skill directories into an agent skill root.")
 app.command(skills_app, name="skills")
-app.command(skill_builder_app, name="skill-builder")
+app.command(anatomy_app, name="anatomy")
+app.command(anatomy_app, name="skill-builder")
 tools_app = App(help="Install bundled or local tools into an agent tool root.")
 app.command(tools_app, name="tools")
 plugin_app = App(help="Build Agent Plugin packages from Automata assets.")
@@ -148,12 +149,14 @@ def install(
     ] = False,
     dry_run: Annotated[bool, Parameter(help="Preview without changing destinations.")] = False,
     backup_root: Annotated[
-        Path | None, Parameter(help="Explicit backup directory for replacements and retirements."),
+        Path | None,
+        Parameter(help="Explicit backup directory for replacements and retirements."),
     ] = None,
     retire_names: Annotated[
         list[str] | None,
         Parameter(
-            name="--retire", help="Installed parent name to retire; repeat or comma-separate.",
+            name="--retire",
+            help="Installed parent name to retire; repeat or comma-separate.",
         ),
     ] = None,
 ) -> None:
@@ -322,8 +325,12 @@ def print_install_results(results, *, json_output: bool) -> None:
 
     for result in results:
         action = getattr(result, "action", "add")
-        label = {"add": "Installed", "change": "Updated", "unchanged": "Unchanged",
-                 "retire": "Retired"}[action]
+        label = {
+            "add": "Installed",
+            "change": "Updated",
+            "unchanged": "Unchanged",
+            "retire": "Retired",
+        }[action]
         if getattr(result, "dry_run", False):
             label = f"Would {action}"
         print(f"{label} {result.name}: {result.source} -> {result.target} ({result.mode})")

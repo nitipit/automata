@@ -1,4 +1,4 @@
-"""Owned Chrome, synthetic monitor API, external guide navigation fixture."""
+"""Owned Chrome, synthetic monitor API and real same-server skill navigation."""
 
 import json
 import os
@@ -10,7 +10,7 @@ from playwright.sync_api import expect, sync_playwright
 
 URL = os.environ.get("ANATOMY_URL", "http://127.0.0.1:8766/").rstrip("/")
 EVIDENCE = Path(os.environ["ANATOMY_EVIDENCE"])
-GUIDE = "http://127.0.0.1:8788/"
+GUIDE = URL + "/skills/"
 
 
 def main():
@@ -38,19 +38,12 @@ def main():
                 viewport={"width": 1440, "height": 1000}, reduced_motion="reduce"
             )
             context.route("**/api/anatomy*", api)
-            # Skill-site rendering has its own native/browser tests. This isolates
-            # monitor teardown and URL restoration across the external link.
-            context.route(
-                GUIDE,
-                lambda route: route.fulfill(
-                    content_type="text/html", body="<h1>Separate skill site fixture</h1>"
-                ),
-            )
+            # Monitor reads are synthetic; catalog/source routes use the real server.
             page = context.new_page()
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.on("request", lambda request: requests.append((request.method, request.url)))
             page.on("websocket", lambda socket: sockets.append(socket.url))
-            page.goto(URL + "/", wait_until="networkidle")
+            page.goto(URL + "/", wait_until="domcontentloaded")
             expect(page.locator("#status")).to_contain_text("updated")
             page.locator("#auto").uncheck()
             page.locator("#tab-capabilities").click()
@@ -72,17 +65,24 @@ def main():
             assert "paused=1" in page.url and "tab=statistics" in page.url
             monitor_url = page.url
             page.screenshot(path=str(EVIDENCE / "monitor-desktop.png"), full_page=True)
+            page.locator("#theme").select_option("dark")
             page.get_by_role("link", name="Skill catalog", exact=True).click()
             expect(page).to_have_url(GUIDE)
+            expect(page.locator(".skill-card")).to_have_count(44)
+            expect(page.locator("#theme")).to_have_value("dark")
+            page.locator("#theme").select_option("light")
+            assert page.evaluate("localStorage.getItem('anatomy-theme')") == "light"
             before = api_count
             page.wait_for_timeout(5600)
             assert api_count == before
             assert page.locator("#dashboard-automata").count() == 0
-            page.go_back(wait_until="networkidle")
+            page.go_back(wait_until="domcontentloaded")
             expect(page).to_have_url(monitor_url)
-            page.go_forward(wait_until="networkidle")
+            expect(page.locator("#theme")).to_have_value("light")
+            page.go_forward(wait_until="domcontentloaded")
             expect(page).to_have_url(GUIDE)
-            page.goto(monitor_url, wait_until="networkidle")
+            page.get_by_role("link", name="Automata", exact=True).click()
+            expect(page).to_have_url(monitor_url)
             expect(page.locator("#statistics")).to_be_visible()
             for key, value in {
                 "range": "custom",
@@ -107,7 +107,7 @@ def main():
             page.keyboard.press("Home")
             expect(page.locator("#tab-identity")).to_be_focused()
             results.append(
-                "External guide unload stops polling; "
+                "Same-server skill catalog uses shared theme; unload stops polling; "
                 "history and URL restore filters, dates and pause"
             )
             outage = True
@@ -138,7 +138,8 @@ def main():
             page.locator("#theme").select_option("dark")
             page.screenshot(path=str(EVIDENCE / "monitor-dark.png"), full_page=True)
             page.set_viewport_size({"width": 390, "height": 844})
-            page.goto(monitor_url, wait_until="networkidle")
+            page.goto(monitor_url, wait_until="domcontentloaded")
+            expect(page.locator("#status")).to_contain_text("updated")
             expect(page.locator("#auto")).not_to_be_checked()
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
             page.screenshot(path=str(EVIDENCE / "monitor-mobile.png"), full_page=True)

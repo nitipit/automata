@@ -6,14 +6,16 @@ import os
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 STAMP = "2026-10-13T10:00:00+07:00"
 
 
-def documents(goal="g"):
+def documents(goal="g") -> dict[str, Any]:
     context = dict(used_tokens=None, capacity_tokens=None, observed_at=None, source="unavailable")
     agents = [
         dict(
@@ -75,7 +77,7 @@ def documents(goal="g"):
     )
 
 
-def report(summary="Implementing report contract", status="working"):
+def report(summary="Implementing report contract", status="working") -> dict[str, Any]:
     return dict(
         summary=summary,
         status=status,
@@ -94,7 +96,7 @@ def report(summary="Implementing report contract", status="working"):
     )
 
 
-def report_documents(goal="g"):
+def report_documents(goal="g") -> dict[str, Any]:
     doc = documents(goal)
     doc["tasks"] = []
     for team in doc["teams"]:
@@ -123,9 +125,25 @@ def graph():
 
 class Service:
     def __init__(self, root):
+        log_root = root.parent
+        # Deep worktrees need short *owned* state paths, not a weaker socket limit.
+        short_parent = os.environ.get("AUTOMATA_TEAM_TEST_STATE_ROOT")
+        if short_parent and len(os.fsencode(root.resolve() / "db.sock")) > 103:
+            for _ in range(50):
+                candidate = Path(short_parent) / uuid.uuid4().hex[:3]
+                try:
+                    candidate.mkdir(mode=0o700)
+                except FileExistsError:
+                    continue
+                root = candidate
+                break
+            else:
+                raise RuntimeError("Could not allocate an owned short Team test root")
         self.root = root
-        self.env = dict(os.environ, PYTHONPATH=str(Path(__file__).resolve().parents[3] / "src"))
-        self.log = (root.parent / "server.log").open("w+")
+        source = str(Path(__file__).resolve().parents[3] / "src")
+        pythonpath = os.pathsep.join(filter(None, (source, os.environ.get("PYTHONPATH", ""))))
+        self.env = dict(os.environ, PYTHONPATH=pythonpath)
+        self.log = (log_root / "server.log").open("w+")
         self.process = subprocess.Popen(
             self.argv("serve"), env=self.env, stdout=self.log, stderr=self.log
         )
@@ -139,14 +157,12 @@ class Service:
 
     @property
     def url(self):
-        from automata.apps.team.store import service_url
+        from automata.tools.team.store import service_url
 
         return service_url(self.root)
 
     def argv(self, *args):
-        console = Path(sys.executable).with_name("automata")
-        assert console.is_file(), "Install the project in the isolated test environment first"
-        return [str(console), "team", *args, "--state-root", str(self.root)]
+        return [sys.executable, "-m", "automata.cli", "team", *args, "--state-root", str(self.root)]
 
     def call(self, *args, document=None, raw=None, ok=True):
         if document is not None or raw is not None:

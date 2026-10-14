@@ -20,7 +20,7 @@ SkillInstallError = DirectoryInstallError
 def bundled_skill_root() -> Path:
     """Return the single bundled catalog shared by viewer and installer."""
 
-    return Path(str(files("automata").joinpath("skills", "bundled")))
+    return Path(str(files("automata").joinpath("skills")))
 
 
 def bundled_skill_roots() -> tuple[Path, ...]:
@@ -67,14 +67,18 @@ def install_skills(
         raise SkillInstallError(f"No skill directories found under: {source_root}")
     selected = select_skill_sources(sources, selected_names)
     target = Path(target_root).expanduser()
-    targets = {name: target / skill_relative_path(path, source_root)
-               for name, path in selected.items()}
+    targets = {
+        name: target / skill_relative_path(path, source_root) for name, path in selected.items()
+    }
     installed: list[Path] = []
     if retired and target.is_dir():
         # Include symlinked roots without following their nested contents. Legacy
         # flat exposures may coexist with same-name children inside a parent.
-        installed = [path for path in sorted(target.rglob("*"))
-                     if path.is_dir() and (path / "SKILL.md").is_file()]
+        installed = [
+            path
+            for path in sorted(target.rglob("*"))
+            if path.is_dir() and (path / "SKILL.md").is_file()
+        ]
     outer_sources = outer_skill_sources(sources)
     retirements: dict[str, Path] = {}
     for name in retired:
@@ -91,9 +95,14 @@ def install_skills(
             matches = [path for path in installed if path.name == name]
             if len(matches) > 1:
                 raise SkillInstallError(f"Duplicate installed skill name: {name}")
-            destination = matches[0] if matches else (
-                target / skill_relative_path(sources[name], source_root)
-                if name in sources else flat
+            destination = (
+                matches[0]
+                if matches
+                else (
+                    target / skill_relative_path(sources[name], source_root)
+                    if name in sources
+                    else flat
+                )
             )
         parents = [path for path in installed if path in destination.parents]
         if parents:
@@ -105,12 +114,20 @@ def install_skills(
         retirements[name] = destination
     for path in retirements.values():
         destination = path.parent.resolve() / path.name
-        if any(destination == source.resolve() or destination in source.resolve().parents
-               or source.resolve() in destination.parents for source in sources.values()):
+        if any(
+            destination == source.resolve()
+            or destination in source.resolve().parents
+            or source.resolve() in destination.parents
+            for source in sources.values()
+        ):
             raise SkillInstallError(f"Retirement overlaps a skill source: {path}")
     return sync_skills(
-        sources=selected, targets=targets, retirements=retirements, mode=mode,
-        dry_run=dry_run, backup_root=Path(backup_root) if backup_root is not None else None,
+        sources=selected,
+        targets=targets,
+        retirements=retirements,
+        mode=mode,
+        dry_run=dry_run,
+        backup_root=Path(backup_root) if backup_root is not None else None,
     )
 
 
@@ -121,13 +138,15 @@ def outer_skill_sources(sources: dict[str, Path]) -> dict[str, Path]:
     Explicit selections must additionally pass select_skill_sources.
     """
     return {
-        name: path for name, path in sources.items()
+        name: path
+        for name, path in sources.items()
         if not any(parent in path.parents for parent in sources.values())
     }
 
 
 def select_skill_sources(
-    sources: dict[str, Path], names: tuple[str, ...] | list[str],
+    sources: dict[str, Path],
+    names: tuple[str, ...] | list[str],
 ) -> dict[str, Path]:
     """Only outer parents are installation units, even for explicit selections."""
     outer = outer_skill_sources(sources)

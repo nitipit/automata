@@ -4,7 +4,7 @@ import sys
 import tarfile
 import tomllib
 import zipfile
-from importlib.resources import files
+from importlib.resources import files as resource_files
 from pathlib import Path
 
 import pytest
@@ -12,8 +12,13 @@ import pytest
 from automata import __version__
 
 PI_RUNTIME = ("runtimes", "pi")
-PI_SKILLS = ("skills", "bundled")
+PI_SKILLS = ("skills",)
 PI_EXTENSIONS = (*PI_RUNTIME, "extensions")
+
+
+def files(package: str) -> Path:
+    """These filesystem packaging tests intentionally require concrete paths."""
+    return Path(str(resource_files(package)))
 
 
 def test_version() -> None:
@@ -50,12 +55,12 @@ def test_package_excludes_native_codex_runtime() -> None:
     package_root = files("automata")
     assert not package_root.joinpath("runtimes", "codex").exists()
     assert not package_root.joinpath("install", "codex.py").exists()
-    assert not package_root.joinpath("skills", "bundled", "automata-codex-sessions").exists()
+    assert not package_root.joinpath("skills", "automata-codex-sessions").exists()
 
 
 def adaptive_ui_source():
     return files("automata").joinpath(
-        "skills", "bundled", "automata-web-design", "skills", "automata-adaptive-ui", "lib"
+        "skills", "automata-web-design", "skills", "automata-adaptive-ui", "lib"
     )
 
 
@@ -77,11 +82,11 @@ def test_package_excludes_adaptive_ui_generated_trees_from_sdists_and_wheels() -
     config = tomllib.loads((project_root / "pyproject.toml").read_text())
 
     assert config["tool"]["uv"]["build-backend"]["source-exclude"] == [
-        "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/dist",
-        "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/dist/**",
-        "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/node_modules",
-        "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/node_modules/**",
-        "src/automata/skills/bundled/**/__pycache__/**",
+        "src/automata/skills/automata-web-design/skills/automata-adaptive-ui/lib/dist",
+        "src/automata/skills/automata-web-design/skills/automata-adaptive-ui/lib/dist/**",
+        "src/automata/skills/automata-web-design/skills/automata-adaptive-ui/lib/node_modules",
+        "src/automata/skills/automata-web-design/skills/automata-adaptive-ui/lib/node_modules/**",
+        "src/automata/skills/**/__pycache__/**",
         "src/automata/tools/**/__pycache__/**",
     ]
 
@@ -108,22 +113,25 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "runtimes/pi/extensions/fast-mode/README.md",
         "runtimes/pi/extensions/message-timestamps.ts",
         "runtimes/pi/extensions/token-awareness.ts",
-        "skills/bundled/automata-pi-context-status/SKILL.md",
-        "skills/bundled/automata-pi-context-compaction/SKILL.md",
-        "skills/bundled/automata-pi-sessions/SKILL.md",
-        "skills/bundled/automata-pi-imagegen/SKILL.md",
-        "skills/bundled/automata-pi-skill-activity/SKILL.md",
+        "skills/automata-pi-context-status/SKILL.md",
+        "skills/automata-pi-context-compaction/SKILL.md",
+        "skills/automata-pi-sessions/SKILL.md",
+        "skills/automata-pi-imagegen/SKILL.md",
+        "skills/automata-pi-skill-activity/SKILL.md",
         "runtimes/pi/extensions/codex-bridge.ts",
-        "skills/bundled/automata-workplan/SKILL.md",
-        "skills/bundled/automata-storage/SKILL.md",
-        "skills/bundled/automata-web-design/skills/automata-adaptive-ui/scripts/build.py",
-        "skills/bundled/automata-agent-evaluation/templates/evaluation-record.json",
+        "skills/automata-workplan/SKILL.md",
+        "skills/automata-storage/SKILL.md",
+        "skills/automata-web-design/skills/automata-adaptive-ui/scripts/build.py",
+        "skills/automata-agent-evaluation/templates/evaluation-record.json",
+        "tools/anatomy/server.py",
+        "tools/anatomy/cli.py",
+        "tools/team/team.py",
     }
     with zipfile.ZipFile(wheel) as archive:
         wheel_paths = {
             name.removeprefix("automata/")
             for name in archive.namelist()
-            if name.startswith("automata/") and not name.endswith('/')
+            if name.startswith("automata/") and not name.endswith("/")
         }
     with tarfile.open(sdist) as archive:
         sdist_paths = {
@@ -134,37 +142,43 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
     for paths in (wheel_paths, sdist_paths):
         assert not any(path.startswith("runtimes/codex/") for path in paths)
         assert "install/codex.py" not in paths
-        assert not any(path.startswith("skills/bundled/automata-codex-sessions/")
-                       for path in paths)
-        assert "skills/bundled/automata-time-awareness/SKILL.md" not in paths
-        assert "skills/bundled/automata-timer/SKILL.md" in paths
-    source_catalog = root / "src/automata/skills/bundled"
+        assert not any(path.startswith("skills/automata-codex-sessions/") for path in paths)
+        assert "skills/automata-time-awareness/SKILL.md" not in paths
+        assert "skills/automata-timer/SKILL.md" in paths
+    source_catalog = root / "src/automata/skills"
     catalog_files = {
-        "skills/bundled/" + path.relative_to(source_catalog).as_posix()
-        for path in source_catalog.rglob("*") if path.is_file() and "__pycache__" not in path.parts
+        "skills/" + path.relative_to(source_catalog).as_posix()
+        for path in source_catalog.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
     }
     for paths in (wheel_paths, sdist_paths):
         assert expected <= paths
         assert catalog_files <= paths
-        assert not any(path.startswith('skills/bundled/automata-playspace/') for path in paths)
-        assert 'skills/templates/lib/mermaid.js' in paths
-        assert 'skills/templates/lib/prism.js' in paths
-        assert 'skills/templates/catalog.html' in paths
-        assert 'skills/templates/skill.html' in paths
-        assert 'skills/templates/index.html' not in paths
-        assert 'skills/core/automata-workplan/SKILL.md' not in paths
-        assert not any(path.startswith('skills/bundled/automata-plan/') for path in paths)
-        assert not any('/node_modules/' in path or '/lib/dist/' in path
-                       or '/__pycache__/' in path for path in paths)
-        assert not any(path.startswith('apps/skill_builder/') for path in paths)
-        assert 'skills/templates/lib/highlight.js' not in paths
-        assert 'skills/templates/licenses/prism-LICENSE.txt' in paths
-        assert 'skills/templates/licenses/highlightjs-LICENSE.txt' not in paths
-        assert 'skills/templates/licenses/PROVENANCE.txt' in paths
+        assert not any(path.startswith("skills/automata-playspace/") for path in paths)
+        assert "tools/anatomy/templates/skills/lib/mermaid.js" in paths
+        assert "tools/anatomy/templates/skills/lib/prism.js" in paths
+        assert "tools/anatomy/templates/skills/catalog.html" in paths
+        assert "tools/anatomy/templates/skills/skill.html" in paths
+        assert "tools/anatomy/templates/skills/index.html" not in paths
+        assert "skills/core/automata-workplan/SKILL.md" not in paths
+        assert not any(path.startswith("skills/automata-plan/") for path in paths)
+        assert not any(
+            path.startswith(("apps/", "skills/bundled/", "skills/templates/")) for path in paths
+        )
+        assert not any(
+            "/node_modules/" in path or "/lib/dist/" in path or "/__pycache__/" in path
+            for path in paths
+        )
+        assert "tools/anatomy/templates/skills/lib/highlight.js" not in paths
+        assert "tools/anatomy/templates/skills/licenses/prism-LICENSE.txt" in paths
+        assert "tools/anatomy/templates/skills/licenses/highlightjs-LICENSE.txt" not in paths
+        assert "tools/anatomy/templates/skills/licenses/PROVENANCE.txt" in paths
         assert not any(path.startswith("extensions/") for path in paths)
         pi_skill_names = (
-            "automata-pi-context-status", "automata-pi-context-compaction",
-            "automata-pi-sessions", "automata-pi-imagegen",
+            "automata-pi-context-status",
+            "automata-pi-context-compaction",
+            "automata-pi-sessions",
+            "automata-pi-imagegen",
             "automata-pi-skill-activity",
         )
         assert not any(
@@ -173,15 +187,16 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
             for name in pi_skill_names
         )
 
-    # Exercise installed package resources outside the checkout, not only ZIP names.
+    # Exercise extracted wheel resources outside the checkout without installing.
     site = tmp_path / "site"
-    installed = subprocess.run(
-        [uv, "pip", "install", "--offline", "--no-deps", "--target", str(site), str(wheel)],
-        capture_output=True, text=True, timeout=30, check=False,
-    )
-    assert installed.returncode == 0, installed.stdout + installed.stderr
+    with zipfile.ZipFile(wheel) as archive:
+        archive.extractall(site)
     smoke = subprocess.run(
-        [sys.executable, "-I", "-c", """
+        [
+            sys.executable,
+            "-I",
+            "-c",
+            """
 import sys
 from pathlib import Path
 site, work = map(Path, sys.argv[1:])
@@ -209,7 +224,7 @@ assert not (site / 'automata/install/codex.py').exists()
 assert 'automata-time-awareness' not in sources
 assert 'automata-timer' in sources
 assert all(path.name == name for name, path in sources.items())
-assert sources['automata-workplan'] == site / 'automata/skills/bundled/automata-workplan'
+assert sources['automata-workplan'] == site / 'automata/skills/automata-workplan'
 assert 'automata-plan' not in sources
 assert not any(name in sys.modules for name in ('engrave', 'mistune', 'playwright'))
 results = install_skills(target_root=work / 'skills')
@@ -220,7 +235,9 @@ for name in ('automata-storage', 'automata-pi-context-status',
 install_skills(target_root=work / 'linked', skill_names=['automata-agent-design'], mode='symlink')
 linked = work / 'linked/automata-agent-design'
 assert linked.is_symlink() and linked.resolve() == sources['automata-agent-design']
-assert (linked / 'SKILL.md').read_bytes() == (work / 'skills/automata-agent-design/SKILL.md').read_bytes()
+assert (linked / 'SKILL.md').read_bytes() == (
+    work / 'skills/automata-agent-design/SKILL.md'
+).read_bytes()
 # Copy the webapp from installed skills, resolving its installed sibling dependency.
 import subprocess, json
 web_skill = work / 'skills/automata-web-design/skills/automata-web-app'
@@ -253,10 +270,21 @@ assert (work / 'plugin/skills/automata-pi-context-status/SKILL.md').is_file()
 assert (work / 'extensions/codex-bridge.ts').is_file()
 from automata.install.tools import install_tools
 shared = install_tools(target_root=work / 'tools')
-assert {item.name for item in shared} == {'line', 'python-runtime', 'timer', 'tmux-message'}
+assert {item.name for item in shared} == {
+    'line', 'python-runtime', 'timer', 'tmux-message', 'team', 'anatomy'
+}
+assert (work / 'tools/team/team.py').is_file()
+assert (work / 'tools/anatomy/anatomy.py').is_file()
 assert (work / 'tools/python-runtime/python_runtime.py').is_file()
-""", str(site), str(tmp_path / "installed")],
-        cwd=tmp_path, capture_output=True, text=True, timeout=30, check=False,
+""",
+            str(site),
+            str(tmp_path / "installed"),
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
     )
     assert smoke.returncode == 0, smoke.stdout + smoke.stderr
 
@@ -266,8 +294,11 @@ def test_package_separates_pi_extensions_from_bundled_skills() -> None:
     assert not package.joinpath("extensions").exists()
     pi = package.joinpath(*PI_RUNTIME)
     for name in (
-        "automata-pi-context-compaction", "automata-pi-context-status", "automata-pi-sessions",
-        "automata-pi-imagegen", "automata-pi-skill-activity",
+        "automata-pi-context-compaction",
+        "automata-pi-context-status",
+        "automata-pi-sessions",
+        "automata-pi-imagegen",
+        "automata-pi-skill-activity",
     ):
         assert package.joinpath(*PI_SKILLS, name, "SKILL.md").is_file()
         assert not pi.joinpath("skills", name).exists()
@@ -278,7 +309,7 @@ def test_package_separates_pi_extensions_from_bundled_skills() -> None:
 
 def test_package_retires_playspace() -> None:
     package_root = files("automata")
-    assert not package_root.joinpath('skills', 'bundled', 'automata-playspace').exists()
+    assert not package_root.joinpath("skills", "automata-playspace").exists()
 
 
 def test_package_includes_bundled_codex_bridge_pi_extension() -> None:

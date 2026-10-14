@@ -9,10 +9,9 @@ This README is a quick orientation map; follow the relevant source for details.
 | Location | Owns |
 | --- | --- |
 | [`src/automata/character/`](src/automata/character/) | Identity, language and behavior components |
-| [`src/automata/skills/bundled/`](src/automata/skills/bundled/) | Canonical skills and their supporting assets |
-| [`src/automata/tools/`](src/automata/tools/) | Shared shell-invoked tools |
+| [`src/automata/skills/`](src/automata/skills/) | Canonical skills, nested packages, discovery and export |
+| [`src/automata/tools/`](src/automata/tools/) | Shell tools, including Anatomy and separate Team |
 | [`src/automata/runtimes/pi/extensions/`](src/automata/runtimes/pi/extensions/) | Pi-native tools and event integrations |
-| [`src/automata/apps/`](src/automata/apps/) | Maintained applications |
 | [`src/automata/install/`](src/automata/install/) | Asset discovery and installation |
 | [`src/automata/plugin/`](src/automata/plugin/) | Selected-asset plugin export |
 | [`tests/`](tests/) | Software, packaging and integration checks |
@@ -36,20 +35,31 @@ This README is a quick orientation map; follow the relevant source for details.
 
 ## Find the relevant guidance
 
-- [Skill design](src/automata/skills/bundled/automata-skill-design/SKILL.md): scope, activation and composition.
-- [Setup](src/automata/skills/bundled/automata-setup/SKILL.md): asset selection, install modes and readiness.
-- [Communication](src/automata/skills/bundled/automata-communication/SKILL.md): receiver, channel and outcome judgment; transport is an external integration.
-- [Storage](src/automata/skills/bundled/automata-storage/SKILL.md) and [task spaces](src/automata/skills/bundled/automata-task-space/SKILL.md): ownership, placement and cleanup.
+- [Skill design](src/automata/skills/automata-skill-design/SKILL.md): scope, activation and composition.
+- [Setup](src/automata/skills/automata-setup/SKILL.md): asset selection, install modes and readiness.
+- [Communication](src/automata/skills/automata-communication/SKILL.md): receiver, channel and outcome judgment; transport is an external integration.
+- [Storage](src/automata/skills/automata-storage/SKILL.md) and [task spaces](src/automata/skills/automata-task-space/SKILL.md): ownership, placement and cleanup.
 - [Testing](tests/README.md): test layout and verification scope.
+
+## Automata Anatomy
+
+[`automata-anatomy`](src/automata/tools/anatomy/README.md) serves one local monitor
+and canonical skill catalog/source/reference viewer, with shared navigation,
+appearance and live reload. Serving is foreground by default. Prepare the optional
+`anatomy` extra and cached chart assets only with setup authority; core CLI does not
+require web dependencies. Existing `automata skill-builder` commands remain aliases.
+There is no maintained `src/automata/apps/` category or separate skill-site server.
 
 ## Automata Team
 
-[`automata team`](src/automata/apps/team/README.md) publishes one goal-scoped current
+[`automata team`](src/automata/tools/team/README.md) publishes one goal-scoped current
 work report per agent through trusted-local Unix ShelfDB. Its read-only board
 navigates manager → direct-report agents, never mirrored task rows. The bundled
 `automata-team-use` skill teaches the validated publishing contract. Install the
 optional `team` extra; help works without app dependencies. It is not a worker
-controller and does not invent runtime usage measurements.
+controller and does not invent runtime usage measurements. `automata-team` is a
+separate shell entry point; tool installation can copy `tools/team/` with its
+standalone `team.py` launcher. Team does not depend on Anatomy.
 
 ## Pi Fast mode
 
@@ -80,7 +90,7 @@ without extra exposures. Use `skills install --dry-run` to preview additions,
 changes, unchanged packages and explicitly selected `--retire` names. Changed
 packages need `--mode replace --backup-root <chosen-root>`; retirements also need
 an explicit backup root. Unchanged packages are skipped. Missing catalog entries
-never authorize deletion. See [Setup](src/automata/skills/bundled/automata-setup/SKILL.md)
+never authorize deletion. See [Setup](src/automata/skills/automata-setup/SKILL.md)
 for selection, backup recovery and retirement-only semantics.
 
 For development, use `uv run pytest` for the selected checks and

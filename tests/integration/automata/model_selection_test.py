@@ -10,9 +10,7 @@ NAME = "automata-model-selection"
 
 
 def source_bytes() -> bytes:
-    return files("automata").joinpath(
-        "skills", "bundled", NAME, "SKILL.md"
-    ).read_bytes()
+    return files("automata").joinpath("skills", NAME, "SKILL.md").read_bytes()
 
 
 def test_selected_install_and_update_preserve_notes_and_other_skills(tmp_path: Path) -> None:
@@ -31,7 +29,10 @@ def test_selected_install_and_update_preserve_notes_and_other_skills(tmp_path: P
 
     for mode in ("copy", "replace"):
         results = install_skills(
-            target_root=target, skill_names=[NAME], mode=mode, backup_root=tmp_path / "backups",
+            target_root=target,
+            skill_names=[NAME],
+            mode=mode,
+            backup_root=tmp_path / "backups",
         )
         assert [result.name for result in results] == [NAME]
         installed = target / NAME

@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from automata.apps.team.store import authorize, validate_state
+from automata.tools.team.store import authorize, validate_state
 
 
 def test_root_manager_controls_structure_not_foreign_reports(graph):

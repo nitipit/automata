@@ -3,10 +3,10 @@ import asyncio
 from textual.containers import VerticalScroll
 from textual.widgets import DataTable, Static
 
-from automata.apps.team.app import Dashboard
-from automata.apps.team.panels import agent_panel
-from automata.apps.team.store import snapshot
-from automata.apps.team.view import agent_cells, table_columns
+from automata.tools.team.app import Dashboard
+from automata.tools.team.panels import agent_panel
+from automata.tools.team.store import snapshot
+from automata.tools.team.view import agent_cells, table_columns
 
 
 def test_live_direct_agent_reports_refresh_scope_navigation_and_quit(report_service):
@@ -262,6 +262,7 @@ def test_quit_awaits_inflight_real_refresh_without_cancelling_it(report_service)
             quit_task = asyncio.create_task(app.action_quit())
             await asyncio.sleep(0)
             assert not quit_task.done()
+            assert app._poll_task is not None
             assert not app._poll_task.cancelled()
             release.set()
             await asyncio.wait_for(quit_task, 2)

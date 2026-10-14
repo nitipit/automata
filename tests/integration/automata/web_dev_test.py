@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 ROOT = Path(__file__).parents[3]
-SKILL = ROOT / "src/automata/skills/bundled/automata-web-design/skills/automata-web-app"
+SKILL = ROOT / "src/automata/skills/automata-web-design/skills/automata-web-app"
 
 
 def test_create_webapp_from_skill(tmp_path):
@@ -31,8 +31,16 @@ def test_create_webapp_from_skill(tmp_path):
 def test_missing_adaptive_source_does_not_create_project(tmp_path):
     output = tmp_path / "project"
     result = subprocess.run(
-        [sys.executable, str(SKILL / "scripts/create.py"), "--output", str(output),
-         "--adaptive-ui", str(tmp_path / "absent")], capture_output=True, text=True,
+        [
+            sys.executable,
+            str(SKILL / "scripts/create.py"),
+            "--output",
+            str(output),
+            "--adaptive-ui",
+            str(tmp_path / "absent"),
+        ],
+        capture_output=True,
+        text=True,
     )
     assert result.returncode != 0
     assert "Missing Adaptive UI source" in result.stderr

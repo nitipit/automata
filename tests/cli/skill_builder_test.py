@@ -23,7 +23,8 @@ def test_help():
     assert "export-agent" in cli("--help").stdout
     public = subprocess.run(
         [sys.executable, "-c", "from automata.cli import app; app()", "skill-builder", "--help"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     assert public.returncode == 0, public.stdout + public.stderr
     assert "export-agent" in public.stdout and "serve" in public.stdout
@@ -49,20 +50,29 @@ def test_errors_are_bounded(args):
 
 def test_serve_defaults(monkeypatch):
     from automata.skills import cli as commands
-    from automata.skills import server
+    from automata.tools.anatomy import server
 
     calls = []
-    monkeypatch.setattr(server, 'serve', lambda **kwargs: calls.append(kwargs))
+    monkeypatch.setattr(server, "serve", lambda **kwargs: calls.append(kwargs))
     commands.serve()
     commands.serve(port=8799)
-    assert calls == [{'port': 8788}, {'port': 8799}]
+    assert calls == [{"port": 8766}, {"port": 8799}]
 
 
 def test_export(tmp_path):
     result = subprocess.run(
-        [sys.executable, "-c", "from automata.cli import app; app()",
-         "skill-builder", "export-agent", "automata-delegation", "--output", str(tmp_path)],
-        capture_output=True, text=True,
+        [
+            sys.executable,
+            "-c",
+            "from automata.cli import app; app()",
+            "skill-builder",
+            "export-agent",
+            "automata-delegation",
+            "--output",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert {p.name for p in tmp_path.iterdir()} == {"SKILL.md", "references"}
@@ -80,19 +90,28 @@ def test_cli_signal_stops_preview_without_build_output(tmp_path):
     stream = None
     with log_path.open("w") as log:
         process = subprocess.Popen(
-            [sys.executable, "-c", "from automata.cli import app; app()", "skill-builder", "serve",
-             "--port", str(port)], stdout=log, stderr=log,
+            [
+                sys.executable,
+                "-c",
+                "from automata.cli import app; app()",
+                "skill-builder",
+                "serve",
+                "--port",
+                str(port),
+            ],
+            stdout=log,
+            stderr=log,
         )
         try:
             for _ in range(100):
                 try:
                     urllib.request.urlopen(
-                        f"http://127.0.0.1:{port}/automata-agent-design/", timeout=.5
+                        f"http://127.0.0.1:{port}/automata-agent-design/", timeout=0.5
                     ).close()
                     break
                 except OSError:
                     assert process.poll() is None, log_path.read_text()
-                    time.sleep(.1)
+                    time.sleep(0.1)
             else:
                 pytest.fail("FastAPI CLI did not become ready")
             assert "engrave.main" not in log_path.read_text()

@@ -15,7 +15,7 @@ from automata.plugin.export import export_plugin
 
 PROJECT = Path(__file__).parents[3]
 NAME = "automata-agent-design"
-RELATIVE = Path("skills/bundled") / NAME
+RELATIVE = Path("skills") / NAME
 SOURCE = PROJECT / "src/automata" / RELATIVE
 
 
@@ -34,7 +34,10 @@ def test_copy_and_replace_deliver_skill_outside_checkout(tmp_path: Path, monkeyp
     (installed / "references").mkdir()
     (installed / "references/goal.md").write_text("obsolete reference")
     install_skills(
-        target_root=target, skill_names=[NAME], mode="replace", backup_root=tmp_path / "backups",
+        target_root=target,
+        skill_names=[NAME],
+        mode="replace",
+        backup_root=tmp_path / "backups",
     )
     assert_skill_contents(installed)
 
@@ -57,11 +60,15 @@ def test_sdist_and_rebuilt_wheel_deliver_skill(tmp_path: Path) -> None:
     uv = shutil.which("uv")
     if uv is None:
         pytest.skip("uv is required for the offline package build check")
+    assert uv is not None
     # uv's default build makes an sdist, then builds the wheel FROM that sdist.
     # Verify the packaged skill works independently of the original checkout.
     result = subprocess.run(
         [uv, "build", "--offline", "--out-dir", str(tmp_path)],
-        cwd=PROJECT, capture_output=True, text=True, timeout=60,
+        cwd=PROJECT,
+        capture_output=True,
+        text=True,
+        timeout=60,
     )
     assert result.returncode == 0, result.stderr
     suffix = str(Path("automata") / RELATIVE / "SKILL.md")
@@ -83,8 +90,12 @@ def test_sdist_and_rebuilt_wheel_deliver_skill(tmp_path: Path) -> None:
         f"export_plugin(name='wheel-check', output='exported', skill_names=['{NAME}'])"
     )
     result = subprocess.run(
-        [sys.executable, "-c", script], cwd=tmp_path, env=env,
-        capture_output=True, text=True, timeout=20,
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
     )
     assert result.returncode == 0, result.stderr
     assert_skill_contents(tmp_path / "installed" / NAME)

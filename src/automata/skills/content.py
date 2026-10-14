@@ -4,12 +4,13 @@ import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, cast
 from urllib.parse import unquote, urljoin, urlsplit
 
 from automata.install.skills import skill_sources
 
 SOURCE = Path(__file__).resolve().parent
-SKILLS = SOURCE / "bundled"
+SKILLS = SOURCE
 
 
 def url_slug(skill: str) -> str:
@@ -38,7 +39,6 @@ class Page:
     description: str = ""
 
 
-
 def markdown_links(text: str):
     """Use the Markdown parser, not a parallel page list or regex over code fences."""
     import mistune
@@ -60,7 +60,11 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
     if selector and not re.fullmatch(r"[a-z0-9][a-z0-9-]*", selector):
         raise ValueError("Invalid skill name")
     catalog = skill_sources(skills)
-    roots = list(catalog.values()) if all_skills else [catalog.get(selector, skills / selector)]
+    if all_skills:
+        roots = list(catalog.values())
+    else:
+        assert selector is not None
+        roots = [catalog.get(selector, skills / selector)]
     pages = []
     for root in roots:
         if all_skills and not (root / "SKILL.md").is_file():
@@ -76,14 +80,16 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
             if not source.is_relative_to(root.resolve()) or source.suffix != ".md":
                 raise ValueError("Markdown reference escapes its skill")
             relative = source.relative_to(root.resolve())
-            if (relative != Path("SKILL.md")
-                    and relative.parts[0] not in ("references", "templates")):
+            if relative != Path("SKILL.md") and relative.parts[0] not in (
+                "references",
+                "templates",
+            ):
                 raise ValueError("Linked Markdown must live in references/ or templates/")
             text = source.read_text(encoding="utf-8")
             stripped = body(text)
             import mistune
 
-            ast = mistune.create_markdown(renderer="ast")(stripped)
+            ast = cast(list[dict[str, Any]], mistune.create_markdown(renderer="ast")(stripped))
             heading = next(
                 (node for node in ast if node["type"] == "heading" and node["attrs"]["level"] == 1),
                 None,
@@ -99,13 +105,15 @@ def discover(skills: Path, selector: str | None, all_skills: bool) -> list[Page]
                 if relative == Path("SKILL.md")
                 else f"/{slug}/{relative.with_suffix('.html').as_posix()}"
             )
-            paragraph = next((node for node in ast if node['type'] == 'paragraph'), None)
+            paragraph = next((node for node in ast if node["type"] == "paragraph"), None)
 
             def plain_text(nodes):
-                return ''.join(plain_text(node['children']) if 'children' in node
-                               else node.get('raw', ' ') for node in nodes)
+                return "".join(
+                    plain_text(node["children"]) if "children" in node else node.get("raw", " ")
+                    for node in nodes
+                )
 
-            description = ' '.join(plain_text(paragraph['children']).split()) if paragraph else ''
+            description = " ".join(plain_text(paragraph["children"]).split()) if paragraph else ""
             pages.append(Page(root.name, source, url, title, relative.as_posix(), description))
             visited.add(source)
             for link in markdown_links(text):
@@ -135,13 +143,19 @@ def render_markdown(page: Page) -> str:
             if not parsed.scheme and not parsed.netloc and parsed.path.endswith(".md"):
                 target = urlsplit(urljoin(f"/{url_slug(page.skill)}/{page.document}", url))
                 path = target.path
-                path = (path.removesuffix("SKILL.md") if path.endswith("/SKILL.md")
-                        else path[:-3] + ".html")
+                path = (
+                    path.removesuffix("SKILL.md")
+                    if path.endswith("/SKILL.md")
+                    else path[:-3] + ".html"
+                )
                 url = target._replace(path=path).geturl()
             return super().link(text, url, title)
 
-    return mistune.create_markdown(renderer=Renderer(escape=True))(
-        page.source.read_text(encoding="utf-8")
+    return cast(
+        str,
+        mistune.create_markdown(renderer=Renderer(escape=True))(
+            page.source.read_text(encoding="utf-8")
+        ),
     )
 
 

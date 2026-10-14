@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { parseMonitorState, serializeMonitorState } from '../../../src/automata/apps/dashboard/templates/automata/components/monitor-state.js';
+import { parseMonitorState, serializeMonitorState } from '../../../src/automata/tools/anatomy/templates/automata/components/monitor-state.js';
 
 test('closed monitor URL defaults and invalid values', () => {
   const state = parseMonitorState('?tab=unsafe&range=invalid&timezone=Invalid&limit=500&setup=invalid&paused=wat', 'UTC');
@@ -22,13 +22,13 @@ test('invalid dates and unbounded text cannot enter restored state', () => {
   assert.equal(parseMonitorState('?skill=%00secret').skill, '');
 });
 test('document lifecycle aborts requests and clears timers', () => {
-  const source = readFileSync('src/automata/apps/dashboard/templates/automata/components/monitor.js', 'utf8');
+  const source = readFileSync('src/automata/tools/anatomy/templates/automata/components/monitor.js', 'utf8');
   assert.match(source, /pagehide/); assert.match(source, /clearInterval\(polling\)/);
   assert.match(source, /lifetime\.abort\(\)/); assert.match(source, /if \(disposed\) return/);
   assert.match(source, /\$\('auto'\)\.checked = !restored.paused/);
 });
 test('no SPA routing in document navigation', () => {
-  const source = readFileSync('src/automata/apps/dashboard/templates/shared/components/anatomy-nav.js', 'utf8');
+  const source = readFileSync('src/automata/tools/anatomy/templates/shared/components/anatomy-nav.js', 'utf8');
   assert.doesNotMatch(source, /hashchange|preventDefault|fetch\(/);
   assert.match(source, /\/automata\/index.html\?/);
 });

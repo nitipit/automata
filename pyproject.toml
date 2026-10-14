@@ -11,6 +11,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+anatomy = [
+    "fastapi>=0.115,<1",
+    "jinja2>=3.1,<4",
+    "mistune>=3.1,<4",
+    "uvicorn>=0.30.0",
+    "watchfiles>=1,<2",
+    "pyyaml>=6.0.3",
+    "dictify>=5.0.2,<6",
+    "shelfdb>=3.0.2,<4",
+]
 team = [
     "dictify>=5.0.2,<6",
     "shelfdb>=3.0.2,<4",
@@ -19,6 +29,8 @@ team = [
 
 [project.scripts]
 automata = "automata.cli:app"
+automata-anatomy = "automata.tools.anatomy.cli:app"
+automata-team = "automata.tools.team.cli:app"
 
 [dependency-groups]
 preview = [
@@ -50,11 +62,11 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-name = "automata"
 source-exclude = [
-    "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/dist",
-    "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/dist/**",
-    "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/node_modules",
-    "src/automata/skills/bundled/automata-web-design/skills/automata-adaptive-ui/lib/node_modules/**",
-    "src/automata/skills/bundled/**/__pycache__/**",
+    "src/automata/skills/automata-web-design/skills/automata-adaptive-ui/lib/dist",
+    "src/automata/skills/automata-web-design/skills/automata-adaptive-ui/lib/dist/**",
+    "src/automata/skills/automata-web-design/skills/automata-adaptive-ui/lib/node_modules",
+    "src/automata/skills/automata-web-design/skills/automata-adaptive-ui/lib/node_modules/**",
+    "src/automata/skills/**/__pycache__/**",
     "src/automata/tools/**/__pycache__/**",
 ]
 

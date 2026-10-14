@@ -39,9 +39,10 @@ def test_offline_wheel_ships_team_and_optional_metadata(tmp_path):
             "panels",
             "app",
         ):
-            assert f"automata/apps/team/{module}.py" in names
-        assert "automata/apps/team/README.md" in names
-        assert "automata/skills/bundled/automata-team-use/SKILL.md" in names
+            assert f"automata/tools/team/{module}.py" in names
+        assert "automata/tools/team/README.md" in names
+        assert "automata/tools/team/team.py" in names
+        assert "automata/skills/automata-team-use/SKILL.md" in names
         assert not any("__pycache__" in name or name.endswith("db.sock") for name in names)
         metadata = archive.read(
             next(name for name in names if name.endswith(".dist-info/METADATA"))
