@@ -10,7 +10,7 @@ import yaml
 from automata.install.skills import SkillInstallError, install_skills, skill_sources
 
 PACKAGE_ROOT = Path(__file__).parents[3] / "src" / "automata"
-SKILLS_ROOT = PACKAGE_ROOT / "skills" / "bundled"
+SKILLS_ROOT = PACKAGE_ROOT / "skills"
 SKILL_ROOTS = (SKILLS_ROOT,)
 PI_SKILL_NAMES = {
     "automata-pi-imagegen",
@@ -139,9 +139,7 @@ def test_pi_skills_share_one_catalog_with_all_skills() -> None:
 
 
 def test_changed_portable_guidance_keeps_runtime_details_external() -> None:
-    for name in (
-        "automata-setup", "automata-skill-design"
-    ):
+    for name in ("automata-setup", "automata-skill-design"):
         for path in SOURCES[name].rglob("*.md"):
             assert not re.search(r"\b(?:Pi|Codex)\b", path.read_text()), path
     assert not (SOURCES["automata-setup"] / "references/codex.md").exists()
@@ -181,9 +179,7 @@ def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
 
 
 def test_declared_skill_asset_references_exist() -> None:
-    for asset in (
-        "automata-agent-evaluation/references/scoring.md",
-    ):
+    for asset in ("automata-agent-evaluation/references/scoring.md",):
         assert (SKILLS_ROOT / asset).is_file(), asset
     # Check actual package paths, not prose, example commands, or runtime destinations.
     for skill in SKILL_FILES:
@@ -205,9 +201,7 @@ def test_bundled_skills_exclude_runtime_and_provider_state() -> None:
         assert not [path for root in SKILL_ROOTS for path in root.rglob(name)], name
     assert not (TOOLS_ROOT / "ui-channel").exists()
     assert not (PACKAGE_ROOT / "runtimes/pi/extensions/ui-channel.ts").exists()
-    assert not (
-        SKILLS_ROOT / "automata-adaptive-ui/references/build-and-preview.md"
-    ).exists()
+    assert not (SKILLS_ROOT / "automata-adaptive-ui/references/build-and-preview.md").exists()
 
 
 def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> None:
@@ -215,8 +209,8 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
     results = install_skills(target_root=target)
     expected = set(SOURCES)
     assert len(expected) == 44
-    assert 'automata-pi-sessions' in expected
-    assert 'automata-codex-sessions' not in expected
+    assert "automata-pi-sessions" in expected
+    assert "automata-codex-sessions" not in expected
     roots = expected - {"automata-adaptive-ui", "automata-web-app", "automata-documentation"}
     assert {result.name for result in results} == roots
     assert {path.name for path in target.iterdir()} == roots

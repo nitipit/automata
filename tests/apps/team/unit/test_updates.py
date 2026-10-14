@@ -1,4 +1,4 @@
-from automata.apps.team.store import merge, storage_key
+from automata.tools.team.store import merge, storage_key
 
 
 def test_recursive_patch_does_not_mutate_old_or_patch(graph):

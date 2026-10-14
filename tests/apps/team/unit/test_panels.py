@@ -1,5 +1,5 @@
-from automata.apps.team.panels import agent_panel, label_value_grid
-from automata.apps.team.view import report_projection
+from automata.tools.team.panels import agent_panel, label_value_grid
+from automata.tools.team.view import report_projection
 from tests.apps.team.conftest import report
 
 

@@ -17,7 +17,6 @@ SKILL = (
     / "src"
     / "automata"
     / "skills"
-    / "bundled"
     / "automata-web-design"
     / "skills"
     / "automata-adaptive-ui"

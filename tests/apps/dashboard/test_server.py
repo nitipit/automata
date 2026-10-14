@@ -1,9 +1,10 @@
 """Explicit public routes and existing snapshot validation; never read live data."""
+
 import pytest
 from fastapi.testclient import TestClient
 
-from automata.apps.dashboard import server
-from automata.apps.dashboard.routes import automata
+from automata.tools.anatomy import server
+from automata.tools.anatomy.routes import automata
 
 
 @pytest.fixture
@@ -11,7 +12,7 @@ def client(monkeypatch):
     monkeypatch.setattr(
         automata, "snapshot", lambda window: {"activity": {"window": window.public()}}
     )
-    return TestClient(server.app, base_url="http://127.0.0.1:8766")
+    return TestClient(server.create_app(), base_url="http://127.0.0.1:8766")
 
 
 def test_api_compatibility_and_headers(client):
@@ -24,79 +25,115 @@ def test_api_compatibility_and_headers(client):
     assert "access-control-allow-origin" not in response.headers
 
 
-@pytest.mark.parametrize("query", [
-    "timezone=invalid", "range=bad", "range=custom&start=bad&end=2026-01-01",
-    "range=custom&start=2026-02-02&end=2026-02-01",
-    "range=custom&start=2999-01-01&end=2999-01-02",
-])
+@pytest.mark.parametrize(
+    "query",
+    [
+        "timezone=invalid",
+        "range=bad",
+        "range=custom&start=bad&end=2026-01-01",
+        "range=custom&start=2026-02-02&end=2026-02-01",
+        "range=custom&start=2999-01-01&end=2999-01-02",
+    ],
+)
 def test_readable_validation(client, query):
     response = client.get("/api/anatomy?" + query)
     assert response.status_code == 422
     assert isinstance(response.json()["detail"], str)
 
 
-@pytest.mark.parametrize("headers", [
-    {"host": "localhost:8766"}, {"host": "attacker.example"},
-    {"origin": "http://attacker.example"}, {"origin": "null"},
-])
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"host": "localhost:8766"},
+        {"host": "attacker.example"},
+        {"origin": "http://attacker.example"},
+        {"origin": "null"},
+    ],
+)
 def test_foreign_access_rejected(client, headers):
     assert client.get("/api/anatomy", headers=headers).status_code == 403
 
 
-@pytest.mark.parametrize("path", [
-    "/.agents/var/private.json", "/src/automata/apps/dashboard/README.md",
-    "/api/state", "/api/conversations", "/server.py", "/lib/../private.json",
-    "/%2e%2e/%2e%2e/private.json", "/docs", "/openapi.json",
-    "/workspace-view.js", "/workspace", "/lib/mermaid/package.json",
-])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/.agents/var/private.json",
+        "/src/automata/apps/dashboard/README.md",
+        "/api/state",
+        "/api/conversations",
+        "/server.py",
+        "/lib/../private.json",
+        "/%2e%2e/%2e%2e/private.json",
+        "/docs",
+        "/openapi.json",
+        "/workspace-view.js",
+        "/workspace",
+        "/lib/mermaid/package.json",
+    ],
+)
 def test_no_private_or_generic_file_routes(client, path):
     assert client.get(path).status_code == 404
 
 
 def test_only_allowlisted_assets_are_served(client):
     for name in server.PUBLIC_ASSETS:
-        response = client.get('/' + name + '?name=private.json')
+        response = client.get("/" + name + "?name=private.json")
         assert response.status_code == 200, name
-        assert response.headers['content-type'].startswith('text/javascript')
-        assert "frame-ancestors 'none'" in response.headers['content-security-policy']
-    assert client.post('/automata/components/monitor.js', json={}).status_code == 405
+        assert response.headers["content-type"].startswith("text/javascript")
+        assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+    assert client.post("/automata/components/monitor.js", json={}).status_code == 405
 
 
-@pytest.mark.parametrize('path', [
-    '/base.html', '/templates/base.html',
-    '/templates/automata/index.html', '/automata/components/monitor.js.map',
-    '/lib/mermaid.js.map', '/lib/chunks/private.js', '/theme.js', '/app.js',
-    '/routes.js', '/layout.css', '/themes.css',
-])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/base.html",
+        "/templates/base.html",
+        "/templates/automata/index.html",
+        "/automata/components/monitor.js.map",
+        "/lib/mermaid.js.map",
+        "/lib/chunks/private.js",
+        "/theme.js",
+        "/app.js",
+        "/routes.js",
+        "/layout.css",
+        "/themes.css",
+    ],
+)
 def test_template_sources_and_retired_spa_are_private(client, path):
     assert client.get(path).status_code == 404
 
 
-@pytest.mark.parametrize('path,title', [
-    ('/automata/index.html', 'Automata'),
-])
+@pytest.mark.parametrize(
+    "path,title",
+    [
+        ("/automata/index.html", "Automata"),
+    ],
+)
 def test_rendered_documents_not_template_sources(client, path, title):
     response = client.get(path)
     assert response.status_code == 200
-    assert response.headers['content-type'].startswith('text/html')
-    assert title + ' · Anatomy' in response.text
-    assert '{%' not in response.text and '{{' not in response.text
-    assert 'script-src' in response.headers['content-security-policy']
-    assert 'unsafe-eval' not in response.headers['content-security-policy']
+    assert response.headers["content-type"].startswith("text/html")
+    assert title + " · Anatomy" in response.text
+    assert "{%" not in response.text and "{{" not in response.text
+    assert "script-src" in response.headers["content-security-policy"]
+    assert "unsafe-eval" not in response.headers["content-security-policy"]
     assert 'type="module"' in response.text
-    assert 'href="http://127.0.0.1:8788/">Skill catalog</a>' in response.text
+    assert 'href="/skills/"' in response.text
+    assert "Skill catalog</a>" in response.text
 
 
 def test_document_aliases(client):
-    for source, target in [('/', '/automata/index.html'), ('/automata/', '/automata/index.html')]:
+    for source, target in [("/", "/automata/index.html"), ("/automata/", "/automata/index.html")]:
         response = client.get(source, follow_redirects=False)
         assert response.status_code == 302
-        assert response.headers['location'] == target
+        assert response.headers["location"] == target
 
 
 def test_snapshot_failure_is_bounded(client, monkeypatch):
     def fail(_):
         raise RuntimeError("private detail")
+
     monkeypatch.setattr(automata, "snapshot", fail)
     response = client.get("/api/anatomy")
     assert response.status_code == 503

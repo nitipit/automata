@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from dictify import Model
 
-from automata.apps.team.models import canonical
-from automata.apps.team.store import validate_state
+from automata.tools.team.models import canonical
+from automata.tools.team.store import validate_state
 from tests.apps.team.conftest import report
 
 

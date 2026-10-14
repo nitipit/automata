@@ -68,6 +68,16 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+anatomy = [
+    { name = "dictify" },
+    { name = "fastapi" },
+    { name = "jinja2" },
+    { name = "mistune" },
+    { name = "pyyaml" },
+    { name = "shelfdb" },
+    { name = "uvicorn" },
+    { name = "watchfiles" },
+]
 team = [
     { name = "dictify" },
     { name = "shelfdb" },
@@ -104,11 +114,19 @@ preview = [
 [package.metadata]
 requires-dist = [
     { name = "cyclopts", specifier = ">=4.11.1" },
+    { name = "dictify", marker = "extra == 'anatomy'", specifier = ">=5.0.2,<6" },
     { name = "dictify", marker = "extra == 'team'", specifier = ">=5.0.2,<6" },
+    { name = "fastapi", marker = "extra == 'anatomy'", specifier = ">=0.115,<1" },
+    { name = "jinja2", marker = "extra == 'anatomy'", specifier = ">=3.1,<4" },
+    { name = "mistune", marker = "extra == 'anatomy'", specifier = ">=3.1,<4" },
+    { name = "pyyaml", marker = "extra == 'anatomy'", specifier = ">=6.0.3" },
+    { name = "shelfdb", marker = "extra == 'anatomy'", specifier = ">=3.0.2,<4" },
     { name = "shelfdb", marker = "extra == 'team'", specifier = ">=3.0.2,<4" },
     { name = "textual", marker = "extra == 'team'", specifier = ">=8.2.7,<9" },
+    { name = "uvicorn", marker = "extra == 'anatomy'", specifier = ">=0.30.0" },
+    { name = "watchfiles", marker = "extra == 'anatomy'", specifier = ">=1,<2" },
 ]
-provides-extras = ["team"]
+provides-extras = ["anatomy", "team"]
 
 [package.metadata.requires-dev]
 dev = [

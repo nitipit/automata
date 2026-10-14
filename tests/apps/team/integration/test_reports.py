@@ -9,8 +9,8 @@ import subprocess
 import pytest
 from shelfdb.client import Client
 
-from automata.apps.team.store import snapshot
 from automata.install.skills import skill_sources
+from automata.tools.team.store import snapshot
 from tests.apps.team.conftest import report
 
 
@@ -139,7 +139,7 @@ def test_board_snapshot_does_not_even_read_task_shelf(report_service):
         assert inspected == published
         from textual.widgets import Static
 
-        from automata.apps.team.app import Dashboard
+        from automata.tools.team.app import Dashboard
 
         app = Dashboard("g", report_service.url, poll=0.03)
         async with app.run_test(size=(83, 46)) as pilot:
@@ -216,6 +216,7 @@ def test_concurrent_report_patches_and_identical_ids_across_goals(report_service
                 text=True,
             )
             writers.append(process)
+            assert process.stdin is not None
             process.stdin.write(json.dumps(patch))
             process.stdin.close()
             process.stdin = None
@@ -238,7 +239,7 @@ def test_bundled_skill_discovery_and_literal_publishing_examples(service):
     asset = skill.parent / "assets/reports.json"
     assert asset.is_file()
     blocks = re.findall(r"```sh\n(.*?)\n```", skill.read_text(), re.S)
-    console = shlex.quote(service.argv()[0])
+    console = shlex.join(service.argv()[:3])
     executed = []
     for block in blocks:
         # Board is interactive: its public terminal boundary is tested separately.

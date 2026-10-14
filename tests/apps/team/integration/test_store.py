@@ -2,10 +2,11 @@ import asyncio
 import copy
 import json
 import subprocess
+from typing import Any
 
 import pytest
 
-from automata.apps.team.store import snapshot
+from automata.tools.team.store import snapshot
 
 
 def test_real_shelfdb_plain_records(service):
@@ -127,7 +128,7 @@ def test_status_timestamps_same_status_metrics_replace_and_transition(service):
 
 def test_create_replace_permissions_and_atomic_missing_link(service):
     state = service.snapshot()
-    task = dict(state["tasks"]["t"], id="new", owner_id="bob")
+    task: dict[str, Any] = dict(state["tasks"]["t"], id="new", owner_id="bob")
     for actor, body in [
         ("alice", task),
         ("manager", task),
@@ -307,6 +308,7 @@ def test_independent_concurrent_cli_writers_no_lost_updates(service):
                 stderr=subprocess.PIPE,
                 text=True,
             )
+            assert process.stdin is not None
             process.stdin.write(json.dumps(patch))
             process.stdin.close()
             process.stdin = None

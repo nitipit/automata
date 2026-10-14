@@ -1,9 +1,10 @@
 import copy
+from typing import Any
 
 import pytest
 
-from automata.apps.team.hierarchy import agent_parents, agent_path, direct_reports
-from automata.apps.team.view import (
+from automata.tools.team.hierarchy import agent_parents, agent_path, direct_reports
+from automata.tools.team.view import (
     agent_cells,
     compact,
     context_cell,
@@ -61,7 +62,7 @@ def test_multiple_managed_teams_same_manager_deduplicate(graph):
 
 
 def test_unknown_zero_source_and_time_formatting(graph):
-    work = report()
+    work: dict[str, Any] = report()
     assert token_count(work) is None
     assert compact(None) == seconds(None) == "unavailable"
     assert seconds(0) == "0s" and seconds(60) == "1m" and seconds(3600) == "1h"

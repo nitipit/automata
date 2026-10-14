@@ -1,20 +1,26 @@
 """Monitoring baseline: time contracts remain independent of dashboard navigation."""
+
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 
-from automata.apps.dashboard.activity import aggregate, bucket_bounds, make_window
+from automata.tools.anatomy.activity import aggregate, bucket_bounds, make_window
 
 NOW = datetime(2026, 9, 28, 10, tzinfo=UTC)
 
 
-@pytest.mark.parametrize("kwargs", [
-    {"timezone": "Not/AZone"}, {"range_name": "unknown"},
-    {"range_name": "custom", "start": "2026-02-30", "end": "2026-03-01"},
-    {"range_name": "custom", "start": "2026-09-28", "end": "2026-09-27"},
-    {"range_name": "custom", "start": "2026-09-28", "end": "2026-09-29"},
-    {"range_name": "custom", "start": "2024-01-01", "end": "2026-01-01"},
-])
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"timezone": "Not/AZone"},
+        {"range_name": "unknown"},
+        {"range_name": "custom", "start": "2026-02-30", "end": "2026-03-01"},
+        {"range_name": "custom", "start": "2026-09-28", "end": "2026-09-27"},
+        {"range_name": "custom", "start": "2026-09-28", "end": "2026-09-29"},
+        {"range_name": "custom", "start": "2024-01-01", "end": "2026-01-01"},
+    ],
+)
 def test_invalid_windows(kwargs):
     with pytest.raises(ValueError):
         make_window(now=NOW, **kwargs)
@@ -31,7 +37,7 @@ def test_dst_calendar_days(day, hours):
 def test_selection_and_half_open_bounds():
     window = make_window("7d", "UTC", skill="one", now=NOW)
     events = [("one", window.start), ("two", NOW.replace(hour=9)), ("one", window.end)]
-    result = aggregate(events, window)
+    result: dict[str, Any] = aggregate(events, window)
     assert result["total"] == sum(row["count"] for row in result["rows"]) == 1
     assert sum(row["count"] for row in result["timeline"]) == 1
     assert result["last24h"] == 1  # Independent of the selected skill.

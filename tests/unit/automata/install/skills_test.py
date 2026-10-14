@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from automata.install.directory import InstallMode
 from automata.install.skills import (
     SkillInstallError,
     bundled_skill_roots,
@@ -66,14 +67,14 @@ def test_list_skill_dirs_rejects_duplicate_names(tmp_path: Path) -> None:
 def test_default_sources_share_one_canonical_root() -> None:
     (root,) = bundled_skill_roots()
     sources = skill_sources()
-    assert root.name == "bundled"
+    assert root.name == "skills"
     assert sources
     assert set(sources) == {path.parent.name for path in root.rglob("SKILL.md")}
-    assert 'automata-pi-sessions' in sources
-    assert 'automata-playspace' not in sources
-    assert 'automata-workplan' in sources
-    assert 'automata-plan' not in sources
-    assert 'automata-codex-sessions' not in sources
+    assert "automata-pi-sessions" in sources
+    assert "automata-playspace" not in sources
+    assert "automata-workplan" in sources
+    assert "automata-plan" not in sources
+    assert "automata-codex-sessions" not in sources
     assert all(root in source.parents for source in sources.values())
     assert sources["automata-adaptive-ui"].parent.parent == sources["automata-web-design"]
 
@@ -108,9 +109,7 @@ def test_explicit_skill_source_is_exclusive_and_recurses(tmp_path: Path) -> None
 def test_missing_default_selection_does_not_partially_install(tmp_path: Path) -> None:
     target = tmp_path / "dest"
     with pytest.raises(SkillInstallError, match="does-not-exist"):
-        install_skills(
-            target_root=target, skill_names=["automata-storage", "does-not-exist"]
-        )
+        install_skills(target_root=target, skill_names=["automata-storage", "does-not-exist"])
     assert not target.exists()
 
 
@@ -136,9 +135,9 @@ def test_duplicate_names_across_bundled_roots_fail_before_install(
 
 
 @pytest.mark.parametrize("mode", ["copy", "symlink"])
-def test_canonical_agent_design_preserves_install_name(tmp_path: Path, mode: str) -> None:
+def test_canonical_agent_design_preserves_install_name(tmp_path: Path, mode: InstallMode) -> None:
     source = skill_sources()["automata-agent-design"]
-    assert source.parts[-4:] == ("automata", "skills", "bundled", "automata-agent-design")
+    assert source.parts[-3:] == ("automata", "skills", "automata-agent-design")
     target = tmp_path / "installed"
     install_skills(target_root=target, skill_names=["automata-agent-design"], mode=mode)
     installed = target / "automata-agent-design"
@@ -159,7 +158,7 @@ def test_explicit_same_name_is_isolated_from_bundled_source(tmp_path) -> None:
 
 
 @pytest.mark.parametrize("mode", ["copy", "symlink", "replace"])
-def test_workplan_install_does_not_remove_retired_name(tmp_path: Path, mode: str) -> None:
+def test_workplan_install_does_not_remove_retired_name(tmp_path: Path, mode: InstallMode) -> None:
     target = tmp_path / "skills"
     old = target / "automata-plan" / "SKILL.md"
     old.parent.mkdir(parents=True)
@@ -252,9 +251,12 @@ def test_install_skills_replaces_existing_target(tmp_path: Path) -> None:
     old_file.write_text("old\n")
 
     results = install_skills(
-        source_root=source_root, target_root=tmp_path / "dest", mode="replace",
+        source_root=source_root,
+        target_root=tmp_path / "dest",
+        mode="replace",
         backup_root=tmp_path / "backups",
     )
+    assert results[0].backup is not None
     assert Path(results[0].backup, "old.txt").read_text() == "old\n"
 
     assert not old_file.exists()
