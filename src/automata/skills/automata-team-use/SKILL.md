@@ -1,14 +1,18 @@
 ---
 name: automata-team-use
 description: Use when publishing or inspecting goal-scoped current agent reports with the Automata Team CLI/board, or establishing its manager/member hierarchy. Not for generic team management, delegation, worker control or runtime telemetry setup.
+metadata:
+  automata-tools: .agents/tools/team/team.py
 ---
 
 # Automata Team Use
 
 Publish **one own current-work report**, not a mirrored todo list. Learn the
-validated contract from `automata team --help` and command-specific help. The app
-must already be available with its optional `team` dependencies; missing setup is
-not permission to install. It uses trusted-local Unix ShelfDB, not a public server.
+validated contract from `uv run ~/.agents/tools/team/team.py --help` and
+command-specific help. The installed tool and uv must already be available; uv
+isolates its declared dependencies and selects supported Python 3.12–3.14 without
+a repository path or interpreter override. Missing setup is not permission to
+install. It uses trusted-local Unix ShelfDB, not a public server.
 
 ## Establish scope
 
@@ -31,7 +35,7 @@ invented tasks/usage. Set `SKILL_DIR` to the absolute directory containing this
 loaded `SKILL.md` (source or installed copy), not the current working directory.
 
 ```sh
-automata team init --goal example-reports --actor manager \
+uv run ~/.agents/tools/team/team.py init --goal example-reports --actor manager \
   --file "$SKILL_DIR/assets/reports.json" --state-root .agents/var/apps/agent-team
 ```
 
@@ -47,7 +51,7 @@ ordinary agent update command. All initial report fields except the server-owned
 status timestamp are included; unavailable observations are null:
 
 ```sh
-automata team update --goal example-reports --actor alice --kind agent --id alice \
+uv run ~/.agents/tools/team/team.py update --goal example-reports --actor alice --kind agent --id alice \
   --file - --state-root .agents/var/apps/agent-team <<'JSON'
 {"report":{"summary":"Implementing current-report publishing","status":"working","blocker":"","elapsed_seconds":null,"estimate":{"min_seconds":null,"max_seconds":null,"target_finish":null},"tokens":{"input":null,"output":null,"cache_read":null,"cache_write":null,"observed_at":null,"source":"unavailable"}}}
 JSON
@@ -58,7 +62,7 @@ completion is verified, not on every activity. Patches recursively merge; omitte
 fields survive. Supply a real dependency/decision for blocked status:
 
 ```sh
-automata team update --goal example-reports --actor alice --kind agent --id alice \
+uv run ~/.agents/tools/team/team.py update --goal example-reports --actor alice --kind agent --id alice \
   --file - --state-root .agents/var/apps/agent-team <<'JSON'
 {"report":{"status":"blocked","blocker":"Awaiting approved interface decision"}}
 JSON
@@ -68,7 +72,7 @@ Resume with `status: working` and clear the blocker. Completion reports the actu
 verified result, not acceptance or a new assignment:
 
 ```sh
-automata team update --goal example-reports --actor alice --kind agent --id alice \
+uv run ~/.agents/tools/team/team.py update --goal example-reports --actor alice --kind agent --id alice \
   --file - --state-root .agents/var/apps/agent-team <<'JSON'
 {"report":{"summary":"Verified current-report publishing","status":"done","blocker":""}}
 JSON
@@ -86,14 +90,14 @@ actually known. Token counts need an actual observation timestamp and `source:
 measured`; samples use `sample`. Context is separately published on the agent,
 never inferred from billed tokens. Do not attribute whole-session usage to current
 work without measurement supporting that scope. Missing measurements stay null,
-not zero. This app has no automatic runtime telemetry.
+not zero. This tool has no automatic runtime telemetry.
 
 ## Inspect without controlling
 
 ```sh
-automata team json --goal example-reports --kind agent --id alice \
+uv run ~/.agents/tools/team/team.py json --goal example-reports --kind agent --id alice \
   --state-root .agents/var/apps/agent-team
-automata team board --goal example-reports --state-root .agents/var/apps/agent-team
+uv run ~/.agents/tools/team/team.py board --goal example-reports --state-root .agents/var/apps/agent-team
 ```
 
 The board stays in that goal: top=current agent, table=direct reports once each,
@@ -104,5 +108,5 @@ own report in the bottom panel; repeated → leaves route/history/selection unch
 panel, q closes only the viewer. A root with no children still shows its own report.
 
 This bundled skill is discoverable as `automata-team-use` through the normal
-Automata skill catalog. Load it for this app's publishing contract; packaging does
+Automata skill catalog. Load it for this tool's publishing contract; packaging does
 not globally expose it, activate it or prove an agent follows it.

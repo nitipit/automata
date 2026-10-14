@@ -10,6 +10,7 @@ import pytest
 from shelfdb.client import Client
 
 from automata.install.skills import skill_sources
+from automata.install.tools import install_tools
 from automata.tools.team.store import snapshot
 from tests.apps.team.conftest import report
 
@@ -234,22 +235,35 @@ def test_concurrent_report_patches_and_identical_ids_across_goals(report_service
     assert report_service.snapshot("second")["agents"]["alice"]["report"]["elapsed_seconds"] == 99
 
 
-def test_bundled_skill_discovery_and_literal_publishing_examples(service):
+def test_bundled_skill_discovery_and_literal_publishing_examples(service, tmp_path):
     skill = skill_sources()["automata-team-use"] / "SKILL.md"
     asset = skill.parent / "assets/reports.json"
     assert asset.is_file()
-    blocks = re.findall(r"```sh\n(.*?)\n```", skill.read_text(), re.S)
-    console = shlex.join(service.argv()[:3])
+    content = skill.read_text()
+    assert "  automata-tools: .agents/tools/team/team.py\n" in content
+    blocks = re.findall(r"```sh\n(.*?)\n```", content, re.S)
+    target = tmp_path / "tools"
+    install_tools(target_root=target, tool_names=["team"])
+    literal = "uv run ~/.agents/tools/team/team.py"
+    console = "uv run --offline " + shlex.quote(str(target / "team/team.py"))
+    # The standalone entry owns its isolated dependency environment; source/test
+    # PYTHONPATH can contain native extensions built for a different interpreter.
+    environment = {
+        key: value
+        for key, value in service.env.items()
+        if key not in {"PYTHONPATH", "UV_PYTHON", "VIRTUAL_ENV"}
+    }
+    environment.update(SKILL_DIR=str(skill.parent), UV_OFFLINE="true", UV_PYTHON_DOWNLOADS="never")
     executed = []
     for block in blocks:
         # Board is interactive: its public terminal boundary is tested separately.
         lines = block.splitlines()
-        lines = [line for line in lines if not line.startswith("automata team board ")]
-        script = "\n".join(lines).replace("automata ", console + " ")
+        lines = [line for line in lines if not line.startswith(literal + " board ")]
+        script = "\n".join(lines).replace(literal, console)
         script = script.replace(".agents/var/apps/agent-team", shlex.quote(str(service.root)))
         result = subprocess.run(
             ["bash", "-e", "-c", script],
-            env=service.env | {"SKILL_DIR": str(skill.parent)},
+            env=environment,
             text=True,
             capture_output=True,
             timeout=10,
