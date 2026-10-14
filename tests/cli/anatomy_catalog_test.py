@@ -115,9 +115,7 @@ def test_cli_signal_stops_preview_without_build_output(tmp_path):
             else:
                 pytest.fail("FastAPI CLI did not become ready")
             assert "engrave.main" not in log_path.read_text()
-            stream = urllib.request.urlopen(
-                f"http://127.0.0.1:{port}/__anatomy/events", timeout=5
-            )
+            stream = urllib.request.urlopen(f"http://127.0.0.1:{port}/__anatomy/events", timeout=5)
             assert stream.readline().startswith(b": connected")
         finally:
             process.terminate()
