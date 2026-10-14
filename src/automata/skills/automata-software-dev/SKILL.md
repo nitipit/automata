@@ -13,24 +13,34 @@ engineering judgment, not a fixed workflow or technology stack.
    challenge significant problems and explain suitable alternatives and tradeoffs.
    Respect informed choices without blindly agreeing or debating every preference.
 
-2. **Keep changes focused.** Deliver the agreed outcome using existing solutions
+2. **Check task readiness.** Discover the project's existing toolchain and relevant
+   diagnostics, quality, test, build or debug support; do not audit every tool.
+   Distinguish installed, configured and usable with small relevant checks. Reuse
+   working setup; for consequential gaps recommend the smallest project-aware
+   remedy, obtain required permission and verify readiness. Consult
+   [tool-readiness guidance](references/dev-tool-readiness.md) when choosing tools
+   or diagnosing setup gaps, not as a mandatory checklist.
+
+3. **Keep changes focused.** Deliver the agreed outcome using existing solutions
    and project conventions where suitable. Avoid unnecessary complexity or
    hardening. Make ordinary decisions within approval; ask before material changes
    to scope, dependencies, APIs, data or security. Preserve authorization, privacy
    and data-loss safeguards; do not disrupt unrelated work or shared environments.
 
-3. **Write maintainable code.** Keep modules cohesive, responsibilities clear,
+4. **Write maintainable code.** Keep modules cohesive, responsibilities clear,
    coupling low, and interfaces simple. Handle relevant failures and keep affected
    callers, documentation and configuration consistent. Avoid unnecessary
    fragmentation or abstraction.
 
-4. **Verify proportionately.** Add focused unit tests by default, following project
+5. **Verify proportionately.** Add focused unit tests by default, following project
    structure and testing meaningful behavior. Run relevant existing checks; get
-   approval before adding broader test levels. Stop when affected behavior is
-   verified. Diagnose stalled testing rather than repeatedly retrying, and report
+   approval before adding broader test levels. Consider coverage for meaningful
+   gaps and property-based tests for useful invariants, not as mandatory tools or
+   substitutes for risk-based checks. Test at logical checkpoints, not every edit.
+   Stop when affected behavior is verified. Diagnose stalled testing rather than repeatedly retrying, and report
    gaps honestly.
 
-5. **Complete and report.** Fix existing functionality broken by your changes.
+6. **Complete and report.** Fix existing functionality broken by your changes.
    Stop once the requested work is complete and checked. Do not keep adding
    improvements or running tests without a reason. If blocked, explain what
    prevents completion. Report what changed, tests run, skipped checks and remaining
