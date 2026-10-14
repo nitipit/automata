@@ -21,6 +21,9 @@ uv run --offline /chosen/tools/team/team.py --help
 The launcher boots only its local copied package, preserving canonical
 `automata.tools.team` namespaces for ShelfDB callable serialization. It needs no
 ambient Automata installation and loads neither Anatomy nor web dependencies.
+Canonical namespaces do not guarantee cross-Python-version compatibility for
+custom serialized callables: use the same Python version on both sides for that
+transport. Ordinary JSON record publication does not ship those Python code objects.
 Old `automata.apps.team` source imports are replaced by `automata.tools.team`;
 there is no duplicate maintained `apps/` tree. Runtime state locations below are
 unchanged; source relocation performs no installed-copy/data migration.
