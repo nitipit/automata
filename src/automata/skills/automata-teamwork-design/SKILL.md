@@ -9,16 +9,17 @@ Arrange work and context for useful quality, cost, time and risk tradeoffs—not
 maximum parallelism. Small work needs no formal team-design document.
 
 1. **Compare viable arrangements.** Use established goals and constraints, including
-   user involvement and coordinator availability. Use solo work as the comparison
-   baseline; a request for a team plan does not imply a team is needed. Recommend
-   additional agents only when specific parallelism, specialization or independent
-   assurance outweighs briefing, duplicated context, handoffs, review, retries and
-   integration. Account for dependencies and context overlap; do not silently lower
-   standards when no arrangement fits.
+   user involvement and coordinator availability. Compare viable solo and team
+   arrangements against the same goals and constraints; a request for a team plan
+   does not by itself establish that a team is needed. Weigh parallelism,
+   specialization and independent assurance against briefing, duplicated context,
+   handoffs, review, retries and integration. Account for dependencies and context
+   overlap; do not silently lower standards when no arrangement fits.
 
-   Justify independent review by concrete failure risks, consequences or a user
-   requirement—not merely a generally tricky topic such as async code. Compare its
-   added assurance with focused checks and live verification by the implementer.
+   Assess independent review by expected risk reduction, including blind spots,
+   consequences and user requirements. Weigh its benefits and costs against focused
+   checks and live verification by the implementer, recognizing that these provide
+   different kinds of evidence.
 
 2. **Keep context coherent.** Assign outcomes workers can complete and verify, not
    arbitrary file/token slices. Keep coupled knowledge and implementation/checks
