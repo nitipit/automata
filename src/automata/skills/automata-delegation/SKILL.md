@@ -23,9 +23,9 @@ acceptance. Task approval alone does not authorize unrestricted delegation.
    worker needs broad unrelated context, reconsider the assignment boundary.
 
 3. **Establish the return path.** Verify exact worker and coordinator targets,
-   transport and lifecycle ownership. Prefer tmux when shared-server owned targets
-   are available; otherwise agree on a return-capable alternative or bounded
-   synchronous execution. Pause if the path is missing, stale or unreachable.
+   transport and lifecycle ownership. Choose a return-capable method suited to
+   interaction needs and resource costs, or bounded synchronous execution. Pause
+   if the path is missing, stale or unreachable.
    Before asynchronous dispatch, establish a real callback wake path and one bounded
    coordinator-targeted watchdog for the next evidence, with task correlation.
    Logs and artifacts do not wake the coordinator; a message to a stuck worker is

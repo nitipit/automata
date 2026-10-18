@@ -41,7 +41,6 @@ REQUIRED_SKILLS = {
     "automata-delegation",
     "automata-cue",
     "automata-team-management",
-    "automata-team-use",
     "automata-manager",
     "automata-workplan",
     "automata-skill-design",
@@ -58,14 +57,19 @@ REQUIRED_SKILLS = {
     "automata-documentation",
     "automata-runtime-environment",
     "automata-python-kernel",
+    "automata-background-process",
     "automata-software-dev",
-    "automata-tmux-background",
-    "automata-tmux-communication",
-    "automata-tmux-observation",
     "automata-toolsmith",
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-tmux-background",
+    "automata-tmux-communication",
+    "automata-tmux-observation",
+    "automata-zellij-background",
+    "automata-zellij-communication",
+    "automata-zellij-observation",
+    "automata-team-use",
     "automata-python-workspace",
     "automata-plain-text-writing",
     "automata-journal",
@@ -133,7 +137,7 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
 
 
 def test_pi_skills_share_one_catalog_with_all_skills() -> None:
-    assert len(list(SKILLS_ROOT.rglob("SKILL.md"))) == 44
+    assert len(list(SKILLS_ROOT.rglob("SKILL.md"))) == 38
     for name in PI_SKILL_NAMES:
         assert (SKILLS_ROOT / name / "SKILL.md").is_file()
         assert not (SKILLS_ROOT / name).is_symlink()
@@ -157,7 +161,6 @@ def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
     expected = {
         "automata-timer": ".agents/tools/timer/timer.py",
         "automata-line-use": ".agents/tools/line/line_cli.py",
-        "automata-tmux-communication": ".agents/tools/tmux-message/tmux_message.py",
     }
     for path in SKILL_FILES:
         metadata = parse_frontmatter(path).get("metadata", {})
@@ -208,7 +211,7 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
     target = tmp_path / "skills"
     results = install_skills(target_root=target)
     expected = set(SOURCES)
-    assert len(expected) == 44
+    assert len(expected) == 38
     assert "automata-pi-sessions" in expected
     assert "automata-codex-sessions" not in expected
     roots = expected - {"automata-adaptive-ui", "automata-web-app", "automata-documentation"}

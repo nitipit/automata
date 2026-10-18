@@ -18,7 +18,11 @@ permission, assignments, reporting obligations and delivery remain with their ow
    availability, urgency and reply needs. Respect reporting and isolation boundaries;
    if no suitable path exists, explain the gap and agree on an alternative. Saved
    addresses or working connections do not prove identity or permission to disclose.
-   Human-readable or structured formats can suit either humans or agents.
+   Human-readable or structured formats can suit either humans or agents. For
+   terminal delivery, verify the exact endpoint and receiving input contract, and
+   keep one writer through submission. Never overwrite human drafts, send messages
+   into a shell/editor, or dismiss prompts to make delivery work. Paste alone is
+   not submission; inspect partial delivery before retrying.
 
 3. **Provide necessary context.** State the purpose and include only what the receiver
    needs. Do not assume shared history, file access or terminology; provide usable

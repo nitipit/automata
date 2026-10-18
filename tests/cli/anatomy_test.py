@@ -21,7 +21,7 @@ def test_anatomy_foreground_default_and_explicit_asset_root(monkeypatch, tmp_pat
     assert calls == [{"port": 8766}, {"port": 8791, "asset_root": tmp_path}]
 
 
-def test_core_help_does_not_load_optional_viewer_or_team_dependencies():
+def test_core_help_does_not_load_optional_viewer_dependencies():
     script = """
 import importlib.abc, sys
 blocked = {'fastapi', 'jinja2', 'mistune', 'uvicorn', 'watchfiles', 'yaml',
@@ -39,7 +39,8 @@ assert not blocked.intersection(sys.modules)
         [sys.executable, "-B", "-c", script], capture_output=True, text=True, timeout=10
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "anatomy" in result.stdout and "team" in result.stdout
+    assert "anatomy" in result.stdout
+    assert "team" not in result.stdout.casefold()
 
 
 def test_public_entry_points_and_optional_dependency_ownership():
@@ -47,16 +48,15 @@ def test_public_entry_points_and_optional_dependency_ownership():
     config = tomllib.loads((root / "pyproject.toml").read_text())
     scripts = config["project"]["scripts"]
     assert scripts["automata-anatomy"] == "automata.tools.anatomy.cli:app"
-    assert scripts["automata-team"] == "automata.tools.team.cli:app"
+    assert "automata-team" not in scripts
     assert config["project"]["dependencies"] == ["cyclopts>=4.11.1"]
     assert "fastapi>=0.115,<1" in config["project"]["optional-dependencies"]["anatomy"]
-    assert all("fastapi" not in item for item in config["project"]["optional-dependencies"]["team"])
+    assert "team" not in config["project"]["optional-dependencies"]
 
 
-def test_copied_team_and_anatomy_launchers_are_usable(tmp_path):
-    install_tools(target_root=tmp_path, tool_names=["team", "anatomy"])
+def test_copied_anatomy_launcher_is_usable(tmp_path):
+    install_tools(target_root=tmp_path, tool_names=["anatomy"])
     for name, launcher, title in [
-        ("team", "team.py", "Automata Team"),
         ("anatomy", "anatomy.py", "Automata Anatomy"),
     ]:
         result = subprocess.run(

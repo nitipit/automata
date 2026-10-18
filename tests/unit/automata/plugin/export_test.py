@@ -89,18 +89,18 @@ def test_export_packages_tools_under_automata_extension(tmp_path: Path) -> None:
     result = export_plugin(
         name="automata-runtime",
         skill_names=("automata-workplan",),
-        tool_names=("tmux-message",),
+        tool_names=("timer",),
         output=output,
     )
 
     manifest = json.loads((output / "plugin.json").read_text())
     extension = manifest["extensions"][NAMESPACE]
-    assert result.tools == ("tmux-message",)
+    assert result.tools == ("timer",)
     assert extension == {
-        "tools": ["tmux-message"],
+        "tools": ["timer"],
         "toolRoot": "me.umlab.automata/tools",
     }
-    assert (output / NAMESPACE / "tools" / "tmux-message" / "tmux_message.py").is_file()
+    assert (output / NAMESPACE / "tools" / "timer" / "timer.py").is_file()
     assert not list((output / NAMESPACE).rglob("__pycache__"))
     assert not list((output / NAMESPACE).rglob("*.pyc"))
 

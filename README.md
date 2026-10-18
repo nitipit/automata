@@ -50,17 +50,6 @@ appearance and live reload. Serving is foreground by default. Prepare the option
 require web dependencies. Use `automata anatomy` or `automata-anatomy`.
 There is no maintained `src/automata/apps/` category or separate skill-site server.
 
-## Automata Team
-
-[`automata team`](src/automata/tools/team/README.md) publishes one goal-scoped current
-work report per agent through trusted-local Unix ShelfDB. Its read-only board
-navigates manager → direct-report agents, never mirrored task rows. The bundled
-`automata-team-use` skill teaches the validated publishing contract. Install the
-optional `team` extra; help works without app dependencies. It is not a worker
-controller and does not invent runtime usage measurements. `automata-team` is a
-separate shell entry point; tool installation can copy `tools/team/` with its
-standalone `team.py` launcher. Team does not depend on Anatomy.
-
 ## Pi Fast mode
 
 The separate [`fast-mode` extension](src/automata/runtimes/pi/extensions/fast-mode/README.md)

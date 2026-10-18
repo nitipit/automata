@@ -24,10 +24,8 @@ from automata.install.skills import (
 from automata.install.tools import ToolInstallError, install_tools, normalize_tool_names
 from automata.plugin import PluginExportError, export_plugin
 from automata.tools.anatomy.cli import app as anatomy_app
-from automata.tools.team.cli import app as team_app
 
 app = App(help="Automata reusable agent guidance tools.")
-app.command(team_app, name="team")
 character_app = App(
     help=(
         "Render packaged character components as Markdown for an AI agent to read. "

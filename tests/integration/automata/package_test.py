@@ -29,7 +29,6 @@ def test_package_includes_self_documenting_python_tools() -> None:
     package_root = files("automata").joinpath("tools")
     scripts = (
         package_root.joinpath("timer", "timer.py"),
-        package_root.joinpath("tmux-message", "tmux_message.py"),
         package_root.joinpath("line", "line_cli.py"),
     )
 
@@ -125,7 +124,6 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "skills/automata-agent-evaluation/templates/evaluation-record.json",
         "tools/anatomy/server.py",
         "tools/anatomy/cli.py",
-        "tools/team/team.py",
     }
     with zipfile.ZipFile(wheel) as archive:
         wheel_paths = {
@@ -208,10 +206,9 @@ from automata.plugin import export_plugin
 assert Path(automata.__file__).is_relative_to(site)
 sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
-assert len(sources) == 44
-assert 'automata-team-use' in sources
-assert (sources['automata-team-use'] / 'SKILL.md').is_file()
-assert (sources['automata-team-use'] / 'assets/reports.json').is_file()
+assert len(sources) == 38
+assert 'automata-team-use' not in sources
+assert (sources['automata-background-process'] / 'SKILL.md').is_file()
 assert 'automata-thinking-control' not in sources
 assert 'automata-pi-sessions' in sources
 assert 'automata-web-design' in sources
@@ -271,9 +268,10 @@ assert (work / 'extensions/codex-bridge.ts').is_file()
 from automata.install.tools import install_tools
 shared = install_tools(target_root=work / 'tools')
 assert {item.name for item in shared} == {
-    'line', 'timer', 'tmux-message', 'team', 'anatomy'
+    'line', 'timer', 'anatomy'
 }
-assert (work / 'tools/team/team.py').is_file()
+assert not (work / 'tools/team').exists()
+assert not (work / 'tools/tmux-message').exists()
 assert (work / 'tools/anatomy/anatomy.py').is_file()
 assert not (work / 'tools/python-runtime').exists()
 """,
