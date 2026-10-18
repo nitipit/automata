@@ -57,7 +57,7 @@ REQUIRED_SKILLS = {
     "automata-text-writing",
     "automata-documentation",
     "automata-runtime-environment",
-    "automata-python-workspace",
+    "automata-python-kernel",
     "automata-software-dev",
     "automata-tmux-background",
     "automata-tmux-communication",
@@ -66,6 +66,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-python-workspace",
     "automata-plain-text-writing",
     "automata-journal",
     "automata-playspace",
@@ -157,7 +158,6 @@ def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
         "automata-timer": ".agents/tools/timer/timer.py",
         "automata-line-use": ".agents/tools/line/line_cli.py",
         "automata-tmux-communication": ".agents/tools/tmux-message/tmux_message.py",
-        "automata-python-workspace": ".agents/tools/python-runtime/python_runtime.py",
     }
     for path in SKILL_FILES:
         metadata = parse_frontmatter(path).get("metadata", {})

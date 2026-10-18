@@ -271,11 +271,11 @@ assert (work / 'extensions/codex-bridge.ts').is_file()
 from automata.install.tools import install_tools
 shared = install_tools(target_root=work / 'tools')
 assert {item.name for item in shared} == {
-    'line', 'python-runtime', 'timer', 'tmux-message', 'team', 'anatomy'
+    'line', 'timer', 'tmux-message', 'team', 'anatomy'
 }
 assert (work / 'tools/team/team.py').is_file()
 assert (work / 'tools/anatomy/anatomy.py').is_file()
-assert (work / 'tools/python-runtime/python_runtime.py').is_file()
+assert not (work / 'tools/python-runtime').exists()
 """,
             str(site),
             str(tmp_path / "installed"),
