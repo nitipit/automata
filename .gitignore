@@ -6,6 +6,7 @@ opencode.json
 __pycache__/
 .pytest_cache/
 .ruff_cache/
+src/automata/runtimes/pi/extensions/**/node_modules/
 dist/
 *.egg-info/
 .agents/memory/chromadb/

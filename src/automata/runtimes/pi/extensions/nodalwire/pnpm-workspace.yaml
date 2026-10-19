@@ -1,0 +1,4 @@
+# Pi provides these peer packages; do not install duplicate host libraries.
+autoInstallPeers: false
+allowBuilds:
+  zeromq: true

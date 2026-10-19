@@ -64,6 +64,9 @@ def test_package_excludes_generated_trees_from_sdists_and_wheels() -> None:
     assert config["tool"]["uv"]["build-backend"]["source-exclude"] == [
         "src/automata/skills/**/__pycache__/**",
         "src/automata/tools/**/__pycache__/**",
+        "src/automata/runtimes/pi/extensions/**/node_modules",
+        "src/automata/runtimes/pi/extensions/**/node_modules/**",
+        "src/automata/runtimes/pi/extensions/**/__pycache__/**",
     ]
 
 
@@ -87,6 +90,10 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "runtimes/pi/extensions/context-status.ts",
         "runtimes/pi/extensions/fast-mode/index.ts",
         "runtimes/pi/extensions/fast-mode/README.md",
+        "runtimes/pi/extensions/nodalwire/index.ts",
+        "runtimes/pi/extensions/nodalwire/README.md",
+        "runtimes/pi/extensions/nodalwire/package.json",
+        "runtimes/pi/extensions/nodalwire/pnpm-workspace.yaml",
         "runtimes/pi/extensions/message-timestamps.ts",
         "runtimes/pi/extensions/token-awareness.ts",
         "skills/automata-pi-context-status/SKILL.md",
@@ -216,13 +223,16 @@ assert (linked / 'SKILL.md').read_bytes() == (
 installed = install_pi_extensions(target_root=work / 'extensions')
 assert {item.name for item in installed} == {
     'codex-bridge', 'context-compaction', 'context-status', 'fast-mode',
-    'message-timestamps', 'pi-sessions', 'skill-activity', 'token-awareness',
+    'message-timestamps', 'nodalwire', 'pi-sessions', 'skill-activity', 'token-awareness',
 }
 assert not (work / 'extensions/thinking-control').exists()
 assert (work / 'extensions/skill-activity/store.py').is_file()
 assert (work / 'extensions/token-awareness.ts').is_file()
 assert (work / 'extensions/fast-mode/index.ts').is_file()
 assert (work / 'extensions/fast-mode/README.md').is_file()
+assert (work / 'extensions/nodalwire/index.ts').is_file()
+assert (work / 'extensions/nodalwire/package.json').is_file()
+assert not (work / 'extensions/nodalwire/node_modules').exists()
 export_plugin(name='wheel-smoke', output=work / 'plugin',
               skill_names=['automata-storage', 'automata-pi-context-status'])
 assert (work / 'plugin/skills/automata-pi-context-status/SKILL.md').is_file()

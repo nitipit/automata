@@ -57,6 +57,9 @@ module-name = "automata"
 source-exclude = [
     "src/automata/skills/**/__pycache__/**",
     "src/automata/tools/**/__pycache__/**",
+    "src/automata/runtimes/pi/extensions/**/node_modules",
+    "src/automata/runtimes/pi/extensions/**/node_modules/**",
+    "src/automata/runtimes/pi/extensions/**/__pycache__/**",
 ]
 
 [tool.ruff]

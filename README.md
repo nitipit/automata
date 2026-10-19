@@ -61,6 +61,15 @@ model switches during dispatch: guards are best-effort, not physical-route
 isolation. Disable competing `/fast`/`--fast` extensions under separate approval
 before activation. Premium access and native costs are not billing evidence.
 
+## Pi NodalWire messaging
+
+The opt-in [`nodalwire` extension](src/automata/runtimes/pi/extensions/nodalwire/README.md)
+connects Pi to an existing trusted-local NodalWire relay. It receives external
+messages as custom follow-ups and provides `nodalwire_send` for named-peer replies.
+Install the published `@devcapsule/nodalwire-client` dependency; there is no
+automatic installation, relay startup, peer discovery or authentication. See its
+README for setup and the isolated Python → Pi → Python trial.
+
 ## Entry points
 
 Python project managed with `uv`; dependencies and CLI entry points are in

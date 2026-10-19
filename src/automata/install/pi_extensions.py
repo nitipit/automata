@@ -105,7 +105,11 @@ def install_pi_extension(
     if mode == "symlink":
         target.symlink_to(source.resolve())
     elif source.is_dir():
-        shutil.copytree(source, target)
+        # Native dependencies belong to the destination's package manager, not
+        # to the extension source copy (and can contain platform-specific binaries).
+        shutil.copytree(
+            source, target, ignore=shutil.ignore_patterns("node_modules", "__pycache__")
+        )
     else:
         shutil.copy2(source, target)
 

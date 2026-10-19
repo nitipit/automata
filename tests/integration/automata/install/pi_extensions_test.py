@@ -98,7 +98,7 @@ def test_default_install_excludes_retired_control_without_uninstalling(tmp_path:
     retired.write_text("// existing user installation\n")
     expected = {
         "codex-bridge", "context-compaction", "context-status", "fast-mode",
-        "message-timestamps", "pi-sessions", "skill-activity", "token-awareness",
+        "message-timestamps", "nodalwire", "pi-sessions", "skill-activity", "token-awareness",
     }
     assert set(list_pi_extensions(bundled_pi_extension_root())) == expected
     results = install_pi_extensions(target_root=target)
@@ -112,6 +112,37 @@ def test_default_install_excludes_retired_control_without_uninstalling(tmp_path:
             for file in source.rglob("*"):
                 if file.is_file():
                     assert (installed / file.relative_to(source)).read_bytes() == file.read_bytes()
+
+
+@pytest.mark.parametrize("mode", ["copy", "symlink"])
+def test_install_nodalwire_bundle(tmp_path: Path, mode: str) -> None:
+    target = tmp_path / "extensions"
+    install_pi_extensions(target_root=target, extension_names=["nodalwire"], mode=mode)
+    source = bundled_pi_extension_root() / "nodalwire"
+    for name in ("index.ts", "README.md", "package.json", "pnpm-workspace.yaml"):
+        assert (target / "nodalwire" / name).read_bytes() == (source / name).read_bytes()
+    assert (target / "nodalwire").is_symlink() == (mode == "symlink")
+    assert not (target / "nodalwire/node_modules").exists()
+
+
+def test_bundle_copy_and_replace_exclude_local_dependencies(tmp_path: Path) -> None:
+    source = tmp_path / "source/example"
+    source.mkdir(parents=True)
+    (source / "index.ts").write_text("export default function () {}\n")
+    for directory in ("node_modules/native", "nested/__pycache__"):
+        generated = source / directory
+        generated.mkdir(parents=True)
+        (generated / "generated.bin").write_bytes(b"not portable")
+    target = tmp_path / "extensions"
+    for mode in ("copy", "replace"):
+        install_pi_extensions(
+            target_root=target, source_root=source.parent,
+            extension_names=["example"], mode=mode,
+        )
+        assert (target / "example/index.ts").is_file()
+        assert not (target / "example/node_modules").exists()
+        assert not (target / "example/nested/__pycache__").exists()
+    assert (source / "node_modules/native/generated.bin").is_file()
 
 
 def test_retired_control_selection_fails_before_install(tmp_path: Path) -> None:
