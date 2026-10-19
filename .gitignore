@@ -13,3 +13,4 @@ dist/
 .agents/var/
 /AGENTS.md
 .agents/
+.secret/
