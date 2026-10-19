@@ -4,10 +4,7 @@ This directory owns canonical skills, nested skills and all supporting assets.
 Markdown discovery and agent export belong to `../tools/anatomy/content.py`.
 Every skill is discovered recursively through `SKILL.md`; there is no `bundled/`
 layer or duplicate catalog.
-The current catalog has 44 skills, including nested children.
-
-The web family lives in `automata-web-design/`, with Adaptive UI and Web App under
-its `skills/` directory. Other families preserve their existing nested layout.
+Nested families preserve their existing layout.
 Agent instructions, reference Markdown, templates, scripts and libraries remain
 inside their owning skill package.
 
@@ -40,7 +37,7 @@ flat exposure. Existing obsolete flat installations are not removed automaticall
 Use explicit retirement/replacement and backup authority when migrating them.
 
 ```sh
-automata skills install --target-root /chosen/agent/skills --skill automata-web-design
+automata skills install --target-root /chosen/agent/skills --skill automata-text-writing
 # Exact whole-skill export, including nested child exports when explicitly requested:
 automata-anatomy export-agent automata-agent-design --output /chosen/export
 ```

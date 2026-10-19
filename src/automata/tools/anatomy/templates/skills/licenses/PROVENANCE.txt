@@ -8,8 +8,10 @@ same bundle inputs. No source maps, dependency source, or ECharts are shipped.
 
 adaptive-ui.js
 SHA-256 c6642917e2be4da690c8c565d91f12e065c6e10247414bae67f2ca914b3ccc9a
-Central builder: automata-web-design/skills/automata-adaptive-ui/scripts/build.py and its lib/build.ts.
-The maintained source uses esbuild 0.25.11, browser ESM, target es2022.
+Historical builder: the retired automata-web-design/skills/automata-adaptive-ui
+package's scripts/build.py and lib/build.ts (available in Git history).
+That source used esbuild 0.25.11, browser ESM, target es2022. The reviewed cached
+bundle remains an Anatomy runtime asset; the web-design skill package is retired.
 Inputs: Automata Adaptive UI, @arrow-js/core 1.0.6,
 @jsr/devcapsule__adapter 4.0.0, edictor 0.4.0. The cached bundle's source comments
 confirm these dependency versions.

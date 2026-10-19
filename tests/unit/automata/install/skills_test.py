@@ -76,7 +76,7 @@ def test_default_sources_share_one_canonical_root() -> None:
     assert "automata-plan" not in sources
     assert "automata-codex-sessions" not in sources
     assert all(root in source.parents for source in sources.values())
-    assert sources["automata-adaptive-ui"].parent.parent == sources["automata-web-design"]
+    assert sources["automata-documentation"].parent.parent == sources["automata-text-writing"]
 
 
 def test_install_skills_selects_shared_and_pi_skills_together(tmp_path: Path) -> None:

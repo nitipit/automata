@@ -55,10 +55,6 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-name = "automata"
 source-exclude = [
-    "src/automata/skills/automata-web-design/skills/automata-adaptive-ui/lib/dist",
-    "src/automata/skills/automata-web-design/skills/automata-adaptive-ui/lib/dist/**",
-    "src/automata/skills/automata-web-design/skills/automata-adaptive-ui/lib/node_modules",
-    "src/automata/skills/automata-web-design/skills/automata-adaptive-ui/lib/node_modules/**",
     "src/automata/skills/**/__pycache__/**",
     "src/automata/tools/**/__pycache__/**",
 ]

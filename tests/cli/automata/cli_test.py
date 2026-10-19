@@ -286,9 +286,9 @@ def test_cli_skill_preview_and_retirement_json(capsys, tmp_path: Path) -> None:
 
 
 def test_cli_skill_child_rejection_and_help(capsys, tmp_path: Path) -> None:
-    with pytest.raises(SystemExit, match="select outer parent automata-web-design"):
+    with pytest.raises(SystemExit, match="select outer parent automata-text-writing"):
         app(["skills", "install", "--target-root", str(tmp_path / "target"),
-             "--skill", "automata-adaptive-ui"])
+             "--skill", "automata-documentation"])
     assert not (tmp_path / "target").exists()
     with pytest.raises(SystemExit) as help_exit:
         app(["skills", "install", "--help"])
@@ -303,16 +303,16 @@ def test_cli_retires_legacy_flat_child_without_touching_nested_copy(capsys, tmp_
     target, backups = tmp_path / "skills", tmp_path / "backups"
     with pytest.raises(SystemExit) as installed:
         app(["skills", "install", "--target-root", str(target),
-             "--skill", "automata-web-design"])
+             "--skill", "automata-text-writing"])
     assert installed.value.code == 0
     capsys.readouterr()
-    nested = target / "automata-web-design/skills/automata-adaptive-ui"
+    nested = target / "automata-text-writing/skills/automata-documentation"
     before = {path.relative_to(nested): (path.read_bytes(), path.stat().st_mtime_ns)
               for path in nested.rglob("*") if path.is_file()}
-    flat = make_skill(target / "automata-adaptive-ui")
+    flat = make_skill(target / "automata-documentation")
     (flat / "SKILL.md").write_text("legacy flat copy")
     arguments = ["skills", "install", "--target-root", str(target),
-                 "--retire", "automata-adaptive-ui", "--json"]
+                 "--retire", "automata-documentation", "--json"]
     with pytest.raises(SystemExit) as preview:
         app([*arguments, "--dry-run"])
     assert preview.value.code == 0
@@ -332,9 +332,9 @@ def test_cli_retires_legacy_flat_child_without_touching_nested_copy(capsys, tmp_
     assert repeated.value.code == 0
     result, = json.loads(capsys.readouterr().out)
     assert result["action"] == "unchanged" and result["target"] == str(flat)
-    with pytest.raises(SystemExit, match="select outer parent automata-web-design"):
+    with pytest.raises(SystemExit, match="select outer parent automata-text-writing"):
         app(["skills", "install", "--target-root", str(target),
-             "--skill", "automata-adaptive-ui"])
+             "--skill", "automata-documentation"])
 
 
 def make_skill(path: Path) -> Path:

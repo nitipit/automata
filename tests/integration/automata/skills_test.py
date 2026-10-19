@@ -27,9 +27,6 @@ REQUIRED_SKILLS = {
     "automata-agent-design",
     "automata-model-selection",
     "automata-teamwork-design",
-    "automata-adaptive-ui",
-    "automata-web-design",
-    "automata-web-app",
     "automata-browser-use",
     "automata-line-use",
     "automata-pi-imagegen",
@@ -63,6 +60,9 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-adaptive-ui",
+    "automata-web-design",
+    "automata-web-app",
     "automata-tmux-background",
     "automata-tmux-communication",
     "automata-tmux-observation",
@@ -137,7 +137,7 @@ def test_skill_catalog_has_valid_unique_runtime_names() -> None:
 
 
 def test_pi_skills_share_one_catalog_with_all_skills() -> None:
-    assert len(list(SKILLS_ROOT.rglob("SKILL.md"))) == 38
+    assert len(list(SKILLS_ROOT.rglob("SKILL.md"))) == len(REQUIRED_SKILLS)
     for name in PI_SKILL_NAMES:
         assert (SKILLS_ROOT / name / "SKILL.md").is_file()
         assert not (SKILLS_ROOT / name).is_symlink()
@@ -211,10 +211,10 @@ def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> N
     target = tmp_path / "skills"
     results = install_skills(target_root=target)
     expected = set(SOURCES)
-    assert len(expected) == 38
+    assert len(expected) == len(REQUIRED_SKILLS)
     assert "automata-pi-sessions" in expected
     assert "automata-codex-sessions" not in expected
-    roots = expected - {"automata-adaptive-ui", "automata-web-app", "automata-documentation"}
+    roots = expected - {"automata-documentation"}
     assert {result.name for result in results} == roots
     assert {path.name for path in target.iterdir()} == roots
     assert set(skill_sources(target)) == expected
@@ -225,8 +225,6 @@ def test_selected_skill_installs_only_its_packaged_files(tmp_path: Path, skill_f
     name = parse_frontmatter(skill_file)["name"]
     target = tmp_path / "skills"
     nested_parents = {
-        "automata-adaptive-ui": "automata-web-design",
-        "automata-web-app": "automata-web-design",
         "automata-documentation": "automata-text-writing",
     }
     if name in nested_parents:

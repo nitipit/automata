@@ -36,13 +36,9 @@ def test_export_and_installer_preserve_canonical_identities(tmp_path):
         install_skills(target_root=tmp_path / "installed", skill_names=[name])
         assert snapshot(tmp_path / "installed" / name) == snapshot(package)
     assert len(discover(SKILLS, "automata-workplan", False)) == 1
-    assert len([p for p in discover(SKILLS, None, True) if p.document == "SKILL.md"]) == 44
-    export_agent("automata-adaptive-ui", tmp_path / "adaptive")
-    assert snapshot(tmp_path / "adaptive") == snapshot(
-        SKILLS / "automata-web-design/skills/automata-adaptive-ui"
+    assert len([p for p in discover(SKILLS, None, True) if p.document == "SKILL.md"]) == len(
+        list(SKILLS.rglob("SKILL.md"))
     )
-    assert (tmp_path / "adaptive/scripts/build.py").is_file()
-    assert (tmp_path / "adaptive/lib/package.json").is_file()
     export_agent("automata-documentation", tmp_path / "documentation")
     assert snapshot(tmp_path / "documentation") == snapshot(
         SKILLS / "automata-text-writing/skills/automata-documentation"
