@@ -18,6 +18,11 @@ Write compact, actionable skills. This skill owns design and revision, not insta
    essential defaults, exceptions and stopping rules. Skip familiar explanations
    and repetition; prescribe steps only when order matters for correctness or safety.
 
+   When use depends on non-obvious prerequisites, include a conditional setup path:
+   check existing availability, establish missing prerequisites within authority,
+   and verify readiness. Refer to maintained help/docs for exact commands and APIs;
+   do not duplicate their reference or require setup on every activation.
+
 3. **Improve the right owner.** Read the whole skill; distinguish weak guidance
    from discovery, loading or instruction conflicts. Avoid overlapping skills and
    rules. Keep style with character and runtime details with their owner. Refer to
@@ -28,7 +33,7 @@ Write compact, actionable skills. This skill owns design and revision, not insta
 4. **Keep the core small.** Keep essential rules in `SKILL.md`; load optional detail
    only when needed. Add assets only for a useful purpose; relocating always-read
    prose saves no context. Map tools through `metadata.automata-tools` to installed
-   `.agents/tools/...` paths, not source paths. Installation does not prove readiness.
+   `.agents/tools/...` paths, not source paths.
 
 5. **Keep state separate.** Store mutable data outside the package with its owner;
    separate reusable knowledge from temporary state. Recheck outdated assumptions;
