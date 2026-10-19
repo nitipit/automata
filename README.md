@@ -38,6 +38,7 @@ This README is a quick orientation map; follow the relevant source for details.
 - [Skill design](src/automata/skills/automata-skill-design/SKILL.md): scope, activation and composition.
 - [Setup](src/automata/skills/automata-setup/SKILL.md): asset selection, install modes and readiness.
 - [Communication](src/automata/skills/automata-communication/SKILL.md): receiver, channel and outcome judgment; transport is an external integration.
+- [NodalWire](src/automata/skills/automata-nodalwire/SKILL.md): connect and use trusted-local messaging, with optional Pi integration guidance.
 - [Storage](src/automata/skills/automata-storage/SKILL.md) and [task spaces](src/automata/skills/automata-task-space/SKILL.md): ownership, placement and cleanup.
 - [Testing](tests/README.md): test layout and verification scope.
 

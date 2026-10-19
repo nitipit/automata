@@ -185,6 +185,7 @@ sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
 assert 'automata-team-use' not in sources
 assert (sources['automata-background-process'] / 'SKILL.md').is_file()
+assert (sources['automata-nodalwire'] / 'references/pi.md').is_file()
 assert 'automata-thinking-control' not in sources
 assert 'automata-pi-sessions' in sources
 assert 'automata-web-design' not in sources
@@ -204,7 +205,7 @@ assert not any(name in sys.modules for name in ('engrave', 'mistune', 'playwrigh
 results = install_skills(target_root=work / 'skills')
 assert set(skill_sources(work / 'skills')) == set(sources)
 for name in ('automata-storage', 'automata-pi-context-status',
-             'automata-workplan', 'automata-agent-design'):
+             'automata-workplan', 'automata-agent-design', 'automata-nodalwire'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
 install_skills(target_root=work / 'linked', skill_names=['automata-agent-design'], mode='symlink')
 linked = work / 'linked/automata-agent-design'

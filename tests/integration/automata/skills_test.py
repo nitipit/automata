@@ -55,6 +55,7 @@ REQUIRED_SKILLS = {
     "automata-runtime-environment",
     "automata-python-kernel",
     "automata-background-process",
+    "automata-nodalwire",
     "automata-software-dev",
     "automata-toolsmith",
     "automata-work-pause",
