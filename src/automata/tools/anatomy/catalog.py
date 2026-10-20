@@ -9,6 +9,27 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Stre
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 
 from .content import discover, lookup, render_markdown, url_slug
+from .data import capabilities, tools
+from .data import skills as installed_skills
+
+SETUP_NAMES = {
+    "installed": "Installed",
+    "available": "Available to install",
+    "incomplete": "Incomplete setup",
+    "unknown": "Unknown setup",
+}
+
+
+def installation():
+    rows, warnings = installed_skills()
+    inventory = tools()
+    packages = {row["name"] for row in inventory if row["kind"] == "Tool package"}
+    projection = capabilities(rows, inventory)["items"]
+    for row in projection:
+        for tool in row["tools"]:
+            tool["has_detail"] = tool.get("package") in packages
+    return {row["name"]: row for row in projection}, warnings
+
 
 BUNDLES = {
     "prism.js": "db64933eccbb6f8edb10f1d0e0a94c1d5d4889fbc1c3705096a17dad9ffef8a2",
@@ -82,11 +103,21 @@ def register_catalog(app, skills: Path, templates: Path, subscribers: set):
             pages = discover(skills, None, True)
             if path in ("templates/index.html", "skills"):
                 return RedirectResponse("/skills/", status_code=307)
+            if path in ("tools", "activity"):
+                return RedirectResponse(f"/{path}/", status_code=307)
             if path == "skills/":
+                setup, warnings = installation()
+                canonical_names = {p.skill for p in pages if p.document == "SKILL.md"}
                 return render(
                     "skills/catalog.html",
+                    installed_only=[
+                        row for name, row in setup.items() if name not in canonical_names
+                    ],
                     title="Skills",
                     landings=[p for p in pages if p.document == "SKILL.md"],
+                    installation=setup,
+                    setup_names=SETUP_NAMES,
+                    warnings=warnings,
                 )
             page = None
             if path == "templates/skill.html":
@@ -105,14 +136,40 @@ def register_catalog(app, skills: Path, templates: Path, subscribers: set):
                     ),
                     None,
                 )
+            # Flat landing pages use the exact discovered skill name, not a filesystem path.
+            flat = next(
+                (
+                    p
+                    for p in pages
+                    if p.document == "SKILL.md"
+                    and path
+                    in (f"skills/{p.skill}/", f"skills/{p.skill}/index.html", f"skills/{p.skill}")
+                ),
+                None,
+            )
+            if flat is not None:
+                if path != f"skills/{flat.skill}/":
+                    return RedirectResponse(f"/skills/{flat.skill}/", status_code=307)
+                page = flat
             if page is not None:
                 safe_file(page.source, lookup(pages, page.skill).source.parent)
+                if page.document == "SKILL.md" and flat is None:
+                    return RedirectResponse(f"/skills/{page.skill}/", status_code=307)
+                setup, warnings = installation()
                 return render(
                     "skills/skill.html",
                     skill=page.skill,
                     title=page.title,
                     document=page.document,
-                    navigation=[(p.url, p.title) for p in pages if p.skill == page.skill],
+                    navigation=[
+                        (f"/skills/{p.skill}/" if p.document == "SKILL.md" else p.url, p.title)
+                        for p in pages
+                        if p.skill == page.skill
+                    ],
+                    landing=lookup(pages, page.skill),
+                    installation=setup.get(page.skill),
+                    setup_names=SETUP_NAMES,
+                    warnings=warnings,
                     raw_source=page.source.read_text(encoding="utf-8"),
                     reference_html=render_markdown(page) if page.document != "SKILL.md" else "",
                 )

@@ -33,36 +33,55 @@ class CatalogPage extends ReferencePage {
   }
 
   #search;
-  #onInput = () => this.#filter();
+  #setup;
+  #onInput = () => this.#filter(true);
   #onClear = () => {
     this.#search.value = '';
-    this.#filter();
+    this.#filter(true);
     this.#search.focus();
   };
 
   connectedCallback() {
     super.connectedCallback();
     this.#search = this.querySelector('#skill-search');
+    this.#setup = this.querySelector('#setup-filter');
+    const params = new URLSearchParams(location.search);
+    // A fast native input before module upgrade must not be overwritten.
+    const edited = this.#search.value !== this.#search.defaultValue;
+    if (!edited) this.#search.value = (params.get('query') || '').slice(0, 256);
+    const setup = params.get('setup');
+    if (this.#setup.value === 'all') this.#setup.value = ['installed','available','incomplete','unknown'].includes(setup) ? setup : 'all';
     this.#search.addEventListener('input', this.#onInput);
+    this.#setup.addEventListener('change', this.#onInput);
     this.querySelector('#clear-search').addEventListener('click', this.#onClear);
-    this.#filter();
+    this.#filter(edited);
+    this.dataset.ready = 'true';
   }
 
-  #filter() {
+  #filter(persist = false) {
     const query = this.#search.value.trim().toLocaleLowerCase();
     let shown = 0;
     for (const card of this.querySelectorAll('.skill-card')) {
       const text = `${card.dataset.name} ${card.querySelector('h2').textContent} ${card.querySelector('.skill-description').textContent}`;
-      card.hidden = !text.toLocaleLowerCase().includes(query);
+      card.hidden = !text.toLocaleLowerCase().includes(query) || (this.#setup.value !== 'all' && card.dataset.setup !== this.#setup.value);
       if (!card.hidden) shown++;
     }
     this.querySelector('#search-count').textContent = `${shown} skill${shown === 1 ? '' : 's'} shown`;
     this.querySelector('#clear-search').hidden = !query;
     this.querySelector('#search-empty').hidden = shown !== 0;
+    if (persist) {
+      const params = new URLSearchParams();
+      if (query) params.set('query', query);
+      if (this.#setup.value !== 'all') params.set('setup', this.#setup.value);
+      history.replaceState(null, '', location.pathname + (params.size ? '?' + params : ''));
+      try { sessionStorage.setItem('anatomy-query-skills', params); } catch { /* URL remains usable. */ }
+      document.dispatchEvent(new Event('anatomy-query-change'));
+    }
   }
 
   disconnectedCallback() {
     this.#search?.removeEventListener('input', this.#onInput);
+    this.#setup?.removeEventListener('change', this.#onInput);
     this.querySelector('#clear-search')?.removeEventListener('click', this.#onClear);
     super.disconnectedCallback();
   }

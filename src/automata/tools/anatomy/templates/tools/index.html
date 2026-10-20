@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block scripts %}
+<script type="module" src="/automata/index.css.js"></script>
+<script type="module" src="/tools/inventory.js"></script>
+{% endblock %}
+{% block content %}
+<section aria-labelledby="tools-heading">
+  <p class="eyebrow">ON-DISK INVENTORY</p><h1 id="tools-heading">Tools</h1>
+  <p class="muted">Tool packages and Pi extensions, grouped by kind and name. Installed files do not establish runtime exposure, authentication or connection readiness.</p>
+  <div class="controls">
+    <label>Search tools <input id="tool-search" type="search" autocomplete="off" placeholder="Name or kind"></label>
+    <label>Setup <select id="tool-setup"><option value="all">All</option><option value="installed">Installed</option><option value="available">Available to install</option></select></label>
+  </div>
+  <p id="tool-count" role="status">{{ tools|length }} tools shown</p>
+  <div class="table-wrap"><table class="inventory-table"><thead><tr><th scope="col">Tool</th><th scope="col">Kind</th><th scope="col">Setup</th><th scope="col">Sources</th></tr></thead><tbody>
+  {% for tool in tools %}<tr data-tool data-name="{{ tool.name }} {{ tool.kind }}" data-setup="{{ tool.status }}">
+    <td><a href="/tools/{{ tool.identifier|urlencode }}/">{{ tool.name }}</a></td><td>{{ tool.kind }}</td><td>{{ 'Installed' if tool.status == 'installed' else 'Available to install' }}</td>
+    <td>{% for copy in tool.copies %}<p>{{ copy.scope }}: <code>{{ copy.source }}</code></p>{% endfor %}</td>
+  </tr>{% endfor %}
+  </tbody></table></div>
+  <p id="tools-empty" hidden>No tools match your filters.</p>
+</section>
+{% endblock %}

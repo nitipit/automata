@@ -84,11 +84,11 @@ def test_catalog_sources_references_and_sse(site):
                 ("automata-workplan", "Automata Workplan"),
             ]:
                 page.goto(url + "/skills/")
-                assert page.locator(".skill-card").count() == 44
+                assert page.locator(".skill-card").count() == len(list(root.rglob("SKILL.md")))
                 link = page.get_by_role("link", name=title, exact=True)
-                expect(link).to_have_attribute("href", f"/{slug}/")
+                expect(link).to_have_attribute("href", f"/skills/{slug}/")
                 link.click()
-                expect(page.locator("article h1")).to_have_text("SKILL.md")
+                expect(page.locator("article h2")).to_have_text("SKILL.md")
                 raw = page.locator("article code-example code")
                 source_name = slug if slug.startswith("automata-") else f"automata-{slug}"
                 source = (root / f"{source_name}/SKILL.md").read_text()
@@ -97,7 +97,7 @@ def test_catalog_sources_references_and_sse(site):
                 assert source.startswith("---\n")
                 assert_line_numbers(raw, source)
                 if slug == "automata-workplan":
-                    expect(page.locator(".skill-content nav a")).to_have_count(1)
+                    expect(page.locator('nav[aria-label="Skill references"] a')).to_have_count(1)
             page.goto(url + "/automata-workplan/")
             # The page must reload itself: no page.reload/goto after this source edit.
             page.evaluate("window.__beforeSourceEdit = true")

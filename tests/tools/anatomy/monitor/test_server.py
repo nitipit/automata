@@ -107,7 +107,10 @@ def test_template_sources_and_retired_spa_are_private(client, path):
 @pytest.mark.parametrize(
     "path,title",
     [
-        ("/automata/index.html", "Automata"),
+        ("/", "Overview"),
+        ("/activity/", "Activity"),
+        ("/skills/", "Skills"),
+        ("/tools/", "Tools"),
     ],
 )
 def test_rendered_documents_not_template_sources(client, path, title):
@@ -120,11 +123,24 @@ def test_rendered_documents_not_template_sources(client, path, title):
     assert "unsafe-eval" not in response.headers["content-security-policy"]
     assert 'type="module"' in response.text
     assert 'href="/skills/"' in response.text
-    assert "Skill catalog</a>" in response.text
+    assert "Skills</a>" in response.text
+    assert "Tools</a>" in response.text
+    assert "Activity</a>" in response.text
 
 
 def test_document_aliases(client):
-    for source, target in [("/", "/automata/index.html"), ("/automata/", "/automata/index.html")]:
+    for source, target in [
+        ("/automata/", "/"),
+        ("/automata/index.html", "/"),
+        (
+            "/automata/index.html?tab=capabilities&query=design&setup=installed",
+            "/skills/?query=design&setup=installed",
+        ),
+        (
+            "/automata/index.html?tab=statistics&range=24h&timezone=UTC&paused=1&evil=x",
+            "/activity/?range=24h&timezone=UTC&paused=1",
+        ),
+    ]:
         response = client.get(source, follow_redirects=False)
         assert response.status_code == 302
         assert response.headers["location"] == target

@@ -12,10 +12,10 @@
 <a class="skip-link" href="#content">Skip to content</a>
 <main>
   <header class="page-head">
-    <a class="brand" href="/automata/index.html">AUTOMATA <span>/ ANATOMY</span></a>
+    <a class="brand" href="/">Automata <span>Anatomy</span></a>
     <label>Appearance <select id="theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
   </header>
-  <anatomy-nav><nav aria-label="Anatomy"><a data-monitor-link href="/automata/index.html" {% if section == 'automata' %}aria-current="page"{% endif %}>Automata</a><a href="/skills/" {% if section == 'skills' %}aria-current="page"{% endif %}>Skill catalog</a></nav></anatomy-nav>
+  <anatomy-nav><nav aria-label="Anatomy">{% for key, path, label in [('overview', '/', 'Overview'), ('skills', '/skills/', 'Skills'), ('tools', '/tools/', 'Tools'), ('activity', '/activity/', 'Activity')] %}<a data-section="{{ key }}" href="{{ path }}" {% if section == key %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</nav></anatomy-nav>
   <div id="content" tabindex="-1">{% block content %}{% endblock %}</div>
   <footer class="small muted">Local, read-only Anatomy · Guide examples are illustrative text, never executed here.</footer>
 </main>

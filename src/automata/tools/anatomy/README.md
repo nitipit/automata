@@ -19,7 +19,8 @@ automata-anatomy --port 8766
 PYTHONPATH=src python -B -m automata.tools.anatomy.cli serve --port 8766
 ```
 
-Open `http://127.0.0.1:8766/` for the monitor, or `/skills/` for the catalog. Run
+Open `http://127.0.0.1:8766/` for Overview. Shared top navigation leads to
+`/skills/`, `/tools/` and `/activity/`. Run
 from the project to monitor: project roots and activity scope follow the invocation
 CWD; canonical bundled inventories come from the Automata package, not a guessed
 checkout path. No service is detached automatically. Ctrl+C/SIGTERM stops it.
@@ -63,10 +64,17 @@ No installed-copy or old dashboard-cache migration happens automatically.
 
 ## Documents and safe public boundary
 
-- `/` and `/automata/` redirect to `/automata/index.html` (monitor).
+- `/` shows identity and a setup summary; `/activity/` shows recorded-load statistics.
+- `/skills/` lists recursively discovered canonical skills, search and installation status.
+- `/skills/automata-workplan/` displays exact `SKILL.md` source, installation evidence
+  and a Skills breadcrumb. Legacy `/automata-workplan/` (also `index.html`) redirects here.
+- `/tools/` lists tool packages and Pi extensions with installation sources. Detail
+  identifiers distinguish kinds: `/tools/package--anatomy/` and
+  `/tools/extension--NAME/`. Installed means files on disk, not runtime readiness.
+- `/automata/` and `/automata/index.html` redirect to the equivalent new section:
+  legacy identity → `/`, capabilities → `/skills/`, statistics → `/activity/`,
+  retaining allowlisted section filters.
 - `/api/anatomy` retains the read-only aggregate monitoring contract.
-- `/skills/` lists all 44 recursively discovered canonical skills and search.
-- `/automata-workplan/` (also `index.html`) displays exact `SKILL.md` source.
 - Discovered references, such as
   `/automata-agent-evaluation/references/scoring.html`, render Markdown.
 - `/skills/NAME/SKILL.md` returns exact canonical raw source for discovered names.
@@ -100,16 +108,18 @@ stay outside public assets.
 
 ## Navigation, state and live authoring
 
-The shared shell links monitor and catalog; appearance preference uses the single
+The shared shell uses Overview, Skills, Tools and Activity with an active section,
+including on detail pages. Detail pages have breadcrumbs; search and filters are
+local to their catalogs. There is no sidebar. Appearance preference uses the single
 `anatomy-theme` key. Monitor navigation is a full-document load, preserving timer
 and request ownership. Skill-to-skill links have progressive fetch/swap enhancement
 with native View Transitions and normal-navigation fallback. Modified clicks and
 Back/Forward remain available. Reduced motion skips transitions.
 
-Monitor state (tab, search/setup/selection, range/timezone/skill/chart limit,
-custom dates and pause) stays in validated URL parameters. The navigation remembers
-only allowlisted monitor query parameters in sessionStorage, never snapshots or
-arbitrary destinations. Browser history works without storage. Returning obtains
+Catalog search/setup filters, Activity range/timezone/skill/chart limit/custom
+dates, and monitor pause stay in URL parameters. Navigation remembers only
+allowlisted per-section query parameters in sessionStorage, never snapshots or
+arbitrary destinations. Explicit section URLs take priority over remembered state. Browser history works without storage. Returning obtains
 one initial snapshot even when paused but does not re-enable periodic polling.
 Unload stops timers and aborts pending fetches; skill pages mount no monitor and
 make no monitoring API requests. Back-forward cache restoration establishes a fresh
@@ -125,8 +135,8 @@ watcher cancels at shutdown; browser EventSources close at page unload.
 
 ## Monitoring data/time contracts
 
-Monitoring retains 5-second polling, pause/manual refresh, DST-aware charts,
-keyboard tabs and last-good failure recovery. Identity shows global Pi AGENTS.md
+Overview and Activity retain 5-second polling, pause/manual refresh, DST-aware charts
+and last-good failure recovery. Catalogs and detail pages mount no monitor lifecycle. Identity shows global Pi AGENTS.md
 as escaped read-only text without following its referenced files. On-disk files
 prove neither live session context nor authentication/readiness. Capabilities link
 tools only through explicit `metadata.automata-tools` declarations.

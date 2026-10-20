@@ -7,7 +7,8 @@
       <p class="eyebrow">THE SKILL LIBRARY</p>
       <h1 id="catalog-title">Automata skills</h1>
       <p class="catalog-description">Canonical instructions for agents, readable by people.
-        Explore the source and follow references when you need more detail.</p>
+        Explore the source and follow references when you need more detail. Setup reports installed files, not runtime readiness.</p>
+      {% for warning in warnings %}<p>{{ warning }}</p>{% endfor %}
       <span class="catalog-count">{{ landings|length }} skill{% if landings|length != 1 %}s{% endif %} in the library</span>
     </section>
     <div class="catalog-search">
@@ -16,18 +17,32 @@
         <input id="skill-search" type="search" autocomplete="off" aria-controls="skill-grid" placeholder="Name or description">
         <button id="clear-search" type="button" hidden>Clear search</button>
       </div>
-      <p id="search-count" role="status" aria-live="polite">{{ landings|length }} skill{% if landings|length != 1 %}s{% endif %} shown</p>
+      <label for="setup-filter">Setup</label>
+      <select id="setup-filter"><option value="all">All</option>{% for key, label in setup_names.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select>
+      <p id="search-count" role="status" aria-live="polite">{{ landings|length + installed_only|length }} skills shown</p>
     </div>
     <p id="search-empty" hidden>No skills match your search.</p>
     <ul class="skill-grid" id="skill-grid" aria-label="Skills">
       {% for item in landings %}
-      <li class="skill-card" data-name="{{ item.skill }}">
-        <a class="skill-link" href="{{ item.url }}" aria-label="{{ item.title }}">
-          <span class="skill-kind">SKILL.md</span>
+      {% set setup = installation.get(item.skill) %}
+      <li class="skill-card" data-name="{{ item.skill }}" data-setup="{{ setup.status if setup else 'unknown' }}">
+        <a class="skill-link" href="/skills/{{ item.skill }}/" aria-label="{{ item.title }}">
+          <span class="skill-kind">SKILL.md · {{ setup_names.get(setup.status, 'Unknown setup') if setup else 'Unknown setup' }}</span>
           <h2>{{ item.title }}</h2>
           <p class="skill-description">{{ item.description }}</p>
           <span class="skill-action">Open skill <span aria-hidden="true">↗</span></span>
         </a>
+      </li>
+      {% endfor %}
+      {% for item in installed_only %}
+      <li class="skill-card" data-name="{{ item.name }}" data-setup="{{ item.status }}">
+        <div class="skill-link">
+          <span class="skill-kind">INSTALLED-ONLY · {{ setup_names.get(item.status, 'Unknown setup') }}</span>
+          <h2>{{ item.name }}</h2><p class="skill-description">{{ item.description }}</p>
+          <p>Not in the canonical library; source is not published by this viewer.</p>
+          <details><summary>Installation evidence</summary><ul>{% for copy in item.copies %}<li>{{ copy.scope }}: <code>{{ copy.source }}</code>{% if copy.modified %} · Modified {{ copy.modified }}{% endif %}</li>{% endfor %}</ul>
+          {% for tool in item.tools %}<p><code>{{ tool.declaration }}</code> — entry {{ tool.status }}</p><ul>{% for source in tool.sources %}<li>{{ source.scope }}: <code>{{ source.source }}</code></li>{% endfor %}</ul>{% endfor %}</details>
+        </div>
       </li>
       {% endfor %}
     </ul>

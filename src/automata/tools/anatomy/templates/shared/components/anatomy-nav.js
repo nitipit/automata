@@ -14,13 +14,22 @@ AnatomyNav.define('anatomy-nav');
 const picker = document.getElementById('theme');
 picker.value = initializeTheme();
 picker.addEventListener('change', () => setTheme(picker.value));
-// A return link transports only the validated monitor query, not arbitrary URLs.
-try {
-  const query = sessionStorage.getItem('anatomy-monitor-query');
-  if (query && query.length < 4096) {
-    const params = new URLSearchParams(query);
-    const allowed = ['tab','query','setup','selected','range','timezone','skill','limit','paused','start','end'];
-    const safe = new URLSearchParams([...params].filter(([key]) => allowed.includes(key)));
-    for (const link of document.querySelectorAll('[data-monitor-link]')) link.href = '/automata/index.html?' + safe;
-  }
-} catch { /* Disabled storage: browser history still retains the monitor URL. */ }
+// Remember only section-local allowlisted queries, never arbitrary return URLs.
+const contracts = {
+  overview: ['paused'], skills: ['query','setup'], tools: ['query','setup'],
+  activity: ['range','timezone','skill','limit','paused','start','end'],
+};
+function restoreQueries() {
+  try {
+    for (const link of document.querySelectorAll('anatomy-nav [data-section]')) {
+      const section = link.dataset.section;
+      // Current URL wins; detail pages can return to the remembered catalog query.
+      const query = link.pathname === location.pathname ? location.search : sessionStorage.getItem(`anatomy-query-${section}`);
+      if (query?.length >= 4096) continue;
+      const safe = new URLSearchParams([...new URLSearchParams(query || '')].filter(([key]) => contracts[section].includes(key)));
+      link.search = safe.toString();
+    }
+  } catch { /* Disabled storage: browser history still retains section URLs. */ }
+}
+restoreQueries();
+document.addEventListener('anatomy-query-change', restoreQueries);

@@ -105,7 +105,8 @@ def test_public_routes_and_allowed_roots(tmp_path):
             response = browser.get(path)
             assert response.status_code == 200, path
             assert "{% extends" not in response.text
-            assert "data-monitor-link" in response.text
+            assert 'data-section="overview"' in response.text
+            assert 'data-section="skills"' in response.text
             assert response.headers["content-security-policy"].startswith("default-src 'self'")
         for path in [
             "/server.py",

@@ -38,9 +38,9 @@ def test_catalog_search_and_navigation(site):
             expect(cards.first).to_contain_text("Automata Agent Evaluation")
             search.fill("automata-agent-evaluation")  # Directory name is searchable too.
             expect(cards).to_have_count(1)
-            search.fill("aggregate progress")  # Match displayed description, not the title.
+            search.fill("working hypothesis")  # Match displayed description, not the title.
             expect(cards).to_have_count(1)
-            expect(cards.first).to_contain_text("Automata Team Management")
+            expect(cards.first).to_contain_text("Automata Workplan")
             page.locator("catalog-page").evaluate("""el => {
               const parent = el.parentNode;
               el.remove(); parent.append(el);
@@ -56,22 +56,26 @@ def test_catalog_search_and_navigation(site):
             expect(search).to_have_value("")
             expect(cards).to_have_count(expected_count)
             expect(page.get_by_role("button", name="Clear search")).to_be_hidden()
-            search.press("Tab")
+            search.press("Tab")  # Setup filter follows search in the section.
+            page.keyboard.press("Tab")
             first_link = page.get_by_role("link", name="Automata Adaptive UI", exact=True)
             expect(first_link).to_be_focused()
             page.get_by_role("link", name="Automata Agent Evaluation", exact=True).click()
-            expect(page).to_have_url(url + "/automata-agent-evaluation/")
+            expect(page).to_have_url(url + "/skills/automata-agent-evaluation/")
             page.locator('nav a[href="/automata-agent-evaluation/references/scoring.html"]').click()
             expect(page).to_have_url(url + "/automata-agent-evaluation/references/scoring.html")
-            page.get_by_role("link", name="Skill catalog", exact=True).click()
+            page.get_by_role("navigation", name="Anatomy", exact=True).get_by_role(
+                "link", name="Skills", exact=True
+            ).click()
             expect(page).to_have_url(catalog)
             search.fill("Automata Workplan")
             expect(cards).to_have_count(1)
             page.get_by_role("link", name="Automata Workplan", exact=True).click()
-            expect(page).to_have_url(url + "/automata-workplan/")
+            expect(page).to_have_url(url + "/skills/automata-workplan/")
             page.evaluate("history.back()")
-            expect(page).to_have_url(catalog)
-            expect(cards).to_have_count(expected_count)  # A new catalog has no stale search state.
+            expect(page).to_have_url(catalog + "?query=automata+workplan")
+            expect(cards).to_have_count(1)  # Back restores the catalog's local search.
+            page.get_by_role("button", name="Clear search").click()
             # Exercise fetch-and-swap when the legacy URL is reached through an internal link.
             page.locator(".brand").evaluate("el => el.href = '/templates/index.html'")
             page.locator(".brand").click()
@@ -82,7 +86,7 @@ def test_catalog_search_and_navigation(site):
             no_js.goto(catalog)
             expect(no_js.locator(".skill-card")).to_have_count(expected_count)
             expect(no_js.get_by_role("link", name="Automata Workplan")).to_have_attribute(
-                "href", "/automata-workplan/"
+                "href", "/skills/automata-workplan/"
             )
         finally:
             browser.close()

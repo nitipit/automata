@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block scripts %}<script type="module" src="/automata/index.css.js"></script>{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><a href="/tools/">Tools</a> → <span aria-current="page">{{ tool.name }}</span></nav>
+<h1>{{ tool.name }}</h1>
+<p>{{ tool.kind }} · {{ 'Installed' if tool.status == 'installed' else 'Available to install' }}</p>
+<p class="muted">Runtime readiness: not checked. Inventory records files on disk, not live callable tools, authentication or connections.</p>
+<aui-card padding="lg"><h2>Installation sources</h2><ul>{% for copy in tool.copies %}<li>{{ copy.scope }}: <code>{{ copy.source }}</code></li>{% endfor %}</ul></aui-card>
+<h2>Declared skill relationships</h2>
+<p class="muted">Only explicit skill metadata establishes a relationship; similar names are not evidence.</p>
+{% for skill in related %}
+<section><h3>{% if skill.canonical %}<a href="/skills/{{ skill.name }}/">{{ skill.name }}</a>{% else %}{{ skill.name }}{% endif %}</h3><p>{{ skill.description }}</p>
+<ul>{% for declaration in skill.declarations %}<li><code>{{ declaration.declaration }}</code> — entry {{ declaration.status }}{% for source in declaration.sources %}<p>{{ source.scope }}: <code>{{ source.source }}</code></p>{% endfor %}</li>{% endfor %}</ul></section>
+{% else %}<p>No explicit skill relationship is recorded for this {{ tool.kind|lower }}.</p>{% endfor %}
+{% for warning in warnings %}<p class="warning">{{ warning }}</p>{% endfor %}
+{% endblock %}

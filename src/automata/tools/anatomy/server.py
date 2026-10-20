@@ -5,14 +5,14 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from watchfiles import awatch
 
 from .catalog import register_catalog
 from .content import SKILLS
 from .data import ROOT
-from .routes import automata
+from .routes import automata, tools
 
 SITE = ROOT / ".agents/var/tools/automata-anatomy/public"
 TEMPLATES = automata.TEMPLATES
@@ -23,6 +23,7 @@ PUBLIC_ASSETS = (
     "automata/components/monitor.js",
     "automata/components/monitor-state.js",
     "automata/components/activity-chart.js",
+    "tools/inventory.js",
 )
 
 
@@ -53,6 +54,7 @@ def create_app(*, skills_root=SKILLS, templates_root=TEMPLATES, site_root=SITE, 
         title="Automata Anatomy", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None
     )
     app.state.port = port
+    app.state.skills_root = skills
     app.state.subscribers = subscribers
 
     @app.middleware("http")
@@ -70,12 +72,8 @@ def create_app(*, skills_root=SKILLS, templates_root=TEMPLATES, site_root=SITE, 
         )
         return response
 
-    @app.get("/")
-    @app.get("/automata/")
-    def index():
-        return RedirectResponse("/automata/index.html", status_code=302)
-
     app.include_router(automata.router)
+    app.include_router(tools.router)
 
     def register_asset(url, path, owner):
         def serve_asset():

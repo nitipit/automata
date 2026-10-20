@@ -2,10 +2,22 @@
 {% block body %}
 <skill-page>
   <div class="skill-content">
+    <nav aria-label="Breadcrumb"><a href="/skills/">Skills</a> → {% if document != 'SKILL.md' %}<a href="/skills/{{ skill }}/">{{ landing.title }}</a> → <span aria-current="page">{{ title }}</span>{% else %}<span aria-current="page">{{ landing.title }}</span>{% endif %}</nav>
+    <h1>{{ landing.title }}</h1>
+    <p>Setup: {{ setup_names.get(installation.status, 'Unknown setup') if installation else 'Unknown setup' }} · Runtime readiness: not checked.</p>
+    {% if installation %}
+    <details><summary>Installation sources and declared tools</summary>
+      <ul>{% for copy in installation.copies %}<li>{{ copy.scope }}: <code>{{ copy.source }}</code>{% if copy.modified %} · Modified {{ copy.modified }}{% endif %}</li>{% endfor %}</ul>
+      {% for tool in installation.tools %}<p>{% if tool.has_detail %}<a href="/tools/package--{{ tool.package|urlencode }}/"><code>{{ tool.declaration }}</code></a>{% else %}<code>{{ tool.declaration }}</code>{% endif %} — entry {{ tool.status }}</p>
+      <ul>{% for source in tool.sources %}<li>{{ source.scope }}: <code>{{ source.source }}</code></li>{% endfor %}</ul>
+      {% else %}<p>No separate tool declared.</p>{% endfor %}
+    </details>
+    {% endif %}
+    <p><a href="/skills/{{ skill }}/SKILL.md">Raw SKILL.md</a></p>
     <nav aria-label="Skill references">{% for path, label in navigation %}<a href="{{ path }}" {% if label == title %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</nav>
     <article class="lesson" tabindex="-1" data-source="/skills/{{ skill }}/{{ document }}">
       {% if document == 'SKILL.md' %}
-      <h1>SKILL.md</h1>
+      <h2>SKILL.md</h2>
       <p>Complete canonical skill source. References, when present, are rendered as Markdown.</p>
       <code-example><pre tabindex="0"><code class="language-markdown">{{ raw_source }}</code></pre></code-example>
       {% else %}{{ reference_html | safe }}{% endif %}

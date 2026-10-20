@@ -2,9 +2,10 @@
 
 from pathlib import Path
 from threading import Lock
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from ..activity import make_window
 from ..data import snapshot
@@ -15,13 +16,30 @@ router = APIRouter()
 snapshot_lock = Lock()
 
 
-@router.get("/automata/index.html")
+@router.get("/")
+@router.get("/activity/")
 def index(request: Request):
+    section = "activity" if request.url.path == "/activity/" else "overview"
     return request.app.state.templates.TemplateResponse(
         request=request,
         name="automata/index.html",
-        context={"section": "automata", "title": "Automata"},
+        context={"section": section, "title": "Activity" if section == "activity" else "Overview"},
     )
+
+
+@router.get("/automata/")
+@router.get("/automata/index.html")
+def legacy_monitor(request: Request):
+    params = dict(request.query_params)
+    tab = params.pop("tab", "identity")
+    target = {"identity": "/", "capabilities": "/skills/", "statistics": "/activity/"}.get(tab, "/")
+    allowed = (
+        {"query", "setup"}
+        if target == "/skills/"
+        else {"range", "timezone", "skill", "limit", "paused", "start", "end"}
+    )
+    query = urlencode({key: value for key, value in params.items() if key in allowed})
+    return RedirectResponse(target + ("?" + query if query else ""), status_code=302)
 
 
 @router.get("/api/anatomy")

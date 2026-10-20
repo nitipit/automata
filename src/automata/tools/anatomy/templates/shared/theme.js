@@ -107,6 +107,13 @@ input[type=search] {width:min(22rem,100%);} input[type=checkbox] {min-height:aut
 #identity-body {padding:1rem;background:var(--anatomy-bg);color:var(--anatomy-text);border:1px solid var(--anatomy-border);border-radius:.35rem;max-height:55vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:.8rem/1.6 ui-monospace,monospace;}
 .capability-layout {display:grid;grid-template-columns:minmax(0,1.2fr) minmax(15rem,.8fr);gap:1rem;align-items:start;}
 .table-wrap {min-width:0;overflow-x:auto;}
+.table-wrap table {width:100%;border-collapse:collapse;font-size:.9rem;}
+.table-wrap th,.table-wrap td {text-align:left;vertical-align:top;padding:.65rem .5rem;border-bottom:1px solid var(--anatomy-border);}
+.table-wrap th {color:var(--anatomy-muted);font-weight:600;}
+.table-wrap .inventory-table {min-width:44rem;}
+.table-wrap td:first-child {min-width:9rem;}
+nav[aria-label=Breadcrumb] {display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0;}
+#content>h1 {margin-top:1rem;}
 .detail-panel {border:1px solid var(--anatomy-border);background:var(--anatomy-surface-raised);border-radius:.4rem;padding:1rem;min-width:0;overflow-wrap:anywhere;}
 .detail-panel h3 {margin-bottom:.3rem;} .detail-panel ul {padding-left:1.25rem;}
 .detail-panel li {margin:.4rem 0;} .detail-panel code {font-size:.78rem;}

@@ -25,10 +25,12 @@ test('document lifecycle aborts requests and clears timers', () => {
   const source = readFileSync('src/automata/tools/anatomy/templates/automata/components/monitor.js', 'utf8');
   assert.match(source, /pagehide/); assert.match(source, /clearInterval\(polling\)/);
   assert.match(source, /lifetime\.abort\(\)/); assert.match(source, /if \(disposed\) return/);
-  assert.match(source, /\$\('auto'\)\.checked = !restored.paused/);
+  assert.match(source, /\$\('auto'\)\.checked = !state.paused/);
 });
 test('no SPA routing in document navigation', () => {
   const source = readFileSync('src/automata/tools/anatomy/templates/shared/components/anatomy-nav.js', 'utf8');
   assert.doesNotMatch(source, /hashchange|preventDefault|fetch\(/);
-  assert.match(source, /\/automata\/index.html\?/);
+  assert.match(source, /link.search = safe.toString\(\)/);
+  assert.match(source, /contracts\[section\]\.includes\(key\)/);
+  assert.doesNotMatch(source, /data-monitor-link|anatomy-monitor-query/);
 });

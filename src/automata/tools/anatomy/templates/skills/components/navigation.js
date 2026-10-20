@@ -32,11 +32,11 @@ async function navigate(url, { pop = false } = {}) {
       if (controller.signal.aborted || epoch !== generation) return;
       const current = document.querySelector(selector);
       if (!current) throw new Error('No current page');
-      current.replaceWith(document.importNode(page, true));
-      document.title = next.title;
       if (pop) {
         if (location.href !== finalUrl.href) history.replaceState(null, '', finalUrl.href);
       } else history.pushState(null, '', finalUrl.href);
+      current.replaceWith(document.importNode(page, true));
+      document.title = next.title;
       const hash = finalUrl.hash;
       const target = hash ? document.getElementById(decodeURIComponent(hash.slice(1))) : null;
       if (target) target.scrollIntoView();
@@ -70,7 +70,7 @@ document.addEventListener('click', event => {
   if (url.origin !== location.origin || !['http:', 'https:'].includes(url.protocol)) return;
   if (url.pathname === location.pathname && url.search === location.search) return;
   // Host navigation always owns a full-document lifecycle (including monitor timers).
-  if (anchor.closest('anatomy-nav') || url.pathname.startsWith('/automata/')) return;
+  if (anchor.closest('anatomy-nav') || url.pathname === '/' || url.pathname.startsWith('/automata/') || url.pathname.startsWith('/tools/') || url.pathname === '/activity/') return;
   // Leave raw sources, downloads, licenses and arbitrary URLs to the browser.
   if (!(url.pathname.endsWith('/') || url.pathname.endsWith('.html'))) return;
   event.preventDefault();
