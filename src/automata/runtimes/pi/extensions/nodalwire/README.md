@@ -58,10 +58,16 @@ extension while disconnected does not import the native client or create sockets
 Commands:
 
 ```text
-/nodalwire connect cowork-automata tcp://127.0.0.1:5555
+/nodalwire connect --name cowork-automata tcp://127.0.0.1:5555
 /nodalwire status
 /nodalwire disconnect
 ```
+
+The name is required via `--name`. The optional positional endpoint may appear
+before or after that option; omitting it uses `tcp://127.0.0.1:5555`. For example,
+`/nodalwire connect tcp://127.0.0.1:5555 --name cowork-automata` is equivalent.
+Missing/duplicate names, unknown flags and multiple endpoints are rejected without
+changing the current connection. The former positional-name syntax is not supported.
 
 A failed startup connection leaves Pi usable and disconnected. Retry explicitly
 with the command; there is no automatic reconnect, retry or replay. The command
@@ -133,7 +139,7 @@ file-access or delegation authority. Only connect trusted local participants.
 
 ## Verification
 
-The normal pytest wrapper runs seven native Node tests with a fake transport:
+The normal pytest wrapper runs native Node tests with a fake transport:
 
 ```sh
 uv run --group dev pytest tests/integration/automata/extensions/nodalwire_test.py -q

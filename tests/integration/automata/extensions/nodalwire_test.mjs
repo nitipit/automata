@@ -31,7 +31,7 @@ function fixture({ name, connect } = {}) {
   const node = client();
   const handlers = new Map(), commands = new Map(), flags = new Map();
   const messages = [], notices = [], statuses = [], tools = [];
-  let attempts = 0;
+  const connections = [];
   const pi = {
     on(event, fn) { handlers.set(event, fn); },
     registerFlag(key, value) { flags.set(key, key === "nodalwire-name" ? name : value.default); },
@@ -43,10 +43,10 @@ function fixture({ name, connect } = {}) {
   const ctx = { hasUI: true, ui: {
     notify(...args) { notices.push(args); }, setStatus(...args) { statuses.push(args); },
   } };
-  registerNodalWire(pi, async (...args) => { attempts++; return connect ? connect(...args) : node; });
+  registerNodalWire(pi, async (...args) => { connections.push(args); return connect ? connect(...args) : node; });
   return {
-    node, pi, ctx, messages, notices, statuses, flags,
-    attempts: () => attempts,
+    node, pi, ctx, messages, notices, statuses, flags, connections,
+    attempts: () => connections.length,
     emit(event) { return handlers.get(event)?.({}, ctx); },
     command(args) { return commands.get("nodalwire").handler(args, ctx); },
     send(destination, text, signal) { return tools[0].execute("call-1", { destination, text }, signal); },
@@ -136,10 +136,10 @@ test("commands, failed connection, and explicit disconnect while awaiting receiv
   const f = fixture();
   await f.command("status");
   assert.deepEqual(f.notices.at(-1), ["Disconnected", "info"]);
-  await f.command("connect pi-test tcp://127.0.0.1:7777");
+  await f.command("connect --name pi-test tcp://127.0.0.1:7777");
   await f.command("status");
   assert.match(f.notices.at(-1)[0], /pi-test at tcp:\/\/127.0.0.1:7777/);
-  await f.command("connect bad/name");
+  await f.command("connect --name bad/name");
   assert.equal(f.attempts(), 1, "bad names rejected before changing connection");
   await f.command("disconnect");
   assert.equal(f.node.closed, 1);
@@ -149,6 +149,47 @@ test("commands, failed connection, and explicit disconnect while awaiting receiv
   await bad.emit("session_start");
   assert.match(bad.notices.at(-1)[0], /Could not connect/);
   await bad.emit("session_shutdown");
+});
+
+for (const [args, endpoint] of [
+  ["connect --name pi-test", "tcp://127.0.0.1:5555"],
+  ["connect --name pi-test tcp://127.0.0.1:7777", "tcp://127.0.0.1:7777"],
+  ["connect tcp://127.0.0.1:7777 --name pi-test", "tcp://127.0.0.1:7777"],
+  ["connect --name=pi-test tcp://127.0.0.1:7777", "tcp://127.0.0.1:7777"],
+]) {
+  test(`named connect options: ${args}`, async () => {
+    const f = fixture();
+    await f.command(args);
+    assert.equal(f.attempts(), 1);
+    assert.deepEqual(f.connections[0].slice(0, 2), ["pi-test", endpoint]);
+    await f.command("status");
+    assert.equal(f.notices.at(-1)[0], `pi-test at ${endpoint}`);
+    await f.command("disconnect");
+    assert.equal(f.node.closed, 1);
+  });
+}
+
+test("invalid connect arguments preserve the current connection", async () => {
+  const f = fixture();
+  await f.command("connect --name pi-test");
+  for (const args of [
+    "connect", "connect pi-test", "connect pi-test tcp://127.0.0.1:7777",
+    "connect --name", "connect --name --unknown", "connect --name bad/name",
+    "connect --name first --name second", "connect --name=first --name=second",
+    "connect --name first --name", "connect --name pi-test --unknown",
+    "connect --name pi-test --endpoint tcp://127.0.0.1:7777",
+    "connect --name pi-test tcp://127.0.0.1:7777 tcp://127.0.0.1:8888",
+  ]) {
+    await f.command(args);
+    assert.equal(f.notices.at(-1)[1], "warning", args);
+    assert.equal(f.attempts(), 1, args);
+    assert.equal(f.node.closed, 0, args);
+    await f.command("status");
+    assert.equal(f.notices.at(-1)[0], "pi-test at tcp://127.0.0.1:5555", args);
+  }
+  await f.send("bob", "still connected");
+  await f.emit("session_shutdown");
+  assert.equal(f.node.closed, 1);
 });
 
 test("shutdown during connect cancels pending attempt and closes a late result", async () => {

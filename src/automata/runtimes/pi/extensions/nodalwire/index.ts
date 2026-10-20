@@ -1,7 +1,9 @@
+import { parseArgs } from "node:util";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
 const DEFAULT_ENDPOINT = "tcp://127.0.0.1:5555";
+const COMMAND_USAGE = "Usage: /nodalwire connect --name <name> [endpoint] | disconnect | status";
 const MAX_MESSAGE_BYTES = 64 * 1024;
 const MESSAGE_TYPE = "automata-nodalwire";
 const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -169,23 +171,40 @@ export function registerNodalWire(pi: ExtensionAPI, connect: Connect) {
   pi.on("agent_settled", () => { active?.release(); });
 
   pi.registerCommand("nodalwire", {
-    description: "NodalWire: connect <name> [endpoint], disconnect, or status (trusted local only)",
+    description: "NodalWire: connect --name <name> [endpoint], disconnect, or status (trusted local only)",
     handler: async (args, ctx) => {
       const words = args.trim().split(/\s+/);
-      const [command, name, endpoint = DEFAULT_ENDPOINT] = words;
+      const [command] = words;
       if ((command === "status" || !command) && words.length === 1) {
         notify(ctx, active ? `${active.name} at ${active.endpoint}` : "Disconnected");
       } else if (command === "disconnect" && words.length === 1) {
         await disconnect(ctx);
         notify(ctx, "Disconnected");
-      } else if (command === "connect" && name && words.length <= 3) {
+      } else if (command === "connect") {
+        let name: string;
+        let endpoint: string;
+        try {
+          const parsed = parseArgs({
+            args: words.slice(1), options: { name: { type: "string" } },
+            allowPositionals: true, strict: true, tokens: true,
+          });
+          if (!parsed.values.name || parsed.positionals.length > 1 ||
+              parsed.tokens.filter(token => token.kind === "option").length !== 1) {
+            throw new Error("Expected one --name and at most one endpoint");
+          }
+          name = parsed.values.name;
+          endpoint = parsed.positionals[0] ?? DEFAULT_ENDPOINT;
+        } catch {
+          notify(ctx, COMMAND_USAGE, "warning");
+          return;
+        }
         try {
           await start(name, endpoint, ctx);
           if (active) notify(ctx, `Connected as ${active.name} at ${active.endpoint}`);
         } catch {
           notify(ctx, "Could not connect. Check loopback endpoint, unique name and installed @devcapsule/nodalwire-client.", "warning");
         }
-      } else notify(ctx, "Usage: /nodalwire connect <name> [endpoint] | disconnect | status", "warning");
+      } else notify(ctx, COMMAND_USAGE, "warning");
     },
   });
 

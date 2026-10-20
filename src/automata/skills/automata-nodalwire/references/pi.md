@@ -8,7 +8,7 @@ than the former `@nodalwire/client` name. Pi supplies its own host libraries.
 
 - Startup: `--nodalwire-name <unique-name>` opts in;
   `--nodalwire-endpoint <loopback-endpoint>` selects the relay.
-- Operator commands: `/nodalwire connect <name> [endpoint]`,
+- Operator commands: `/nodalwire connect --name <name> [endpoint]`,
   `/nodalwire status`, `/nodalwire disconnect`. These are Pi UI commands, not tools
   the model can invoke by pretending to call them. Ask the operator to connect if
   the model has no authorized connection-control interface.
