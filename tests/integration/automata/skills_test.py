@@ -19,6 +19,7 @@ PI_SKILL_NAMES = {
     "automata-pi-sessions",
     "automata-pi-skill-activity",
     "automata-pi-workers",
+    "automata-pi-team",
 }
 TOOLS_ROOT = PACKAGE_ROOT / "tools"
 SOURCES = skill_sources()
@@ -37,6 +38,7 @@ REQUIRED_SKILLS = {
     "automata-pi-sessions",
     "automata-pi-skill-activity",
     "automata-pi-workers",
+    "automata-pi-team",
     "automata-delegation",
     "automata-cue",
     "automata-team-management",
@@ -163,6 +165,7 @@ def test_renamed_pi_compaction_preserves_preference_paths() -> None:
 def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
     expected = {
         "automata-timer": ".agents/tools/timer/timer.py",
+        "automata-pi-team": ".agents/tools/pi-team/pi_team.py",
         "automata-line-use": ".agents/tools/line/line_cli.py",
     }
     for path in SKILL_FILES:
