@@ -73,7 +73,9 @@ hyphen (1–64 characters); 1–32 workers are supported. CWD must be absolute a
 exist. Deadline is positive and at most 86400 seconds from launch, including
 callback/readiness. Startup command-response timeout defaults to 30 seconds
 (max 600); shutdown grace defaults to 5 (max 60); callback timeout defaults to 15
-(max 120). Values must be finite positive numbers. Thinking is an explicit Pi
+(max 120). Values must be finite positive numbers. Enforcement uses a persisted
+same-boot monotonic deadline; wall-clock timestamps are display receipts.
+Thinking is an explicit Pi
 level, from `off` through `max`; unsupported/clamped effective levels fail rather
 than silently substituting. Unknown spec/worker/callback fields are rejected.
 
@@ -132,7 +134,9 @@ delivery after machine death, relay death or simultaneous supervisor/watchdog de
 
 A detached supervisor owns concurrent workers. A separately launched, bounded
 watchdog publishes a birth-identity readiness receipt before worker launch and
-checks owner identity/deadline without model calls. The supervisor also stops if
+checks owner identity, deadline and explicit stop requests without model calls.
+A suspended/unresponsive owner cannot defer a stop until a long task deadline.
+The supervisor also stops if
 its watchdog disappears; launch alone is not watchdog readiness. Tiny exec launchers publish worker birth leases before exec; these
 allow fallback collection even if the supervisor dies before saving spawn state.
 All effective settings must match before **any** prompt is dispatched: provider,
@@ -149,12 +153,16 @@ conservatively. Assistant errors remain in private logs, not compact views.
 State progresses through `starting`, `running`, `stopping`, then `succeeded`,
 `failed`, `stopped` or `timed_out`. Graceful shutdown sends abort and closes stdin,
 then escalates through identity-verified process-group SIGTERM/SIGKILL with bounded
-grace. Verified group members or inherited per-worker ownership markers anchor
+grace. The watchdog permits the complete bounded escalation budget before killing
+a nonresponsive spawner and collecting its final worker leases. Verified group
+members or inherited per-worker ownership markers anchor
 descendant cleanup after leader exit.
 Unconfirmed shutdown is never reported as success. Watchdog evidence overlays
 stale supervisor state in status; `supervisor_alive` distinguishes stale metadata.
-Timing receipts include callback verification, team startup, per-worker spawn,
-readiness, acceptance, execution, shutdown and total supervisor duration.
+Timing receipts separate callback connection and probe/ACK (including failure
+attempts) from team startup, per-worker spawn/readiness, acceptance, execution,
+shutdown and total supervisor duration. Worker readiness and execution durations
+are cumulative from their respective phase starts, not additive subphase totals.
 
 Artifacts (retained, never automatically deleted):
 

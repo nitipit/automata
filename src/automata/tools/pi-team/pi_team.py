@@ -49,9 +49,14 @@ def write_json(path: Path, value: Any) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def private_log(path: Path):
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    return os.fdopen(fd, "ab", buffering=0)
+
+
 def append_event(run: Path, event: str, **fields: Any) -> None:
-    with (run / "events.jsonl").open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps({"time": time.time(), "event": event, **fields}) + "\n")
+    with private_log(run / "events.jsonl") as stream:
+        stream.write((json.dumps({"time": time.time(), "event": event, **fields}) + "\n").encode())
 
 
 def _number(value: Any, name: str, maximum: float) -> float:
@@ -104,7 +109,7 @@ def validate_spec(raw: dict) -> dict:
         raise TeamError("invalid_callback")
     for key in ("name", "recipient"):
         name = _text(callback.get(key), "callback_" + key)
-        if not re.fullmatch(r"[A-Za-z0-9_.:@/-]{1,128}", name):
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", name):
             raise TeamError("invalid_callback_" + key)
     if callback["name"] == callback["recipient"]:
         raise TeamError("callback_names_must_differ")
@@ -364,7 +369,7 @@ class Worker:
     async def drain_stdout(self) -> None:
         assert self.process and self.process.stdout
         try:
-            with self.base.with_suffix(".rpc.jsonl").open("ab", buffering=0) as log:
+            with private_log(self.base.with_suffix(".rpc.jsonl")) as log:
                 while line := await self.process.stdout.readline():
                     log.write(line)
                     record = json.loads(line)
@@ -396,7 +401,7 @@ class Worker:
 
     async def drain_stderr(self) -> None:
         assert self.process and self.process.stderr
-        with self.base.with_suffix(".stderr.log").open("ab", buffering=0) as log:
+        with private_log(self.base.with_suffix(".stderr.log")) as log:
             while chunk := await self.process.stderr.read(65536):
                 log.write(chunk)
 
@@ -621,6 +626,7 @@ async def supervise(run: Path, transport_factory=None) -> None:
     owner.save()
     callback = None
     started = time.monotonic()
+    deadline = state.get("deadline_monotonic", started + max(0, state["deadline_at"] - time.time()))
     task = None
     interrupted = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -638,11 +644,31 @@ async def supervise(run: Path, transport_factory=None) -> None:
                 if read_json(run / "watchdog-ready.json") != state["watchdog"]:
                     raise TeamError("watchdog_identity_mismatch")
         factory = transport_factory or Callback.connect
-        callback = await asyncio.wait_for(
-            factory(spec["callback"]), spec["callback"]["timeout_seconds"]
-        )
-        await asyncio.wait_for(callback.probe(run), spec["callback"]["timeout_seconds"] * 2)
-        state["callback"] = {"probe": "acknowledged", "notification": "pending"}
+        connecting = time.monotonic()
+        state["callback"] = {"probe": "connecting", "notification": "pending"}
+        owner.save()
+        try:
+            callback = await asyncio.wait_for(
+                factory(spec["callback"]), spec["callback"]["timeout_seconds"]
+            )
+        except Exception as error:
+            state["callback"].update(probe="connect_failed", error=type(error).__name__)
+            raise TeamError("callback_connect_failed") from error
+        finally:
+            state["timings"]["callback_connect_seconds"] = time.monotonic() - connecting
+            owner.save()
+        probing = time.monotonic()
+        state["callback"]["probe"] = "awaiting_ack"
+        owner.save()
+        try:
+            await asyncio.wait_for(callback.probe(run), spec["callback"]["timeout_seconds"] * 2)
+        except Exception as error:
+            state["callback"].update(probe="ack_failed", error=type(error).__name__)
+            raise TeamError("callback_probe_failed") from error
+        finally:
+            state["timings"]["callback_probe_ack_seconds"] = time.monotonic() - probing
+            owner.save()
+        state["callback"]["probe"] = "acknowledged"
         state["timings"]["callback_seconds"] = time.monotonic() - started
         owner.save()
         append_event(run, "callback_verified")
@@ -653,7 +679,7 @@ async def supervise(run: Path, transport_factory=None) -> None:
         while not task.done():
             if state.get("watchdog") and not identity_alive(state["watchdog"]):
                 raise TeamError("watchdog_unavailable")
-            if time.time() >= state["deadline_at"]:
+            if time.monotonic() >= deadline:
                 raise TeamError("deadline_exceeded")
             if interrupted.is_set() or (run / "stop-request.json").exists():
                 raise TeamError("stop_requested")
@@ -715,9 +741,14 @@ async def watchdog(run: Path) -> None:
     initial = read_json(run / "state.json")
     spec = read_json(run / "spec.json")
     write_json(run / "watchdog-ready.json", process_identity(os.getpid()))
-    until = initial["deadline_at"] + spec["shutdown_grace_seconds"] * 4 + 10
+    deadline = initial.get(
+        "deadline_monotonic", time.monotonic() + max(0, initial["deadline_at"] - time.time())
+    )
+    shutdown_budget = spec["shutdown_grace_seconds"] * 6 + 2
+    until = deadline + shutdown_budget + spec["shutdown_grace_seconds"] + 2
+    stop_seen = None
     reason = None
-    while time.time() < until:
+    while time.monotonic() < until:
         state = read_json(run / "state.json")
         if state.get("supervisor") and not identity_alive(state["supervisor"]):
             if (
@@ -730,15 +761,25 @@ async def watchdog(run: Path) -> None:
                 return
             reason = "supervisor_died"
             break
-        if time.time() >= state["deadline_at"]:
-            write_json(run / "stop-request.json", {"reason": "deadline_exceeded"})
-            # Give the owner its bounded graceful shutdown, then identity-safe fallback.
-            if time.time() >= state["deadline_at"] + spec["shutdown_grace_seconds"] * 3 + 2:
-                reason = "deadline_exceeded"
-                break
-        await asyncio.sleep(min(0.2, max(0.01, until - time.time())))
+        now = time.monotonic()
+        stop_path = run / "stop-request.json"
+        if stop_path.exists() and stop_seen is None:
+            stop_seen = now
+        if now >= deadline and not stop_path.exists():
+            write_json(stop_path, {"reason": "deadline_exceeded"})
+        cutoff = min(deadline, stop_seen) if stop_seen is not None else deadline
+        # Covers a responsive owner, a suspended owner, and explicit stop requests.
+        if now >= cutoff + shutdown_budget:
+            reason = "deadline_exceeded" if cutoff == deadline else "stop_requested"
+            break
+        await asyncio.sleep(min(0.2, max(0.01, until - time.monotonic())))
     state = read_json(run / "state.json")
     reason = reason or "watchdog_bound_exhausted"
+    # Grace has already expired. Stop the spawner before taking the final lease
+    # snapshot; otherwise a resumed owner could birth a worker during cleanup.
+    signal_owned(state.get("supervisor"), signal.SIGKILL)
+    await asyncio.sleep(0.1)
+    state = read_json(run / "state.json")
     leases = [
         {"identity": w.get("identity"), "ownership_token": w.get("ownership_token")}
         for w in state["workers"].values()
@@ -755,7 +796,6 @@ async def watchdog(run: Path) -> None:
     await asyncio.sleep(spec["shutdown_grace_seconds"])
     for identity, members in zip(identities, snapshots, strict=True):
         signal_owned(identity, signal.SIGKILL, members)
-    signal_owned(state.get("supervisor"), signal.SIGKILL)
     await asyncio.sleep(0.1)
     evidence = {
         "status": "triggered",
@@ -818,6 +858,7 @@ def start(spec_path: Path) -> dict:
         "status": "starting",
         "created_at": now,
         "deadline_at": now + spec["deadline_seconds"],
+        "deadline_monotonic": time.monotonic() + spec["deadline_seconds"],
         "timings": {},
         "workers": {
             w["id"]: {"id": w["id"], "status": "pending", "timings": {}} for w in spec["workers"]
@@ -829,7 +870,7 @@ def start(spec_path: Path) -> dict:
     processes = []
     try:
         for mode in ("_supervise", "_watchdog"):
-            with (run / (mode[1:] + ".log")).open("ab") as log:
+            with private_log(run / (mode[1:] + ".log")) as log:
                 process = subprocess.Popen(
                     [sys.executable, str(SCRIPT), mode, "--run", str(run)],
                     stdin=subprocess.DEVNULL,
