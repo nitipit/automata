@@ -1,206 +1,182 @@
-# Pi team
+# Thin Pi RPC interface
 
-Small Python CLI for an explicitly approved, flat team of fresh Pi RPC workers.
-It automates launch/readiness/collection/shutdown, not team design or acceptance.
-No model selection, automatic restart, recursion, resumption, worktrees, other
-runtimes, relay setup or artifact deletion. All output is JSON; watch emits JSONL.
+`pi_team.py` is a standard-library, Linux `/proc` CLI for persistent Pi RPC I/O.
+It creates **one idle worker**, forwards commands, captures raw records and stops
+owned processes explicitly. It does not manage teams, assign work, select final
+results, interpret `stopReason`, classify task success or stop at `agent_settled`.
+Automata owns all those decisions. No NodalWire dependency, callback, relay setup,
+automatic retry setting, deadline, restart or owner-loss watchdog is imposed.
 
-## Prerequisites and invocation
-
-- Linux with readable `/proc` process birth identities.
-- Current `pi` executable supporting RPC `get_state`, prompt dispositions and
-  `agent_settled` (implemented against Pi 1.3.0; fake tests are not a live trial).
-- Published Python `nodalwire` in the interpreter used to run this script, including
-  its native transport dependencies; an already-running trusted-loopback relay.
-- Coordinator with an already connected receiving integration, for example the
-  maintained Automata Pi NodalWire extension. Names are routes, not identities.
-
-Use a prepared Python environment; installation remains a separate, explicit
-operation. No mandatory dependency is added to Automata's core environment.
-Missing prerequisites fail before workers launch. The tool never starts a relay.
-A non-model readiness inspection is `pi --help` plus importing `nodalwire` in the
-selected interpreter; authentication readiness is a separate operator concern.
+## Interface
 
 ```sh
-/path/to/prepared/python .agents/tools/pi-team/pi_team.py --help
-/path/to/prepared/python .agents/tools/pi-team/pi_team.py start --spec /task/team.json
-python .agents/tools/pi-team/pi_team.py status --run /task/run-001
-python .agents/tools/pi-team/pi_team.py watch --run /task/run-001
-python .agents/tools/pi-team/pi_team.py results --run /task/run-001
-python .agents/tools/pi-team/pi_team.py results --run /task/run-001 --full
-python .agents/tools/pi-team/pi_team.py stop --run /task/run-001
+python .agents/tools/pi-team/pi_team.py --help
+python .agents/tools/pi-team/pi_team.py create --spec /task/worker.json
+python .agents/tools/pi-team/pi_team.py status --worker /task/worker-001
+python .agents/tools/pi-team/pi_team.py rpc --worker /task/worker-001 --command /task/command.json --timeout 30
+python .agents/tools/pi-team/pi_team.py events --worker /task/worker-001 --cursor 0 --limit 100 --max-bytes 1048576
+python .agents/tools/pi-team/pi_team.py stop --worker /task/worker-001
 ```
 
-The first command is a detached launch, not task completion. `status`, `watch`,
-`results` and `stop` require only stdlib Python and make no model calls. Watch is
-read-only: Ctrl-C exits with 130 and never stops workers. Stop records a request;
-confirm terminal status and `shutdown: confirmed` rather than treating it as an
-immediate shutdown receipt. Commands return 0 on successful inspection/request,
-1 on invocation/preflight failure. A failed team is reported in the JSON status,
-not the inspection command's exit code. Do not retry an uncertain start: inspect
-its explicit run directory first. Reusing any existing run directory is refused.
+Outputs are one compact JSON object. `rpc` stdout is the original correlated Pi
+response (unknown fields preserved), including `success:false`; that is not a CLI
+transport failure. Exit 1 / `transport_error` means a mechanical problem, not a task
+classification. Content is only emitted by explicit `rpc` and `events` requests.
+`status` contains process/storage facts, **not Pi session state**; use raw
+`{"type":"get_state"}` for session state.
 
-## Version-1 spec
+Version-2 spec (numbers below are an **explicit example**, not defaults):
 
 ```json
 {
-  "version": 1,
-  "run_dir": "/absolute/task/run-001",
-  "deadline_seconds": 3600,
+  "version": 2,
+  "run_dir": "/absolute/task/worker-001",
+  "cwd": "/absolute/project",
+  "provider": "openai",
+  "model": "gpt-6.1-sol",
+  "thinking": "medium",
+  "resources": ["--no-approve", "--offline", "--no-mcp"],
+  "persist_session": true,
+  "storage": {
+    "segment_bytes": 1048576,
+    "max_segments": 8,
+    "max_record_bytes": 131072,
+    "max_read_bytes": 2097152,
+    "max_read_records": 1000
+  },
   "startup_timeout_seconds": 30,
   "shutdown_grace_seconds": 5,
-  "callback": {
-    "endpoint": "tcp://127.0.0.1:5555",
-    "name": "team-001-supervisor",
-    "recipient": "team-001-manager",
-    "timeout_seconds": 15
-  },
-  "workers": [
-    {
-      "id": "implementer",
-      "prompt": "Perform the approved assignment in /absolute/task/brief.md.",
-      "cwd": "/absolute/project",
-      "provider": "explicit-provider",
-      "model": "explicit-exact-model-id",
-      "thinking": "medium"
-    }
-  ]
+  "pi_command": ["pi"]
 }
 ```
 
-All worker fields are required. IDs are unique ASCII letters/digits/underscore/
-hyphen (1–64 characters); 1–32 workers are supported. CWD must be absolute and
-exist. Deadline is positive and at most 86400 seconds from launch, including
-callback/readiness. Startup command-response timeout defaults to 30 seconds
-(max 600); shutdown grace defaults to 5 (max 60); callback timeout defaults to 15
-(max 120). Values must be finite positive numbers. Enforcement uses a persisted
-same-boot monotonic deadline; wall-clock timestamps are display receipts.
-Thinking is an explicit Pi
-level, from `off` through `max`; unsupported/clamped effective levels fail rather
-than silently substituting. Unknown spec/worker/callback fields are rejected.
+`run_dir` must be new, absolute and outside installed tool code. Provider, model,
+thinking, resources, persistence and all storage limits are mandatory. Only startup
+and explicit-stop grace have defaults (30s and 5s). `pi_command` defaults to `["pi"]`;
+it is an explicitly trusted executable prefix, useful for deterministic fakes too.
+The tool adds `--mode rpc`, provider/model/thinking and owned session flags, with no
+initial prompt. Effective settings and fresh idle state are verified via get_state.
+Create returns process facts; check `status:"open"` and startup errors before use.
+A create wait expiry is uncertain startup, not permission to create a duplicate.
 
-Optional `pi_command` is an argv prefix, default `["pi"]`. It permits an explicitly
-prepared executable or wrapper (and fake executable tests), not shell evaluation.
-It is trusted execution configuration with the same authority as running Pi.
-The tool appends `--mode rpc --provider ... --model ... --thinking ...`, an owned
-session directory, unique session ID, `--no-approve --offline`. No secrets should
-be placed in the command line. Default project-local trust is disabled; any
-additional resource/trust flags must be deliberately provided in a prepared
-wrapper. Global user resources and environment still apply. This is not a sandbox.
+`resources` explicitly controls inheritance. `[]` retains Pi's normal discovery and
+settings; it is not an isolation claim. Supported switches are `--no-extensions`,
+`--no-mcp`, `--no-skills`, `--no-prompt-templates`, `--no-themes`,
+`--no-context-files`, `--approve`, `--no-approve`, `--offline`, `--no-tools`,
+`--no-builtin-tools`. Supported argument/value pairs are `--extension`, `--skill`,
+`--prompt-template`, `--theme`, `--tools`, `--exclude-tools`, `--system-prompt`,
+`--append-system-prompt`, `--name`. No install or implicit project trust change.
+Global Pi settings (including its provider auto-retry policy) remain unchanged.
 
-`run_dir` must be a new absolute directory outside this installed tool. The tool
-creates it mode 0700 with private files (umask 077); parent-directory permissions,
-shared filesystems, disk space and retention remain the caller's responsibility.
-Do not place run data under source/installed assets or commit private artifacts.
+## RPC commands and ambiguity
 
-## Verified callbacks
-
-The existing Pi integration admits only this outer UTF-8 NodalWire envelope:
+Write an original Pi command object to the command file, for example:
 
 ```json
-{"version":1,"type":"message","text":"<JSON-encoded pi_team object>"}
+{"id":"assignment-1","type":"prompt","message":"Review the approved change"}
 ```
 
-The supervisor connects using `callback.name` and sends this object in `text`:
+Use the same worker for later `prompt`, `steer`, `follow_up`, `abort`, inspection and
+session commands. Prompt dispositions started/queued/handled describe acceptance,
+not completion. Events are uninterpreted; only the agent decides whether to wait,
+accept output, send more commands or explicitly stop.
 
-```json
-{"version":1,"type":"pi_team_probe","run_dir":"/absolute/task/run-001","nonce":"unique-nonce","reply_to":"team-001-supervisor"}
-```
+The tool preserves supplied string IDs and generates an ID if absent. It correlates
+responses by ID, not arrival order. **Callers must use unique command IDs.** Only
+in-flight and ambiguous IDs are remembered (maximum 128 total); known duplicate
+IDs and new requests over that bound are rejected before sending. Late responses
+clear ambiguous slots and are captured. Completed-ID history is not retained, so
+reuse of a completed ID is not detected. There is no unbounded lifetime-ID ledger.
 
-The named coordinator must confirm it is the approved run and reply with this
-JSON in message text, through its existing NodalWire integration:
+Timeout, disconnect or write failure after possible dispatch means **unknown
+outcome**. The tool never retries/resends. Inspect events for the response using
+its request ID, respecting retention expiration. Do not resend to discover what
+happened. A client disconnect does not cancel a request already dispatched. Control
+connections and pending requests are bounded at 128; idle control reads time out.
 
-```json
-{"version":1,"type":"pi_team_probe_ack","nonce":"unique-nonce"}
-```
+`extension_ui_response` requires the existing dialog ID and `--send-only`. It has
+no ordinary Pi acknowledgement. The result `transport:"stdin_drained"` only means
+local pipe drainage, explicitly `pi_acknowledgement:false`; do not wait for a normal
+response. Send-only is restricted to this subprotocol.
 
-In Pi, call `nodalwire_send` with `to` equal to the approved `callback.name` and
-`text` equal to that ACK JSON string; the tool adds the outer envelope. The sender
-must match `callback.recipient`. Receipt and return-path verification is required
-before spawning/dispatch; queue acceptance alone cannot satisfy the gate. Native
-callback tests use fake transport, not paid automatic coordinator wakeups.
+## Raw capture, bounds and loss
 
-On terminal completion/failure, a `pi_team_result` text object includes version,
-run ID/path and status. The independent watchdog sends a failure notice on owner
-death/deadline fallback. Notification state is `pending`, `attempting`,
-`relay_accepted` or `uncertain`; it is not proof of coordinator handling. Neither
-supervisor nor watchdog retries an ambiguous send; watchdog does not resend a
-supervisor notification already marked attempting/accepted/uncertain. If a probe
-fails, no prompts are dispatched. If relay admission itself fails, local status
-and watchdog artifacts may be the only available evidence. No relay can guarantee
-delivery after machine death, relay death or simultaneous supervisor/watchdog death.
+`events` includes **all captured stdout records, including command responses**,
+plus tagged stderr chunks. Each entry has metadata `cursor`, `stream`, `time` and
+`raw`. For stdout, `raw` is the complete original JSON text (including whitespace,
+unknown fields and Unicode), without LF. Parse it as JSON if needed. For stderr,
+`raw` is reversible hexadecimal bytes; stderr is never treated as RPC. LF alone
+frames stdout; U+2028/U+2029 are not separators. Both pipes are drained continuously.
 
-## Lifecycle and evidence
+Cursors are monotonic exclusive positions: pass the returned `cursor` to the next
+read. `earliest_cursor`, `next_cursor` (next position to allocate) and `gap` expose
+retention expiration/capture gaps. A gap never means success. `blocked` gives the
+next record cursor and required encoded bytes when count/byte budgets block a
+read; no oversized record is silently skipped. Increase the read budget within
+configured ceilings to consume it. Reads return at most the requested records and
+sum of encoded log-frame bytes; the compact metadata envelope is additional.
 
-A detached supervisor owns concurrent workers. A separately launched, bounded
-watchdog publishes a birth-identity readiness receipt before worker launch and
-checks owner identity, deadline and explicit stop requests without model calls.
-A suspended/unresponsive owner cannot defer a stop until a long task deadline.
-The supervisor also stops if
-its watchdog disappears; launch alone is not watchdog readiness. Tiny exec launchers publish worker birth leases before exec; these
-allow fallback collection even if the supervisor dies before saving spawn state.
-All effective settings must match before **any** prompt is dispatched: provider,
-exact model, thinking, fresh idle state, session ID and task-owned session path.
-Automatic provider retries are explicitly disabled. Every command has a unique
-ID; the stream listeners are installed before prompting.
+All limits are explicit. Implementation ceilings: segment 64MiB, segments 1024,
+record 8MiB, read 16MiB, records/read 10,000. A segment must fit worst-case JSON
+escaping of one source frame: `segment_bytes >= 6 * max_record_bytes + 1024`.
+Actual encoded segments, including the active segment, never exceed
+`segment_bytes * max_segments`. Eviction happens before opening a replacement.
+Stdout and stderr **share** this budget. No separate unbounded stderr/controller
+log: controller stdout/stderr use DEVNULL; compact failures go to private state.
+In-memory stdout framing is bounded by max_record_bytes plus a 64KiB read chunk;
+control input has a 64MiB hard limit. No full-history in-memory list is retained.
 
-A successful prompt response means only accepted. The tool requires disposition
-`started`, then `agent_settled` plus final assistant evidence. `agent_end` alone
-is not completion. Aborted, error, length, toolUse/unknown final stop reasons,
-missing settled/message evidence, broken streams and startup mismatch fail
-conservatively. Assistant errors remain in private logs, not compact views.
+Oversized stdout is drained through LF, not partially recorded; explicit
+`capture_error:"oversized_record"`, loss counts/bytes and a cursor gap disclose
+that the complete record is unavailable. Invalid JSON, an empty frame, or EOF with
+an incomplete stdout frame also creates visible loss. Storage I/O failure latches
+`storage_io_error`; further capture is discarded with visible loss accounting while
+pipe drainage continues. **No automatic stop follows capture loss.** Pending calls
+without a correlated reply receive an immediate capture-loss/unknown-outcome
+transport error. If a correlated response is available, its original JSON remains
+stdout and current capture-error facts are separately printed to stderr. Always
+inspect stderr/status/events after capture errors; a raw response does not certify
+complete retained evidence. Capture errors remain visible even if later frames fit.
 
-State progresses through `starting`, `running`, `stopping`, then `succeeded`,
-`failed`, `stopped` or `timed_out`. Final run evidence is latched at the first
-`agent_settled`; disposal events cannot overwrite the accepted outcome. Graceful
-shutdown sends abort only for unsettled workers, then closes stdin and escalates
-through identity-verified process-group SIGTERM/SIGKILL with bounded
-grace. The watchdog permits the complete bounded escalation budget before killing
-a nonresponsive spawner and collecting its final worker leases. Verified group
-members or inherited per-worker ownership markers anchor
-descendant cleanup after leader exit.
-Unconfirmed shutdown is never reported as success. Watchdog evidence overlays
-stale supervisor state in status; `supervisor_alive` distinguishes stale metadata.
-Timing receipts separate callback connection and probe/ACK (including failure
-attempts) from team startup, per-worker spawn/readiness, acceptance, execution,
-shutdown and total elapsed through worker shutdown (`total_seconds`, excluding
-final notification/connection disposal). Worker readiness and execution durations
-are cumulative from their respective phase starts, not additive subphase totals.
+Offline events reads after controller exit preserve complete stored frames, report
+`partial_tail` for an incomplete final log frame, and disclose saved capture facts.
+They do not rewrite damaged artifacts or restart the controller. Normal retention
+can expire a late response before inspection: choose limits for the approved task.
 
-Artifacts (retained, never automatically deleted):
+## Process ownership and explicit stop
 
-| Path | Contents |
-| --- | --- |
-| `spec.json` | Private normalized spec, including full prompts |
-| `state.json` | Atomic supervisor state and effective/session identities |
-| `events.jsonl` | Compact phase events, no prompts/tool args |
-| `workers/ID.rpc.jsonl` | Full raw RPC output (private content/tool args) |
-| `workers/ID.stderr.log` | Raw diagnostics, private and untrusted |
-| `workers/ID.result.json` | Final assistant message, including detailed result |
-| `workers/ID.lease.json` | Worker process birth identity and inherited ownership marker |
-| `sessions/ID/` | Persistent Pi session artifacts |
-| `supervise.log`, `watchdog.log` | Supervisor/watchdog diagnostics |
-| `watchdog-ready.json` | Independent watchdog birth-identity readiness receipt |
-| `watchdog.json` | Independent completion/fallback evidence |
-| `stop-request.json` | Explicit stop/deadline request, when present |
+Private run directories and socket directories use mode 0700, files 0600. A short
+private Unix socket directory under the system temp directory avoids Unix pathname
+limits; its path is in private state. No external port, general broker or network
+service is started. Run spec/state, birth lease and capture remain in the task run.
+Atomic state writes retain Linux boot ID/start ticks/process-group identities.
+Stop closes stdin, waits the configured grace, then birth-verifies owned TERM/KILL
+as needed, including anchored descendants. It does not send an implicit abort or
+claim task acceptance. Inspect shutdown facts; `unconfirmed` is not cleanup success.
 
-Compact status/results use allowlisted fields and exclude prompt/message/tool
-content. `--full` deliberately emits assistant result content and the artifact
-root; read raw logs explicitly only when appropriate. Logs are continuously
-drained to disk, not accumulated in memory; provision disk space for verbose
-workers. RPC records above 16 MiB or malformed framing fail conservatively.
+No automatic owner-loss/deadline policy exists. Controller process loss closes its
+pipes (an unavoidable I/O failure that may make Pi exit), but does not authorize a
+restart, reassignment or task classification. Status reports controller unavailable.
+Explicit stop can clean orphan groups using private birth leases and ownership
+tokens; stale/reused PIDs are not ownership. A suspended/unreachable controller is
+signaled only by explicit stop. After stop, the short socket directory is removed;
+artifacts and sessions are not deleted.
 
-## Engineering choice and limits
+Pi session JSONL retention is **separate**. With `persist_session:true`, sessions
+live under the run's `sessions/`; with false, Pi uses `--no-session`. Session files,
+user-created files and Pi tool artifacts are not part of bounded capture storage.
+The tool does not scan or prune raw Pi session files and does not claim total worker
+disk usage is bounded. Clean up task artifacts only with their owner's approval.
 
-Installed pi-rpc v0.19.0 was assessed: its public `start` surface accepts only
-CWD/name/pi-bin and uses global broker state. Explicit launch settings, run-owned
-artifacts, lifecycle IDs and watchdog ownership would need wrapper/private broker
-plumbing. This tool instead uses stdlib asyncio subprocess RPC directly; it does
-not implement a general reusable broker or supervision framework.
+## Migration and packaging
 
-Source/fake tests establish protocol/lifecycle/privacy boundaries, not real-model
-correctness, provider credentials, arbitrary extensions or live delivery reliability.
-A worker can perform authorized external effects before a failure; stopping does
-not roll them back. Process groups and trusted-local names are cooperative
-ownership safeguards, not security isolation against hostile workers. Never infer
-a successful deliverable from lifecycle status alone.
+Version-1 `start/watch/results`, batch worker/prompt specs, mandatory callbacks and
+semantic task outcomes are removed. Old specs fail with version-2 migration advice;
+old run artifacts are never silently transformed. Explicitly create workers, issue
+Pi commands, consume raw events, interpret work, and stop workers. Existing live
+version-1 processes must be managed with their matching old interface.
+
+The installed tool is a directory copy and requires no repository imports or new
+Python dependencies. Run with an existing prepared Python and current Pi RPC.
+Nothing installs dependencies, changes global settings or launches a model trial.
+Tests use `tests/fixtures/pi_team/fake_worker.py`, not paid model prompts.

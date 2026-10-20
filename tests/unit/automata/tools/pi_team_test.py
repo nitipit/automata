@@ -1,14 +1,11 @@
-"""Independent validation boundaries, without transports or model processes."""
+"""Thin RPC validation, capture bounds and process ownership (model-free)."""
 
-import asyncio
 import importlib.util
 import json
-import math
 import os
 import signal
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -26,153 +23,154 @@ def team():
 
 
 @pytest.fixture
-def valid_spec(tmp_path):
+def limits():
     return {
-        "version": 1, "run_dir": str(tmp_path / "run"), "deadline_seconds": 30,
-        "startup_timeout_seconds": 2, "shutdown_grace_seconds": 0.2,
-        "callback": {"endpoint": "tcp://127.0.0.1:5555", "name": "test-team",
-                     "recipient": "test-manager", "timeout_seconds": 1},
-        "pi_command": [sys.executable, "fake-worker.py"],
-        "workers": [{"id": "first", "cwd": str(tmp_path), "provider": "fake",
-                     "model": "model", "thinking": "medium", "prompt": "PRIVATE_PROMPT"}],
+        "segment_bytes": 8192,
+        "max_segments": 2,
+        "max_record_bytes": 1024,
+        "max_read_bytes": 16384,
+        "max_read_records": 100,
     }
 
 
-def test_valid_spec_is_accepted_without_allocating_run(team, valid_spec):
-    team.validate_spec(valid_spec)
+@pytest.fixture
+def valid_spec(tmp_path, limits):
+    return {
+        "version": 2,
+        "run_dir": str(tmp_path / "run"),
+        "cwd": str(tmp_path),
+        "provider": "fake",
+        "model": "model",
+        "thinking": "medium",
+        "resources": [],
+        "persist_session": True,
+        "storage": limits,
+        "pi_command": [sys.executable, "fake-worker.py"],
+    }
+
+
+def test_validate_without_side_effects(team, valid_spec):
+    assert team.validate_spec(valid_spec)["version"] == 2
     assert not Path(valid_spec["run_dir"]).exists()
 
 
-@pytest.mark.parametrize("field", [
-    "deadline_seconds", "startup_timeout_seconds", "shutdown_grace_seconds",
-])
-@pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf"), True, -1])
-def test_nonfinite_boolean_negative_timeouts_are_rejected(team, valid_spec, field, value):
-    valid_spec[field] = value
-    with pytest.raises(team.TeamError):
-        team.validate_spec(valid_spec)
-    assert not Path(valid_spec["run_dir"]).exists()
-
-
-@pytest.mark.parametrize("value", [math.nan, math.inf, True, -1])
-def test_callback_timeout_is_bounded_numeric(team, valid_spec, value):
-    valid_spec["callback"]["timeout_seconds"] = value
+@pytest.mark.parametrize(
+    "field", ["provider", "model", "thinking", "resources", "storage", "persist_session"]
+)
+def test_explicit_choices_required(team, valid_spec, field):
+    valid_spec.pop(field)
     with pytest.raises(team.TeamError):
         team.validate_spec(valid_spec)
 
 
-@pytest.mark.parametrize("field", ["provider", "model", "thinking", "prompt"])
-def test_explicit_worker_settings_mandatory(team, valid_spec, field):
-    valid_spec["workers"][0].pop(field)
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), True, -1, 0])
+def test_bad_timeouts(team, valid_spec, value):
+    valid_spec["startup_timeout_seconds"] = value
     with pytest.raises(team.TeamError):
         team.validate_spec(valid_spec)
 
 
-def test_later_worker_invalidates_entire_spec_before_allocation(team, valid_spec):
-    valid_spec["workers"].append({**valid_spec["workers"][0], "id": "../escape"})
+@pytest.mark.parametrize(
+    "args", [["initial prompt"], ["--session", "existing"], ["--mode", "print"], ["--extension"]]
+)
+def test_resources_cannot_override_io_or_inject_prompt(team, valid_spec, args):
+    valid_spec["resources"] = args
     with pytest.raises(team.TeamError):
         team.validate_spec(valid_spec)
-    assert not Path(valid_spec["run_dir"]).exists()
 
 
-def test_stale_pid_identity_never_signals_reused_process(team, monkeypatch):
+def test_old_batch_spec_rejected(team):
+    with pytest.raises(team.TeamError, match="version_2"):
+        team.validate_spec({"version": 1, "workers": []})
+
+
+def test_stale_identity_never_signals(team, monkeypatch):
     identity = team.process_identity(os.getpid())
-    assert identity is not None
-    stale = {**identity, "start_ticks": str(int(identity["start_ticks"]) - 1)}
     called = []
     monkeypatch.setattr(team.os, "killpg", lambda *args: called.append(args))
-    assert not team.identity_alive(stale)
-    assert not team.signal_owned(stale, signal.SIGTERM)
-    assert called == []
+    for stale in ({**identity, "start_ticks": "0"}, {**identity, "boot_id": "old-boot"}):
+        assert not team.identity_alive(stale)
+        assert not team.signal_owned(stale, signal.SIGKILL)
+    assert not called
 
 
-def test_wrong_boot_identity_never_signals(team, monkeypatch):
-    identity = {**team.process_identity(os.getpid()), "boot_id": "previous-boot"}
-    called = []
-    monkeypatch.setattr(team.os, "killpg", lambda *args: called.append(args))
-    assert not team.signal_owned(identity, signal.SIGKILL)
-    assert called == []
+def test_private_atomic_json(team, tmp_path):
+    path = tmp_path / "state.json"
+    team.write_json(path, {"private": "secret"})
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert team.read_json(path) == {"private": "secret"}
+    assert list(tmp_path.iterdir()) == [path]
 
 
-def test_compact_state_excludes_unrecognized_private_payloads(team):
-    state = {"status": "running", "prompt": "PRIVATE_PROMPT", "pi_command": ["SECRET"],
-             "workers": {"first": {"id": "first", "status": "running",
-                                   "prompt": "PRIVATE_PROMPT", "tool_arguments": "SECRET",
-                                   "last_assistant": {"content": "PRIVATE_RESULT"}}}}
-    compact = team.compact_state(state)
-    assert compact == {"status": "running", "workers": {
-        "first": {"id": "first", "status": "running"}}}
+def test_capture_preserves_original_json_and_unicode(team, tmp_path, limits):
+    capture = team.Capture(tmp_path / "capture", limits)
+    raw = '{ "type":"unknown", "opaque":"a\u2028b\u2029c", "future":[1] }'.encode()
+    capture.append("stdout", raw)
+    capture.append("stderr", b"\xff\x00diagnostic")
+    result = capture.read(0, 100, 16384)
+    assert result["records"][0]["raw"].encode() == raw
+    assert bytes.fromhex(result["records"][1]["raw"]) == b"\xff\x00diagnostic"
+    assert result["cursor"] == 2 and not result["gap"]
 
 
-def test_first_settled_evidence_survives_later_disposal_records(team, tmp_path):
-    async def scenario():
-        (tmp_path / "workers").mkdir()
-        view = {"id": "first", "status": "running", "timings": {}}
-        owner = SimpleNamespace(state={"workers": {"first": view}}, run=tmp_path)
-        worker = team.Worker(owner, {"id": "first"})
-        worker.dispatched = True
-        reader = asyncio.StreamReader()
-        worker.process = SimpleNamespace(stdout=reader)
-        records = [
-            {"type": "message_end", "message": {"role": "assistant", "stopReason": "stop"}},
-            {"type": "agent_settled", "aborted": False},
-            {"type": "message_end", "message": {"role": "assistant", "stopReason": "aborted"}},
-            {"type": "agent_end", "messages": [{"role": "assistant", "stopReason": "error"}]},
-            {"type": "agent_settled", "aborted": True},
-        ]
-        reader.feed_data(b"".join(json.dumps(record).encode() + b"\n" for record in records))
-        reader.feed_eof()
-        await worker.drain_stdout()
-        assert worker.last_assistant["stopReason"] == "stop"
-        assert view["settled"] == {"aborted": False}
-        assert worker.settled.is_set() and not worker.protocol_error
-        assert len((tmp_path / "workers/first.rpc.jsonl").read_text().splitlines()) == 5
-
-    asyncio.run(scenario())
+def test_rotation_bounds_encoded_storage_and_exposes_expiry(team, tmp_path, limits):
+    capture = team.Capture(tmp_path / "capture", limits)
+    # ASCII escaping can expand a source record sixfold; count actual bytes on disk.
+    raw = json.dumps({"text": "\u0000" * 100}, ensure_ascii=False).encode()
+    for _ in range(100):
+        capture.append("stdout", raw)
+        paths = list(capture.directory.glob("*.jsonl"))
+        assert len(paths) <= limits["max_segments"]
+        assert all(p.stat().st_size <= limits["segment_bytes"] for p in paths)
+        assert sum(p.stat().st_size for p in paths) <= 16384
+    result = capture.read(0, 100, 16384)
+    assert result["gap"] and result["earliest_cursor"] > 1
+    cursors = [entry["cursor"] for entry in result["records"]]
+    assert cursors == sorted(set(cursors))
 
 
-@pytest.mark.parametrize("fault", [None, "sender", "nonce", "version", "unwrapped"])
-def test_callback_requires_correlated_ack_not_send_acceptance(team, tmp_path, fault):
-    class NodeDouble:
-        def __init__(self):
-            self.queue = asyncio.Queue()
-            self.sent = []
-            self.closed = False
+def test_capture_count_byte_limits_no_skip(team, tmp_path, limits):
+    capture = team.Capture(tmp_path / "capture", limits)
+    for _ in range(3):
+        capture.append("stdout", b'{"type":"event"}')
+    blocked = capture.read(0, 100, 1)
+    assert blocked["cursor"] == 0 and not blocked["records"]
+    assert blocked["blocked"]["cursor"] == 1
+    first = capture.read(0, 1, 16384)
+    assert len(first["records"]) == 1 and first["cursor"] == 1
+    assert capture.read(1, 100, 16384)["cursor"] == 3
 
-        async def receive(self):
-            return await self.queue.get()
 
-        async def send(self, recipient, payload, timeout):
-            envelope = json.loads(payload)
-            assert envelope["version"] == 1 and envelope["type"] == "message"
-            probe = json.loads(envelope["text"])
-            self.sent.append(probe)
-            ack = {"version": 0 if fault == "version" else 1,
-                   "type": "pi_team_probe_ack",
-                   "nonce": "wrong" if fault == "nonce" else probe["nonce"]}
-            wire = ack if fault == "unwrapped" else {
-                "version": 1, "type": "message", "text": json.dumps(ack)}
-            self.queue.put_nowait(SimpleNamespace(
-                sender="imposter" if fault == "sender" else recipient,
-                payload=json.dumps(wire).encode()))
+def test_oversize_visible_no_partial_payload(team, tmp_path, limits):
+    capture = team.Capture(tmp_path / "capture", limits)
+    capture.append("stdout", b"x" * 1025)
+    capture.append("stdout", b"{}")
+    result = capture.read(0, 100, 16384)
+    assert result["lost_records"] == 1 and result["lost_bytes"] == 1025
+    assert result["capture_error"] == "oversized_record" and result["gap"]
+    assert [r["cursor"] for r in result["records"]] == [2]
+    assert capture.read(1, 100, 16384)["records"][0]["cursor"] == 2
 
-        async def close(self, timeout):
-            self.closed = True
 
-    async def scenario():
-        node = NodeDouble()
-        callback = team.Callback(node, {"name": "fixture-team", "recipient": "manager",
-                                        "timeout_seconds": 0.03})
-        try:
-            if fault is None:
-                await callback.probe(tmp_path)
-                assert callback.acked.is_set()
-            else:
-                with pytest.raises(TimeoutError):
-                    await callback.probe(tmp_path)
-                assert not callback.acked.is_set()
-            assert len(node.sent) == 1
-        finally:
-            await callback.close()
-        assert node.closed
-    asyncio.run(scenario())
+def test_partial_trailing_frame_read_recovery(team, tmp_path, limits):
+    capture = team.Capture(tmp_path / "capture", limits)
+    capture.append("stdout", b"{}")
+    path = next(capture.directory.glob("*.jsonl"))
+    with path.open("ab") as stream:
+        stream.write(b'{"cursor":2')
+    recovered = team.Capture(capture.directory, limits)
+    result = recovered.read(0, 100, 16384)
+    assert result["partial_tail"] and len(result["records"]) == 1
+
+
+def test_disk_failure_latches_and_drain_accounting_continues(team, tmp_path, limits, monkeypatch):
+    capture = team.Capture(tmp_path / "capture", limits)
+
+    def fail(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(team.os, "open", fail)
+    assert capture.append("stdout", b"{}") is None
+    assert capture.append("stderr", b"more") is None
+    assert capture.facts()["capture_error"] == "storage_io_error"
+    assert capture.lost_records == 2 and capture.lost_bytes == 6
