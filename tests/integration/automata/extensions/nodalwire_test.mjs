@@ -94,8 +94,8 @@ test("startup opt-in, custom follow-up provenance, bounded injection and shutdow
   const { message, options } = f.messages[0];
   assert.equal(message.customType, "automata-nodalwire");
   assert.deepEqual(message.details, { sender: "python-peer", recipient: "pi-test" });
-  assert.match(message.content, /not authenticated identity or user authorization/);
-  assert.match(message.content, /first$/);
+  assert.equal(message.content, "[NodalWire: python-peer → pi-test]\nfirst");
+  assert.equal(message.display, true);
   assert.deepEqual(options, { triggerTurn: true, deliverAs: "followUp" });
   await f.emit("agent_settled");
   await tick();
