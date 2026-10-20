@@ -18,6 +18,7 @@ PI_SKILL_NAMES = {
     "automata-pi-context-status",
     "automata-pi-sessions",
     "automata-pi-skill-activity",
+    "automata-pi-workers",
 }
 TOOLS_ROOT = PACKAGE_ROOT / "tools"
 SOURCES = skill_sources()
@@ -35,6 +36,7 @@ REQUIRED_SKILLS = {
     "automata-pi-context-compaction",
     "automata-pi-sessions",
     "automata-pi-skill-activity",
+    "automata-pi-workers",
     "automata-delegation",
     "automata-cue",
     "automata-team-management",
