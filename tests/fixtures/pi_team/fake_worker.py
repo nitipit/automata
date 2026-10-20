@@ -10,23 +10,28 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
 ROOT = Path.cwd()
 CONFIG = json.loads((ROOT / "fake-worker.json").read_text())
 TRACE = ROOT / "fake-worker-trace.jsonl"
+OUTPUT_LOCK = threading.Lock()
 
 
 def trace(event, **fields):
     with TRACE.open("a") as stream:
-        stream.write(json.dumps({"event": event, "at": time.monotonic(), "pid": os.getpid(),
-                                 **fields}) + "\n")
+        stream.write(
+            json.dumps({"event": event, "at": time.monotonic(), "pid": os.getpid(), **fields})
+            + "\n"
+        )
 
 
 def emit(record):
-    sys.stdout.buffer.write(json.dumps(record, ensure_ascii=False).encode() + b"\n")
-    sys.stdout.buffer.flush()
+    with OUTPUT_LOCK:
+        sys.stdout.buffer.write(json.dumps(record, ensure_ascii=False).encode() + b"\n")
+        sys.stdout.buffer.flush()
 
 
 def flag(name, default=None):
@@ -36,8 +41,12 @@ def flag(name, default=None):
 
 
 def reply(command, *, success=True, data=None, error=None):
-    record = {"id": command.get("id"), "type": "response", "command": command["type"],
-              "success": success}
+    record = {
+        "id": command.get("id"),
+        "type": "response",
+        "command": command["type"],
+        "success": success,
+    }
     if data is not None:
         record["data"] = data
     if error:
@@ -46,8 +55,12 @@ def reply(command, *, success=True, data=None, error=None):
 
 
 def message(reason="stop", text="PRIVATE_RESULT\u2028line\u2029paragraph"):
-    result = {"role": "assistant", "content": [{"type": "text", "text": text}],
-              "stopReason": reason, "timestamp": int(time.time() * 1000)}
+    result = {
+        "role": "assistant",
+        "content": [{"type": "text", "text": text}],
+        "stopReason": reason,
+        "timestamp": int(time.time() * 1000),
+    }
     if reason == "error":
         result["errorMessage"] = "injected provider failure"
     return result
@@ -78,11 +91,56 @@ def main():
                 "thinkingLevel": flag("--thinking", "medium"),
                 "sessionId": flag("--session-id", f"fake-session-{os.getpid()}"),
                 "sessionFile": str(Path(flag("--session-dir", str(ROOT))) / "fake-session.jsonl"),
-                "isStreaming": False, "isCompacting": False,
-                "messageCount": 0, "pendingMessageCount": 0,
+                "isStreaming": False,
+                "isCompacting": False,
+                "messageCount": 0,
+                "pendingMessageCount": 0,
             }
             state.update(CONFIG.get("state", {}))
             reply(command, data=state)
+        elif kind == "extension_ui_response":
+            trace("ui_response_received", response=command)
+        elif kind == "echo":
+            emit(
+                {
+                    "id": command["id"],
+                    "type": "response",
+                    "command": kind,
+                    "success": True,
+                    "futureField": {"opaque": [1, 2]},
+                    "data": command,
+                }
+            )
+        elif kind == "delay":
+            threading.Timer(
+                command.get("seconds", 0.3), reply, args=(command,), kwargs={"data": {"late": True}}
+            ).start()
+        elif kind == "fail":
+            emit(
+                {
+                    "id": command["id"],
+                    "type": "response",
+                    "command": kind,
+                    "success": False,
+                    "error": "PRIVATE_ERROR",
+                    "unknown": 42,
+                }
+            )
+        elif kind == "flood":
+            for number in range(command.get("count", 50)):
+                emit(
+                    {
+                        "type": "future_event",
+                        "number": number,
+                        "text": "x" * command.get("size", 100),
+                    }
+                )
+                sys.stderr.buffer.write(b"stderr" * 50)
+                sys.stderr.buffer.flush()
+            reply(command)
+        elif kind == "oversize":
+            emit({"type": "future_event", "text": "X" * command["size"]})
+            reply(command)
         elif kind == "prompt":
             scenario = CONFIG.get("scenario", "success")
             if scenario == "reject":
@@ -110,12 +168,24 @@ def main():
                 # Both total volume and individual records exceed typical pipe capacity.
                 sys.stderr.buffer.write(b"d" * CONFIG.get("noise_size", 262144) + b"\n")
                 sys.stderr.buffer.flush()
-                emit({"type": "message_update", "assistantMessageEvent": {
-                    "type": "text_delta", "contentIndex": 0,
-                    "delta": "x" * CONFIG.get("noise_size", 262144)}})
+                emit(
+                    {
+                        "type": "message_update",
+                        "assistantMessageEvent": {
+                            "type": "text_delta",
+                            "contentIndex": 0,
+                            "delta": "x" * CONFIG.get("noise_size", 262144),
+                        },
+                    }
+                )
             if scenario == "continuation":
-                emit({"type": "agent_end", "messages": [message(text="INTERMEDIATE")],
-                      "willRetry": False})
+                emit(
+                    {
+                        "type": "agent_end",
+                        "messages": [message(text="INTERMEDIATE")],
+                        "willRetry": False,
+                    }
+                )
                 trace("intermediate_end")
                 time.sleep(CONFIG.get("continuation_delay", 0.3))
                 emit({"type": "agent_start"})
