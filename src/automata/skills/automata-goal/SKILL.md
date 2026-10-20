@@ -33,5 +33,5 @@ Reuse clear intent; small requests need no goal interview or formal document.
    scope and wording; documenting a goal does not authorize instruction edits.
 
 Goal reasoning owns outcomes and priorities. Planning owns the route and checks;
-work design owns assignments, tracking owns progress. Clarification alone grants
+delegation owns assignments and coordination; tracking owns task status. Clarification alone grants
 no authority to implement, delegate or publish.

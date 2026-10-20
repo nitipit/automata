@@ -45,6 +45,7 @@ permission to execute or a fixed script.
    and limits without treating smoke tests as live verification. Give a next action
    only when useful; avoid indefinite polishing or unnecessary detail.
 
-Goals own outcomes; teamwork design owns arrangements; delegation owns handoffs,
-management owns aggregate coordination and pause owns resumability. Planning owns
-the route, checks and reasons for review/report timing, not their mechanisms.
+Goals own outcomes; delegation owns work division, handoffs and coordination;
+dedicated management owns direction and attention; pause owns resumability.
+Planning owns the route, checks and reasons for review/report timing, not their
+mechanisms.

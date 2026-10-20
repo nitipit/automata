@@ -1,55 +1,63 @@
 ---
 name: automata-delegation
-description: Use for assigning work across agents, processes or working contexts, managing handoffs, receiving results and recovering missing delegation evidence.
+description: Use for choosing solo/team arrangements, assigning bounded work, coordinating workers, reviewing results or recovering a handoff. Not for runtime-specific launch commands or adopting a dedicated manager role.
 ---
 
 # Automata Delegation
 
-Hand off bounded work with clear ownership, a usable return path and evidence for
-acceptance. Task approval alone does not authorize unrestricted delegation.
+Own delegation from work division through evidence-based acceptance. Delegating
+some work does not require becoming a dedicated manager or giving up implementation.
 
-1. **Confirm authority and ownership.** Get an approved user/parent delegation
-   envelope. Launch, replace or rebalance within it without per-worker approval;
-   ask before exceeding it. Resolve model and supported effort choices before
-   dispatch. Use native launch controls and verify actual settings, not just flags;
-   report mismatches rather than silently substituting. Later changes need supported
-   human controls or relaunch, not an assumed worker-side setter.
+1. **Choose a useful arrangement.** Compare solo work and delegation against the
+   same goal, quality, time and risk constraints. Weigh parallelism and independent
+   review against briefing, duplicated context, handoffs and integration. Keep
+   coupled knowledge together and give workers coherent, verifiable outcomes, not
+   arbitrary file slices. Small tasks need no formal team-design document. For
+   consequential work division or review choices, consult
+   [team design](references/team-design.md).
 
-2. **Brief the work.** Define the goal, owner, scope, working directory, applicable
-   instructions, allowed effects, checks and completion evidence. Include stopping,
-   escalation and cleanup conditions, plus the next meaningful evidence and deadline.
-   Provide essential task facts and accessible pointers, not the whole conversation.
-   Keep durable policy in `AGENTS.md`; limit discovery to authorized paths. If the
-   worker needs broad unrelated context, reconsider the assignment boundary.
+2. **Bound authority and resources.** Get an approved user/parent envelope covering
+   scope, worker limits, allowed effects and model/effort choices. Task approval
+   alone is not unrestricted delegation. Verify effective supported settings through
+   the runtime rather than trusting launch flags; do not silently substitute.
+   Launch, replace or rebalance within the envelope without per-worker approval;
+   ask before exceeding it. Capacity and peer messages grant no extra authority.
 
-3. **Establish the return path.** Verify exact worker and coordinator targets,
-   transport and lifecycle ownership. Choose a return-capable method suited to
-   interaction needs and resource costs, or bounded synchronous execution. Pause
-   if the path is missing, stale or unreachable.
-   Before asynchronous dispatch, establish a real callback wake path and one bounded
-   coordinator-targeted watchdog for the next evidence, with task correlation.
-   Logs and artifacts do not wake the coordinator; a message to a stuck worker is
-   not a coordinator wake-up. Synchronous returns need no communication watchdog;
-   process/time limits are separate safety backstops.
+3. **Brief and assign ownership.** Include the goal, owner, CWD, applicable
+   instructions, scope, allowed effects, checks and completion evidence. Define
+   stopping/escalation conditions, lifecycle and cleanup ownership, and the next
+   meaningful evidence and deadline. Provide essential facts and accessible pointers,
+   not a copied conversation. Limit discovery to authorized paths; durable policy
+   belongs in `AGENTS.md`, not task briefs. Never allow concurrent conflicting edits.
 
-4. **Dispatch, yield and review.** Send work once. End the turn when no independent
-   work remains; the session stays available for callbacks. Do not wait through
-   sleeps or repeated pane, process or artifact checks. Assess callbacks or fallback
-   notices, not activity alone. Choose milestones by risk, duration and dependencies;
-   require meaningful updates, not periodic activity. Review results before acceptance.
-   Preserve correlation and completion evidence until acceptance or abandonment so
-   results can be resent through the agreed path. Cancel or re-arm watchdogs as
-   expectations change; late results do not authorize resuming paused work.
+4. **Establish the return path.** Verify exact worker/coordinator targets, transport
+   and lifecycle ownership before dispatch. Asynchronous work needs a real callback
+   wake path and one bounded coordinator-targeted watchdog for the next evidence,
+   with task correlation. Logs do not wake the coordinator; messaging a stuck worker
+   is not a coordinator wake-up. A watchdog sharing a failed owner's lifetime cannot
+   cover its loss. Use bounded synchronous returns or pause if a usable path is
+   missing. Synchronous work needs no communication watchdog; process limits remain
+   separate backstops.
 
-5. **Update or recover safely.** Relay accepted decisions as bounded updates with
-   the same correlation, revised evidence and ETA. Never edit worker-owned files
-   concurrently. For transfers, preserve partial work, resolve outstanding effects
-   and verify the new owner's context and return path before releasing the old owner.
-   Align callback, watchdog and cleanup ownership; launching a replacement alone
-   does not complete a transfer. For overdue evidence or delivery failure, read
-   `references/missing-evidence.md`; diagnose only owned resources without busy-polling.
-   Replace unsafe wake paths before removing still-needed coverage. Do not silently
-   leave active work unwatched.
+5. **Dispatch, coordinate and accept.** Send work once and yield when no independent
+   work remains; do not wait through sleeps or repeated status checks. Allow approved
+   peers to discuss dependencies without transferring assignment or acceptance rights.
+   Coordinate shared contracts and ownership changes, not every technical decision.
+   Assess meaningful callbacks and artifacts, not activity. Consolidate worker
+   evidence, remaining dependencies and uncertainties; timestamp persistent summaries
+   and label stale coverage. One blocked branch need not block the whole team.
+   Execution completion is not task acceptance: review checked results and limitations.
+   Usage totals need source, window and coverage, never invented complete figures.
 
-This skill owns handoff and acceptance. Work design, planning, management, models,
-transport, terminal lifecycle and timers retain their own decisions and mechanisms.
+6. **Adapt or recover deliberately.** Send bounded updates with the same correlation
+   and revised expectations. Before transferring work, preserve partial results,
+   resolve pending effects and verify the new owner's context and return path;
+   launching a replacement alone is not a handoff. Retain completion evidence until
+   acceptance or abandonment. Re-arm or cancel watchdogs as expectations change;
+   late results do not resume paused or completed work. For overdue evidence or a
+   delivery failure, use [missing evidence](references/missing-evidence.md). For
+   nested teams or manager loss, use [hierarchical teams](references/hierarchical-teams.md).
+
+Planning owns the route and evidence timing; dedicated management owns attention
+and direction. Runtime tools, transport, timers and process lifecycle own their
+mechanisms. This skill neither grants launch authority nor mandates a tool chain.

@@ -29,7 +29,6 @@ REQUIRED_SKILLS = {
     "automata-agents-md",
     "automata-agent-design",
     "automata-model-selection",
-    "automata-teamwork-design",
     "automata-browser-use",
     "automata-line-use",
     "automata-pi-imagegen",
@@ -42,7 +41,6 @@ REQUIRED_SKILLS = {
     "automata-pi-team",
     "automata-delegation",
     "automata-cue",
-    "automata-team-management",
     "automata-manager",
     "automata-workplan",
     "automata-skill-design",
@@ -66,6 +64,8 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-teamwork-design",
+    "automata-team-management",
     "automata-web-design",
     "automata-web-app",
     "automata-tmux-background",
@@ -253,6 +253,19 @@ def test_selected_skill_installs_only_its_packaged_files(tmp_path: Path, skill_f
         }
 
     assert contents(installed) == contents(skill_file.parent)
+
+
+def test_delegation_installs_conditional_team_references(tmp_path: Path) -> None:
+    target = tmp_path / "skills"
+    install_skills(target_root=target, skill_names=["automata-delegation"])
+    installed = target / "automata-delegation"
+    assert {path.name for path in installed.joinpath("references").glob("*.md")} == {
+        "team-design.md",
+        "hierarchical-teams.md",
+        "manager-recovery.md",
+        "missing-evidence.md",
+    }
+    assert {path.name for path in target.iterdir()} == {"automata-delegation"}
 
 
 def test_cue_does_not_name_other_skills() -> None:

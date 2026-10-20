@@ -37,6 +37,8 @@ This README is a quick orientation map; follow the relevant source for details.
 
 - [Skill design](src/automata/skills/automata-skill-design/SKILL.md): scope, activation and composition.
 - [Setup](src/automata/skills/automata-setup/SKILL.md): asset selection, install modes and readiness.
+- [Delegation](src/automata/skills/automata-delegation/SKILL.md): work division, handoffs, coordination and acceptance, with conditional team-design and hierarchy references.
+- [Manager](src/automata/skills/automata-manager/SKILL.md): an optional dedicated management role, not a requirement for ordinary delegation.
 - [Communication](src/automata/skills/automata-communication/SKILL.md): receiver, channel and outcome judgment; transport is an external integration.
 - [NodalWire](src/automata/skills/automata-nodalwire/SKILL.md): connect and use trusted-local messaging, with optional Pi integration guidance.
 - [Pi workers](src/automata/skills/automata-pi-workers/SKILL.md): launch and operate separate Pi agents, with verified readiness and completion.
