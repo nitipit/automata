@@ -25,6 +25,7 @@ TOOLS_ROOT = PACKAGE_ROOT / "tools"
 SOURCES = skill_sources()
 SKILL_FILES = sorted(path / "SKILL.md" for path in SOURCES.values())
 REQUIRED_SKILLS = {
+    "automata-adaptive-ui",
     "automata-agents-md",
     "automata-agent-design",
     "automata-model-selection",
@@ -65,7 +66,6 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
-    "automata-adaptive-ui",
     "automata-web-design",
     "automata-web-app",
     "automata-tmux-background",
