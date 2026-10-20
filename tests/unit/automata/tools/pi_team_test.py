@@ -81,8 +81,11 @@ def test_resources_cannot_override_io_or_inject_prompt(team, valid_spec, args):
         team.validate_spec(valid_spec)
 
 
-def test_all_retained_records_fit_configured_read_ceiling(team, valid_spec):
-    valid_spec["storage"]["max_read_bytes"] = 100
+@pytest.mark.parametrize("source_limit", [1024, 8192])
+def test_all_retained_records_fit_configured_read_ceiling(team, valid_spec, source_limit):
+    valid_spec["storage"].update(
+        max_read_bytes=100, max_record_bytes=source_limit, segment_bytes=65536
+    )
     with pytest.raises(team.TeamError, match="read_ceiling_too_small"):
         team.validate_spec(valid_spec)
 
@@ -149,6 +152,33 @@ def test_rotation_bounds_encoded_storage_and_exposes_expiry(team, tmp_path, limi
     assert result["gap"] and result["earliest_cursor"] > 1
     cursors = [entry["cursor"] for entry in result["records"]]
     assert cursors == sorted(set(cursors))
+
+
+def test_worst_case_escaping_envelope_and_lf_fit_accepted_boundary(team, valid_spec):
+    limits = valid_spec["storage"]
+    source_limit = limits["max_record_bytes"]
+    encoded_ceiling = 6 * source_limit + 1024
+    limits.update(segment_bytes=encoded_ceiling, max_read_bytes=encoded_ceiling)
+    team.validate_spec(valid_spec)
+    capture = team.Capture(Path(valid_spec["run_dir"]).parent / "capture", limits)
+    # Literal DEL is valid JSON string content: one source byte expands to six
+    # ASCII bytes (\\u007f) inside the raw field of the capture envelope.
+    prefix, suffix = b'{"value":"', b'"}'
+    raw = prefix + b"\x7f" * (source_limit - len(prefix) - len(suffix)) + suffix
+    assert len(raw) == source_limit
+    assert len(json.loads(raw)["value"]) == source_limit - len(prefix) - len(suffix)
+    capture.append("stdout", raw)
+    path = next(capture.directory.glob("*.jsonl"))
+    actual_encoded_size = path.stat().st_size
+    assert source_limit * 5 < actual_encoded_size <= encoded_ceiling
+    assert path.read_bytes().endswith(b"\n")
+    blocked = capture.read(0, 100, actual_encoded_size - 1)
+    assert blocked["records"] == [] and blocked["cursor"] == 0
+    assert blocked["blocked"]["required_bytes"] == actual_encoded_size
+    exact = capture.read(0, 100, actual_encoded_size)
+    assert exact["read_bytes"] == actual_encoded_size
+    assert exact["records"][0]["raw"].encode() == raw
+    assert exact["blocked"] is None and not exact["gap"]
 
 
 def test_capture_count_byte_limits_no_skip(team, tmp_path, limits):
