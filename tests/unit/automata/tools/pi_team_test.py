@@ -104,6 +104,33 @@ def test_compact_state_excludes_unrecognized_private_payloads(team):
         "first": {"id": "first", "status": "running"}}}
 
 
+def test_first_settled_evidence_survives_later_disposal_records(team, tmp_path):
+    async def scenario():
+        (tmp_path / "workers").mkdir()
+        view = {"id": "first", "status": "running", "timings": {}}
+        owner = SimpleNamespace(state={"workers": {"first": view}}, run=tmp_path)
+        worker = team.Worker(owner, {"id": "first"})
+        worker.dispatched = True
+        reader = asyncio.StreamReader()
+        worker.process = SimpleNamespace(stdout=reader)
+        records = [
+            {"type": "message_end", "message": {"role": "assistant", "stopReason": "stop"}},
+            {"type": "agent_settled", "aborted": False},
+            {"type": "message_end", "message": {"role": "assistant", "stopReason": "aborted"}},
+            {"type": "agent_end", "messages": [{"role": "assistant", "stopReason": "error"}]},
+            {"type": "agent_settled", "aborted": True},
+        ]
+        reader.feed_data(b"".join(json.dumps(record).encode() + b"\n" for record in records))
+        reader.feed_eof()
+        await worker.drain_stdout()
+        assert worker.last_assistant["stopReason"] == "stop"
+        assert view["settled"] == {"aborted": False}
+        assert worker.settled.is_set() and not worker.protocol_error
+        assert len((tmp_path / "workers/first.rpc.jsonl").read_text().splitlines()) == 5
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize("fault", [None, "sender", "nonce", "version", "unwrapped"])
 def test_callback_requires_correlated_ack_not_send_acceptance(team, tmp_path, fault):
     class NodeDouble:
@@ -149,4 +176,3 @@ def test_callback_requires_correlated_ack_not_send_acceptance(team, tmp_path, fa
             await callback.close()
         assert node.closed
     asyncio.run(scenario())
-

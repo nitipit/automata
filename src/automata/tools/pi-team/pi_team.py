@@ -380,15 +380,15 @@ class Worker:
                         future = self.pending.get(record.get("id"))
                         if future is not None and not future.done():
                             future.set_result(record)
-                    elif kind == "message_end" and self.dispatched:
+                    elif kind == "message_end" and self.dispatched and not self.settled.is_set():
                         message = record.get("message", {})
                         if message.get("role") == "assistant":
                             self.last_assistant = message
-                    elif kind == "agent_end" and self.dispatched:
+                    elif kind == "agent_end" and self.dispatched and not self.settled.is_set():
                         for message in record.get("messages", []):
                             if message.get("role") == "assistant":
                                 self.last_assistant = message
-                    elif kind == "agent_settled" and self.dispatched:
+                    elif kind == "agent_settled" and self.dispatched and not self.settled.is_set():
                         self.view["settled"] = {"aborted": record.get("aborted", False)}
                         self.settled.set()
         except Exception:
@@ -536,11 +536,12 @@ class Worker:
         token = self.view["ownership_token"]
         members = group_members(identity, owner_token=token)
         if process.returncode is None and process.stdin:
-            with contextlib.suppress(BrokenPipeError, ConnectionResetError, TimeoutError):
-                process.stdin.write(
-                    json.dumps({"id": uuid.uuid4().hex, "type": "abort"}).encode() + b"\n"
-                )
-                await asyncio.wait_for(process.stdin.drain(), grace)
+            if "settled" not in self.view:
+                with contextlib.suppress(BrokenPipeError, ConnectionResetError, TimeoutError):
+                    process.stdin.write(
+                        json.dumps({"id": uuid.uuid4().hex, "type": "abort"}).encode() + b"\n"
+                    )
+                    await asyncio.wait_for(process.stdin.drain(), grace)
             process.stdin.close()
         try:
             await asyncio.wait_for(process.wait(), grace)

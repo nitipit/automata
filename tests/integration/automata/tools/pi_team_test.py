@@ -186,11 +186,42 @@ def test_rpc_completion_semantics(team, tmp_path, scenario, status):
     if scenario in {"success", "continuation", "noise"}:
         result = json.loads((run / "workers/worker1.result.json").read_text())
         assert result["content"][0]["text"] == "PRIVATE_RESULT\u2028line\u2029paragraph"
+        assert state["workers"]["worker1"]["settled"] == {"aborted": False}
+        trace = Path(spec["workers"][0]["cwd"]) / "fake-worker-trace.jsonl"
+        commands = [json.loads(line).get("command", {}).get("type")
+                    for line in trace.read_text().splitlines()]
+        assert "abort" not in commands  # Already settled: close stdin, do not mutate the run.
     if scenario == "continuation":
         assert state["workers"]["worker1"]["timings"]["execution_seconds"] >= 0.25
     if scenario == "noise":
         assert (run / "workers/worker1.stderr.log").stat().st_size > 262144
         assert (run / "workers/worker1.rpc.jsonl").stat().st_size > 262144
+
+
+def test_successful_completion_evidence_is_immutable_during_shutdown(team, tmp_path, monkeypatch):
+    spec = spec_for(tmp_path)
+    run = initialize(team, spec)
+    original_close = team.Worker.close
+
+    async def close_with_late_abort(worker):
+        # Inject actual late RPC records, not a direct state mutation. Our fake
+        # answers abort with another assistant message and aborted agent_settled.
+        if worker.view.get("status") == "succeeded":
+            await worker.command("abort")
+        await original_close(worker)
+
+    monkeypatch.setattr(team.Worker, "close", close_with_late_abort)
+    state, callback = supervise(team, run)
+    worker = state["workers"]["worker1"]
+    result = json.loads((run / "workers/worker1.result.json").read_text())
+    records = [json.loads(line) for line in
+               (run / "workers/worker1.rpc.jsonl").read_bytes().split(b"\n") if line]
+    assert any(r.get("type") == "agent_settled" and r.get("aborted") for r in records)
+    assert worker["settled"] == {"aborted": False}
+    assert worker["status"] == "succeeded" and worker["stop_reason"] == "stop"
+    assert result["stopReason"] == "stop"
+    assert state["status"] == "succeeded" and state["shutdown"] == "confirmed"
+    assert callback.sent[0]["status"] == "succeeded"
 
 
 @pytest.mark.parametrize("override", [
@@ -404,4 +435,3 @@ def test_watchdog_cancels_when_completed_evidence_exists(team, tmp_path):
     evidence = team.read_json(run / "watchdog.json")
     assert evidence["status"] == "complete"
     assert "notification" not in evidence
-

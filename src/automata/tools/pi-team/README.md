@@ -151,8 +151,10 @@ missing settled/message evidence, broken streams and startup mismatch fail
 conservatively. Assistant errors remain in private logs, not compact views.
 
 State progresses through `starting`, `running`, `stopping`, then `succeeded`,
-`failed`, `stopped` or `timed_out`. Graceful shutdown sends abort and closes stdin,
-then escalates through identity-verified process-group SIGTERM/SIGKILL with bounded
+`failed`, `stopped` or `timed_out`. Final run evidence is latched at the first
+`agent_settled`; disposal events cannot overwrite the accepted outcome. Graceful
+shutdown sends abort only for unsettled workers, then closes stdin and escalates
+through identity-verified process-group SIGTERM/SIGKILL with bounded
 grace. The watchdog permits the complete bounded escalation budget before killing
 a nonresponsive spawner and collecting its final worker leases. Verified group
 members or inherited per-worker ownership markers anchor
@@ -161,7 +163,8 @@ Unconfirmed shutdown is never reported as success. Watchdog evidence overlays
 stale supervisor state in status; `supervisor_alive` distinguishes stale metadata.
 Timing receipts separate callback connection and probe/ACK (including failure
 attempts) from team startup, per-worker spawn/readiness, acceptance, execution,
-shutdown and total supervisor duration. Worker readiness and execution durations
+shutdown and total elapsed through worker shutdown (`total_seconds`, excluding
+final notification/connection disposal). Worker readiness and execution durations
 are cumulative from their respective phase starts, not additive subphase totals.
 
 Artifacts (retained, never automatically deleted):
