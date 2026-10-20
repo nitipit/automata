@@ -119,7 +119,10 @@ sum of encoded log-frame bytes; the compact metadata envelope is additional.
 All limits are explicit. Implementation ceilings: segment 64MiB, segments 1024,
 record 8MiB, read 16MiB, records/read 10,000. A segment must fit worst-case JSON
 escaping of one source frame: `segment_bytes >= 6 * max_record_bytes + 1024`.
-Actual encoded segments, including the active segment, never exceed
+The configured `max_read_bytes` must also meet that bound, so every retained
+record can actually be retrieved (the joint read ceiling further constrains record
+size). Oversize is reported as soon as the framing buffer exceeds its limit, even
+if no LF has arrived yet. Actual encoded segments, including the active segment, never exceed
 `segment_bytes * max_segments`. Eviction happens before opening a replacement.
 Stdout and stderr **share** this budget. No separate unbounded stderr/controller
 log: controller stdout/stderr use DEVNULL; compact failures go to private state.
@@ -131,7 +134,8 @@ Oversized stdout is drained through LF, not partially recorded; explicit
 that the complete record is unavailable. Invalid JSON, an empty frame, or EOF with
 an incomplete stdout frame also creates visible loss. Storage I/O failure latches
 `storage_io_error`; further capture is discarded with visible loss accounting while
-pipe drainage continues. **No automatic stop follows capture loss.** Pending calls
+pipe drainage continues. Short disk writes are explicit partial-frame failures;
+state-write failure is reported as `state_error` and must not stop pipe drainage. **No automatic stop follows capture loss.** Pending calls
 without a correlated reply receive an immediate capture-loss/unknown-outcome
 transport error. If a correlated response is available, its original JSON remains
 stdout and current capture-error facts are separately printed to stderr. Always

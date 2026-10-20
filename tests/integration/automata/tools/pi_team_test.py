@@ -54,8 +54,8 @@ def spec_for(tmp_path, **config):
 
 
 @pytest.fixture
-def worker(tmp_path):
-    spec = spec_for(tmp_path)
+def worker(tmp_path, request):
+    spec = spec_for(tmp_path, **getattr(request, "param", {}))
     path = tmp_path / "spec.json"
     path.write_text(json.dumps(spec))
     run = Path(spec["run_dir"])
@@ -67,6 +67,8 @@ def worker(tmp_path):
         stopped = decoded(invoke("stop", "--worker", run))
         assert stopped["status"] == "closed"
         assert not stopped["worker_alive"] and not stopped["controller_alive"]
+        endpoint = Path(json.loads((run / "state.json").read_text())["socket"])
+        assert not endpoint.parent.exists()
 
 
 def rpc(run, command, *, timeout=2, send_only=False):
@@ -215,6 +217,55 @@ def test_controller_loss_explicit_orphan_cleanup(worker):
     assert stopped["status"] == "closed" and not stopped["worker_alive"]
 
 
+@pytest.mark.parametrize(
+    "worker", [{"scenario": "descendant"}, {"scenario": "orphan-descendant"}], indirect=True
+)
+def test_explicit_stop_accounts_for_owned_descendants(worker):
+    result = rpc(worker, {"type": "prompt", "message": "fake descendant"})
+    assert result.returncode in (0, 1)  # Leader may exit immediately after its response.
+    child = next(t["child_pid"] for t in traces(worker) if t["event"] == "descendant")
+    stopped = decoded(invoke("stop", "--worker", worker))
+    assert stopped["shutdown"] != "unconfirmed"
+    path = Path(f"/proc/{child}/stat")
+    assert not path.exists() or path.read_text().rsplit(")", 1)[1].split()[0] == "Z"
+
+
+def test_explicit_stop_handles_suspended_controller(worker):
+    state = decoded(invoke("status", "--worker", worker))
+    os.kill(state["controller"]["pid"], signal.SIGSTOP)
+    stopped = decoded(invoke("stop", "--worker", worker))
+    assert stopped["status"] == "closed" and not stopped["worker_alive"]
+    assert not stopped["controller_alive"]
+
+
+def test_client_disconnect_does_not_cancel_or_resend(worker):
+    path = worker / "disconnect-command.json"
+    path.write_text(json.dumps({"type": "delay", "id": "disconnect", "seconds": 0.3}))
+    client = subprocess.Popen(
+        [sys.executable, str(CLI), "rpc", "--worker", str(worker), "--command", str(path)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        until = time.monotonic() + 2
+        while not any(t.get("command", {}).get("id") == "disconnect" for t in traces(worker)):
+            assert time.monotonic() < until
+            time.sleep(0.01)
+        client.terminate()
+        client.wait(timeout=2)
+        time.sleep(0.4)
+        captured = [
+            json.loads(r["raw"]) for r in events(worker)["records"] if r["stream"] == "stdout"
+        ]
+        assert sum(r.get("id") == "disconnect" for r in captured) == 1
+        assert sum(t.get("command", {}).get("id") == "disconnect" for t in traces(worker)) == 1
+    finally:
+        if client.poll() is None:
+            client.kill()
+            client.wait(timeout=2)
+        path.unlink()
+
+
 def test_private_permissions_and_no_unbounded_request_ledger(worker):
     assert worker.stat().st_mode & 0o777 == 0o700
     for path in worker.rglob("*"):
@@ -258,10 +309,13 @@ def test_settings_mismatch_never_dispatches_and_cleans_up(tmp_path):
 
 
 def test_copied_tool_help_and_fake_lifecycle(tmp_path):
-    import shutil
+    from automata.install.tools import install_tools
 
-    copied = tmp_path / "installed" / "pi-team"
-    shutil.copytree(CLI.parent, copied, ignore=shutil.ignore_patterns("__pycache__"))
+    target = tmp_path / "installed"
+    install_tools(target_root=target, tool_names=["pi-team"])
+    copied = target / "pi-team"
+    assert (copied / "README.md").is_file()
+    assert not (copied / "__pycache__").exists()
     cli = copied / "pi_team.py"
     assert "create" in invoke("--help", cli=cli).stdout
     spec = spec_for(tmp_path)

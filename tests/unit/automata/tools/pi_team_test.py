@@ -1,11 +1,13 @@
 """Thin RPC validation, capture bounds and process ownership (model-free)."""
 
+import asyncio
 import importlib.util
 import json
 import os
 import signal
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -79,6 +81,12 @@ def test_resources_cannot_override_io_or_inject_prompt(team, valid_spec, args):
         team.validate_spec(valid_spec)
 
 
+def test_all_retained_records_fit_configured_read_ceiling(team, valid_spec):
+    valid_spec["storage"]["max_read_bytes"] = 100
+    with pytest.raises(team.TeamError, match="read_ceiling_too_small"):
+        team.validate_spec(valid_spec)
+
+
 def test_old_batch_spec_rejected(team):
     with pytest.raises(team.TeamError, match="version_2"):
         team.validate_spec({"version": 1, "workers": []})
@@ -100,6 +108,20 @@ def test_private_atomic_json(team, tmp_path):
     assert path.stat().st_mode & 0o777 == 0o600
     assert team.read_json(path) == {"private": "secret"}
     assert list(tmp_path.iterdir()) == [path]
+
+
+@pytest.mark.parametrize("socket_exists", [False, True])
+def test_endpoint_cleanup_removes_directory_even_when_socket_already_missing(
+    team, tmp_path, socket_exists
+):
+    directory = tmp_path / "private-endpoint"
+    directory.mkdir(mode=0o700)
+    path = directory / "io.sock"
+    if socket_exists:
+        path.touch(mode=0o600)
+    team.remove_endpoint(str(path))
+    assert not directory.exists()
+    team.remove_endpoint(str(path))  # Idempotent cleanup must not recreate anything.
 
 
 def test_capture_preserves_original_json_and_unicode(team, tmp_path, limits):
@@ -174,3 +196,121 @@ def test_disk_failure_latches_and_drain_accounting_continues(team, tmp_path, lim
     assert capture.append("stderr", b"more") is None
     assert capture.facts()["capture_error"] == "storage_io_error"
     assert capture.lost_records == 2 and capture.lost_bytes == 6
+    capture.loss(10000, "oversized_record")
+    assert capture.error == "storage_io_error"  # Cannot accidentally re-enable writes.
+    result = capture.read(0, 100, 16384)
+    assert result["gap"] and result["capture_error"] == "storage_io_error"
+
+
+def controller_for(team, valid_spec):
+    run = Path(valid_spec["run_dir"])
+    run.mkdir(mode=0o700)
+    team.write_json(run / "spec.json", valid_spec)
+    team.write_json(run / "state.json", {"status": "open", "ownership_token": "test"})
+    return team.Controller(run)
+
+
+def test_bounded_pending_and_ambiguous_ids_late_response_frees_slot(team, valid_spec, monkeypatch):
+    async def scenario():
+        owner = controller_for(team, valid_spec)
+        sent = []
+
+        class Stdin:
+            def write(self, value):
+                sent.append(json.loads(value))
+
+            async def drain(self):
+                pass
+
+        owner.process = SimpleNamespace(stdin=Stdin(), returncode=None)
+        monkeypatch.setattr(team, "MAX_OUTSTANDING", 2)
+        for request_id in ("first", "second"):
+            result = await owner.rpc({"id": request_id, "type": "prompt"}, 0.001)
+            assert result["transport_error"] == "response_timeout_outcome_unknown"
+        assert owner.pending == {"first": None, "second": None}
+        with pytest.raises(team.TeamError, match="unresolved"):
+            await owner.rpc({"id": "first", "type": "prompt"}, 1)
+        with pytest.raises(team.TeamError, match="outstanding_request_limit"):
+            await owner.rpc({"id": "third", "type": "prompt"}, 1)
+        assert len(sent) == 2
+        await owner.record(b'{"type":"response","id":"first","success":true}')
+        assert owner.pending == {"second": None}
+        assert owner.capture.read(0, 100, 16384)["records"][0]["stream"] == "stdout"
+        third = await owner.rpc({"id": "third", "type": "prompt"}, 0.001)
+        assert "timeout" in third["transport_error"] and len(owner.pending) == 2
+
+    asyncio.run(scenario())
+
+
+def test_storage_and_state_failure_continue_draining_and_signal_pending(
+    team, valid_spec, monkeypatch
+):
+    async def scenario():
+        owner = controller_for(team, valid_spec)
+        stdout, stderr = asyncio.StreamReader(), asyncio.StreamReader()
+        stdout.feed_data(b'{"type":"event"}\n' * 300)
+        stdout.feed_eof()
+        stderr.feed_data(b"d" * 100000)
+        stderr.feed_eof()
+        owner.process = SimpleNamespace(stdout=stdout, stderr=stderr)
+        future = asyncio.get_running_loop().create_future()
+        owner.pending["waiting"] = future
+
+        def fail(*args, **kwargs):
+            raise OSError("disk full")
+
+        monkeypatch.setattr(team.os, "open", fail)
+        await asyncio.gather(owner.stdout(), owner.stderr())
+        assert stdout.at_eof() and stderr.at_eof()
+        assert owner.capture.error == "storage_io_error"
+        assert owner.capture.lost_records >= 300
+        assert owner.state["state_error"] == "state_io_error"
+        with pytest.raises(team.TeamError, match="capture_loss"):
+            await future
+
+    asyncio.run(scenario())
+
+
+def test_short_disk_write_is_explicit_partial_loss(team, tmp_path, limits, monkeypatch):
+    capture = team.Capture(tmp_path / "capture", limits)
+    fdopen = team.os.fdopen
+
+    class ShortWriter:
+        def __init__(self, fd, *args, **kwargs):
+            self.file = fdopen(fd, *args, **kwargs)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.file.close()
+
+        def write(self, value):
+            return self.file.write(value[:10])
+
+    monkeypatch.setattr(team.os, "fdopen", ShortWriter)
+    assert capture.append("stdout", b'{"type":"event"}') is None
+    assert capture.error == "storage_io_error" and capture.partial_tail
+    assert capture.read(0, 100, 16384)["gap"]
+
+
+def test_oversize_without_lf_signals_immediately_and_keeps_draining(team, valid_spec):
+    async def scenario():
+        owner = controller_for(team, valid_spec)
+        stdout = asyncio.StreamReader()
+        owner.process = SimpleNamespace(stdout=stdout)
+        future = asyncio.get_running_loop().create_future()
+        owner.pending["waiting"] = future
+        task = asyncio.create_task(owner.stdout())
+        stdout.feed_data(b"x" * 100000)
+        with pytest.raises(team.TeamError, match="capture_loss"):
+            await asyncio.wait_for(future, 1)
+        assert owner.capture.lost_records == 1
+        assert not task.done()
+        stdout.feed_data(b"y" * 100000 + b"\n" + b'{"type":"event"}\n')
+        stdout.feed_eof()
+        await task
+        assert owner.capture.lost_records == 1 and owner.capture.lost_bytes == 200000
+        assert len(owner.capture.read(0, 100, 16384)["records"]) == 1
+
+    asyncio.run(scenario())

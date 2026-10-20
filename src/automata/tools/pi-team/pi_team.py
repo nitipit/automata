@@ -160,8 +160,11 @@ def validate_spec(raw: dict) -> dict:
         raise TeamError("explicit_storage_limits_required")
     for key, ceiling in ceilings.items():
         _integer(storage[key], key, ceiling)
-    if storage["segment_bytes"] < storage["max_record_bytes"] * 6 + 1024:
+    encoded_record_ceiling = storage["max_record_bytes"] * 6 + 1024
+    if storage["segment_bytes"] < encoded_record_ceiling:
         raise TeamError("segment_too_small_for_encoded_record")
+    if storage["max_read_bytes"] < encoded_record_ceiling:
+        raise TeamError("read_ceiling_too_small_for_encoded_record")
     return spec
 
 
@@ -273,7 +276,8 @@ class Capture:
         self.next_cursor += 1
         self.lost_records += 1
         self.lost_bytes += size
-        self.error = error
+        if self.error != "storage_io_error":
+            self.error = error
 
     def append(self, stream: str, raw: bytes) -> int | None:
         if self.error == "storage_io_error":
@@ -305,12 +309,22 @@ class Capture:
             segment = self.segments[-1]
             fd = os.open(segment["path"], os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
             with os.fdopen(fd, "ab", buffering=0) as output:
-                output.write(encoded)
+                if output.write(encoded) != len(encoded):
+                    self.partial_tail = True
+                    raise OSError("short capture write")
             segment["size"] += len(encoded)
             segment["last"] = cursor
             self.next_cursor += 1
             return cursor
         except OSError:
+            if self.segments and self.segments[-1]["size"] == 0:
+                segment = self.segments[-1]
+                try:
+                    segment["size"] = segment["path"].stat().st_size
+                except FileNotFoundError:
+                    self.segments.pop()
+                except OSError:
+                    pass
             self.loss(len(raw), "storage_io_error")
             return None
 
@@ -398,7 +412,7 @@ class Controller:
                 for piece_index, piece in enumerate(chunk.split(b"\n")):
                     if piece_index:
                         if oversized:
-                            self.capture.loss(oversized, "oversized_record")
+                            pass  # Already reported when the bounded framing buffer overflowed.
                         elif buffer:
                             await self.record(bytes(buffer))
                         else:
@@ -407,17 +421,21 @@ class Controller:
                         oversized = 0
                     if oversized:
                         oversized += len(piece)
+                        self.capture.lost_bytes += len(piece)
                     elif len(buffer) + len(piece) > maximum:
                         oversized = len(buffer) + len(piece)
+                        self.capture.loss(oversized, "oversized_record")
                         buffer.clear()
                     else:
                         buffer.extend(piece)
                 self.notify_capture_loss(before)
                 self.save()
-            if buffer or oversized:
+            if buffer:
                 before = self.capture.lost_records
-                self.capture.loss(len(buffer) + oversized, "partial_stdout_frame")
+                self.capture.loss(len(buffer), "partial_stdout_frame")
                 self.notify_capture_loss(before)
+            if oversized:
+                self.state["stdout_partial_frame"] = True
         except (OSError, ValueError, UnicodeError):
             self.state["stream_error"] = "stdout_reader_error"
         finally:
@@ -433,7 +451,7 @@ class Controller:
             if not isinstance(record, dict):
                 raise ValueError
             self.capture.append("stdout", raw)
-        except (ValueError, UnicodeError):
+        except (ValueError, UnicodeError, RecursionError):
             self.capture.loss(len(raw), "invalid_stdout_record")
             return
         if record.get("type") == "response" and isinstance(record.get("id"), str):
@@ -445,7 +463,9 @@ class Controller:
         assert self.process and self.process.stderr
         maximum = min(65536, self.spec["storage"]["max_record_bytes"])
         while chunk := await self.process.stderr.read(maximum):
+            before = self.capture.lost_records
             self.capture.append("stderr", chunk)
+            self.notify_capture_loss(before)
             self.save()
 
     async def rpc(self, command: dict, timeout: float, send_only: bool = False) -> dict:
@@ -484,8 +504,12 @@ class Controller:
                 self.process.stdin.write(encoded)
                 await asyncio.wait_for(self.process.stdin.drain(), timeout)
             except (OSError, TimeoutError) as error:
-                if not send_only:
+                if not send_only and request in self.pending:
                     self.pending[request] = None
+                if not future.done():
+                    future.cancel()
+                elif not future.cancelled():
+                    future.exception()  # Retrieve any reader exception during a failed drain.
                 return {
                     "transport_error": "write_outcome_unknown",
                     "request_id": request,
@@ -624,6 +648,8 @@ class Controller:
             if len(raw) > MAX_CONTROL or not raw.endswith(b"\n"):
                 raise TeamError("invalid_control_frame")
             request = json.loads(raw)
+            if not isinstance(request, dict):
+                raise TeamError("control_request_must_be_object")
             kind = request.get("op")
             if kind == "rpc":
                 if self.state["status"] != "open":
@@ -641,7 +667,7 @@ class Controller:
                 result = {"stop_requested": True}
             else:
                 raise TeamError("unknown_control_operation")
-        except (TeamError, ValueError, KeyError, OSError, TimeoutError) as error:
+        except (TeamError, ValueError, TypeError, KeyError, OSError, TimeoutError) as error:
             result = {
                 "transport_error": str(error)
                 if isinstance(error, TeamError)
@@ -657,6 +683,15 @@ class Controller:
             with contextlib.suppress(OSError):
                 await writer.wait_closed()
             self.clients.discard(task)
+
+
+def remove_endpoint(socket_path: str) -> None:
+    # asyncio may already have removed the socket. Missing socket must not skip rmdir.
+    path = Path(socket_path)
+    with contextlib.suppress(OSError):
+        path.unlink(missing_ok=True)
+    with contextlib.suppress(OSError):
+        path.parent.rmdir()
 
 
 async def control(run: Path) -> None:
@@ -692,9 +727,7 @@ async def control(run: Path) -> None:
         for task in list(owner.clients):
             task.cancel()
         await asyncio.gather(*owner.clients, return_exceptions=True)
-        with contextlib.suppress(OSError):
-            Path(owner.state["socket"]).unlink()
-            Path(owner.state["socket"]).parent.rmdir()
+        remove_endpoint(owner.state["socket"])
 
 
 def exec_worker(run: Path) -> None:
@@ -742,6 +775,8 @@ def status(run: Path) -> dict:
         "startup_error",
         "stream_error",
         "stdout_closed",
+        "stdout_partial_frame",
+        "state_error",
     }
     result = {key: value for key, value in state.items() if key in keys}
     result["controller_alive"] = identity_alive(state.get("controller"))
@@ -855,9 +890,7 @@ def stop(run: Path) -> dict:
     if state.get("status") != "closed":
         state.update(status="closed", shutdown="explicit_orphan_cleanup")
         write_json(run / "state.json", state)
-    with contextlib.suppress(OSError):
-        Path(state["socket"]).unlink()
-        Path(state["socket"]).parent.rmdir()
+    remove_endpoint(state["socket"])
     return status(run)
 
 
