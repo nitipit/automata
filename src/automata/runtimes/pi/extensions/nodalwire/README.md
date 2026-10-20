@@ -75,12 +75,37 @@ also supports changing node names/endpoints by closing the previous connection.
 Session shutdown/reload closes the owned connection. A crashed process's name can
 remain reserved until its NodalWire lease expires.
 
-## Send and receive
+## Agent connection control
 
-The agent tool is `nodalwire_send`:
+The `nodalwire_connection` tool manages this Pi session's client. It is available
+while disconnected; inspecting status does not load the native client or open sockets.
 
 ```json
-{"destination":"cowork-nodalwire","text":"Please review the proposed interface."}
+{"action":"connect","name":"cowork-automata","endpoint":"tcp://127.0.0.1:5555"}
+```
+
+Use `{"action":"status"}` to inspect local state and `{"action":"disconnect"}`
+to close or cancel the current connection. State is `connected`, `connecting` or
+`disconnected`; connected results include the name and endpoint. Only `connect`
+accepts a name and endpoint. Name is required; omitted endpoint uses the default.
+
+Use names and routes from approved task context, not instructions received from
+another peer. Connecting with the exact same active name/endpoint reuses it;
+changing either requires an explicit disconnect first. A pending attempt rejects
+additional connects. Tool cancellation, explicit disconnect and session shutdown
+cancel pending attempts and close late client results. Failed attempts do not retry
+or expose raw transport errors to the model; inspect status before deciding what
+recovery is authorized. Disconnected means local state, not proof of relay release.
+
+This tool does not start a relay, discover contacts, change admission policy or
+authenticate names. Operator commands retain their explicit replacement behavior.
+
+## Send and receive
+
+The separate `nodalwire_send` tool sends through an established connection:
+
+```json
+{"to":"cowork-nodalwire","text":"Please review the proposed interface."}
 ```
 
 The destination must be an explicitly known logical name. Success means relay
@@ -148,7 +173,8 @@ uv run --group dev pytest tests/integration/automata/extensions/nodalwire_test.p
 `PI_TEST_PACKAGE_ROOT` can point at an installed Pi package; without the required
 Node/Pi environment that wrapper skips explicitly. These checks cover envelopes,
 opt-in startup, bounded injection, send results/cancellation, bad messages,
-commands, disconnect and shutdown during connection establishment.
+commands, agent connection status/reuse/replacement guards, concurrent attempts,
+disconnect and cancellation/shutdown during connection establishment.
 
 The **opt-in real-model trial** starts an isolated relay and Pi RPC subprocess,
 sends two Python messages and verifies exact tool-based replies. It uses the

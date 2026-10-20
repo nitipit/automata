@@ -10,9 +10,12 @@ than the former `@nodalwire/client` name. Pi supplies its own host libraries.
   `--nodalwire-endpoint <loopback-endpoint>` selects the relay.
 - Operator commands: `/nodalwire connect --name <name> [endpoint]`,
   `/nodalwire status`, `/nodalwire disconnect`. These are Pi UI commands, not tools
-  the model can invoke by pretending to call them. Ask the operator to connect if
-  the model has no authorized connection-control interface.
-- Model tool: `nodalwire_send({destination, text})`. Use the exact destination
+  the model can invoke by pretending to call them.
+- Model connection tool: `nodalwire_connection` supports status, connect and
+  disconnect. Use an authorized unique name and endpoint; it reuses the same active
+  route but requires explicit disconnect before changing it. Consult the extension
+  README for parameters and cancellation behavior; ask the operator if unavailable.
+- Model send tool: `nodalwire_send({to, text})`. Use the exact destination
   name. A successful result confirms relay queue acceptance only.
 - Incoming custom messages retain sender/recipient provenance, wake idle Pi and
   queue as follow-ups when busy. At most one is submitted until Pi settles; more

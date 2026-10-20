@@ -66,7 +66,8 @@ before activation. Premium access and native costs are not billing evidence.
 
 The opt-in [`nodalwire` extension](src/automata/runtimes/pi/extensions/nodalwire/README.md)
 connects Pi to an existing trusted-local NodalWire relay. It receives external
-messages as custom follow-ups and provides `nodalwire_send` for named-peer replies.
+messages as custom follow-ups and provides `nodalwire_connection` for explicit
+client lifecycle control and `nodalwire_send` for named-peer replies.
 Install the published `@devcapsule/nodalwire-client` dependency; there is no
 automatic installation, relay startup, peer discovery or authentication. See its
 README for setup and the isolated Python → Pi → Python trial.
