@@ -14,10 +14,8 @@ documentation as needed, rather than building another runtime framework.
    and lifecycle owner. Reconnect to that kernel across calls; unrelated Python
    processes do not share its objects. Confirm setup and persistent-process
    authority; do not silently install dependencies or attach to another task's
-   kernel. Preserve standard Jupyter connection security: use a generated nonempty
-   HMAC key, loopback binding and a private connection file. Verify these without
-   exposing the key; do not disable signing or build a custom authentication layer.
-   A kernel is not a sandbox; protect connection credentials and access.
+   kernel. Preserve Jupyter's security defaults and protect connection credentials.
+   A kernel is not a sandbox.
 
 2. **Keep execution observable.** Correlate replies using Jupyter's message IDs
    and confirm completion. Bound waits and output, disable interactive stdin and
