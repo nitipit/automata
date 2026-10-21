@@ -7,6 +7,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 src/automata/runtimes/pi/extensions/**/node_modules/
+src/automata/tools/anatomy/frontend/node_modules/
 dist/
 *.egg-info/
 .agents/memory/chromadb/

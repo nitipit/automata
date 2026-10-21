@@ -69,3 +69,36 @@ def test_copied_anatomy_launcher_is_usable(tmp_path):
         assert result.returncode == 0, result.stdout + result.stderr
         assert title in result.stdout
     assert not (tmp_path / "anatomy/skills").exists()
+    assert not (tmp_path / "anatomy/frontend/node_modules").exists()
+    assert (tmp_path / "anatomy/frontend/package-lock.json").is_file()
+    assert (tmp_path / "anatomy/frontend/build.mjs").is_file()
+    # Exercise the copy's Python/template roots, not the checkout's server module.
+    script = """
+import runpy, sys
+from pathlib import Path
+from fastapi.testclient import TestClient
+launcher = Path(sys.argv[1])
+sys.argv = [str(launcher), '--help']
+try:
+    runpy.run_path(str(launcher), run_name='__main__')
+except SystemExit as error:
+    assert error.code == 0
+from automata.tools.anatomy import config, server
+assert config.ROOT == Path.cwd()
+assert config.TEMPLATES == launcher.parent / 'templates'
+assert not config.SKILLS.is_relative_to(launcher.parent)
+with TestClient(server.create_app(), base_url='http://127.0.0.1:8766') as client:
+    for path in ('/', '/skills/', '/tools/', '/activity/', '/skills/automata-workplan/',
+                 '/lib/adaptive-ui.js', '/shared/components/live-refresh.js'):
+        response = client.get(path)
+        assert response.status_code == 200, (path, response.status_code)
+    assert client.get('/lib/echarts.js').status_code == 503
+"""
+    result = subprocess.run(
+        [sys.executable, "-B", "-c", script, str(tmp_path / "anatomy/anatomy.py")],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
