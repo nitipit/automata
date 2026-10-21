@@ -6,22 +6,7 @@ from pathlib import Path
 import yaml
 
 from .activity import activity, make_window
-from .content import SKILLS
-
-# Invocation directory is the monitored project; inventory comes from the package.
-ROOT = Path.cwd().resolve()
-PACKAGE = SKILLS.parent
-HOME = Path.home()
-SKILL_ROOTS = [
-    ("bundled", PACKAGE / "skills"),
-    ("global", HOME / ".agents/skills"),
-    ("project", ROOT / ".agents/skills"),
-]
-TOOL_ROOTS = {
-    "bundled": PACKAGE / "tools",
-    "global": HOME / ".agents/tools",
-    "project": ROOT / ".agents/tools",
-}
+from .config import HOME, PACKAGE, ROOT, SKILL_ROOTS, TOOL_ROOTS
 
 
 def label(path):

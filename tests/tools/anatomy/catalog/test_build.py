@@ -88,6 +88,9 @@ def test_public_routes_and_allowed_roots(tmp_path):
     viewer = root / "templates/skills"
     (viewer / "components/escape.js").symlink_to(outside)
     (viewer / "components/base.js").symlink_to(viewer / "base.html")
+    (viewer / "components/monitor.js").symlink_to(
+        root / "templates/automata/components/monitor.js"
+    )
     app = create_app(skills_root=root / "skills", templates_root=root / "templates")
     with client(app) as browser:
         legacy = browser.get("/templates/index.html", follow_redirects=False)
@@ -114,6 +117,7 @@ def test_public_routes_and_allowed_roots(tmp_path):
             "/templates/catalog.html",
             "/templates/components/escape.js",
             "/templates/components/base.js",
+            "/templates/components/monitor.js",
             "/templates/../server.py",
             "/%2e%2e/private.txt",
             "/templates/skill.html?name=../private",
@@ -166,6 +170,19 @@ def test_references_never_evaluate_jinja_or_authored_html(tmp_path):
         assert "{{ missing }} {% unknown %}" in rendered.text
         assert "&lt;script&gt;" in rendered.text
         assert "<script>window.authored" not in rendered.text
+
+
+def test_shared_asset_ownership_and_legacy_urls():
+    with client(create_app()) as browser:
+        for old, current in (
+            ("/templates/lib/adaptive-ui.js", "/lib/adaptive-ui.js"),
+            ("/templates/components/live-refresh.js", "/shared/components/live-refresh.js"),
+        ):
+            legacy = browser.get(old)
+            shared = browser.get(current)
+            assert legacy.status_code == shared.status_code == 200
+            assert legacy.content == shared.content
+        assert '/shared/components/live-refresh.js' in browser.get("/tools/").text
 
 
 def test_single_watcher_is_cancelled_on_shutdown():

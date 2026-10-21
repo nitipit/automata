@@ -7,10 +7,9 @@ from pathlib import Path
 from typing import Any, cast
 from urllib.parse import unquote, urljoin, urlsplit
 
-from automata.install.skills import bundled_skill_root, skill_sources
+from automata.install.skills import skill_sources
 
-# Canonical inventory comes from the package, even for a copied Anatomy tool.
-SKILLS = bundled_skill_root()
+from .config import SKILLS
 
 
 def url_slug(skill: str) -> str:

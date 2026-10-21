@@ -82,11 +82,16 @@ No installed-copy or old dashboard-cache migration happens automatically.
   view URLs remain supported. Retired skill names remain unavailable.
 
 Canonical skills and supporting assets live directly in `../../skills/`.
-`content.py` owns Markdown discovery, rendering and export; `catalog.py` owns
-website routes; `templates/skills/` owns viewer templates,
-components, reviewed libraries and notices. `server.py` owns one lifespan/watcher,
-Host/Origin/CSP protections and a closed public asset registry.
-`routes/automata.py`, `data.py` and `activity.py` retain the monitor projection.
+`content.py` owns Markdown discovery, rendering and export; `routes/skills.py`
+owns skill documents and their legacy URL resolution. `routes/monitoring.py` and
+`routes/tools.py` own monitoring and tool inventory routes. `server.py` assembles
+one Jinja environment, lifespan/watcher, shared SSE, Host/Origin/CSP protections
+and closed public asset registry. `config.py` defines package inventory,
+invocation-project and template/runtime roots without importing web dependencies.
+`data.py` and `activity.py` retain the cohesive read-only monitor projection.
+`templates/skills/` owns viewer templates, components, reviewed libraries and
+notices; `templates/shared/` owns the shared Adaptive UI bundle, navigation,
+theme and live-reload component. Existing public asset URLs remain supported.
 
 The complete skill source (frontmatter, fences, whitespace and final newline) is
 Jinja-autoescaped. Prism highlights without executing examples and retains official
