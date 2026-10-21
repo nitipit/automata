@@ -1,6 +1,5 @@
 """Monitoring document and compatible read-only aggregate API."""
 
-from pathlib import Path
 from threading import Lock
 from urllib.parse import urlencode
 
@@ -9,8 +8,6 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from ..activity import make_window
 from ..data import snapshot
-
-TEMPLATES = Path(__file__).resolve().parents[1] / "templates"
 
 router = APIRouter()
 snapshot_lock = Lock()

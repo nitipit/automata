@@ -43,22 +43,31 @@ ordinary package entry point is named `automata-anatomy`.
 Reviewed Adaptive UI, Mermaid and Prism bundles and notices ship with the tool.
 Both monitor and skill components share `/lib/adaptive-ui.js` and the same theme.
 The monitor additionally needs the pinned official ECharts 6.0.0 standalone ESM
-asset. Prepare it from already-cached Deno/npm dependencies into owned runtime
-storage; missing dependencies require separate preparation approval.
+asset. With Node.js 24+ and npm, prepare it into owned runtime storage. The
+lockfile pins ECharts and its transitive packages; dependency preparation may use
+the npm registry. No bundler, Deno or global npm packages are required.
 
 ```sh
-# Repository checkout; explicit output can be an owned task-evidence directory.
+# Repository checkout (or the frontend/ directory of an installed tool copy):
 cd src/automata/tools/anatomy/frontend
-deno run --cached-only --allow-read --allow-write=/chosen/anatomy-public \
-  build.ts /chosen/anatomy-public
+npm ci --ignore-scripts --no-audit --no-fund
+npm run build -- /chosen/anatomy-public
 # Back in the project to monitor, use the already-prepared Python environment:
 automata-anatomy serve --asset-root /chosen/anatomy-public
 ```
 
+When the npm cache is already prepared, add `--offline` to `npm ci`. Building only
+copies local package files and needs no network. `node_modules/` is local
+preparation state, excluded from Git, tool copies and Python package archives.
+The builder copies the official standalone ESM file unchanged plus its LICENSE
+and NOTICE, and rejects an unexpected ECharts version.
+
 The default chart root is `.agents/var/tools/automata-anatomy/public/` under the
-invocation project. `deno task build` prepares that root in a source checkout;
-`--asset-root` supports installed packages and isolated tests. Missing chart assets
-return a bounded 503; they are never fetched remotely by the server or browser.
+invocation project. In a source checkout, `npm run build` without an output
+argument prepares that root at the checkout root. Use an explicit output and
+`--asset-root` for other monitored projects, installed packages and isolated tests.
+Missing chart assets return a bounded 503; they are never fetched remotely by the
+server or browser.
 Only `/lib/echarts.js` is public, not its source maps, package tree or notices.
 No installed-copy or old dashboard-cache migration happens automatically.
 
@@ -82,11 +91,16 @@ No installed-copy or old dashboard-cache migration happens automatically.
   view URLs remain supported. Retired skill names remain unavailable.
 
 Canonical skills and supporting assets live directly in `../../skills/`.
-`content.py` owns Markdown discovery, rendering and export; `catalog.py` owns
-website routes; `templates/skills/` owns viewer templates,
-components, reviewed libraries and notices. `server.py` owns one lifespan/watcher,
-Host/Origin/CSP protections and a closed public asset registry.
-`routes/automata.py`, `data.py` and `activity.py` retain the monitor projection.
+`content.py` owns Markdown discovery, rendering and export; `routes/skills.py`
+owns skill documents and their legacy URL resolution. `routes/monitoring.py` and
+`routes/tools.py` own monitoring and tool inventory routes. `server.py` assembles
+one Jinja environment, lifespan/watcher, shared SSE, Host/Origin/CSP protections
+and closed public asset registry. `config.py` defines package inventory,
+invocation-project and template/runtime roots without importing web dependencies.
+`data.py` and `activity.py` retain the cohesive read-only monitor projection.
+`templates/skills/` owns viewer templates, components, reviewed libraries and
+notices; `templates/shared/` owns the shared Adaptive UI bundle, navigation,
+theme and live-reload component. Existing public asset URLs remain supported.
 
 The complete skill source (frontmatter, fences, whitespace and final newline) is
 Jinja-autoescaped. Prism highlights without executing examples and retains official

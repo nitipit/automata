@@ -64,6 +64,8 @@ def test_package_excludes_generated_trees_from_sdists_and_wheels() -> None:
     assert config["tool"]["uv"]["build-backend"]["source-exclude"] == [
         "src/automata/skills/**/__pycache__/**",
         "src/automata/tools/**/__pycache__/**",
+        "src/automata/tools/anatomy/frontend/node_modules",
+        "src/automata/tools/anatomy/frontend/node_modules/**",
         "src/automata/runtimes/pi/extensions/**/node_modules",
         "src/automata/runtimes/pi/extensions/**/node_modules/**",
         "src/automata/runtimes/pi/extensions/**/__pycache__/**",
@@ -111,6 +113,15 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "skills/automata-agent-evaluation/templates/evaluation-record.json",
         "tools/anatomy/server.py",
         "tools/anatomy/cli.py",
+        "tools/anatomy/config.py",
+        "tools/anatomy/routes/skills.py",
+        "tools/anatomy/routes/monitoring.py",
+        "tools/anatomy/frontend/build.mjs",
+        "tools/anatomy/frontend/package.json",
+        "tools/anatomy/frontend/package-lock.json",
+        "tools/anatomy/.automataignore",
+        "tools/anatomy/templates/shared/lib/adaptive-ui.js",
+        "tools/anatomy/templates/shared/components/live-refresh.js",
     }
     with zipfile.ZipFile(wheel) as archive:
         wheel_paths = {
@@ -147,6 +158,11 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         assert "tools/anatomy/templates/skills/catalog.html" in paths
         assert "tools/anatomy/templates/skills/skill.html" in paths
         assert "tools/anatomy/templates/skills/index.html" not in paths
+        assert "tools/anatomy/frontend/build.ts" not in paths
+        assert "tools/anatomy/frontend/deno.json" not in paths
+        assert "tools/anatomy/frontend/deno.lock" not in paths
+        assert "tools/anatomy/catalog.py" not in paths
+        assert "tools/anatomy/routes/automata.py" not in paths
         assert "skills/core/automata-workplan/SKILL.md" not in paths
         assert not any(path.startswith("skills/automata-plan/") for path in paths)
         assert not any(

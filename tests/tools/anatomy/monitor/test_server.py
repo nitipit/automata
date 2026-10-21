@@ -4,13 +4,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 from automata.tools.anatomy import server
-from automata.tools.anatomy.routes import automata
+from automata.tools.anatomy.routes import monitoring
 
 
 @pytest.fixture
 def client(monkeypatch):
     monkeypatch.setattr(
-        automata, "snapshot", lambda window: {"activity": {"window": window.public()}}
+        monitoring, "snapshot", lambda window: {"activity": {"window": window.public()}}
     )
     return TestClient(server.create_app(), base_url="http://127.0.0.1:8766")
 
@@ -150,7 +150,7 @@ def test_snapshot_failure_is_bounded(client, monkeypatch):
     def fail(_):
         raise RuntimeError("private detail")
 
-    monkeypatch.setattr(automata, "snapshot", fail)
+    monkeypatch.setattr(monitoring, "snapshot", fail)
     response = client.get("/api/anatomy")
     assert response.status_code == 503
     assert "private detail" not in response.text

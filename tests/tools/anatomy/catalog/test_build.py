@@ -1,6 +1,8 @@
 """Canonical direct views in the unified server; no skill website build output."""
 
+import json
 import shutil
+import subprocess
 
 import pytest
 from fastapi.testclient import TestClient
@@ -88,6 +90,9 @@ def test_public_routes_and_allowed_roots(tmp_path):
     viewer = root / "templates/skills"
     (viewer / "components/escape.js").symlink_to(outside)
     (viewer / "components/base.js").symlink_to(viewer / "base.html")
+    (viewer / "components/monitor.js").symlink_to(
+        root / "templates/automata/components/monitor.js"
+    )
     app = create_app(skills_root=root / "skills", templates_root=root / "templates")
     with client(app) as browser:
         legacy = browser.get("/templates/index.html", follow_redirects=False)
@@ -114,6 +119,7 @@ def test_public_routes_and_allowed_roots(tmp_path):
             "/templates/catalog.html",
             "/templates/components/escape.js",
             "/templates/components/base.js",
+            "/templates/components/monitor.js",
             "/templates/../server.py",
             "/%2e%2e/private.txt",
             "/templates/skill.html?name=../private",
@@ -166,6 +172,77 @@ def test_references_never_evaluate_jinja_or_authored_html(tmp_path):
         assert "{{ missing }} {% unknown %}" in rendered.text
         assert "&lt;script&gt;" in rendered.text
         assert "<script>window.authored" not in rendered.text
+
+
+def test_node_asset_build_copies_pinned_official_files(tmp_path):
+    frontend = TEMPLATES.parent / "frontend"
+    package = frontend / "node_modules/echarts"
+    if shutil.which("node") is None or not (package / "package.json").is_file():
+        pytest.skip("Prepare Node 24+ and frontend/npm ci --ignore-scripts first")
+    assert json.loads((package / "package.json").read_text())["version"] == "6.0.0"
+    output = tmp_path / "owned assets"
+    result = subprocess.run(
+        ["node", str(frontend / "build.mjs"), str(output)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    expected = {
+        "echarts.js": "dist/echarts.esm.min.js",
+        "echarts-LICENSE.txt": "LICENSE",
+        "echarts-NOTICE.txt": "NOTICE",
+    }
+    assert {p.name for p in (output / "lib").iterdir()} == set(expected)
+    for target, source in expected.items():
+        assert (output / "lib" / target).read_bytes() == (package / source).read_bytes()
+    with client(create_app(site_root=output)) as browser:
+        assert browser.get("/lib/echarts.js").content == (output / "lib/echarts.js").read_bytes()
+        for path in (
+            "/lib/echarts-LICENSE.txt", "/lib/echarts-NOTICE.txt",
+            "/lib/echarts.js.map", "/node_modules/echarts/package.json",
+        ):
+            assert browser.get(path).status_code == 404
+
+
+def test_node_asset_build_rejects_unexpected_version_before_writing(tmp_path):
+    if shutil.which("node") is None:
+        pytest.skip("Node 24+ is required")
+    script = tmp_path / "frontend/build.mjs"
+    script.parent.mkdir()
+    shutil.copyfile(TEMPLATES.parent / "frontend/build.mjs", script)
+    package = script.parent / "node_modules/echarts"
+    package.mkdir(parents=True)
+    (package / "package.json").write_text('{"name":"echarts","version":"0.0.0"}')
+    output = tmp_path / "public"
+    result = subprocess.run(
+        ["node", str(script), str(output)], capture_output=True, text=True, timeout=15
+    )
+    assert result.returncode != 0
+    assert "Unexpected ECharts version" in result.stderr
+    assert not output.exists()
+
+
+def test_missing_chart_is_bounded_and_never_fetched(tmp_path):
+    with client(create_app(site_root=tmp_path / "unprepared")) as browser:
+        response = browser.get("/lib/echarts.js")
+        assert response.status_code == 503
+        assert response.json() == {"detail": "Asset unavailable"}
+        assert not (tmp_path / "unprepared").exists()
+
+
+def test_shared_asset_ownership_and_legacy_urls():
+    with client(create_app()) as browser:
+        for old, current in (
+            ("/templates/lib/adaptive-ui.js", "/lib/adaptive-ui.js"),
+            ("/templates/components/live-refresh.js", "/shared/components/live-refresh.js"),
+        ):
+            legacy = browser.get(old)
+            shared = browser.get(current)
+            assert legacy.status_code == shared.status_code == 200
+            assert legacy.content == shared.content
+        assert '/shared/components/live-refresh.js' in browser.get("/tools/").text
 
 
 def test_single_watcher_is_cancelled_on_shutdown():

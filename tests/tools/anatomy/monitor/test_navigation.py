@@ -3,8 +3,9 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from automata.tools.anatomy import catalog, data, server
+from automata.tools.anatomy import data, server
 from automata.tools.anatomy.content import SKILLS
+from automata.tools.anatomy.routes import skills
 
 
 @pytest.fixture
@@ -124,7 +125,7 @@ def test_unknown_documents_and_no_generic_file_mount(client, path):
 
 def test_installed_only_evidence_does_not_publish_private_source(client, monkeypatch):
     monkeypatch.setattr(
-        catalog,
+        skills,
         "installed_skills",
         lambda: (
             [
