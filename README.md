@@ -41,8 +41,7 @@ This README is a quick orientation map; follow the relevant source for details.
 - [Manager](src/automata/skills/automata-manager/SKILL.md): an optional dedicated management role, not a requirement for ordinary delegation.
 - [Communication](src/automata/skills/automata-communication/SKILL.md): receiver, channel and outcome judgment; transport is an external integration.
 - [NodalWire](src/automata/skills/automata-nodalwire/SKILL.md): connect and use trusted-local messaging, with optional Pi integration guidance.
-- [Pi workers](src/automata/skills/automata-pi-workers/SKILL.md): launch and operate separate Pi agents, with verified readiness and completion.
-- [Pi teams](src/automata/skills/automata-pi-team/SKILL.md): run an approved flat team through the bounded [pi-team CLI](src/automata/tools/pi-team/README.md), with verified callbacks and task-owned artifacts.
+- [Pi workers](src/automata/skills/automata-pi-team/SKILL.md): create persistent workers through the thin [pi-team CLI](src/automata/tools/pi-team/README.md), forward native RPC, inspect evidence and explicitly control lifecycle. No separate `pi-rpc` client is required.
 - [Storage](src/automata/skills/automata-storage/SKILL.md) and [task spaces](src/automata/skills/automata-task-space/SKILL.md): ownership, placement and cleanup.
 - [Testing](tests/README.md): test layout and verification scope.
 

@@ -101,7 +101,6 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "skills/automata-pi-sessions/SKILL.md",
         "skills/automata-pi-imagegen/SKILL.md",
         "skills/automata-pi-skill-activity/SKILL.md",
-        "skills/automata-pi-workers/SKILL.md",
         "skills/automata-pi-team/SKILL.md",
         "skills/automata-adaptive-ui/SKILL.md",
         "tools/pi-team/pi_team.py",
@@ -131,6 +130,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         assert not any(path.startswith("skills/automata-web-design/") for path in paths)
         assert not any(path.startswith("skills/automata-codex-sessions/") for path in paths)
         assert "skills/automata-time-awareness/SKILL.md" not in paths
+        assert not any(path.startswith("skills/automata-pi-workers/") for path in paths)
         assert "skills/automata-timer/SKILL.md" in paths
     source_catalog = root / "src/automata/skills"
     catalog_files = {
@@ -167,7 +167,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
             "automata-pi-sessions",
             "automata-pi-imagegen",
             "automata-pi-skill-activity",
-            "automata-pi-workers",
+            "automata-pi-team",
         )
         assert not any(
             path.startswith("skills/core/") and path.endswith(f"{name}/SKILL.md")
@@ -199,7 +199,7 @@ assert all(path.is_relative_to(site) for path in sources.values())
 assert 'automata-team-use' not in sources
 assert (sources['automata-background-process'] / 'SKILL.md').is_file()
 assert (sources['automata-nodalwire'] / 'references/pi.md').is_file()
-assert (sources['automata-pi-workers'] / 'SKILL.md').is_file()
+assert 'automata-pi-workers' not in sources
 assert 'automata-thinking-control' not in sources
 assert 'automata-pi-sessions' in sources
 assert 'automata-web-design' not in sources
@@ -221,7 +221,7 @@ results = install_skills(target_root=work / 'skills')
 assert set(skill_sources(work / 'skills')) == set(sources)
 for name in ('automata-storage', 'automata-pi-context-status',
              'automata-workplan', 'automata-agent-design', 'automata-nodalwire',
-             'automata-pi-workers', 'automata-pi-team', 'automata-adaptive-ui'):
+             'automata-pi-team', 'automata-adaptive-ui'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
 install_skills(target_root=work / 'linked', skill_names=['automata-agent-design'], mode='symlink')
 linked = work / 'linked/automata-agent-design'

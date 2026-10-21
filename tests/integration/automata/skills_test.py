@@ -18,7 +18,6 @@ PI_SKILL_NAMES = {
     "automata-pi-context-status",
     "automata-pi-sessions",
     "automata-pi-skill-activity",
-    "automata-pi-workers",
     "automata-pi-team",
 }
 TOOLS_ROOT = PACKAGE_ROOT / "tools"
@@ -37,7 +36,6 @@ REQUIRED_SKILLS = {
     "automata-pi-context-compaction",
     "automata-pi-sessions",
     "automata-pi-skill-activity",
-    "automata-pi-workers",
     "automata-pi-team",
     "automata-delegation",
     "automata-cue",
@@ -64,6 +62,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-pi-workers",
     "automata-teamwork-design",
     "automata-team-management",
     "automata-web-design",
