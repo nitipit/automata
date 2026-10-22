@@ -89,6 +89,10 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
     wheel = next(output.glob("*.whl"))
     sdist = next(output.glob("*.tar.gz"))
     expected = {
+        "runtimes/pi/extensions/agent-team/index.ts",
+        "runtimes/pi/extensions/agent-team/worker.ts",
+        "runtimes/pi/extensions/agent-team/capture.ts",
+        "runtimes/pi/extensions/agent-team/README.md",
         "runtimes/pi/extensions/context-status.ts",
         "runtimes/pi/extensions/fast-mode/index.ts",
         "runtimes/pi/extensions/fast-mode/README.md",
@@ -254,12 +258,16 @@ assert (linked / 'SKILL.md').read_bytes() == (
 ).read_bytes()
 installed = install_pi_extensions(target_root=work / 'extensions')
 assert {item.name for item in installed} == {
-    'codex-bridge', 'context-compaction', 'context-status', 'fast-mode',
+    'agent-team', 'codex-bridge', 'context-compaction', 'context-status', 'fast-mode',
     'message-timestamps', 'nodalwire', 'pi-sessions', 'skill-activity', 'token-awareness',
 }
 assert not (work / 'extensions/thinking-control').exists()
 assert (work / 'extensions/skill-activity/store.py').is_file()
 assert (work / 'extensions/token-awareness.ts').is_file()
+assert (work / 'extensions/agent-team/index.ts').is_file()
+assert (work / 'extensions/agent-team/worker.ts').is_file()
+assert (work / 'extensions/agent-team/capture.ts').is_file()
+assert (work / 'extensions/agent-team/README.md').is_file()
 assert (work / 'extensions/fast-mode/index.ts').is_file()
 assert (work / 'extensions/fast-mode/README.md').is_file()
 assert (work / 'extensions/nodalwire/index.ts').is_file()

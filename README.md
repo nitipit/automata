@@ -64,6 +64,17 @@ model switches during dispatch: guards are best-effort, not physical-route
 isolation. Disable competing `/fast`/`--fast` extensions under separate approval
 before activation. Premium access and native costs are not billing evidence.
 
+## Pi agent workers
+
+The [`agent-team` extension](src/automata/runtimes/pi/extensions/agent-team/README.md)
+provides six tools to start, assign, inspect, read, abort and stop independent Pi
+RPC workers directly over stdio. Completion reports are event-driven and delivered
+as parent follow-ups; no Python kernel, `pi-team` CLI, relay or additional skill
+is needed. Workers start only on explicit tool calls, with verified model/thinking
+and session settings. Normal shutdown/reload stops owned workers; abrupt parent
+exit requires manual recovery. Automated tests use offline workers; live-model
+trials and installation require separate approval.
+
 ## Pi NodalWire messaging
 
 The opt-in [`nodalwire` extension](src/automata/runtimes/pi/extensions/nodalwire/README.md)
