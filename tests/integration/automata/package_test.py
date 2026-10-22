@@ -103,10 +103,8 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "skills/automata-pi-sessions/SKILL.md",
         "skills/automata-pi-imagegen/SKILL.md",
         "skills/automata-pi-skill-activity/SKILL.md",
-        "skills/automata-pi-team/SKILL.md",
+        "skills/automata-pi-delegation/SKILL.md",
         "skills/automata-adaptive-ui/SKILL.md",
-        "tools/pi-team/pi_team.py",
-        "tools/pi-team/README.md",
         "runtimes/pi/extensions/codex-bridge.ts",
         "skills/automata-workplan/SKILL.md",
         "skills/automata-storage/SKILL.md",
@@ -142,6 +140,8 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         assert not any(path.startswith("skills/automata-codex-sessions/") for path in paths)
         assert "skills/automata-time-awareness/SKILL.md" not in paths
         assert not any(path.startswith("skills/automata-pi-workers/") for path in paths)
+        assert not any(path.startswith("skills/automata-pi-team/") for path in paths)
+        assert not any(path.startswith("tools/pi-team/") for path in paths)
         assert "skills/automata-timer/SKILL.md" in paths
     source_catalog = root / "src/automata/skills"
     catalog_files = {
@@ -183,7 +183,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
             "automata-pi-sessions",
             "automata-pi-imagegen",
             "automata-pi-skill-activity",
-            "automata-pi-team",
+            "automata-pi-delegation",
         )
         assert not any(
             path.startswith("skills/core/") and path.endswith(f"{name}/SKILL.md")
@@ -221,7 +221,8 @@ assert 'automata-pi-sessions' in sources
 assert 'automata-web-design' not in sources
 assert 'automata-web-app' not in sources
 assert (sources['automata-adaptive-ui'] / 'SKILL.md').is_file()
-assert (sources['automata-pi-team'] / 'SKILL.md').is_file()
+assert 'automata-pi-team' not in sources
+assert 'automata-pi-delegation' in sources
 assert 'automata-web-dev' not in sources
 assert 'automata-playspace' not in sources
 assert 'automata-codex-sessions' not in sources
@@ -237,7 +238,7 @@ results = install_skills(target_root=work / 'skills')
 assert set(skill_sources(work / 'skills')) == set(sources)
 for name in ('automata-storage', 'automata-pi-context-status',
              'automata-workplan', 'automata-agent-design', 'automata-nodalwire',
-             'automata-pi-team', 'automata-adaptive-ui'):
+             'automata-pi-delegation', 'automata-adaptive-ui'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
 install_skills(target_root=work / 'linked', skill_names=['automata-agent-design'], mode='symlink')
 linked = work / 'linked/automata-agent-design'
@@ -266,11 +267,9 @@ assert (work / 'extensions/codex-bridge.ts').is_file()
 from automata.install.tools import install_tools
 shared = install_tools(target_root=work / 'tools')
 assert {item.name for item in shared} == {
-    'line', 'timer', 'anatomy', 'pi-team'
+    'line', 'timer', 'anatomy'
 }
-assert (work / 'tools/pi-team/pi_team.py').is_file()
-assert (work / 'tools/pi-team/README.md').is_file()
-assert not (work / 'tools/pi-team/__pycache__').exists()
+assert not (work / 'tools/pi-team').exists()
 assert not (work / 'tools/team').exists()
 assert not (work / 'tools/tmux-message').exists()
 assert (work / 'tools/anatomy/anatomy.py').is_file()
