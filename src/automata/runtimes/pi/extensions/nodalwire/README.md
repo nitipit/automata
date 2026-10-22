@@ -67,4 +67,4 @@ running tools. Wake-ups may consume model quota.
 
 For wire validation and bounds read [protocol.ts](protocol.ts); for provenance,
 queue accounting and lifecycle read [index.ts](index.ts). Repository checks:
-`tests/integration/automata/extensions/nodalwire_test.py` (offline, not live delivery).
+`python -m pytest tests/unit/automata/extensions tests/integration/automata/extensions/extension_test.py -k nodalwire` (offline).

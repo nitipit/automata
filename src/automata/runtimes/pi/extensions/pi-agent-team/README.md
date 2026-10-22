@@ -55,5 +55,6 @@ Loading starts no workers. Installation/reload and live trials need authorizatio
 
 Read [worker.ts](worker.ts) for RPC/assignment/shutdown contracts,
 [capture.ts](capture.ts) for evidence paging, and [index.ts](index.ts) for reports
-and lifecycle. Repository checks: `tests/integration/automata/extensions/agent_team_test.py`.
+and lifecycle. Repository checks:
+`python -m pytest tests/unit/automata/extensions tests/integration/automata/extensions/extension_test.py -k pi-agent-team`.
 Offline tests do not prove provider access or full live-runtime behavior.

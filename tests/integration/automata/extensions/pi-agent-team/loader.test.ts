@@ -7,7 +7,7 @@ import test from "node:test";
 const { loadExtensions } = await import(pathToFileURL(join(process.env.PI_TEST_PACKAGE_ROOT, "dist/core/extensions/loader.js")));
 
 test("installed Pi loads the TypeScript bundle and registers six tools", async () => {
-  const root = process.env.AGENT_TEAM_TEST_ROOT;
+  const root = process.env.PI_EXTENSION_TEST_ROOT;
   const result = await loadExtensions([join(root, "index.ts")], root);
   assert.deepEqual(result.errors, []);
   assert.equal(result.extensions.length, 1);

@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import test from "node:test";
 
 const { registerNodalWire, encodeMessage, decodeMessage, default: register } =
-  await import(pathToFileURL(join(process.env.NODALWIRE_TEST_ROOT, "index.ts")));
+  await import(pathToFileURL(join(process.env.PI_EXTENSION_TEST_ROOT, "index.ts")));
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
 function client() {
@@ -86,6 +86,20 @@ test("disabled extension does not load native dependency or start resources", as
   await f.emit("session_shutdown");
   // Registering the real entry point is also safe without an installed client.
   register(f.pi);
+});
+
+test("failed relay release warns without exposing raw errors or reconnecting", async () => {
+  const f = fixture();
+  f.node.close = async () => { f.node.closed++; throw new Error("PRIVATE-RELEASE-ERROR"); };
+  await f.connection("connect", { name: "release-test" });
+  const result = await f.connection("disconnect");
+  assert.equal(result.details.status, "disconnected");
+  assert.equal(f.node.closed, 1);
+  assert.ok(f.notices.some(([text, level]) => /lease may remain/.test(text) && level === "warning"));
+  assert.doesNotMatch(JSON.stringify(f.notices), /PRIVATE-RELEASE-ERROR/);
+  await f.connection("disconnect");
+  assert.equal(f.node.closed, 1);
+  assert.equal(f.attempts(), 1);
 });
 
 test("busy follow-up does not block later steering; provenance and native options remain explicit", async () => {

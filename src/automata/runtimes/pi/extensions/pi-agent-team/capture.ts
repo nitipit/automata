@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto";
 export function clip(text: string, bytes: number): string {
   const buffer = Buffer.from(text);
   if (buffer.length <= bytes) return text;
-  // Avoid ending with a partial UTF-8 character.
-  return new TextDecoder("utf-8", { fatal: false }).decode(buffer.subarray(0, bytes)).replace(/\uFFFD$/, "");
+  // Streaming leaves a partial final code point buffered; keep literal U+FFFD/BOM.
+  return new TextDecoder("utf-8", { ignoreBOM: true }).decode(buffer.subarray(0, bytes), { stream: true });
 }
 
 /**

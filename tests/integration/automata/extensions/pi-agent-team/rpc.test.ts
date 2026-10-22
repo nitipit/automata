@@ -3,11 +3,10 @@ import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
-const root = process.env.AGENT_TEAM_TEST_ROOT;
-const { Capture } = await import(pathToFileURL(join(root, "capture.ts")));
+const root = process.env.PI_EXTENSION_TEST_ROOT;
 const { Worker } = await import(pathToFileURL(join(root, "worker.ts")));
 const { registerAgentTeam, MESSAGE_TYPE } = await import(pathToFileURL(join(root, "index.ts")));
-const fake = join(dirname(fileURLToPath(import.meta.url)), "agent_team_fake_worker.mjs");
+const fake = join(dirname(fileURLToPath(import.meta.url)), "fixtures/fake-worker.mjs");
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(predicate) {
   for (let n = 0; n < 200; n++) { if (await predicate()) return; await delay(5); }
@@ -44,41 +43,6 @@ function fixture(options = {}) {
     },
   };
 }
-
-// Cursor mechanics are independent of process/transport behavior.
-test("cursor reads are non-consuming, exclusive, independent and budgeted", () => {
-  const c = new Capture();
-  c.append("first");
-  const first = c.read(undefined);
-  assert.equal(first.records[0].value, "first");
-  assert.deepEqual(c.read(undefined), first);
-  assert.equal(c.read(first.nextCursor).records.length, 0);
-  c.append("second");
-  assert.equal(c.read(first.nextCursor).records[0].value, "second");
-  assert.throws(() => new Capture().read(first.nextCursor), /another worker/);
-  assert.throws(() => c.read("garbage"));
-  assert.throws(() => c.read(undefined, 0));
-});
-
-test("expired cursor exposes gaps; blocked reads never skip records", () => {
-  const c = new Capture(1500, 1000);
-  const start = c.read(undefined).nextCursor;
-  c.append("x".repeat(500)); c.append("y".repeat(500)); c.append("z".repeat(500));
-  const blocked = c.read(start, 256);
-  assert.equal(blocked.gap, true);
-  assert.equal(blocked.droppedRecords, 1);
-  assert.equal(blocked.blocked, true);
-  assert.equal(blocked.records.length, 0);
-  assert.equal(c.read(blocked.nextCursor, blocked.requiredBytes).records[0].value[0], "y");
-});
-
-test("large capture records are explicitly truncated and remain retrievable", () => {
-  const c = new Capture(2000, 1000);
-  c.append("😀".repeat(1000));
-  const result = c.read(undefined, 2000);
-  assert.equal(result.truncatedRecords, 1);
-  assert.equal(result.records[0].value.truncated, true);
-});
 
 test("verified startup is idle and sends no prompt", async t => {
   const { instance, reports } = await worker(t);
@@ -250,15 +214,6 @@ test("stop is idempotent and escalates for a stubborn process", async t => {
   assert.deepEqual(a, b);
   assert.equal(a.state, "stopped");
   assert.equal(a.exit.signal, "SIGKILL");
-});
-
-test("extension registration creates no processes; child environment exposes no manager tools", () => {
-  const f = fixture();
-  assert.equal(f.tools.size, 6);
-  assert.equal(f.messages.length, 0);
-  const child = fixture({ workerEnvironment: true });
-  assert.equal(child.tools.size, 0);
-  assert.equal(child.handlers.size, 0);
 });
 
 test("extension tools deliver deduplicated labeled reports and save recovery references", async t => {
