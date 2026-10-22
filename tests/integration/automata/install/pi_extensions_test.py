@@ -97,7 +97,7 @@ def test_default_install_excludes_retired_control_without_uninstalling(tmp_path:
     retired.parent.mkdir(parents=True)
     retired.write_text("// existing user installation\n")
     expected = {
-        "agent-team", "codex-bridge", "context-compaction", "context-status", "fast-mode",
+        "pi-agent-team", "codex-bridge", "context-compaction", "context-status", "fast-mode",
         "message-timestamps", "nodalwire", "pi-sessions", "skill-activity", "token-awareness",
     }
     assert set(list_pi_extensions(bundled_pi_extension_root())) == expected
@@ -117,11 +117,11 @@ def test_default_install_excludes_retired_control_without_uninstalling(tmp_path:
 @pytest.mark.parametrize("mode", ["copy", "symlink"])
 def test_install_agent_team_bundle(tmp_path: Path, mode: str) -> None:
     target = tmp_path / "extensions"
-    install_pi_extensions(target_root=target, extension_names=["agent-team"], mode=mode)
-    source = bundled_pi_extension_root() / "agent-team"
+    install_pi_extensions(target_root=target, extension_names=["pi-agent-team"], mode=mode)
+    source = bundled_pi_extension_root() / "pi-agent-team"
     for name in ("index.ts", "worker.ts", "capture.ts", "README.md"):
-        assert (target / "agent-team" / name).read_bytes() == (source / name).read_bytes()
-    assert (target / "agent-team").is_symlink() == (mode == "symlink")
+        assert (target / "pi-agent-team" / name).read_bytes() == (source / name).read_bytes()
+    assert (target / "pi-agent-team").is_symlink() == (mode == "symlink")
     assert not (tmp_path / ".agents").exists()
 
 

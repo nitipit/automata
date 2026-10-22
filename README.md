@@ -38,7 +38,6 @@ This README is a quick orientation map; follow the relevant source for details.
 - [Skill design](src/automata/skills/automata-skill-design/SKILL.md): scope, activation and composition.
 - [Setup](src/automata/skills/automata-setup/SKILL.md): asset selection, install modes and readiness.
 - [Delegation](src/automata/skills/automata-delegation/SKILL.md): work division, handoffs, coordination and acceptance, with conditional team-design and hierarchy references.
-- [Pi delegation](src/automata/skills/automata-pi-delegation/SKILL.md): choose native worker-control or prepared peer-messaging interfaces for the situation; consult their maintained documentation.
 - [Manager](src/automata/skills/automata-manager/SKILL.md): an optional dedicated management role, not a requirement for ordinary delegation.
 - [Communication](src/automata/skills/automata-communication/SKILL.md): receiver, channel and outcome judgment; transport is an external integration.
 - [Pi NodalWire](src/automata/skills/automata-pi-nodalwire/SKILL.md): exchange API-shaped Pi custom messages over trusted-local NodalWire, preserving native delivery/wake-up options and sender provenance.
@@ -66,7 +65,7 @@ before activation. Premium access and native costs are not billing evidence.
 
 ## Pi agent workers
 
-The [`agent-team` extension](src/automata/runtimes/pi/extensions/agent-team/README.md)
+The [`pi-agent-team` extension](src/automata/runtimes/pi/extensions/pi-agent-team/README.md)
 provides six tools to start, assign, inspect, read, abort and stop independent Pi
 RPC workers directly over stdio. Completion reports are event-driven and delivered
 as parent follow-ups; no Python kernel, `pi-team` CLI, relay or additional skill

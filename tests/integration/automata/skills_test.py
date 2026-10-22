@@ -14,7 +14,6 @@ SKILLS_ROOT = PACKAGE_ROOT / "skills"
 SKILL_ROOTS = (SKILLS_ROOT,)
 PI_SKILL_NAMES = {
     "automata-pi-nodalwire",
-    "automata-pi-delegation",
     "automata-pi-imagegen",
     "automata-pi-context-compaction",
     "automata-pi-context-status",
@@ -38,7 +37,6 @@ REQUIRED_SKILLS = {
     "automata-pi-sessions",
     "automata-pi-skill-activity",
     "automata-delegation",
-    "automata-pi-delegation",
     "automata-cue",
     "automata-manager",
     "automata-workplan",
@@ -63,6 +61,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-pi-delegation",
     "automata-nodalwire",
     "automata-pi-team",
     "automata-pi-workers",

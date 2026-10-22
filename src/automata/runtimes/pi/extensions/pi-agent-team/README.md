@@ -1,4 +1,4 @@
-# Pi agent-team extension
+# pi-agent-team
 
 A TypeScript Pi extension that starts and controls independent Pi RPC workers
 through their stdin/stdout pipes. No Python kernel, `pi-team` CLI, relay, or
@@ -18,11 +18,11 @@ The bundle has no additional runtime dependencies beyond Node and Pi's provided
 one-session trial, load the source bundle with:
 
 ```sh
-pi --extension /absolute/path/to/agent-team
+pi --extension /absolute/path/to/pi-agent-team
 ```
 
 The repository's `automata pi-extension install` command can install the bundle
-by name (`agent-team`) under a separately approved target root. Loading or
+by name (`pi-agent-team`) under a separately approved target root. Loading or
 installation does **not** start workers. Only an explicit `agent_start` tool call
 does that. No installation or live-model trial is implied by the tests below.
 
@@ -30,7 +30,7 @@ does that. No installation or live-model trial is implied by the tests below.
 
 ```text
 parent Pi session
-  └── agent-team extension
+  └── pi-agent-team extension
         ├── worker controller A ↔ Pi RPC process A
         └── worker controller B ↔ Pi RPC process B
 ```

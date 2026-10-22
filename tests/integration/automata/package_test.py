@@ -89,10 +89,10 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
     wheel = next(output.glob("*.whl"))
     sdist = next(output.glob("*.tar.gz"))
     expected = {
-        "runtimes/pi/extensions/agent-team/index.ts",
-        "runtimes/pi/extensions/agent-team/worker.ts",
-        "runtimes/pi/extensions/agent-team/capture.ts",
-        "runtimes/pi/extensions/agent-team/README.md",
+        "runtimes/pi/extensions/pi-agent-team/index.ts",
+        "runtimes/pi/extensions/pi-agent-team/worker.ts",
+        "runtimes/pi/extensions/pi-agent-team/capture.ts",
+        "runtimes/pi/extensions/pi-agent-team/README.md",
         "runtimes/pi/extensions/context-status.ts",
         "runtimes/pi/extensions/fast-mode/index.ts",
         "runtimes/pi/extensions/fast-mode/README.md",
@@ -110,7 +110,6 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "skills/automata-pi-sessions/SKILL.md",
         "skills/automata-pi-imagegen/SKILL.md",
         "skills/automata-pi-skill-activity/SKILL.md",
-        "skills/automata-pi-delegation/SKILL.md",
         "skills/automata-adaptive-ui/SKILL.md",
         "runtimes/pi/extensions/codex-bridge.ts",
         "skills/automata-workplan/SKILL.md",
@@ -191,7 +190,6 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
             "automata-pi-sessions",
             "automata-pi-imagegen",
             "automata-pi-skill-activity",
-            "automata-pi-delegation",
             "automata-pi-nodalwire",
         )
         assert not any(
@@ -232,7 +230,7 @@ assert 'automata-web-design' not in sources
 assert 'automata-web-app' not in sources
 assert (sources['automata-adaptive-ui'] / 'SKILL.md').is_file()
 assert 'automata-pi-team' not in sources
-assert 'automata-pi-delegation' in sources
+assert 'automata-pi-delegation' not in sources
 assert 'automata-web-dev' not in sources
 assert 'automata-playspace' not in sources
 assert 'automata-codex-sessions' not in sources
@@ -248,7 +246,7 @@ results = install_skills(target_root=work / 'skills')
 assert set(skill_sources(work / 'skills')) == set(sources)
 for name in ('automata-storage', 'automata-pi-context-status',
              'automata-workplan', 'automata-agent-design', 'automata-pi-nodalwire',
-             'automata-pi-delegation', 'automata-adaptive-ui'):
+             'automata-adaptive-ui'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
 install_skills(target_root=work / 'linked', skill_names=['automata-agent-design'], mode='symlink')
 linked = work / 'linked/automata-agent-design'
@@ -258,16 +256,16 @@ assert (linked / 'SKILL.md').read_bytes() == (
 ).read_bytes()
 installed = install_pi_extensions(target_root=work / 'extensions')
 assert {item.name for item in installed} == {
-    'agent-team', 'codex-bridge', 'context-compaction', 'context-status', 'fast-mode',
+    'pi-agent-team', 'codex-bridge', 'context-compaction', 'context-status', 'fast-mode',
     'message-timestamps', 'nodalwire', 'pi-sessions', 'skill-activity', 'token-awareness',
 }
 assert not (work / 'extensions/thinking-control').exists()
 assert (work / 'extensions/skill-activity/store.py').is_file()
 assert (work / 'extensions/token-awareness.ts').is_file()
-assert (work / 'extensions/agent-team/index.ts').is_file()
-assert (work / 'extensions/agent-team/worker.ts').is_file()
-assert (work / 'extensions/agent-team/capture.ts').is_file()
-assert (work / 'extensions/agent-team/README.md').is_file()
+assert (work / 'extensions/pi-agent-team/index.ts').is_file()
+assert (work / 'extensions/pi-agent-team/worker.ts').is_file()
+assert (work / 'extensions/pi-agent-team/capture.ts').is_file()
+assert (work / 'extensions/pi-agent-team/README.md').is_file()
 assert (work / 'extensions/fast-mode/index.ts').is_file()
 assert (work / 'extensions/fast-mode/README.md').is_file()
 assert (work / 'extensions/nodalwire/index.ts').is_file()

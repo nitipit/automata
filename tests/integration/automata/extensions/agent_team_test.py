@@ -1,4 +1,4 @@
-"""Offline agent-team RPC/controller checks. Requires installed Pi, never calls models."""
+"""Offline pi-agent-team RPC/controller checks. Requires installed Pi, never calls models."""
 import json
 import os
 import re
@@ -34,7 +34,7 @@ def test_agent_team_extension(tmp_path):
     node, package = shutil.which("node"), _pi_package()
     if node is None or package is None:
         pytest.skip("Node.js 24 and installed Pi required")
-    source = files("automata").joinpath("runtimes/pi/extensions/agent-team")
+    source = files("automata").joinpath("runtimes/pi/extensions/pi-agent-team")
     for name in ("index.ts", "worker.ts", "capture.ts"):
         (tmp_path / name).write_text(source.joinpath(name).read_text())
     modules = tmp_path / "node_modules"

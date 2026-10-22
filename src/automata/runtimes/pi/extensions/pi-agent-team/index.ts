@@ -205,7 +205,7 @@ export function registerAgentTeam(pi: ExtensionAPI, options: Options = {}) {
     }
     if (results.some(result => result.status === "rejected" || !result.value.exit)) {
       if (context?.hasUI) context.ui.notify("Agent-team shutdown could not confirm all worker exits; inspect process/session records.", "warning");
-      else console.error("[agent-team] Worker shutdown not fully confirmed");
+      else console.error("[pi-agent-team] Worker shutdown not fully confirmed");
     }
     workers.clear(); context = undefined;
   });
