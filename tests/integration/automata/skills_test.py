@@ -7,12 +7,15 @@ from pathlib import Path, PurePosixPath
 import pytest
 import yaml
 
+from automata.install.pi_extensions import install_pi_extensions
 from automata.install.skills import SkillInstallError, install_skills, skill_sources
 
 PACKAGE_ROOT = Path(__file__).parents[3] / "src" / "automata"
 SKILLS_ROOT = PACKAGE_ROOT / "skills"
 SKILL_ROOTS = (SKILLS_ROOT,)
 PI_SKILL_NAMES = {
+    "automata-pi-extension-dev",
+    "automata-pi-agent-team",
     "automata-pi-nodalwire",
     "automata-pi-imagegen",
     "automata-pi-context-compaction",
@@ -55,6 +58,8 @@ REQUIRED_SKILLS = {
     "automata-runtime-environment",
     "automata-python-kernel",
     "automata-background-process",
+    "automata-pi-extension-dev",
+    "automata-pi-agent-team",
     "automata-pi-nodalwire",
     "automata-software-dev",
     "automata-toolsmith",
@@ -147,6 +152,45 @@ def test_pi_skills_share_one_catalog_with_all_skills() -> None:
     for name in PI_SKILL_NAMES:
         assert (SKILLS_ROOT / name / "SKILL.md").is_file()
         assert not (SKILLS_ROOT / name).is_symlink()
+
+
+@pytest.mark.parametrize("extension", ["pi-agent-team", "nodalwire"])
+@pytest.mark.parametrize(
+    "layout", [".pi/extensions", "custom-agent/extensions", "chosen/extensions"]
+)
+def test_pi_usage_skills_reference_docs_in_installed_bundles(
+    tmp_path: Path, extension: str, layout: str
+) -> None:
+    """Mechanical reference checks, not proof of agent skill selection or judgment."""
+    skill_name = {
+        "pi-agent-team": "automata-pi-agent-team",
+        "nodalwire": "automata-pi-nodalwire",
+    }[extension]
+    skill_root = tmp_path / "skills"
+    extension_root = tmp_path / layout
+    install_skills(target_root=skill_root, skill_names=[skill_name])
+    install_pi_extensions(target_root=extension_root, extension_names=[extension])
+
+    skill = (skill_root / skill_name / "SKILL.md").read_text()
+    assert "README.md" in skill
+    assert "PI_CODING_AGENT_DIR" in skill
+    assert f".pi/extensions/{extension}/" in skill
+    assert f"~/.pi/agent/extensions/{extension}/" in skill
+    assert "src/automata" not in skill
+    bundle = extension_root / extension
+    readme = bundle / "README.md"
+    assert readme.is_file()
+    links = re.findall(r"\[[^\]]*\]\(([^)\s]+)\)", readme.read_text())
+    local_links = [
+        link for link in links
+        if not re.match(r"^[a-z][a-z0-9+.-]*:", link, re.IGNORECASE)
+        and not link.startswith(("#", "//"))
+    ]
+    assert local_links  # Deeper references survive copying outside the checkout.
+    for link in local_links:
+        target = (bundle / link.split("#", 1)[0]).resolve()
+        assert target.is_relative_to(bundle.resolve()), (readme, link)
+        assert target.is_file(), (readme, link)
 
 
 def test_changed_portable_guidance_keeps_runtime_details_external() -> None:

@@ -6,10 +6,12 @@ import { Capture, clip } from "./capture.ts";
 export const WORKER_ENV = "AUTOMATA_AGENT_TEAM_WORKER";
 export const TOOL_NAMES = ["agent_start", "agent_send", "agent_status", "agent_read", "agent_abort", "agent_stop"];
 export const THINKING = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
+/** Exact approved settings; resources controls discovery, never isolation or trust. */
 export type StartSpec = {
   workerId: string; cwd: string; provider: string; model: string; thinking: typeof THINKING[number];
   sessionId?: string; resources?: "inherit" | "minimal";
 };
+/** One assignment's bounded evidence, not a task-success classification. */
 export type Report = {
   workerId: string; instanceId: string; taskId: string; reportId: string;
   sessionId?: string; sessionFile?: string; outcome: "settled" | "handled" | "failed" | "exited";
@@ -26,11 +28,19 @@ export type WorkerOptions = {
   captureBytes?: number; maxLineBytes?: number; env?: NodeJS.ProcessEnv;
 };
 
+/** Correlate uncertain commands by requestId; a rejected promise cannot undo dispatch. */
 export class RpcError extends Error {
   constructor(message: string, readonly requestId?: string, readonly unknownOutcome = false) { super(message); }
 }
 
-/** One controller owns one Pi child, including the sole stdout reader. */
+/**
+ * Own one Pi child and its sole LF-framed stdout reader; stderr is captured separately.
+ * Pending/uncertain requests are bounded at 32; the default 30s deadline leaves
+ * correlation alive for late replies, never retries. Framing defaults to 8 MiB:
+ * oversize records are dropped through their next LF, marking evidence incomplete.
+ * No event-log polling is used.
+ * Retains 32 reports and at most 256 assignment IDs for this controller's lifetime.
+ */
 export class Worker {
   readonly instanceId = randomUUID();
   readonly events: Capture;
@@ -61,6 +71,12 @@ export class Worker {
     this.exitPromise = new Promise(resolve => { this.resolveExit = resolve; });
   }
 
+  /**
+   * Spawn idle, then verify exact provider/model/thinking/session with get_state.
+   * Minimal resources still load settings/context files. Children cannot recursively
+   * use these six tools; this is not a sandbox or a ban on arbitrary subprocesses.
+   * Startup failure attempts cleanup. Native persistent sessions are never deleted.
+   */
   async start() {
     const args = ["--mode", "rpc", "--provider", this.spec.provider, "--model", this.spec.model,
       "--thinking", this.spec.thinking, "--exclude-tools", TOOL_NAMES.join(",")];
@@ -217,6 +233,13 @@ export class Worker {
     }
   }
 
+  /**
+   * Reserve one assignment before dispatch; follow-ups stay in that assignment.
+   * Prompt rechecks effective settings and empty queues. IDs cannot be reused even
+   * after rejection; text is capped at 60,000 UTF-8 bytes. A handled prompt reports
+   * without waiting for settlement. After dispatch, caller cancellation is not undo.
+   * @returns An acceptance receipt, not completion; inspect RpcError unknownOutcome.
+   */
   async send(mode: "prompt" | "steer" | "follow_up", text: string, taskId?: string, signal?: AbortSignal) {
     signal?.throwIfAborted();
     if (!text.trim() || Buffer.byteLength(text) > 60000) throw new Error("text must be nonempty and at most 60000 UTF-8 bytes");
@@ -253,6 +276,7 @@ export class Worker {
     } finally { this.dispatching = false; }
   }
 
+  /** Acknowledge native abort, not settlement: queued steering/follow-ups may continue. */
   async abort() {
     const response = await this.rpc({ type: "abort" });
     // Native abort can continue queued instructions; do not clear or reassign them.
@@ -260,6 +284,11 @@ export class Worker {
       queueCleared: false, state: this.snapshot() };
   }
 
+  /**
+   * Clear the assignment before notification so duplicate settlement cannot report
+   * twice. Called on agent_settled (not agent_end), handled prompts, faults or exit.
+   * Summary is the last finalized assistant text, capped at 24,000 UTF-8 bytes.
+   */
   private complete(outcome: Report["outcome"], aborted: boolean) {
     if (!this.task) return;
     const task = this.task;
@@ -306,6 +335,7 @@ export class Worker {
     return this.protocolLoss > 0 || this.events.dropped > 0 || this.events.truncated > 0;
   }
 
+  /** Tracked observations only; no remote query, reattachment or success judgment. */
   snapshot() {
     return { workerId: this.spec.workerId, instanceId: this.instanceId, pid: this.child?.pid,
       cwd: this.spec.cwd, resources: this.spec.resources ?? "inherit", state: this.state,
@@ -317,6 +347,7 @@ export class Worker {
       exit: this.exited ? { code: this.exitCode, signal: this.exitSignal } : undefined };
   }
 
+  /** Runtime-only evidence: reportId selects reports; each capture owns its cursor stream. */
   read(view: "report" | "events" | "stderr", options: { reportId?: string; cursor?: string; maxBytes?: number }) {
     if (view !== "report") return (view === "events" ? this.events : this.stderr).read(options.cursor, options.maxBytes);
     if (options.cursor) throw new Error("Report reads use reportId, not a cursor");
@@ -325,6 +356,12 @@ export class Worker {
     return report;
   }
 
+  /**
+   * Idempotently close stdin, then TERM/KILL the owned group with bounded waits.
+   * Returned exit facts concern the worker; detached descendants are not covered.
+   * Reload/shutdown calls this, but abrupt parent death can bypass cleanup entirely.
+   * A saved PID alone never authorizes signalling a possibly reused process.
+   */
   stop() {
     if (this.stopPromise) return this.stopPromise;
     this.closing = true;

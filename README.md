@@ -36,11 +36,13 @@ This README is a quick orientation map; follow the relevant source for details.
 ## Find the relevant guidance
 
 - [Skill design](src/automata/skills/automata-skill-design/SKILL.md): scope, activation and composition.
+- [Pi extension development](src/automata/skills/automata-pi-extension-dev/SKILL.md): author extensions with compact READMEs, discoverable usage guidance and focused TSDoc.
 - [Setup](src/automata/skills/automata-setup/SKILL.md): asset selection, install modes and readiness.
 - [Delegation](src/automata/skills/automata-delegation/SKILL.md): work division, handoffs, coordination and acceptance, with conditional team-design and hierarchy references.
 - [Manager](src/automata/skills/automata-manager/SKILL.md): an optional dedicated management role, not a requirement for ordinary delegation.
 - [Communication](src/automata/skills/automata-communication/SKILL.md): receiver, channel and outcome judgment; transport is an external integration.
-- [Pi NodalWire](src/automata/skills/automata-pi-nodalwire/SKILL.md): exchange API-shaped Pi custom messages over trusted-local NodalWire, preserving native delivery/wake-up options and sender provenance.
+- [Pi agent workers](src/automata/skills/automata-pi-agent-team/SKILL.md): find the installed worker extension's operational guide before using its tools.
+- [Pi NodalWire](src/automata/skills/automata-pi-nodalwire/SKILL.md): find the installed peer-messaging extension's preparation and usage guide.
 - [Storage](src/automata/skills/automata-storage/SKILL.md) and [task spaces](src/automata/skills/automata-task-space/SKILL.md): ownership, placement and cleanup.
 - [Testing](tests/README.md): test layout and verification scope.
 
@@ -68,8 +70,9 @@ before activation. Premium access and native costs are not billing evidence.
 The [`pi-agent-team` extension](src/automata/runtimes/pi/extensions/pi-agent-team/README.md)
 provides six tools to start, assign, inspect, read, abort and stop independent Pi
 RPC workers directly over stdio. Completion reports are event-driven and delivered
-as parent follow-ups; no Python kernel, `pi-team` CLI, relay or additional skill
-is needed. Workers start only on explicit tool calls, with verified model/thinking
+as parent follow-ups; no Python kernel, `pi-team` CLI or relay is needed. Its
+compact usage skill points to the installed README. Workers start only on explicit
+tool calls, with verified model/thinking
 and session settings. Normal shutdown/reload stops owned workers; abrupt parent
 exit requires manual recovery. Automated tests use offline workers; live-model
 trials and installation require separate approval.

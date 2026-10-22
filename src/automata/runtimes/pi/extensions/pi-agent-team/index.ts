@@ -19,6 +19,13 @@ type Options = { workerOptions?: WorkerOptions; workerEnvironment?: boolean; bat
 
 export default function agentTeam(pi: ExtensionAPI) { registerAgentTeam(pi); }
 
+/**
+ * Register worker tools without spawning resources; only agent_start creates a child.
+ * Settled reports are batched as follow-ups with triggerTurn:true, which can wake
+ * an idle parent. Submission is not task acceptance; failed submissions are not
+ * replayed because Pi may already have accepted them. Retained reports remain readable.
+ * Shutdown invalidates the generation before stopping workers, suppressing late reports.
+ */
 export function registerAgentTeam(pi: ExtensionAPI, options: Options = {}) {
   // Same extension may be discovered by children. Never offer recursive delegation.
   if (options.workerEnvironment ?? process.env[WORKER_ENV] === "1") return;
@@ -86,7 +93,7 @@ export function registerAgentTeam(pi: ExtensionAPI, options: Options = {}) {
     return worker;
   }
 
-  // Tool descriptions carry the operational contract; a separate skill is unnecessary.
+  // Keep per-operation cautions model-visible; the usage skill points to the README.
   function tool(name: string, label: string, description: string, parameters: any,
     operation: (params: any, ctx: ExtensionContext, signal?: AbortSignal) => Promise<unknown> | unknown,
     readOnly = false) {
@@ -107,11 +114,13 @@ export function registerAgentTeam(pi: ExtensionAPI, options: Options = {}) {
     });
   }
 
-  tool("agent_start", "Start agent", "Start an idle Pi RPC worker; does not send a task. Requires delegation approval and explicit exact model/thinking/workspace. Verify returned settings. No fallback. Workers inherit normal Pi resources unless minimal is requested. Resume only an authorized inactive exact session. Workers are not sandboxes.",
+  tool("agent_start", "Start agent", "Start an idle Pi RPC worker; does not send a task. Requires delegation approval and explicit exact model/thinking/workspace. Verify returned settings. No fallback. At most 8 concurrent workers. Workers inherit normal Pi resources unless minimal is requested. Resume only an authorized inactive exact session. Workers are not sandboxes.",
     Type.Object({ workerId: Id, cwd: Type.String({ description: "Absolute existing workspace directory" }),
-      provider: Type.String({ minLength: 1 }), model: Type.String({ minLength: 1 }),
+      provider: Type.String({ minLength: 1, description: "Explicit approved provider" }),
+      model: Type.String({ minLength: 1, description: "Exact approved model ID; no fuzzy match or fallback" }),
       thinking: Type.Union(THINKING.map(level => Type.Literal(level))),
-      sessionId: Type.Optional(Id), resources: Type.Optional(Type.Union([Type.Literal("inherit"), Type.Literal("minimal")])) }),
+      sessionId: Type.Optional(Id), resources: Type.Optional(Type.Union([Type.Literal("inherit"), Type.Literal("minimal")],
+        { description: "Default inherit; minimal disables extensions/MCP/skills/templates, not settings or context files" })) }),
     async (params: StartSpec, ctx, signal) => {
       const generation = managerGeneration;
       if (!identifier(params.workerId) || (params.sessionId && !identifier(params.sessionId))) throw new Error("Invalid worker/session identifier");
@@ -146,7 +155,7 @@ export function registerAgentTeam(pi: ExtensionAPI, options: Options = {}) {
       } finally { signal?.removeEventListener("abort", abort); }
     });
 
-  tool("agent_send", "Send agent work", "Dispatch a new prompt with a unique taskId, or steer/follow_up an active assignment. Receipt is not completion. One assignment per worker; follow-ups remain part of that assignment. Timeout means unknown outcome: inspect, never blindly resend. Do not reassign a worker with queued instructions.",
+  tool("agent_send", "Send agent work", "Dispatch a new prompt with a unique taskId, or steer/follow_up an active assignment. Uses worker model quota; settlement reports can wake the parent. Receipt is not completion. One assignment per worker; follow-ups remain part of that assignment. Timeout means unknown outcome: inspect, never blindly resend. Do not reassign a worker with queued instructions.",
     Type.Object({ workerId: Id, mode: Type.Union([Type.Literal("prompt"), Type.Literal("steer"), Type.Literal("follow_up")]),
       text: Type.String({ minLength: 1, maxLength: 60000 }), taskId: Type.Optional(Id) }),
     (params, _ctx, signal) => get(params.workerId).send(params.mode, params.text, params.taskId, signal));

@@ -101,6 +101,8 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "runtimes/pi/extensions/nodalwire/package.json",
         "runtimes/pi/extensions/nodalwire/package-lock.json",
         "runtimes/pi/extensions/nodalwire/protocol.ts",
+        "skills/automata-pi-extension-dev/SKILL.md",
+        "skills/automata-pi-agent-team/SKILL.md",
         "skills/automata-pi-nodalwire/SKILL.md",
         "runtimes/pi/extensions/nodalwire/pnpm-workspace.yaml",
         "runtimes/pi/extensions/message-timestamps.ts",
@@ -190,6 +192,8 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
             "automata-pi-sessions",
             "automata-pi-imagegen",
             "automata-pi-skill-activity",
+            "automata-pi-extension-dev",
+            "automata-pi-agent-team",
             "automata-pi-nodalwire",
         )
         assert not any(
@@ -221,6 +225,8 @@ sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
 assert 'automata-team-use' not in sources
 assert (sources['automata-background-process'] / 'SKILL.md').is_file()
+assert (sources['automata-pi-extension-dev'] / 'SKILL.md').is_file()
+assert (sources['automata-pi-agent-team'] / 'SKILL.md').is_file()
 assert (sources['automata-pi-nodalwire'] / 'references/pi.md').is_file()
 assert 'automata-nodalwire' not in sources
 assert 'automata-pi-workers' not in sources
@@ -246,7 +252,7 @@ results = install_skills(target_root=work / 'skills')
 assert set(skill_sources(work / 'skills')) == set(sources)
 for name in ('automata-storage', 'automata-pi-context-status',
              'automata-workplan', 'automata-agent-design', 'automata-pi-nodalwire',
-             'automata-adaptive-ui'):
+             'automata-pi-extension-dev', 'automata-pi-agent-team', 'automata-adaptive-ui'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
 install_skills(target_root=work / 'linked', skill_names=['automata-agent-design'], mode='symlink')
 linked = work / 'linked/automata-agent-design'

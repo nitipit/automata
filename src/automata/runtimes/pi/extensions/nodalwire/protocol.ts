@@ -12,10 +12,12 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
 const bytes = (value: string) => encoder.encode(value).byteLength;
 
+/** Inline base64 image validation is structural, not proof a provider can decode it. */
 export type ContentBlock =
   | { type: "text"; text: string; textSignature?: string }
   | { type: "image"; data: string; mimeType: string };
 export type PeerMessage = { content: string | ContentBlock[]; display: boolean; details?: unknown };
+/** Native Pi options: omitted fields stay omitted, not rewritten into presets. */
 export type MessageOptions = { triggerTurn?: boolean; deliverAs?: "steer" | "followUp" | "nextTurn" };
 export type Packet = { version: 2; message: PeerMessage; options?: MessageOptions };
 
@@ -98,6 +100,13 @@ Envelope.define({
   options: defineField().model(Options),
 }, { strict: true });
 
+/**
+ * Validate the Edictor v2 schema plus own-field guards, rejecting v1/unknown fields.
+ * Details are JSON bounded to 8 KiB, depth 16 and 2048 visited values; content has
+ * at most 64 blocks, 48 KiB per text/image-data field and 128-byte image MIME types.
+ * @returns The original object so absent native options are not normalized away.
+ * @throws On invalid structure/fields; encoded envelope size is checked separately.
+ */
 export function validatePacket(value: unknown): Packet {
   declaredFields(Envelope, value);
   const packet = value as Packet;
@@ -109,6 +118,7 @@ export function validatePacket(value: unknown): Packet {
   return value as Packet;
 }
 
+/** Encode validated UTF-8 JSON, enforcing the aggregate 64 KiB bound without truncation. */
 export function encodeMessage(message: PeerMessage, options?: MessageOptions): Uint8Array {
   const packet: Packet = { version: PROTOCOL_VERSION, message };
   if (options !== undefined) packet.options = options;
@@ -118,6 +128,7 @@ export function encodeMessage(message: PeerMessage, options?: MessageOptions): U
   return payload;
 }
 
+/** Check size before fatal UTF-8 decoding/JSON parsing; no fallback, conversion or replay. */
 export function decodeMessage(payload: Uint8Array): Packet {
   if (!(payload instanceof Uint8Array) || payload.byteLength > MAX_PACKET_BYTES) {
     throw new Error("Invalid or oversized envelope");

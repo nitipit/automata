@@ -7,7 +7,11 @@ export function clip(text: string, bytes: number): string {
   return new TextDecoder("utf-8", { fatal: false }).decode(buffer.subarray(0, bytes)).replace(/\uFFFD$/, "");
 }
 
-/** Bounded, non-consuming evidence log. Cursors belong to one process/stream. */
+/**
+ * Bounded, runtime-only, non-consuming evidence log; one instance per worker/stream.
+ * Defaults: 1 MiB / 2048 records, with previews for records over 60 KiB. Eviction
+ * and truncation are counted independently; neither is complete durable evidence.
+ */
 export class Capture {
   private readonly identity = randomUUID();
   private rows: { sequence: number; value: unknown; bytes: number }[] = [];
@@ -40,6 +44,13 @@ export class Capture {
     return Buffer.from(JSON.stringify([this.identity, sequence])).toString("base64url");
   }
 
+  /**
+   * Page by an opaque exclusive position owned by this capture, not an array index.
+   * Expired positions return gap:true and restart at earliestCursor. A first record
+   * too large for maxBytes returns blocked/requiredBytes without advancing past it.
+   * The budget covers returned record payloads, not the response envelope; empty at
+   * the current end is not proof that the worker finished. Reads never consume rows.
+   */
   read(cursor: string | undefined, maxBytes = 16000) {
     if (!Number.isSafeInteger(maxBytes) || maxBytes < 256 || maxBytes > 128 * 1024) {
       throw new Error("maxBytes must be an integer between 256 and 131072");
