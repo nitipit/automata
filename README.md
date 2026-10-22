@@ -44,7 +44,6 @@ This README is a quick orientation map; follow the relevant source for details.
 - [Pi agent workers](src/automata/skills/automata-pi-agent-team/SKILL.md): find the installed worker extension's operational guide before using its tools.
 - [Pi NodalWire](src/automata/skills/automata-pi-nodalwire/SKILL.md): find the installed peer-messaging extension's preparation and usage guide.
 - [Storage](src/automata/skills/automata-storage/SKILL.md) and [task spaces](src/automata/skills/automata-task-space/SKILL.md): ownership, placement and cleanup.
-- [Testing](tests/README.md): test layout and verification scope.
 
 ## Automata Anatomy
 

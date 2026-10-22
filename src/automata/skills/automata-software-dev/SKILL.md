@@ -32,13 +32,21 @@ engineering judgment, not a fixed workflow or technology stack.
    callers, documentation and configuration consistent. Avoid unnecessary
    fragmentation or abstraction.
 
-5. **Verify proportionately.** Add focused unit tests by default, following project
-   structure and testing meaningful behavior. Run relevant existing checks; get
-   approval before adding broader test levels. Consider coverage for meaningful
-   gaps and property-based tests for useful invariants, not as mandatory tools or
-   substitutes for risk-based checks. Test at logical checkpoints, not every edit.
-   Stop when affected behavior is verified. Diagnose stalled testing rather than repeatedly retrying, and report
-   gaps honestly.
+5. **Verify behavior, proportionately.** Decide which observable outcome or
+   functional contract needs evidence, then choose checks that exercise it through
+   module, application or function interfaces. Add focused unit tests by default,
+   following project structure; cover meaningful failure cases and boundaries.
+   Avoid tests that inspect maintained documentation, prompts, skills or source
+   text for prescribed wording or implementation patterns instead of exercising
+   behavior. Test text with controlled inputs when parsing, rendering, encoding
+   or faithful copying is the contract—not to judge the maintained prose itself.
+   Guidance quality and whether an agent follows it need review or behavioral
+   evaluation, not phrase matching. Use coverage to find meaningful gaps and
+   property-based tests for useful invariants, not as targets or mandatory tools.
+   Run relevant existing checks at logical checkpoints, not every edit; get
+   approval before adding broader test levels. Stop when affected behavior is
+   verified. Diagnose stalled checks rather than repeatedly retrying, and report
+   evidence and remaining gaps honestly.
 
 6. **Complete and report.** Fix existing functionality broken by your changes.
    Stop once the requested work is complete and checked. Do not keep adding
