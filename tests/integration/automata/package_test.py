@@ -95,6 +95,9 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "runtimes/pi/extensions/nodalwire/index.ts",
         "runtimes/pi/extensions/nodalwire/README.md",
         "runtimes/pi/extensions/nodalwire/package.json",
+        "runtimes/pi/extensions/nodalwire/package-lock.json",
+        "runtimes/pi/extensions/nodalwire/protocol.ts",
+        "skills/automata-pi-nodalwire/SKILL.md",
         "runtimes/pi/extensions/nodalwire/pnpm-workspace.yaml",
         "runtimes/pi/extensions/message-timestamps.ts",
         "runtimes/pi/extensions/token-awareness.ts",
@@ -142,6 +145,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         assert not any(path.startswith("skills/automata-pi-workers/") for path in paths)
         assert not any(path.startswith("skills/automata-pi-team/") for path in paths)
         assert not any(path.startswith("tools/pi-team/") for path in paths)
+        assert not any(path.startswith("skills/automata-nodalwire/") for path in paths)
         assert "skills/automata-timer/SKILL.md" in paths
     source_catalog = root / "src/automata/skills"
     catalog_files = {
@@ -184,6 +188,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
             "automata-pi-imagegen",
             "automata-pi-skill-activity",
             "automata-pi-delegation",
+            "automata-pi-nodalwire",
         )
         assert not any(
             path.startswith("skills/core/") and path.endswith(f"{name}/SKILL.md")
@@ -214,7 +219,8 @@ sources = skill_sources()
 assert all(path.is_relative_to(site) for path in sources.values())
 assert 'automata-team-use' not in sources
 assert (sources['automata-background-process'] / 'SKILL.md').is_file()
-assert (sources['automata-nodalwire'] / 'references/pi.md').is_file()
+assert (sources['automata-pi-nodalwire'] / 'references/pi.md').is_file()
+assert 'automata-nodalwire' not in sources
 assert 'automata-pi-workers' not in sources
 assert 'automata-thinking-control' not in sources
 assert 'automata-pi-sessions' in sources
@@ -237,7 +243,7 @@ assert not any(name in sys.modules for name in ('engrave', 'mistune', 'playwrigh
 results = install_skills(target_root=work / 'skills')
 assert set(skill_sources(work / 'skills')) == set(sources)
 for name in ('automata-storage', 'automata-pi-context-status',
-             'automata-workplan', 'automata-agent-design', 'automata-nodalwire',
+             'automata-workplan', 'automata-agent-design', 'automata-pi-nodalwire',
              'automata-pi-delegation', 'automata-adaptive-ui'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
 install_skills(target_root=work / 'linked', skill_names=['automata-agent-design'], mode='symlink')
@@ -258,6 +264,8 @@ assert (work / 'extensions/fast-mode/index.ts').is_file()
 assert (work / 'extensions/fast-mode/README.md').is_file()
 assert (work / 'extensions/nodalwire/index.ts').is_file()
 assert (work / 'extensions/nodalwire/package.json').is_file()
+assert (work / 'extensions/nodalwire/package-lock.json').is_file()
+assert (work / 'extensions/nodalwire/protocol.ts').is_file()
 assert not (work / 'extensions/nodalwire/node_modules').exists()
 export_plugin(name='wheel-smoke', output=work / 'plugin',
               skill_names=['automata-storage', 'automata-pi-context-status'])

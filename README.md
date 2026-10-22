@@ -38,10 +38,10 @@ This README is a quick orientation map; follow the relevant source for details.
 - [Skill design](src/automata/skills/automata-skill-design/SKILL.md): scope, activation and composition.
 - [Setup](src/automata/skills/automata-setup/SKILL.md): asset selection, install modes and readiness.
 - [Delegation](src/automata/skills/automata-delegation/SKILL.md): work division, handoffs, coordination and acceptance, with conditional team-design and hierarchy references.
-- [Pi delegation](src/automata/skills/automata-pi-delegation/SKILL.md): use native Pi RPC when delegating from Pi; consult the installed runtime documentation for its interface.
+- [Pi delegation](src/automata/skills/automata-pi-delegation/SKILL.md): choose native worker-control or prepared peer-messaging interfaces for the situation; consult their maintained documentation.
 - [Manager](src/automata/skills/automata-manager/SKILL.md): an optional dedicated management role, not a requirement for ordinary delegation.
 - [Communication](src/automata/skills/automata-communication/SKILL.md): receiver, channel and outcome judgment; transport is an external integration.
-- [NodalWire](src/automata/skills/automata-nodalwire/SKILL.md): connect and use trusted-local messaging, with optional Pi integration guidance.
+- [Pi NodalWire](src/automata/skills/automata-pi-nodalwire/SKILL.md): exchange API-shaped Pi custom messages over trusted-local NodalWire, preserving native delivery/wake-up options and sender provenance.
 - [Storage](src/automata/skills/automata-storage/SKILL.md) and [task spaces](src/automata/skills/automata-task-space/SKILL.md): ownership, placement and cleanup.
 - [Testing](tests/README.md): test layout and verification scope.
 
@@ -67,12 +67,13 @@ before activation. Premium access and native costs are not billing evidence.
 ## Pi NodalWire messaging
 
 The opt-in [`nodalwire` extension](src/automata/runtimes/pi/extensions/nodalwire/README.md)
-connects Pi to an existing trusted-local NodalWire relay. It receives external
-messages as custom follow-ups and provides `nodalwire_connection` for explicit
-client lifecycle control and `nodalwire_send` for named-peer replies.
-Install the published `@devcapsule/nodalwire-client` dependency; there is no
-automatic installation, relay startup, peer discovery or authentication. See its
-README for setup and the isolated Python → Pi → Python trial.
+connects Pi to an existing trusted-local NodalWire relay. It receives custom
+messages preserving native `pi.sendMessage()` delivery/wake-up options and provides
+`nodalwire_connection` for client lifecycle control and `nodalwire_send` for
+API-shaped named-peer messages. Prepare the pinned Edictor validator and published
+`@devcapsule/nodalwire-client` dependencies as described in its README. There is no
+automatic installation, relay startup, peer discovery or authentication. Live-model
+trials require separate approval; automated checks do not prove live delivery.
 
 ## Entry points
 

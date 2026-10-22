@@ -13,6 +13,7 @@ PACKAGE_ROOT = Path(__file__).parents[3] / "src" / "automata"
 SKILLS_ROOT = PACKAGE_ROOT / "skills"
 SKILL_ROOTS = (SKILLS_ROOT,)
 PI_SKILL_NAMES = {
+    "automata-pi-nodalwire",
     "automata-pi-delegation",
     "automata-pi-imagegen",
     "automata-pi-context-compaction",
@@ -56,12 +57,13 @@ REQUIRED_SKILLS = {
     "automata-runtime-environment",
     "automata-python-kernel",
     "automata-background-process",
-    "automata-nodalwire",
+    "automata-pi-nodalwire",
     "automata-software-dev",
     "automata-toolsmith",
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-nodalwire",
     "automata-pi-team",
     "automata-pi-workers",
     "automata-teamwork-design",

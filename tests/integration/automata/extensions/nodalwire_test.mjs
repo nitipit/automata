@@ -47,10 +47,11 @@ function fixture({ name, connect } = {}) {
   return {
     node, pi, ctx, messages, notices, statuses, flags, connections, tools,
     attempts: () => connections.length,
-    emit(event) { return handlers.get(event)?.({}, ctx); },
+    emit(event, data = {}) { return handlers.get(event)?.(data, ctx); },
     command(args) { return commands.get("nodalwire").handler(args, ctx); },
-    send(to, text, signal) {
-      return tools.find(tool => tool.name === "nodalwire_send").execute("call-1", { to, text }, signal);
+    send(to, content, signal, options) {
+      const message = typeof content === "string" ? { content, display: true } : content;
+      return tools.find(tool => tool.name === "nodalwire_send").execute("call-1", { to, message, options }, signal);
     },
     connection(action, options = {}, signal) {
       return tools.find(tool => tool.name === "nodalwire_connection")
@@ -59,16 +60,20 @@ function fixture({ name, connect } = {}) {
   };
 }
 
-const incoming = (text, sender = "python-peer") => ({ sender, payload: encodeMessage(text) });
+const incoming = (content, sender = "python-peer", options) => ({
+  sender, payload: encodeMessage(typeof content === "string" ? { content, display: true } : content, options),
+});
 
-test("strict versioned UTF-8 text envelope with bounded bytes", () => {
-  assert.equal(decodeMessage(encodeMessage("Hello สวัสดี")), "Hello สวัสดี");
-  for (const value of ["", " \n ", "a".repeat(65536), "😀".repeat(20000)]) {
-    assert.throws(() => encodeMessage(value));
+test("strict version-2 UTF-8 API envelope with bounded bytes", () => {
+  const message = { content: "Hello สวัสดี", display: true };
+  assert.deepEqual(decodeMessage(encodeMessage(message)), { version: 2, message });
+  for (const content of ["a".repeat(65536), "😀".repeat(20000)]) {
+    assert.throws(() => encodeMessage({ content, display: true }));
   }
   for (const payload of [Uint8Array.of(255), new Uint8Array(65537),
     Buffer.from("not json"), Buffer.from('{"version":2,"type":"message","text":"hi"}'),
-    Buffer.from('{"version":1,"type":"message","text":" "}'), Buffer.from("null")]) {
+    Buffer.from('{"version":1,"type":"message","text":" "}'), Buffer.from("null"),
+    Buffer.from('{"version":2,"message":{"content":"hi","display":true},"role":"user"}')]) {
     assert.throws(() => decodeMessage(payload));
   }
 });
@@ -83,27 +88,25 @@ test("disabled extension does not load native dependency or start resources", as
   register(f.pi);
 });
 
-test("startup opt-in, custom follow-up provenance, bounded injection and shutdown", async () => {
+test("busy follow-up does not block later steering; provenance and native options remain explicit", async () => {
   const f = fixture({ name: "pi-test" });
   await f.emit("session_start");
-  assert.equal(f.attempts(), 1);
-  f.node.push(incoming("first"));
-  f.node.push(incoming("second"));
+  f.node.push(incoming("first", "python-peer", { deliverAs: "followUp", triggerTurn: true }));
+  f.node.push(incoming("second", "coordinator", { deliverAs: "steer", triggerTurn: true }));
   await tick();
-  assert.equal(f.messages.length, 1, "only one message enters Pi until it settles");
+  assert.equal(f.messages.length, 2, "receive must not wait for settlement");
   const { message, options } = f.messages[0];
-  assert.equal(message.customType, "automata-nodalwire");
-  assert.deepEqual(message.details, { sender: "python-peer", recipient: "pi-test" });
+  assert.equal(message.customType, "automata-pi-nodalwire");
+  assert.equal(message.details.sender, "python-peer");
+  assert.equal(message.details.recipient, "pi-test");
+  assert.equal(typeof message.details.deliveryId, "string");
   assert.equal(message.content, "[NodalWire: python-peer → pi-test]\nfirst");
   assert.equal(message.display, true);
   assert.deepEqual(options, { triggerTurn: true, deliverAs: "followUp" });
-  await f.emit("agent_settled");
-  await tick();
-  assert.equal(f.messages.length, 2);
+  assert.deepEqual(f.messages[1].options, { triggerTurn: true, deliverAs: "steer" });
+  await f.emit("session_shutdown");
   await f.emit("session_shutdown");
   assert.equal(f.node.closed, 1);
-  await f.emit("session_shutdown");
-  assert.equal(f.node.closed, 1, "shutdown is idempotent while pump waits for settle");
 });
 
 test("invalid incoming envelopes/senders are rejected without echoing their bytes", async () => {
@@ -114,8 +117,64 @@ test("invalid incoming envelopes/senders are rejected without echoing their byte
   f.node.push(incoming("valid"));
   await tick();
   assert.equal(f.messages.length, 1);
-  assert.equal(f.notices.length, 2);
+  assert.equal(f.notices.length, 1, "invalid-packet warnings are rate limited");
   assert.ok(!JSON.stringify(f.notices).includes("SECRET"));
+  await f.emit("session_shutdown");
+});
+
+test("image/text provenance cannot be overwritten by peer details; false display/options survive", async () => {
+  const f = fixture({ name: "pi-test" });
+  await f.emit("session_start");
+  const content = [{ type: "image", data: "eA==", mimeType: "image/png" }];
+  f.node.push(incoming({ content, display: false, details: { sender: "forged", deliveryId: "forged" } }, "reviewer", { triggerTurn: false }));
+  f.node.push(incoming("omitted"));
+  await tick();
+  assert.deepEqual(f.messages[0].message.content, [{ type: "text", text: "[NodalWire: reviewer → pi-test]\n" }, ...content]);
+  assert.equal(f.messages[0].message.display, false);
+  assert.equal(f.messages[0].message.details.sender, "reviewer");
+  assert.equal(f.messages[0].message.details.peerDetails.sender, "forged");
+  assert.notEqual(f.messages[0].message.details.deliveryId, "forged");
+  assert.deepEqual(f.messages[0].options, { triggerTurn: false });
+  assert.equal(f.messages[1].options, undefined);
+  assert.equal(f.node.sent.length, 0, "receiving does not auto-reply or acknowledge");
+  await f.emit("session_shutdown");
+});
+
+test("pending submissions are bounded, consumption releases capacity, reconnect does not reset it", async () => {
+  const f = fixture({ name: "pi-test" });
+  await f.emit("session_start");
+  for (let n = 0; n < 40; n++) f.node.push(incoming(`deferred-${n}`, "peer", { deliverAs: "nextTurn" }));
+  await tick();
+  assert.equal(f.messages.length, 32);
+  await f.connection("disconnect");
+  await f.connection("connect", { name: "pi-test" });
+  f.node.push(incoming("still full"));
+  await tick();
+  assert.equal(f.messages.length, 32);
+  await f.emit("message_end", { message: { role: "custom", ...f.messages[0].message } });
+  f.node.push(incoming("capacity released"));
+  await tick();
+  assert.equal(f.messages.length, 33);
+  assert.match(f.messages.at(-1).message.content, /capacity released/);
+  await f.emit("session_shutdown");
+});
+
+test("all option combinations reach Pi without presets or normalization", async () => {
+  const f = fixture({ name: "pi-test" });
+  await f.emit("session_start");
+  const optionsList = [undefined];
+  for (const deliverAs of [undefined, "steer", "followUp", "nextTurn"]) {
+    for (const triggerTurn of [undefined, false, true]) {
+      const options = {};
+      if (deliverAs !== undefined) options.deliverAs = deliverAs;
+      if (triggerTurn !== undefined) options.triggerTurn = triggerTurn;
+      optionsList.push(options);
+      f.node.push(incoming("mapped", "peer", options));
+    }
+  }
+  f.node.push(incoming("mapped"));
+  await tick();
+  assert.deepEqual(f.messages.map(x => x.options), [...optionsList.slice(1), undefined]);
   await f.emit("session_shutdown");
 });
 
@@ -125,7 +184,7 @@ test("outbound bytes, cancellation, honest acceptance and no transparent retry",
   const signal = new AbortController().signal;
   const result = await f.send("bob", "reply", signal);
   assert.equal(f.node.sent.length, 1);
-  assert.equal(decodeMessage(f.node.sent[0].payload), "reply");
+  assert.equal(decodeMessage(f.node.sent[0].payload).message.content, "reply");
   assert.equal(f.node.sent[0].destination, "bob");
   assert.equal(f.node.sent[0].options.signal, signal);
   assert.deepEqual(result.details, { to: "bob", status: "relay_accepted" });
@@ -141,7 +200,7 @@ test("outbound bytes, cancellation, honest acceptance and no transparent retry",
 test("send tool requires to and does not accept destination as an alias", async () => {
   const f = fixture({ name: "pi-test" });
   const tool = f.tools.find(tool => tool.name === "nodalwire_send");
-  assert.deepEqual(tool.parameters.required, ["to", "text"]);
+  assert.deepEqual(tool.parameters.required, ["to", "message"]);
   assert.ok(!("destination" in tool.parameters.properties));
   await f.emit("session_start");
   await assert.rejects(tool.execute("legacy", { destination: "bob", text: "old schema" }), /Invalid recipient/);
@@ -238,7 +297,7 @@ test("connection tool connects, reuses the same route and requires explicit disc
   assert.equal(f.attempts(), 1);
   assert.equal(f.node.closed, 0);
   await f.send("bob", "tool-connected reply");
-  assert.equal(decodeMessage(f.node.sent[0].payload), "tool-connected reply");
+  assert.equal(decodeMessage(f.node.sent[0].payload).message.content, "tool-connected reply");
   assert.deepEqual((await f.connection("disconnect")).details, { status: "disconnected" });
   await f.connection("disconnect");
   assert.equal(f.node.closed, 1);

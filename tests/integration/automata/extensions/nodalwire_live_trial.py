@@ -65,9 +65,13 @@ async def trial(extension: Path, artifacts: Path):
             assert state.get("success"), state
             for text in expected:
                 request = {
-                    "version": 1, "type": "message",
-                    "text": f"Reply to {python_name} using nodalwire_send. "
-                    f"Set text exactly: {text}",
+                    "version": 2,
+                    "message": {
+                        "content": f"Reply to {python_name} using nodalwire_send. "
+                        f"Set message.content exactly: {text}, message.display true, omit options.",
+                        "display": True,
+                    },
+                    "options": {"deliverAs": "followUp", "triggerTurn": True},
                 }
                 await peer.send(pi_name, json.dumps(request).encode())
             replies = []
@@ -75,7 +79,9 @@ async def trial(extension: Path, artifacts: Path):
                 response = await asyncio.wait_for(peer.receive(), 120)
                 assert response.sender == pi_name, response.sender
                 body = json.loads(response.payload)
-                assert body == {"version": 1, "type": "message", "text": text}, body
+                assert body == {
+                    "version": 2, "message": {"content": text, "display": True},
+                }, body
                 replies.append(body)
             await asyncio.wait_for(settled.wait(), 60)
             result = {

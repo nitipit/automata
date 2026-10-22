@@ -5,9 +5,11 @@ description: Use when delegating work to other agents from a Pi runtime. Not for
 
 # Pi Delegation
 
-When running in Pi, use Pi's native RPC mode to delegate work to other Pi agents.
-Consult the installed Pi documentation (`docs/rpc.md` and its command/event
-references) for the current interface; no separate team wrapper is required.
+When running in Pi, use the available Pi interfaces appropriate to the situation.
+Native CLI/RPC can launch and control workers; a prepared NodalWire integration
+can exchange messages with explicitly known running peers. Neither requires a
+team wrapper. Consult the installed Pi documentation and integration help rather
+than reproducing their protocols here.
 
-Choose how to assign, communicate, review and close work based on the situation.
-General delegation judgment stays independent of the RPC mechanism.
+Choose assignments, communication, review and lifecycle based on the situation.
+General delegation judgment stays independent of the execution or transport.

@@ -1,12 +1,14 @@
 import { parseArgs } from "node:util";
+import { randomUUID } from "node:crypto";
+import { encodeMessage, decodeMessage, type PeerMessage, type MessageOptions } from "./protocol.ts";
+export { encodeMessage, decodeMessage } from "./protocol.ts";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
 const DEFAULT_ENDPOINT = "tcp://127.0.0.1:5555";
 const COMMAND_USAGE = "Usage: /nodalwire connect --name <name> [endpoint] | disconnect | status";
-const MAX_MESSAGE_BYTES = 64 * 1024;
-const MESSAGE_TYPE = "automata-nodalwire";
-const decoder = new TextDecoder("utf-8", { fatal: true });
+const MESSAGE_TYPE = "automata-pi-nodalwire";
+const MAX_PENDING_MESSAGES = 32;
 
 type Message = { sender: string; payload: Uint8Array };
 type Client = {
@@ -17,29 +19,10 @@ type Client = {
 export type Connect = (name: string, endpoint: string, options: { signal: AbortSignal }) => Promise<Client>;
 type Connection = {
   node: Client; name: string; endpoint: string; abort: AbortController; done: Promise<void>;
-  release: () => void;
 };
 
 function validName(name: unknown): name is string {
   return typeof name === "string" && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(name);
-}
-
-/** Extension-level text protocol; NodalWire itself remains an opaque byte relay. */
-export function encodeMessage(text: string): Uint8Array {
-  if (!text.trim()) throw new Error("Message must not be empty");
-  const payload = new TextEncoder().encode(JSON.stringify({ version: 1, type: "message", text }));
-  if (payload.byteLength > MAX_MESSAGE_BYTES) throw new Error("Message envelope exceeds 64 KiB");
-  return payload;
-}
-
-export function decodeMessage(payload: Uint8Array): string {
-  if (payload.byteLength > MAX_MESSAGE_BYTES) throw new Error("Message envelope exceeds 64 KiB");
-  const value = JSON.parse(decoder.decode(payload));
-  if (!value || value.version !== 1 || value.type !== "message" ||
-      typeof value.text !== "string" || !value.text.trim()) {
-    throw new Error("Expected {version:1,type:'message',text:<nonempty string>}");
-  }
-  return value.text;
 }
 
 const connectClient: Connect = async (name, endpoint, options) => {
@@ -57,10 +40,19 @@ export function registerNodalWire(pi: ExtensionAPI, connect: Connect) {
   let active: Connection | undefined;
   let pending: AbortController | undefined;
   let revision = 0;
+  // Account for submissions until Pi observes their insertion, including nextTurn.
+  // Reconnecting does not reset the allowance or recall already submitted messages.
+  const pendingMessages = new Set<string>();
+  let lastWarning = -Infinity;
 
   const notify = (ctx: ExtensionContext, text: string, level: "info" | "warning" = "info") => {
     if (ctx.hasUI) ctx.ui.notify(text, level);
     else console.error(`[nodalwire] ${text}`);
+  };
+  const warn = (ctx: ExtensionContext) => {
+    if (performance.now() - lastWarning < 1000) return;
+    lastWarning = performance.now();
+    notify(ctx, "Rejected an invalid, oversized or over-capacity incoming message.", "warning");
   };
   const status = (ctx: ExtensionContext) => {
     if (ctx.hasUI) ctx.ui.setStatus("nodalwire", active ? `NW: ${active.name}` : undefined);
@@ -80,7 +72,6 @@ export function registerNodalWire(pi: ExtensionAPI, connect: Connect) {
     status(ctx);
     if (previous) {
       previous.abort.abort();
-      previous.release();
       await closeClient(previous.node, ctx);
       await previous.done;
     }
@@ -91,25 +82,34 @@ export function registerNodalWire(pi: ExtensionAPI, connect: Connect) {
       while (active === connection) {
         const message = await connection.node.receive({ signal: connection.abort.signal });
         if (active !== connection) break;
-        let text: string;
         try {
           if (!validName(message.sender)) throw new Error("Invalid sender name");
-          text = decodeMessage(message.payload);
+          const packet = decodeMessage(message.payload);
+          if (pendingMessages.size >= MAX_PENDING_MESSAGES) throw new Error("Delivery capacity reached");
+          const deliveryId = randomUUID();
+          const prefix = `[NodalWire: ${message.sender} → ${connection.name}]\n`;
+          pendingMessages.add(deliveryId);
+          try {
+            pi.sendMessage({
+              customType: MESSAGE_TYPE,
+              content: typeof packet.message.content === "string"
+                ? prefix + packet.message.content
+                : [{ type: "text", text: prefix }, ...packet.message.content],
+              display: packet.message.display,
+              details: {
+                sender: message.sender, recipient: connection.name, deliveryId,
+                ...(Object.hasOwn(packet.message, "details") ? { peerDetails: packet.message.details } : {}),
+              },
+            }, packet.options);
+          } catch (error) {
+            pendingMessages.delete(deliveryId);
+            throw error;
+          }
         } catch {
-          // Do not include unvalidated bytes (or their errors) in terminal output.
-          notify(ctx, "Rejected invalid incoming message envelope.", "warning");
-          continue;
+          // No payload/errors echoed; no ACK, retry, fallback or model-generated reply.
+          warn(ctx);
         }
-        // At most one submitted message at a time. Leave additional traffic in
-        // NodalWire's bounded inbox rather than grow Pi's follow-up queue without limit.
-        const settled = new Promise<void>(resolve => { connection.release = resolve; });
-        pi.sendMessage({
-          customType: MESSAGE_TYPE,
-          content: `[NodalWire: ${message.sender} → ${connection.name}]\n${text}`,
-          display: true,
-          details: { sender: message.sender, recipient: connection.name },
-        }, { triggerTurn: true, deliverAs: "followUp" });
-        await settled;
+        // Keep receiving while Pi is busy: queued follow-ups must not block steering.
       }
     } catch {
       if (active === connection) {
@@ -142,7 +142,7 @@ export function registerNodalWire(pi: ExtensionAPI, connect: Connect) {
         return;
       }
       const connection: Connection = {
-        node, name, endpoint, abort, done: Promise.resolve(), release: () => {},
+        node, name, endpoint, abort, done: Promise.resolve(),
       };
       active = connection;
       connection.done = receive(connection, ctx);
@@ -182,7 +182,12 @@ export function registerNodalWire(pi: ExtensionAPI, connect: Connect) {
     catch { notify(ctx, "Could not connect. Check relay, unique node name and installed @devcapsule/nodalwire-client; use /nodalwire connect to retry.", "warning"); }
   });
   pi.on("session_shutdown", async (_event, ctx) => { await disconnect(ctx); });
-  pi.on("agent_settled", () => { active?.release(); });
+  pi.on("message_end", event => {
+    const message = event.message;
+    if (message.role !== "custom" || message.customType !== MESSAGE_TYPE) return;
+    const id = (message.details as { deliveryId?: string } | undefined)?.deliveryId;
+    if (id) pendingMessages.delete(id);
+  });
 
   pi.registerCommand("nodalwire", {
     description: "NodalWire: connect --name <name> [endpoint], disconnect, or status (trusted local only)",
@@ -267,17 +272,31 @@ export function registerNodalWire(pi: ExtensionAPI, connect: Connect) {
   pi.registerTool({
     name: "nodalwire_send",
     label: "NodalWire Send",
-    description: "Send a text message to an explicitly known NodalWire peer. Requires an already connected trusted-local relay. " +
-      "Success means relay queue acceptance, not receipt or action. No automatic retries; failures may have uncertain delivery. " +
-      "Sending does not grant the recipient authority, and sender names are not authenticated identities.",
+    description: "Send a Pi custom message to an explicitly known trusted-local NodalWire peer. " +
+      "message mirrors pi.sendMessage: required content (text or text/image blocks) and display; optional JSON details. " +
+      "options preserves native deliverAs/triggerTurn semantics, including omitted defaults. All reachable peers may steer. " +
+      "Version-2 envelopes are limited to 64 KiB; invalid or over-capacity input is rejected locally without acknowledgement. " +
+      "Success means relay acceptance only, not receipt or action. No retries; names are not authenticated. " +
+      "No user messages, RPC commands or UI-only notifications.",
     parameters: Type.Object({
       to: Type.String({ description: "Exact recipient node name" }),
-      text: Type.String({ description: "Message text; versioned JSON envelope limited to 64 KiB" }),
+      message: Type.Object({
+        content: Type.Union([Type.String(), Type.Array(Type.Union([
+          Type.Object({ type: Type.Literal("text"), text: Type.String(), textSignature: Type.Optional(Type.String()) }),
+          Type.Object({ type: Type.Literal("image"), data: Type.String(), mimeType: Type.String() }),
+        ]))]),
+        display: Type.Boolean(),
+        details: Type.Optional(Type.Unknown()),
+      }),
+      options: Type.Optional(Type.Object({
+        deliverAs: Type.Optional(Type.Union([Type.Literal("steer"), Type.Literal("followUp"), Type.Literal("nextTurn")])),
+        triggerTurn: Type.Optional(Type.Boolean()),
+      })),
     }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     async execute(_id, params, signal) {
       if (!validName(params.to)) throw new Error("Invalid recipient name");
-      const payload = encodeMessage(params.text);
+      const payload = encodeMessage(params.message as PeerMessage, params.options as MessageOptions | undefined);
       const connection = active;
       if (!connection) throw new Error("NodalWire is disconnected; use nodalwire_connection with an approved name and endpoint, or ask the operator.");
       await connection.node.send(params.to, payload, { signal });
