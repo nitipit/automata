@@ -227,7 +227,7 @@ assert 'automata-team-use' not in sources
 assert (sources['automata-background-process'] / 'SKILL.md').is_file()
 assert (sources['automata-pi-extension-dev'] / 'SKILL.md').is_file()
 assert (sources['automata-pi-agent-team'] / 'SKILL.md').is_file()
-assert (sources['automata-pi-nodalwire'] / 'references/pi.md').is_file()
+assert (sources['automata-pi-nodalwire'] / 'references/client.md').is_file()
 assert 'automata-nodalwire' not in sources
 assert 'automata-pi-workers' not in sources
 assert 'automata-thinking-control' not in sources
