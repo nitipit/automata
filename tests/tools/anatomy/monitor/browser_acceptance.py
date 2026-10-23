@@ -148,7 +148,9 @@ def main():
             page.locator("#start").fill("2026-09-01")
             page.locator("#end").fill("2026-09-20")
             page.locator("#end").press("Tab")
-            page.wait_for_function("document.querySelectorAll('#statistics canvas').length === 2")
+            page.wait_for_function(
+                "() => document.querySelectorAll('#statistics canvas').length === 2"
+            )
             activity_url = page.url
             expect(page.locator("#auto")).not_to_be_checked()
             page.locator("#theme").select_option("dark")
@@ -192,6 +194,31 @@ def main():
                 "Activity dates/timezone/skill/limit, charts, remembered pause, "
                 "5s polling and validation recovery"
             )
+
+            # Resize the loaded charts without navigation: a fresh mobile load
+            # does not expose an intrinsic grid track retaining a desktop canvas.
+            chart_library = page.evaluate_handle("() => import('/lib/echarts.js')")
+            for width in (790, 390, 1440):
+                page.set_viewport_size({"width": width, "height": 1000})
+                page.wait_for_function("""library => {
+                  const charts = [...document.querySelectorAll(
+                    'skill-loads-chart, skill-timeline-chart')];
+                  if (charts.length !== 2) return false;
+                  return charts.every(chart => {
+                    const canvas = chart.querySelector('canvas');
+                    const instance = library.getInstanceByDom(chart);
+                    if (!canvas || !instance || Math.abs(
+                      canvas.getBoundingClientRect().width - chart.clientWidth) > 2)
+                      return false;
+                    if (chart.localName === 'skill-loads-chart' &&
+                        instance.getOption().yAxis[0].axisLabel.width !==
+                          (chart.clientWidth < 600 ? 125 : 270)) return false;
+                    return true;
+                  }) && document.documentElement.scrollWidth <= innerWidth;
+                }""", arg=chart_library)
+                page.screenshot(path=str(EVIDENCE / f"activity-resized-{width}.png"))
+            chart_library.dispose()
+            results.append("Loaded Activity charts shrink/grow without overflow; labels adapt")
 
             for source, destination in [
                 ("/automata/index.html?tab=identity", "/"),

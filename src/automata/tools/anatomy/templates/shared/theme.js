@@ -91,7 +91,8 @@ a {color:var(--aui-action);}
 .tabs {display:flex;gap:.25rem;border-bottom:1px solid var(--anatomy-border);margin:.5rem 0 1.25rem;overflow-x:auto;}
 .tabs button {background:none;color:var(--anatomy-muted);border:0;border-bottom:2px solid transparent;padding:.7rem 1rem;font:inherit;cursor:pointer;white-space:nowrap;}
 .tabs button[aria-selected=true] {color:var(--anatomy-accent);border-bottom-color:var(--anatomy-accent);font-weight:650;}
-[hidden] {display:none!important;} section,aui-card {min-width:0;} aui-card {display:block;}
+[hidden] {display:none!important;} section,aui-card {min-width:0;}
+aui-card {display:block;grid-template-columns:minmax(0,1fr);}
 .controls {justify-content:flex-start;margin:1rem 0;align-items:end;}
 label {display:inline-flex;flex-direction:column;gap:.3rem;font-size:.85rem;font-weight:550;}
 label:has(input[type=checkbox]) {flex-direction:row;align-items:center;font-weight:normal;}

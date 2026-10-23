@@ -22,7 +22,7 @@ class AnatomyChart extends Base {
   applyData(value) { this.#data = AnatomyChart.validateData(value); this.#draw(); }
   connectedCallback() {
     super.connectedCallback();
-    this.#observer ??= new ResizeObserver(() => this.#chart?.resize());
+    this.#observer ??= new ResizeObserver(() => { if (this.#chart) this.#draw(); });
     this.#observer.observe(this);
     this.#connect();
   }
