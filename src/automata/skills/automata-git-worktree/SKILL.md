@@ -45,7 +45,10 @@ services remain shared.
    before integration. Creation does not authorize commits, merges, rebases,
    cherry-picks, pushes or branch deletion. Recheck target state and coordinate its
    writer within integration authority; preserve unrelated work and verify results.
-   Distinguish tested, committed, integrated and published work.
+   Prefer merging a reviewed task branch when integrating its complete accepted work.
+   Use cherry-picking only when deliberately selecting individual commits rather than
+   integrating the branch, and explain that choice. Verify the combined result after
+   integration. Distinguish tested, committed, integrated and published work.
 
 5. **Retire safely.** Completion is not removal permission. Confirm exact registration,
    inactive users/processes and valuable tracked, untracked or ignored files and
