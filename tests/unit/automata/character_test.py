@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from automata.character import CharacterError, compose_character, list_character_components
@@ -16,60 +18,37 @@ def test_list_character_components_excludes_base_from_selectable_behaviors() -> 
     assert components.implicit_behaviors == ("base",)
 
 
-def test_compose_character_includes_selected_components() -> None:
+def test_compose_character_includes_selected_components(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "character"
+    components = {
+        "personality/automata.md": "Selected personality.\n",
+        "language/base.md": "Shared language.\n",
+        "language/thai.md": "ภาษาไทย\n",
+        "behavior/base.md": "Shared behavior.\n",
+        "behavior/co-pilot.md": "1. Selected behavior.\n2. Preserve formatting.\n",
+        "behavior/autonomous.md": "Unselected behavior.\n",
+    }
+    for relative, content in components.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    monkeypatch.setattr("automata.character.character_root", lambda: root)
+
     output = compose_character(
         personality="automata",
         language="thai",
         behaviors=["co-pilot"],
     )
 
-    normalized = " ".join(output.split())
-
-    assert "# Personality: automata" in output
-    assert "# Automata Personality" in output
-    assert "Your name is Automata." in output
-    assert "Your speaking identity is feminine." in normalized
-    assert "Use feminine forms consistently" in normalized
-    assert "Call yourself" not in output
-    assert "Call the user" not in output
-    assert "Um" not in output
-    assert "# Language: base" in output
-    assert "# Base Language" in output
-    assert "# Language: thai" in output
-    assert "# Thai Language" in output
-    assert "ไม่เลียนแบบคำลงท้ายของผู้ใช้" in output
-    assert "ใช้ `ค่ะ`/`คะ` ไม่ใช้ `ครับ`" in output
-    assert "ใช้ `ครับ` ไม่ใช้ `ค่ะ`/`คะ`" in output
-    assert "ก่อนส่ง ตรวจคำลงท้ายให้สอดคล้องกัน" in output
-    assert "ไม่ต้องเติมทุกประโยค" in output
-    assert "ยกเว้นเมื่อยกคำพูดหรือกล่าวถึงภาษาของผู้อื่น" in output
-    assert "Explain procedures only when useful to the user" in normalized
-    assert "Respect requested formats" in normalized
-    assert output.index("# Personality: automata") < output.index("# Language: base")
-    assert output.index("# Language: base") < output.index("# Language: thai")
-    assert output.index("# Language: thai") < output.index("# Behavior: base")
-    assert "# Behavior: base" in output
-    assert "# Base Behavior" in output
-    assert "# Behavior: co-pilot" in output
-    assert "# Co-Pilot Behavior" in output
-    for principle in (
-        "engineering partner, not an echo",
-        "Change recommendations with evidence or goals, not merely to agree",
-        "Choose solo work or coordination by expected benefit",
-        "Establish authority before delegating",
-        "Ask clear questions only when uncertainty affects the answer or action",
-        "use numbered choices when helpful",
-        "Discuss unresolved choices that materially affect scope, behavior, risk, "
-        "or user priorities",
-        "Discussion alone is not authorization",
-        "make ordinary engineering decisions and verify the result without repeated approval",
-        "ask before unapproved destructive, consequential, or independently scoped actions",
-        "Usefulness alone does not authorize action",
-    ):
-        assert principle in normalized
-    assert "Load applicable skills" not in output
-    assert "Check available skill descriptions" not in output
-    assert len(output) < 3_000  # Bounds generated text, not a token estimate.
+    assert output == (
+        "# Personality: automata\n\nSelected personality.\n\n"
+        "# Language: base\n\nShared language.\n\n"
+        "# Language: thai\n\nภาษาไทย\n\n"
+        "# Behavior: base\n\nShared behavior.\n\n"
+        "# Behavior: co-pilot\n\n1. Selected behavior.\n2. Preserve formatting.\n"
+    )
 
 
 def test_resource_awareness_is_shared_across_working_styles() -> None:

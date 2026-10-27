@@ -19,3 +19,8 @@ unknown outcome. Seek another authorized way to investigate or advance the task;
 do not bypass safeguards or broaden scope. Before repeating a consequential
 operation, check whether it already occurred. Repair defects within approved
 scope, or propose a separate repair. Verify the outcome and report remaining limits.
+
+For Automata-owned HTTP clients, scripts and commands, default to
+`User-Agent: Automata/1.0` for all HTTP methods. Preserve appropriate existing
+browser/SDK or explicitly user-configured User-Agents. Do not include secrets or
+private identifiers in the header.
