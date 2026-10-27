@@ -1,0 +1,7 @@
+{
+  "records": [
+    {"id": "job-a", "value": 4},
+    {"id": "job-b", "value": 11},
+    {"id": "job-c", "value": -2}
+  ]
+}

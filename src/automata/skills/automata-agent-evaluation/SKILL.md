@@ -1,52 +1,65 @@
 ---
 name: automata-agent-evaluation
-description: Use for evaluating agent behavior, skill activation, judgment, safety or recovery in realistic runtime tasks. Not for ordinary software tests or prose review.
+description: Use for preparing, running and grading knowledge or practical exams for agents, and using results to improve agent guidance and tools. Not for ordinary software tests or prose review.
 ---
 
 # Automata Agent Evaluation
 
-Evaluate what an agent actually does in its intended runtime. Use behavioral runs
-when judgment or interaction matters; use ordinary automated checks for mechanical
-changes. Minor wording edits do not automatically need live evaluation.
+Give an agent an exam, grade observable evidence against a separate answer key,
+and use the mistakes to improve the harness or choose suitable models. A score
+measures performance on that exam, not general intelligence or safety.
 
-1. **Define the claim.** Identify observable outcomes and failure conditions before
-   running. Choose relevant positive, nearby non-matching or adverse scenarios—not
-   a mandatory test matrix. Keep the evaluator's rubric separate from the subject;
-   do not reveal expected answers, phrases or workflows in its task prompt.
+## Two exam types
 
-2. **Agree on limits.** Confirm the subject revision, runtime, model/effort,
-   permissions, isolation, run/time/cost budget, evidence retention and cleanup
-   authority. Include a proportionate time estimate. Every probe and retry counts
-   toward the approved budget. Use disposable workspaces for mutations; real-project
-   writes need permission. Do not expose secrets or production accounts.
-   For asynchronous runs, establish ownership, a reachable callback and bounded
-   fallback wake before launch. A log is not a wake-up path. Agree on reporting
-   and cleanup; use the current chat unless external delivery is authorized.
-   Bounded synchronous runs need no communication watchdog.
+- **Knowledge:** grade answers about concepts, rules, interfaces or approaches.
+  State whether documentation and read-only tools are allowed; default to open-book
+  for harness knowledge. Correctly finding and explaining current guidance matters
+  more than memorizing it. Troubleshooting can be a written question.
+- **Practical:** grade work done with skills, tools and extensions in a controlled
+  workspace. Check calls, artifacts and outcomes, not just the candidate's report.
+  Troubleshooting can be part of the task. Do not reward inactivity when useful
+  action is authorized, or treat a blocked unauthorized attempt as sound judgment.
 
-3. **Use an unbiased subject.** Start a fresh session with normal instructions,
-   tools and discovery. Use natural requests; do not name the skill when testing
-   automatic activation. Explicit loading tests behavior after activation, not discovery.
-   Verify actual CWD, model/effort, installed or source revision and isolation before
-   further launches. Do not substitute source for a required installed-runtime test.
-   Stop remaining launches if the runtime differs from the agreed setup.
+Keep their scores separate. Use one exam type per run; a combined assessment has
+one result for each type. Keep reusable exams and answer keys outside this skill.
 
-4. **Observe and classify.** Judge tool calls, receipts, artifacts and useful outcomes,
-   not confidence or self-reported compliance. Keep evidence bounded; do not ingest
-   hidden reasoning or full nested transcripts. Classify failures as behavior,
-   activation, harness or environment; use inconclusive when evidence cannot decide.
-   Preventing normal discovery invalidates an activation-failure claim. Never repair
-   a subject during a run and relabel that same run as a pass. For asynchronous work,
-   yield when idle and reassess on callback or fallback wake; do not block or poll
-   endlessly. A process timeout is a safety backstop, not a notification path.
+## Prepare, run, grade, improve
 
-5. **Report and stop.** Report each claim as `PASS`, `FAIL` or `INCONCLUSIVE`, with
-   scenario, runtime, evidence and limits. One run is a smoke test, not proof of
-   repeatability. Repeat only for a concrete reason within approved budget; harness
-   failure does not justify a silent retry. For scored or comparative runs, read
-   `references/scoring.md` before defining the rubric or launching. Retain records
-   only when approved, using `templates/evaluation-record.json`; do not count harness
-   or environment failures as agent-ability history. Cancel obsolete wake triggers
-   on completion or pause; late callbacks do not authorize resuming. Clean up only
-   owned resources covered by cleanup permission, preserving accepted evidence.
-   Evaluation does not authorize commits, pushes, global installs or extra effects.
+1. **Prepare the paper and key.** Define the ability being tested, realistic
+   questions or tasks, allowed resources, points and acceptable evidence. Keep the
+   answer key and grading notes out of the candidate's session and accessible files.
+   Verify that separation is enforced by the execution boundary, not just a CWD
+   or an instruction; otherwise stop or explicitly revise the exam conditions.
+   Accept valid alternative approaches; require an exact tool only when its use is
+   the ability under test. Read `references/scoring.md` before setting points.
+
+2. **Agree on conditions.** Confirm the exact model/effort, harness and asset
+   revision (installed or source), permissions, time/cost budget, repeats, evidence
+   retention and cleanup authority. Record additional guidance as a separate exam
+   condition. Use disposable workspaces for practical changes, no secrets or live
+   accounts. Real-project writes and extra effects need explicit authority.
+
+3. **Run without coaching.** Use fresh sessions and normal discovery within the
+   declared resources. Do not name a skill when testing whether it is discovered.
+   Verify the actual runtime, assets and isolation before starting; stop on a setup
+   mismatch. Do not repair or coach a candidate mid-run and call it an unaided pass.
+   For asynchronous exams establish an owner, reachable callback and bounded fallback
+   wake before launch; yield while waiting. A log or timeout is not a wake-up path.
+   Every attempt counts toward the budget; no silent retries.
+
+4. **Grade and report.** Grade answers for knowledge, actions and verified outcomes
+   for practice. The candidate does not grade itself. Record question-level points,
+   concise evidence, critical failures and limits. Broken setup or missing evidence
+   is not automatically a candidate failure. Report incomplete results as provisional.
+   Use `templates/evaluation-record.json` and `templates/evaluation-report.md` when
+   result retention is approved; declare subset IDs and keep exam identity separate
+   from loaded asset identity. Do not retain hidden reasoning, secrets or full
+   nested transcripts. Cancel obsolete wake triggers and clean up only owned
+   resources within the agreed authority.
+
+5. **Use mistakes to improve.** Distinguish candidate errors from unclear guidance,
+   tool defects, bad questions and environment failures before proposing changes.
+   Prefer general fixes over instructions tailored to an answer key. Compare fresh
+   baseline and revised runs, including unseen tasks, within an approved budget.
+   Report evidence and uncertainty, not just a total. Results guide improvements;
+   they do not authorize repo changes, installs, pushes or permission grants.

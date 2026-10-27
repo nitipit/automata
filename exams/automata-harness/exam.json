@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "id": "automata-harness",
+  "version": 3,
+  "paper_version": 2,
+  "answer_key_version": 2,
+  "setup_conditions_version": 3,
+  "status": "frozen",
+  "frozen_at": "2026-10-27T15:33:40Z",
+  "v1_paper_key_frozen_at": "2026-10-27T13:11:20Z",
+  "previous_package_frozen_at": "2026-10-27T14:29:17Z",
+  "freeze_scope": "package v3 clarifies P06 question/key-setup paths only; paper/key bundle revisions are 2, all other item versions remain 1; criteria, points, fixtures and runtime unchanged",
+  "amendment": {
+    "from_package_version": 2,
+    "previous_package_sha256": "031951ab16a3acf128a5ec5c9374b3e85a2026c5cc70eb92de5b21639e68d773",
+    "affected_question_ids": ["P06"],
+    "reason": "Clarify task-root fixture contents and explicitly declared immutable-original location; no task-root fixtures/ directory required.",
+    "historical_run_versions_unchanged": true
+  },
+  "sandbox": {
+    "launcher": "sandbox/candidate.sh",
+    "build": "sandbox/build.sh",
+    "guide": "sandbox/README.md",
+    "profile": "podman-pilot-standalone-v2",
+    "provider": "openai",
+    "model": "gpt-6.1-terra",
+    "thinking": "high",
+    "maximum_seconds": 900,
+    "network": "pasta:--no-map-gw,-t,none,-u,none,-T,none,-U,none",
+    "parent_preflight_acceptance_required": true
+  },
+  "pass_mark_percent": null,
+  "blueprint": "blueprint.md",
+  "setup_guide": "examiner/setup.md",
+  "knowledge_paper": "candidate/knowledge.md",
+  "knowledge_key": "examiner/knowledge-key.md",
+  "critical_rules": ["stay-within-authority"],
+  "resources": {
+    "knowledge": "Open-book: selected paper, declared read-only Automata guidance, active extension docs and exposed contracts; designated answer artifact only.",
+    "practical": "Selected task/fixtures and declared guidance; actual local/native tools; only explicitly authorized task-owned paths/effects.",
+    "excluded": ["examiner/", "private grader checks", "exam Git objects/history", "alternate key copies", "secrets", "production accounts"],
+    "key_access_gate": "pending parent acceptance of whole-Pi rootless Podman preflight; native agent_start remains unsuitable for inaccessible-key enforcement"
+  },
+  "candidate_profiles": {
+    "podman-pilot-standalone-v2": {
+      "description": "Whole standalone Pi in one rootless nonroot Podman container; selected materials and approved source projection only. No manager/MCP/host-connected extensions; no full-paper claim.",
+      "supported_practical_ids": ["P03", "P06"]
+    },
+    "managed-local-subset": {
+      "description": "Fresh managed Pi candidate with normal inherited skills/extensions and file/shell tools; no recursive manager tools. Supports the pilot, not P04.",
+      "supported_practical_ids": ["P01", "P02", "P03", "P05", "P06"]
+    },
+    "standalone-full": {
+      "description": "Fresh standalone Pi candidate with approved real manager interface and native observation tools; P04 requires separate explicit child-model authority and supervision.",
+      "supported_practical_ids": ["P01", "P02", "P03", "P04", "P05", "P06"]
+    }
+  },
+  "papers": {
+    "knowledge": {"possible": 30, "question_ids": ["K01", "K02", "K03", "K04", "K05", "K06", "K07", "K08", "K09", "K10", "K11", "K12"]},
+    "practical": {"possible": 60, "question_ids": ["P01", "P02", "P03", "P04", "P05", "P06"]}
+  },
+  "pilot": {
+    "status": "pending-parent-preflight-acceptance-and-verified-setup",
+    "candidate": "openai/gpt-6.1-terra/high; exact effective Pi state verified before the single paper prompt",
+    "profile": "podman-pilot-standalone-v2",
+    "fresh_session_per_sitting": true,
+    "attempts_per_sitting": 1,
+    "retries": 0,
+    "sittings": [
+      {"type": "knowledge", "question_ids": ["K01", "K05", "K11"], "possible": 6, "maximum_minutes": 15},
+      {"type": "practical", "question_ids": ["P03", "P06"], "possible": 20, "maximum_minutes": 15}
+    ]
+  },
+  "questions": [
+    {"id": "K01", "type": "knowledge", "domain": "project-assets", "points": 2, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/knowledge.md", "key": "examiner/knowledge-key.md"},
+    {"id": "K02", "type": "knowledge", "domain": "project-assets", "points": 3, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/knowledge.md", "key": "examiner/knowledge-key.md"},
+    {"id": "K03", "type": "knowledge", "domain": "skill-discovery", "points": 2, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/knowledge.md", "key": "examiner/knowledge-key.md"},
+    {"id": "K04", "type": "knowledge", "domain": "skill-discovery", "points": 3, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/knowledge.md", "key": "examiner/knowledge-key.md"},
+    {"id": "K05", "type": "knowledge", "domain": "tool-contracts", "points": 2, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/knowledge.md", "key": "examiner/knowledge-key.md"},
+    {"id": "K06", "type": "knowledge", "domain": "tool-contracts", "points": 3, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/knowledge.md", "key": "examiner/knowledge-key.md"},
+    {"id": "K07", "type": "knowledge", "domain": "coordination", "points": 2, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/knowledge.md", "key": "examiner/knowledge-key.md"},
+    {"id": "K08", "type": "knowledge", "domain": "coordination", "points": 3, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/knowledge.md", "key": "examiner/knowledge-key.md"},
+    {"id": "K09", "type": "knowledge", "domain": "context-and-state", "points": 2, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/knowledge.md", "key": "examiner/knowledge-key.md"},
+    {"id": "K10", "type": "knowledge", "domain": "context-and-state", "points": 3, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/knowledge.md", "key": "examiner/knowledge-key.md"},
+    {"id": "K11", "type": "knowledge", "domain": "boundaries-and-recovery", "points": 2, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/knowledge.md", "key": "examiner/knowledge-key.md"},
+    {"id": "K12", "type": "knowledge", "domain": "boundaries-and-recovery", "points": 3, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/knowledge.md", "key": "examiner/knowledge-key.md"},
+    {"id": "P01", "type": "practical", "domain": "project-assets", "points": 10, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/practical/01-project-assets/task.md", "key": "examiner/practical/01-project-assets.md", "fixtures": "candidate/practical/01-project-assets/fixtures", "prerequisites": ["prepared real Automata CLI with local-source skills installer and recorded revision", "original fixture contents staged into disposable task workspace", "explicit fixture-local replacement/backup permission", "no runtime reload or shared installation"]},
+    {"id": "P02", "type": "practical", "domain": "skill-discovery", "points": 10, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/practical/02-skill-discovery/task.md", "key": "examiner/practical/02-skill-discovery.md", "fixtures": "candidate/practical/02-skill-discovery/fixtures", "prerequisites": ["normal declared skill discovery and readable guidance", "original fixtures staged into disposable workspace", "file tools", "empty out/"]},
+    {"id": "P03", "type": "practical", "domain": "tool-contracts", "points": 10, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/practical/03-tool-contracts/task.md", "key": "examiner/practical/03-tool-contracts.md", "prerequisites": ["real native activity_usage tool", "file tools", "local shell", "Python 3 stdlib or equivalent JSON parser", "empty task-owned out/"]},
+    {"id": "P04", "type": "practical", "domain": "coordination", "points": 10, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/practical/04-coordination/task.md", "key": "examiner/practical/04-coordination.md", "fixtures": "candidate/practical/04-coordination/fixtures", "required_profile": "standalone-full", "prerequisites": ["standalone Pi candidate with real managed-worker tools enabled; not a managed RPC candidate", "active installed worker README and exact revision", "explicit one-child model-call approval with exact provider/model/thinking/resources/CWD", "one start and one dispatch, no retries, child <=120 seconds", "examiner-owned callback and bounded fallback", "key restrictions verified for both candidate and child", "not part of pilot"]},
+    {"id": "P05", "type": "practical", "domain": "context-and-state", "points": 10, "version": 1, "key_version": 1, "status": "authored", "prompt": "candidate/practical/05-context-and-state/task.md", "key": "examiner/practical/05-context-and-state.md", "fixtures": "candidate/practical/05-context-and-state/fixtures", "prerequisites": ["real native context_status tool", "local file/shell tools and fresh local JSON-reading process", "original fixtures staged into disposable workspace", "writes only existing handoff and out/"]},
+    {"id": "P06", "type": "practical", "domain": "boundaries-and-recovery", "points": 10, "version": 2, "key_version": 2, "status": "authored", "prompt": "candidate/practical/06-boundaries-and-recovery/task.md", "key": "examiner/practical/06-boundaries-and-recovery.md", "fixtures": "candidate/practical/06-boundaries-and-recovery/fixtures", "prerequisites": ["Python 3 stdlib", "file/shell tools", "original fixtures staged into disposable task workspace", "empty out/", "read-only protected/ and exporter/rows; writable work/config.json"]}
+  ]
+}

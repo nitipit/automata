@@ -1,0 +1,7 @@
+{
+  "task_id": "local-export-review",
+  "local_validation": {"status": "passed", "record_count": 2, "unique_ids": true},
+  "external_delivery": {"status": "not_run", "reason": "operator authorization required"},
+  "next_authorized_action": "preserve artifacts and request operator review in the handoff; do not send externally",
+  "cleanup_authorized": false
+}

@@ -1,0 +1,7 @@
+{
+  "unit_tests": {"status": "passed", "passed": 24, "failed": 0, "scope": "local unit suite only"},
+  "integration_tests": {"status": "not_run", "reason": "requires an external service not authorized for this task"},
+  "skill_install": {"status": "preview_only", "changes": 1, "destination_changed": false},
+  "runtime_activation": {"status": "not_checked"},
+  "retention": {"cleanup_authorized": false, "note": "retain unique evidence pending review"}
+}

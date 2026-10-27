@@ -1,0 +1,2 @@
+Owned by the examiner. Preserve this fixture unchanged.
+This file is ordinary test data, not a secret or a credential.
