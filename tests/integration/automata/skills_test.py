@@ -323,25 +323,69 @@ def test_cue_does_not_name_other_skills() -> None:
 def test_evaluation_record_example_is_internally_consistent() -> None:
     path = SKILLS_ROOT / "automata-agent-evaluation/templates/evaluation-record.json"
     data = json.loads(path.read_text())
-    assert data["schema_version"] == 1
-    for field in ("run_id", "subject", "runtime", "evaluator", "rubric", "scenario"):
+    assert data["schema_version"] == 2
+    for field in ("run_id", "exam", "candidate", "runtime", "conditions", "examiner"):
         assert data[field], field
-    criteria = [c for c in data["criteria"] if c["status"] == "scored"]
-    assert criteria
-    for criterion in criteria:
-        assert 0 <= criterion["score"] <= criterion["maximum"]
-        assert criterion["evidence"]
-    earned = sum(c["score"] for c in criteria)
-    maximum = sum(c["maximum"] for c in criteria)
-    assert maximum > 0
+    exam = data["exam"]
+    assert exam["type"] in {"knowledge", "practical"}
+    assert exam["version"] > 0 and exam["answer_key_version"] > 0
+    pass_mark = exam["pass_mark_percent"]
+    assert pass_mark is None or 0 <= pass_mark <= 100
+    assert exam["package_fingerprint"]
+    assert exam["git_identity"]["commit"]
+    assert data["runtime"]["candidate_profile"]
+    for asset in data["runtime"]["assets"]:
+        assert asset["kind"] and asset["root"] and asset["revision"]
+        assert asset["source"] in {"source", "installed"}
+    assert "dirty_tree_identity" in exam["git_identity"]
+    selection = exam["selection"]
+    assert selection["kind"] in {"full", "subset"}
+    selected_ids = selection["question_ids"]
+    paper_ids = selection["paper_question_ids"]
+    assert len(selected_ids) == len(set(selected_ids))
+    assert len(paper_ids) == len(set(paper_ids))
+    assert set(selected_ids) <= set(paper_ids)
+    if selection["kind"] == "full":
+        assert set(selected_ids) == set(paper_ids)
+        assert selection["selected_possible"] == selection["paper_possible"]
+    else:
+        assert set(selected_ids) < set(paper_ids)
+        assert selection["selected_possible"] < selection["paper_possible"]
+    questions = data["question_results"]
+    assert questions
+    assert {question["id"] for question in questions} == set(selected_ids)
+    assert sum(question["possible"] for question in questions) == selection["selected_possible"]
+    assert len({question["id"] for question in questions}) == len(questions)
+    graded = [question for question in questions if question["status"] == "graded"]
+    for question in questions:
+        assert question["status"] in {"graded", "invalid", "not_run"}
+        assert question["possible"] > 0
+        if question["status"] == "graded":
+            assert 0 <= question["earned"] <= question["possible"]
+            assert question["evidence"]
+        else:
+            assert question["earned"] is None
+            assert question["comment"]
+    earned = sum(question["earned"] for question in graded)
+    possible = sum(question["possible"] for question in graded)
+    percent = earned / possible * 100 if possible else None
     assert data["score"] == {
         "earned": earned,
-        "maximum": maximum,
-        "percent": earned / maximum * 100,
+        "possible": possible,
+        "percent": percent,
+        "questions_graded": len(graded),
+        "questions_total": len(questions),
     }
-    # An example record must not contradict its own score and gates. This does not
-    # grade real evidence or endorse a universal numerical threshold for agent quality.
-    if data["verdict"] == "PASS":
-        assert all(gate["status"] == "PASS" and gate["evidence"] for gate in data["critical_gates"])
-        assert data["score"]["percent"] >= data["rubric"]["threshold_percent"]
-        assert all(c["minimum"] is None or c["score"] >= c["minimum"] for c in criteria)
+    for failure in data["critical_failures"]:
+        assert failure["id"] in exam["critical_rules"]
+        assert failure["evidence"]
+    # Template consistency only: this does not grade real evidence or prove ability.
+    if data["critical_failures"]:
+        expected = "FAIL"
+    elif len(graded) != len(questions) or percent is None:
+        expected = "INCONCLUSIVE"
+    elif pass_mark is None:
+        expected = "SCORED"
+    else:
+        expected = "PASS" if percent >= pass_mark else "FAIL"
+    assert data["result"] == expected

@@ -1,0 +1,22 @@
+# Cached amd64 Bookworm images verified for this pilot. No host HOME/build context.
+FROM docker.io/library/node@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d AS node
+FROM docker.io/library/python@sha256:9c47360a2a0355e2da18516d0b1c2126ec22c195d2185e97347c9d98398c5bef
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules/npm/ /usr/local/lib/node_modules/npm/
+COPY --from=node /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /usr/lib/x86_64-linux-gnu/libstdc++.so.6
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && node --version && python3 -c 'import csv, hashlib, json, ssl' \
+    && npm install --prefix /opt/pi --ignore-scripts --omit=dev @earendil-works/pi-coding-agent@1.4.0 \
+    && npm cache clean --force \
+    && ln -s /opt/pi/node_modules/.bin/pi /usr/local/bin/pi \
+    && groupadd --gid 1000 candidate \
+    && useradd --uid 1000 --gid 1000 --home-dir /home/candidate candidate \
+    && mkdir -p /home/candidate /workspace /materials \
+    && chmod 755 /home/candidate /workspace /materials
+# resources/ is a clean, allowlisted projection prepared outside the checkout.
+COPY resources/automata/ /opt/automata/
+ENV HOME=/home/candidate PI_CODING_AGENT_DIR=/home/candidate/.pi/agent \
+    PI_OFFLINE=1 PI_SKIP_VERSION_CHECK=1 PI_TELEMETRY=0
+USER 1000:1000
+WORKDIR /workspace
+ENTRYPOINT ["sleep", "infinity"]
