@@ -263,7 +263,8 @@ assert (linked / 'SKILL.md').read_bytes() == (
 ).read_bytes()
 installed = install_pi_extensions(target_root=work / 'extensions')
 assert {item.name for item in installed} == {
-    'pi-agent-team', 'codex-bridge', 'context-compaction', 'context-status', 'activity-usage', 'fast-mode',
+    'pi-agent-team', 'codex-bridge', 'context-compaction', 'context-status', 'activity-usage',
+    'fast-mode',
     'message-timestamps', 'nodalwire', 'pi-sessions', 'skill-activity', 'token-awareness',
 }
 assert not (work / 'extensions/thinking-control').exists()

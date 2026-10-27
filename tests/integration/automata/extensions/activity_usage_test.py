@@ -18,7 +18,9 @@ def test_activity_usage_runtime(tmp_path: Path) -> None:
     package = tmp_path / "node_modules" / "typebox"
     package.mkdir(parents=True)
     (package / "package.json").write_text(json.dumps({"type": "module", "exports": "./index.js"}))
-    (package / "index.js").write_text("export const Type = new Proxy({}, {get: () => (...args) => args});")
+    (package / "index.js").write_text(
+        "export const Type = new Proxy({}, {get: () => (...args) => args});"
+    )
     result = subprocess.run(
         [node, "--test", str(Path(__file__).with_suffix(".mjs"))],
         env={**os.environ, "CONTEXT_TEST_ROOT": str(tmp_path)}, capture_output=True,
