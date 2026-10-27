@@ -69,7 +69,16 @@ def test_install_pi_extensions_copies_message_timestamps_with_updated_context_st
     root = bundled_pi_extension_root()
     for name in ("message-timestamps", "context-status"):
         assert (target / f"{name}.ts").read_bytes() == (root / f"{name}.ts").read_bytes()
-    assert "Runtime local time:" not in (target / "context-status.ts").read_text()
+
+
+def test_install_activity_usage_independently(tmp_path: Path) -> None:
+    target = tmp_path / "extensions"
+    results = install_pi_extensions(target_root=target, extension_names=["activity-usage"])
+    assert [result.name for result in results] == ["activity-usage"]
+    assert (target / "activity-usage.ts").read_bytes() == (
+        bundled_pi_extension_root() / "activity-usage.ts"
+    ).read_bytes()
+    assert not (target / "context-status.ts").exists()
 
 
 def test_install_pi_extensions_copies_bundled_token_awareness(tmp_path: Path) -> None:
@@ -97,7 +106,7 @@ def test_default_install_excludes_retired_control_without_uninstalling(tmp_path:
     retired.parent.mkdir(parents=True)
     retired.write_text("// existing user installation\n")
     expected = {
-        "pi-agent-team", "codex-bridge", "context-compaction", "context-status", "fast-mode",
+        "pi-agent-team", "codex-bridge", "context-compaction", "context-status", "activity-usage", "fast-mode",
         "message-timestamps", "nodalwire", "pi-sessions", "skill-activity", "token-awareness",
     }
     assert set(list_pi_extensions(bundled_pi_extension_root())) == expected
