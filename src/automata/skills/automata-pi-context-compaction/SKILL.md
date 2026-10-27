@@ -9,13 +9,17 @@ Use the exposed `context_compact` extension; installation alone does not expose 
 Report missing capability rather than injecting `/compact` or inventing a call.
 Pi owns automatic compaction; changing its settings needs separate approval.
 
-1. **Choose a safe boundary.** Unless preferences override, trigger above 75%
-   measured usage when meaningful work remains; at 90% or higher, preserve a minimal
-   checkpoint and compact at the earliest safe boundary. Finish coherent edits and
-   record pending ownership/evidence first. Pressure is advice, not a command.
-   Unless explicitly requested, unknown usage or a just-completed compaction needs
-   a fresh reading above the trigger; time or a new phase alone is insufficient.
-   Briefly announce; do not require repeated approval or compact just to finish a task.
+1. **Choose a safe boundary.** Assess remaining work and expected large inputs,
+   the value of active evidence versus stale history, and both the working model's
+   and summarizer's input/output headroom. Finish coherent edits and preserve
+   ownership and pending evidence before compacting; do not interrupt an operation.
+   Model-specific preferences are advisory ranges, not hard triggers. Without an
+   applicable preference, above 75% consider compaction when meaningful work remains;
+   at 90% preserve a minimal checkpoint and seek the earliest safe boundary.
+   Runtime limits are authoritative, and summarizer headroom can require earlier
+   action. Pressure is advice, not a command. Unknown usage, elapsed time or a new
+   phase alone is insufficient; after compaction require fresh evidence of material
+   benefit before another attempt. Briefly announce; do not compact just to finish.
 
 2. **Use approved selections.** Apply current instructions, project preferences,
    global preferences, then session defaults. Existing paths remain:
@@ -31,8 +35,9 @@ Pi owns automatic compaction; changing its settings needs separate approval.
 
 3. **Preserve continuity.** Update existing authorized task state with goals,
    constraints, decisions, checks, ownership, pending evidence, cleanup, blockers
-   and next actions. Do not save transcripts/secrets or create records just for
-   compaction. Use brief `customInstructions` for essential continuity guidance,
+   and next actions. Keep the handoff brief and focused on future work, not a full
+   archive of completed work. Do not save transcripts/secrets or create records just
+   for compaction. Use brief `customInstructions` for essential continuity guidance,
    not a replacement summary; it reaches every native summary request.
 
 4. **Queue and continue.** Use `resumeMessage` only for remaining authorized work;

@@ -22,9 +22,10 @@ def test_context_status_installed_runtime_offline(tmp_path: Path) -> None:
         pytest.skip("Node.js and the installed Pi coding-agent package are required")
     assert (package / "dist/core/extensions/runner.js").is_file(), package
 
-    (tmp_path / "context-status.ts").write_text(
-        files("automata").joinpath("runtimes", "pi", "extensions", "context-status.ts").read_text()
-    )
+    for name in ("context-status", "activity-usage"):
+        (tmp_path / f"{name}.ts").write_text(
+            files("automata").joinpath("runtimes", "pi", "extensions", f"{name}.ts").read_text()
+        )
     typebox = tmp_path / "node_modules" / "typebox"
     typebox.mkdir(parents=True)
     (typebox / "package.json").write_text('{"type":"module","exports":"./index.js"}')

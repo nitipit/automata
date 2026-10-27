@@ -94,6 +94,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "runtimes/pi/extensions/pi-agent-team/capture.ts",
         "runtimes/pi/extensions/pi-agent-team/README.md",
         "runtimes/pi/extensions/context-status.ts",
+        "runtimes/pi/extensions/activity-usage.ts",
         "runtimes/pi/extensions/fast-mode/index.ts",
         "runtimes/pi/extensions/fast-mode/README.md",
         "runtimes/pi/extensions/nodalwire/index.ts",
@@ -262,7 +263,8 @@ assert (linked / 'SKILL.md').read_bytes() == (
 ).read_bytes()
 installed = install_pi_extensions(target_root=work / 'extensions')
 assert {item.name for item in installed} == {
-    'pi-agent-team', 'codex-bridge', 'context-compaction', 'context-status', 'fast-mode',
+    'pi-agent-team', 'codex-bridge', 'context-compaction', 'context-status', 'activity-usage',
+    'fast-mode',
     'message-timestamps', 'nodalwire', 'pi-sessions', 'skill-activity', 'token-awareness',
 }
 assert not (work / 'extensions/thinking-control').exists()
@@ -342,7 +344,7 @@ def test_package_includes_bundled_context_status_pi_extension() -> None:
 
     assert extension.is_file()
     assert not extensions.joinpath("context-awareness.ts").is_file()
-    assert 'CONTEXT_SIGNAL_TYPE = "automata-context-awareness"' in extension.read_text()
+    assert extensions.joinpath("activity-usage.ts").is_file()
 
 
 def test_package_includes_context_compaction_extension_and_skill() -> None:
