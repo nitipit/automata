@@ -57,7 +57,7 @@ export class Capture {
     }
     const earliest = this.rows[0]?.sequence ?? this.next;
     let position = earliest;
-    if (cursor !== undefined) {
+    if (cursor !== undefined && cursor !== "") {
       if (cursor.length > 256) throw new Error("Invalid cursor");
       let decoded;
       try { decoded = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")); }

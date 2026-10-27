@@ -11,6 +11,7 @@ test("cursor reads are non-consuming, exclusive, independent and budgeted", () =
   const first = c.read(undefined);
   assert.equal(first.records[0].value, "first");
   assert.deepEqual(c.read(undefined), first);
+  assert.deepEqual(c.read(""), first);
   assert.equal(c.read(first.nextCursor).records.length, 0);
   c.append("second");
   assert.equal(c.read(first.nextCursor).records[0].value, "second");

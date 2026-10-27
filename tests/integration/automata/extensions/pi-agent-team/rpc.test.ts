@@ -314,6 +314,7 @@ test("report retention expires explicitly and task IDs remain protected after ev
   const { instance, reports } = await worker(t);
   for (let n = 0; n < 33; n++) await instance.send("prompt", "handled", `task-${n}`);
   assert.equal(instance.snapshot().retainedReports, 32);
+  assert.deepEqual(instance.read("report", { reportId: "", cursor: "" }), instance.read("report", {}));
   assert.throws(() => instance.read("report", { reportId: reports[0].reportId }), /no longer retained/);
   await assert.rejects(instance.send("prompt", "new", "task-0"), /already used/);
 });
