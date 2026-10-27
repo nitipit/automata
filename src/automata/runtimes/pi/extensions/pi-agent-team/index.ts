@@ -3,7 +3,7 @@ import { isAbsolute } from "node:path";
 import { randomUUID } from "node:crypto";
 import { Type } from "typebox";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Worker, RpcError, THINKING, WORKER_ENV, type StartSpec, type WorkerOptions, type Report } from "./worker.ts";
+import { Worker, RpcError, StartupError, THINKING, WORKER_ENV, type LaunchSpec, type WorkerOptions, type Report } from "./worker.ts";
 import { clip } from "./capture.ts";
 
 export const MESSAGE_TYPE = "automata-agent-team-report";
@@ -20,7 +20,7 @@ type Options = { workerOptions?: WorkerOptions; workerEnvironment?: boolean; bat
 export default function agentTeam(pi: ExtensionAPI) { registerAgentTeam(pi); }
 
 /**
- * Register worker tools without spawning resources; only agent_start creates a child.
+ * Register worker tools without spawning resources; only start/resume create children.
  * Settled reports are batched as follow-ups with triggerTurn:true, which can wake
  * an idle parent. Submission is not task acceptance; failed submissions are not
  * replayed because Pi may already have accepted them. Retained reports remain readable.
@@ -107,52 +107,76 @@ export function registerAgentTeam(pi: ExtensionAPI, options: Options = {}) {
           return { content: [{ type: "text" as const, text: JSON.stringify(data) }], details: data };
         } catch (error) {
           const data = { error: error instanceof Error ? clip(error.message, 3000) : "Agent operation failed",
-            ...(error instanceof RpcError ? { requestId: error.requestId, unknownOutcome: error.unknownOutcome } : {}) };
+            ...(error instanceof RpcError ? { requestId: error.requestId, unknownOutcome: error.unknownOutcome } : {}),
+            ...(error instanceof StartupError ? { phase: "startup", workerId: error.state.workerId,
+              taskDispatched: false, state: error.state, stderr: error.diagnostic,
+              requestOutcomeUnknown: error.requestOutcomeUnknown } : {}) };
           return { content: [{ type: "text" as const, text: JSON.stringify(data) }], details: data, isError: true };
         }
       },
     });
   }
 
-  tool("agent_start", "Start agent", "Start an idle Pi RPC worker; does not send a task. Requires delegation approval and explicit exact model/thinking/workspace. Verify returned settings. No fallback. At most 8 concurrent workers. Workers inherit normal Pi resources unless minimal is requested. Resume only an authorized inactive exact session. Workers are not sandboxes.",
-    Type.Object({ workerId: Id, cwd: Type.String({ description: "Absolute existing workspace directory" }),
-      provider: Type.String({ minLength: 1, description: "Explicit approved provider" }),
-      model: Type.String({ minLength: 1, description: "Exact approved model ID; no fuzzy match or fallback" }),
-      thinking: Type.Union(THINKING.map(level => Type.Literal(level))),
-      sessionId: Type.Optional(Id), resources: Type.Optional(Type.Union([Type.Literal("inherit"), Type.Literal("minimal")],
-        { description: "Default inherit; minimal disables extensions/MCP/skills/templates, not settings or context files" })) }),
-    async (params: StartSpec, ctx, signal) => {
-      const generation = managerGeneration;
-      if (!identifier(params.workerId) || (params.sessionId && !identifier(params.sessionId))) throw new Error("Invalid worker/session identifier");
-      if (!isAbsolute(params.cwd) || !(await stat(params.cwd)).isDirectory()) throw new Error("cwd must be an absolute existing directory");
-      const cwd = await realpath(params.cwd);
-      signal?.throwIfAborted();
-      if (!active || generation !== managerGeneration) throw new Error("Session changed during worker creation");
-      if (workers.has(params.workerId)) throw new Error("workerId already used in this session; choose a new ID");
-      if (workers.size >= MAX_RECORDS) throw new Error("Worker record limit reached for this session");
-      const live = [...workers.values()].filter(worker => !worker.snapshot().exit);
-      if (live.length >= MAX_WORKERS) throw new Error("Concurrent worker limit reached (8)");
-      if (params.sessionId === ctx.sessionManager.getSessionId()) throw new Error("Cannot attach a worker to the parent session");
-      if (params.sessionId && [...workers.values()].some(worker => {
-        const state = worker.snapshot();
-        return (state.verified?.sessionId === params.sessionId || worker.spec.sessionId === params.sessionId) && !state.exit;
-      })) throw new Error("Session already owned by a live worker");
-      const worker = new Worker({ ...params, cwd }, report, options.workerOptions);
-      workers.set(params.workerId, worker); // Reserve before yielding to concurrent tool calls.
-      const abort = () => { void worker.stop(); };
-      signal?.addEventListener("abort", abort, { once: true });
-      try {
-        const state = await worker.start();
-        if (signal?.aborted || !active || generation !== managerGeneration) {
-          await worker.stop();
-          throw new Error("Worker creation cancelled; owned worker stopped");
-        }
-        persist({ version: 1, event: "started", ...state });
-        return state;
-      } catch (error) {
-        persist({ version: 1, event: "start_failed", ...worker.snapshot() });
-        throw error;
-      } finally { signal?.removeEventListener("abort", abort); }
+  const launchProperties = {
+    workerId: Id, cwd: Type.String({ description: "Absolute existing workspace directory" }),
+    provider: Type.String({ minLength: 1, description: "Explicit approved provider" }),
+    model: Type.String({ minLength: 1, description: "Exact approved model ID; no fuzzy match or fallback" }),
+    thinking: Type.Union(THINKING.map(level => Type.Literal(level))),
+    resources: Type.Optional(Type.Union([Type.Literal("inherit"), Type.Literal("minimal")],
+      { description: "Default inherit; minimal disables extensions/MCP/skills/templates, not settings or context files" })),
+  };
+
+  async function launch(params: LaunchSpec, ctx: ExtensionContext, signal?: AbortSignal) {
+    const generation = managerGeneration;
+    if (!identifier(params.workerId) || (params.sessionId && !identifier(params.sessionId))) throw new Error("Invalid worker/session identifier");
+    if (!isAbsolute(params.cwd) || !(await stat(params.cwd)).isDirectory()) throw new Error("cwd must be an absolute existing directory");
+    const cwd = await realpath(params.cwd);
+    signal?.throwIfAborted();
+    if (!active || generation !== managerGeneration) throw new Error("Session changed during worker creation");
+    if (workers.has(params.workerId)) throw new Error("workerId already used in this session; choose a new ID");
+    if (workers.size >= MAX_RECORDS) throw new Error("Worker record limit reached for this session");
+    const live = [...workers.values()].filter(worker => !worker.snapshot().exit);
+    if (live.length >= MAX_WORKERS) throw new Error("Concurrent worker limit reached (8)");
+    if (params.sessionId === ctx.sessionManager.getSessionId()) throw new Error("Cannot attach a worker to the parent session");
+    if (params.sessionId && [...workers.values()].some(worker => {
+      const state = worker.snapshot();
+      return (state.verified?.sessionId === params.sessionId || worker.spec.sessionId === params.sessionId) && !state.exit;
+    })) throw new Error("Session already owned by a live worker");
+    const worker = new Worker({ ...params, cwd }, report, options.workerOptions);
+    workers.set(params.workerId, worker); // Reserve before yielding to concurrent tool calls.
+    const abort = () => { void worker.stop(); };
+    signal?.addEventListener("abort", abort, { once: true });
+    try {
+      const state = await worker.start();
+      if (signal?.aborted || !active || generation !== managerGeneration) {
+        await worker.stop();
+        throw new Error("Worker creation cancelled; owned worker stopped");
+      }
+      persist({ version: 1, event: "started", ...state });
+      return state;
+    } catch (error) {
+      persist({ version: 1, event: "start_failed", ...worker.snapshot() });
+      throw error;
+    } finally { signal?.removeEventListener("abort", abort); }
+  }
+
+  const launchCautions = "Requires delegation approval and explicit exact model/thinking/workspace. Verify returned settings. No fallback. At most 8 concurrent workers. Workers inherit normal Pi resources unless minimal is requested; they are not sandboxes. On failure inspect returned startup diagnostics and exit facts before another attempt; never blindly retry an unknown outcome.";
+  tool("agent_start", "Start new agent",
+    "Create an idle Pi RPC worker in a NEW session; does not send a task. Do not supply sessionId; use agent_resume for an existing session. " + launchCautions,
+    Type.Object(launchProperties, { additionalProperties: false }),
+    (params, ctx, signal) => {
+      if (Object.hasOwn(params, "sessionId")) throw new Error("agent_start creates a new session and does not accept sessionId; use agent_resume for an authorized inactive existing session");
+      return launch(params, ctx, signal);
+    });
+
+  tool("agent_resume", "Resume agent session",
+    "Start an idle Pi RPC worker by resuming an explicitly authorized INACTIVE existing session; does not send a task. Require its exact full sessionId, not a name, prefix, path, or placeholder. Cannot detect sessions active in another Pi process; establish inactivity before calling. To create a new session use agent_start. " + launchCautions,
+    Type.Object({ ...launchProperties, sessionId: { ...Id,
+      description: "Exact full ID of an authorized inactive existing session; not a worker name, prefix, path, or 'new'" } },
+      { additionalProperties: false }),
+    (params, ctx, signal) => {
+      if (typeof params.sessionId !== "string" || !identifier(params.sessionId)) throw new Error("agent_resume requires an exact existing sessionId; use agent_start for a new session");
+      return launch(params, ctx, signal);
     });
 
   tool("agent_send", "Send agent work", "Dispatch a new prompt with a unique taskId, or steer/follow_up an active assignment. Uses worker model quota; settlement reports can wake the parent. Receipt is not completion. One assignment per worker; follow-ups remain part of that assignment. Timeout means unknown outcome: inspect, never blindly resend. Do not reassign a worker with queued instructions.",

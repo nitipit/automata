@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 
 const root = process.env.PI_EXTENSION_TEST_ROOT;
-const { Worker } = await import(pathToFileURL(join(root, "worker.ts")));
+const { Worker, StartupError, TOOL_NAMES } = await import(pathToFileURL(join(root, "worker.ts")));
 const { registerAgentTeam, MESSAGE_TYPE } = await import(pathToFileURL(join(root, "index.ts")));
 const fake = join(dirname(fileURLToPath(import.meta.url)), "fixtures/fake-worker.mjs");
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -245,13 +245,124 @@ test("extension tools deliver deduplicated labeled reports and save recovery ref
 
 test("extension rejects duplicate IDs, parent attachment, and simultaneous resume ownership", async t => {
   const f = fixture(); await f.emit("session_start"); t.after(() => f.emit("session_shutdown"));
-  assert.equal((await f.call("agent_start", { ...spec("parent-copy"), sessionId: "parent" })).isError, true);
-  const one = f.call("agent_start", { ...spec("one"), sessionId: "shared" });
-  const two = f.call("agent_start", { ...spec("two"), sessionId: "shared" });
+  assert.equal((await f.call("agent_resume", { ...spec("parent-copy"), sessionId: "parent" })).isError, true);
+  const one = f.call("agent_resume", { ...spec("one"), sessionId: "shared" });
+  const two = f.call("agent_resume", { ...spec("two"), sessionId: "shared" });
   const results = await Promise.all([one, two]);
   assert.equal(results.filter(r => !r.isError).length, 1);
   const ownedId = results.find(r => !r.isError).details.workerId;
   assert.equal((await f.call("agent_start", spec(ownedId))).isError, true);
+});
+
+test("new-session start rejects sessionId before spawning and can reuse the rejected worker ID", async t => {
+  const f = fixture(); await f.emit("session_start"); t.after(() => f.emit("session_shutdown"));
+  for (const sessionId of ["conversation", "new", "exact-session", "", undefined]) {
+    const rejected = await f.call("agent_start", { ...spec("new"), sessionId });
+    assert.equal(rejected.isError, true);
+    assert.match(rejected.details.error, /agent_resume/);
+  }
+  assert.equal((await f.call("agent_status", {})).details.workers.length, 0);
+  const started = await f.call("agent_start", spec("new"));
+  assert.equal(started.isError, undefined);
+  assert.equal(started.details.state, "idle");
+  const events = (await f.call("agent_read", { workerId: "new", view: "events" })).details.records;
+  const args = events.find(r => r.value.command === "get_state").value.data.launchArgs;
+  assert.equal(args.includes("--session"), false);
+  assert.deepEqual(args[args.indexOf("--exclude-tools") + 1].split(","), TOOL_NAMES);
+  assert.ok(TOOL_NAMES.includes("agent_resume"));
+  assert.equal(events.some(r => r.value.type === "agent_start"), false);
+});
+
+test("resume requires an ID before spawning and forwards the exact identity", async t => {
+  const f = fixture(); await f.emit("session_start"); t.after(() => f.emit("session_shutdown"));
+  for (const sessionId of [undefined, "", "/path/to/session", null]) {
+    assert.equal((await f.call("agent_resume", { ...spec("resumed"), sessionId })).isError, true);
+  }
+  assert.equal((await f.call("agent_status", {})).details.workers.length, 0);
+  const resumed = await f.call("agent_resume", { ...spec("resumed"), sessionId: "exact-session" });
+  assert.equal(resumed.isError, undefined);
+  assert.equal(resumed.details.verified.sessionId, "exact-session");
+  const events = (await f.call("agent_read", { workerId: "resumed", view: "events" })).details.records;
+  const args = events.find(r => r.value.command === "get_state").value.data.launchArgs;
+  assert.equal(args[args.indexOf("--session") + 1], "exact-session");
+  assert.equal(events.some(r => r.value.type === "agent_start"), false);
+});
+
+test("resume refuses a different effective identity without dispatching work", async t => {
+  const f = fixture({ workerOptions: { ...workerOptions, env: { AGENT_FAKE_SCENARIO: "resume-mismatch" } } });
+  await f.emit("session_start"); t.after(() => f.emit("session_shutdown"));
+  const result = await f.call("agent_resume", { ...spec("mismatch"), sessionId: "exact-session" });
+  assert.equal(result.isError, true);
+  assert.equal(result.details.phase, "startup");
+  assert.equal(result.details.taskDispatched, false);
+  assert.equal(result.details.unknownOutcome, false);
+  assert.match(result.details.error, /mismatch/);
+  assert.ok(result.details.state.exit);
+});
+
+test("failed resume returns stderr and confirmed exit directly, without replay or fallback", async t => {
+  const f = fixture({ workerOptions: { ...workerOptions, env: { AGENT_FAKE_SCENARIO: "startup-failure" } } });
+  await f.emit("session_start"); t.after(() => f.emit("session_shutdown"));
+  const result = await f.call("agent_resume", { ...spec("missing"), sessionId: "missing-session" });
+  assert.equal(result.isError, true);
+  assert.equal(result.details.phase, "startup");
+  assert.equal(result.details.workerId, "missing");
+  assert.equal(result.details.taskDispatched, false);
+  assert.equal(result.details.unknownOutcome, false);
+  assert.equal(result.details.requestOutcomeUnknown, true);
+  assert.equal(result.details.state.exit.code, 1);
+  assert.equal(result.details.stderr.tail, "No session found matching 'missing-session'\n");
+  assert.equal(result.details.stderr.truncated, false);
+  assert.match(result.content[0].text, /No session found/);
+  assert.equal(f.messages.length, 0);
+  const state = (await f.call("agent_status", {})).details;
+  assert.equal(state.workers.length, 1);
+  assert.equal(state.workers[0].retainedReports, 0);
+  assert.equal(state.workers[0].requests.length, 1);
+  assert.equal(state.workers[0].requests[0].command, "get_state");
+  assert.equal(f.entries.filter(e => e.data.event === "start_failed").length, 1);
+});
+
+test("startup diagnostics are bounded UTF-8 tails with explicit truncation", async t => {
+  const f = fixture({ workerOptions: { ...workerOptions, env: { AGENT_FAKE_SCENARIO: "startup-diagnostic" } } });
+  await f.emit("session_start"); t.after(() => f.emit("session_shutdown"));
+  const result = await f.call("agent_start", spec("diagnostic"));
+  assert.equal(result.isError, true);
+  assert.equal(result.details.stderr.truncated, true);
+  assert.ok(Buffer.byteLength(result.details.stderr.tail) <= 4000);
+  assert.ok(result.details.stderr.tail.endsWith("\nfinal diagnostic\n"));
+  assert.equal(result.details.stderr.tail.includes("\ufffd"), false);
+});
+
+test("startup failure without stderr still returns the observed exit", async t => {
+  const f = fixture({ workerOptions: { ...workerOptions, env: { AGENT_FAKE_SCENARIO: "startup-silent" } } });
+  await f.emit("session_start"); t.after(() => f.emit("session_shutdown"));
+  const result = await f.call("agent_start", spec("silent"));
+  assert.equal(result.isError, true);
+  assert.equal(result.details.state.exit.code, 2);
+  assert.equal(result.details.stderr.tail, "");
+  assert.equal(result.details.unknownOutcome, false);
+});
+
+test("missing executable returns the spawn failure and no task dispatch", async t => {
+  const f = fixture({ workerOptions: { ...workerOptions, command: join(root, "nonexistent-executable") } });
+  await f.emit("session_start"); t.after(() => f.emit("session_shutdown"));
+  const result = await f.call("agent_start", spec("spawn-error"));
+  assert.equal(result.isError, true);
+  assert.equal(result.details.taskDispatched, false);
+  assert.match(result.details.error, /ENOENT/);
+  assert.ok(result.details.state.exit);
+});
+
+test("startup keeps an unknown outcome when cleanup cannot confirm exit", async t => {
+  const instance = new Worker(spec("unconfirmed"), () => {}, { ...workerOptions, requestMs: 10,
+    env: { AGENT_FAKE_SCENARIO: "delayed-state" } });
+  // Simulate cleanup failing at the stop boundary, then restore it for real cleanup.
+  const stop = instance.stop.bind(instance);
+  t.after(stop);
+  instance.stop = async () => instance.snapshot();
+  await assert.rejects(instance.start(), error => error instanceof StartupError &&
+    error.unknownOutcome === true && error.state.exit === undefined);
 });
 
 test("tool cancellation during preflight prevents assignment dispatch", async t => {
@@ -280,7 +391,8 @@ test("session shutdown suppresses late notifications and stops active workers", 
 test("startup timeout and startup cancellation both stop the owned process", async t => {
   const instance = new Worker(spec("timeout"), () => {}, { ...workerOptions, requestMs: 10,
     env: { AGENT_FAKE_SCENARIO: "delayed-state" } });
-  await assert.rejects(instance.start(), error => error.unknownOutcome);
+  await assert.rejects(instance.start(), error => error instanceof StartupError &&
+    error.unknownOutcome === false && error.requestOutcomeUnknown === true && !!error.state.exit);
   assert.ok(instance.snapshot().exit);
   const f = fixture({ workerOptions: { ...workerOptions, env: { AGENT_FAKE_SCENARIO: "delayed-state" } } });
   await f.emit("session_start"); t.after(() => f.emit("session_shutdown"));

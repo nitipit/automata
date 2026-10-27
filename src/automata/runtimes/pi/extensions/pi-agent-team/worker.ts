@@ -4,10 +4,11 @@ import { StringDecoder } from "node:string_decoder";
 import { Capture, clip } from "./capture.ts";
 
 export const WORKER_ENV = "AUTOMATA_AGENT_TEAM_WORKER";
-export const TOOL_NAMES = ["agent_start", "agent_send", "agent_status", "agent_read", "agent_abort", "agent_stop"];
+export const TOOL_NAMES = ["agent_start", "agent_resume", "agent_send", "agent_status", "agent_read", "agent_abort", "agent_stop"];
 export const THINKING = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
-/** Exact approved settings; resources controls discovery, never isolation or trust. */
-export type StartSpec = {
+/** Internal launch settings shared by the separate start/resume tools.
+ * sessionId is supplied only by agent_resume; resources is discovery, not isolation. */
+export type LaunchSpec = {
   workerId: string; cwd: string; provider: string; model: string; thinking: typeof THINKING[number];
   sessionId?: string; resources?: "inherit" | "minimal";
 };
@@ -31,6 +32,22 @@ export type WorkerOptions = {
 /** Correlate uncertain commands by requestId; a rejected promise cannot undo dispatch. */
 export class RpcError extends Error {
   constructor(message: string, readonly requestId?: string, readonly unknownOutcome = false) { super(message); }
+}
+
+/** Startup never dispatches a task. Process cleanup and a lost read-only get_state
+ * response are different outcomes: preserve both rather than imply model work ran. */
+export class StartupError extends RpcError {
+  readonly requestOutcomeUnknown?: boolean;
+  constructor(error: unknown, readonly state: ReturnType<Worker["snapshot"]>,
+    readonly diagnostic: { tail: string; truncated: boolean }) {
+    const cause = error instanceof Error ? error.message : "Startup failed";
+    const processState = state.exit
+      ? `process exit confirmed (code ${state.exit.code}, signal ${state.exit.signal})`
+      : "process exit unconfirmed; inspect agent_status and stop the owned worker";
+    super(`Worker startup failed; ${processState}. No task dispatched. Cause: ${cause}`,
+      error instanceof RpcError ? error.requestId : undefined, !state.exit);
+    this.requestOutcomeUnknown = error instanceof RpcError ? error.unknownOutcome : undefined;
+  }
 }
 
 /**
@@ -60,11 +77,13 @@ export class Worker {
   private queue = { steering: [] as string[], followUp: [] as string[] };
   private verified?: Packet;
   private fault?: string;
+  private stderrTail = "";
+  private stderrTruncated = false;
   private exitCode: number | null = null;
   private exitSignal: string | null = null;
   state: "starting" | "idle" | "working" | "stopping" | "stopped" | "failed" = "starting";
 
-  constructor(readonly spec: StartSpec, private onReport: (report: Report) => void,
+  constructor(readonly spec: LaunchSpec, private onReport: (report: Report) => void,
     private options: WorkerOptions = {}) {
     this.events = new Capture(options.captureBytes);
     this.stderr = new Capture(256 * 1024, 16 * 1024);
@@ -74,7 +93,7 @@ export class Worker {
   /**
    * Spawn idle, then verify exact provider/model/thinking/session with get_state.
    * Minimal resources still load settings/context files. Children cannot recursively
-   * use these six tools; this is not a sandbox or a ban on arbitrary subprocesses.
+   * use these manager tools; this is not a sandbox or a ban on arbitrary subprocesses.
    * Startup failure attempts cleanup. Native persistent sessions are never deleted.
    */
   async start() {
@@ -87,8 +106,8 @@ export class Worker {
       stdio: ["pipe", "pipe", "pipe"], detached: process.platform !== "win32",
     });
     const child = this.child;
-    child.once("error", () => {
-      this.fault = "Worker process could not start";
+    child.once("error", error => {
+      this.fault = `Worker process could not start: ${clip(error.message, 1000)}`;
       this.finishExit(null, null);
     });
     child.once("close", (code, signal) => this.finishExit(code, signal));
@@ -102,8 +121,8 @@ export class Worker {
       this.events.append({ type: "capture_error", reason: "Worker stderr capture failed" });
     });
     const stderrDecoder = new StringDecoder("utf8");
-    child.stderr.on("data", chunk => this.stderr.append(stderrDecoder.write(chunk)));
-    child.stderr.on("end", () => { const tail = stderrDecoder.end(); if (tail) this.stderr.append(tail); });
+    child.stderr.on("data", chunk => this.captureStderr(stderrDecoder.write(chunk)));
+    child.stderr.on("end", () => this.captureStderr(stderrDecoder.end()));
     // LF-only framing; retain partial bytes, with a strict upper bound even without LF.
     let buffer = Buffer.alloc(0), discarding = false;
     const limit = this.options.maxLineBytes ?? 8 * 1024 * 1024;
@@ -134,8 +153,20 @@ export class Worker {
     } catch (error) {
       this.fault = error instanceof Error ? error.message : "Startup failed";
       await this.stop();
-      throw error;
+      throw new StartupError(error, this.snapshot(), { tail: this.stderrTail, truncated: this.stderrTruncated });
     }
+  }
+
+  // Chunk-independent, bounded UTF-8 tail for launch diagnostics; stderr is evidence,
+  // never parsed as protocol or instructions. The full bounded capture stays readable.
+  private captureStderr(text: string) {
+    if (!text) return;
+    this.stderr.append(text);
+    const bytes = Buffer.from(this.stderrTail + text);
+    let start = Math.max(0, bytes.length - 4000);
+    if (start) this.stderrTruncated = true;
+    while (start < bytes.length && (bytes[start] & 0xc0) === 0x80) start++;
+    this.stderrTail = bytes.subarray(start).toString("utf8");
   }
 
   private line(line: string) {
@@ -325,7 +356,7 @@ export class Worker {
     if (this.exited) return;
     this.exited = true; this.exitCode = code; this.exitSignal = signal;
     this.state = this.closing ? "stopped" : "failed";
-    this.rejectPending("Worker exited; dispatched commands without responses have unknown outcomes");
+    this.rejectPending(this.fault ?? "Worker exited; dispatched commands without responses have unknown outcomes");
     if (this.task && !this.task.error) this.task.error = "Process exited before settlement";
     this.complete("exited", false);
     this.resolveExit();

@@ -20,7 +20,14 @@ const input = createInterface({ input: process.stdin });
 input.on("line", line => {
   const command = JSON.parse(line);
   if (command.type === "get_state") {
-    const reply = () => response(command, { model: { provider: arg("--provider"), id: scenario === "mismatch" ? "wrong" : arg("--model") }, thinkingLevel: arg("--thinking"), sessionId,
+    if (scenario === "startup-failure" || scenario === "startup-diagnostic") {
+      const diagnostic = scenario === "startup-diagnostic" ? "สวัสดี".repeat(2000) + "\nfinal diagnostic\n"
+        : `No session found matching '${arg("--session")}'\n`;
+      process.stderr.write(diagnostic, () => process.exit(1));
+      return;
+    }
+    if (scenario === "startup-silent") return process.exit(2);
+    const reply = () => response(command, { launchArgs: args, model: { provider: arg("--provider"), id: scenario === "mismatch" ? "wrong" : arg("--model") }, thinkingLevel: arg("--thinking"), sessionId: scenario === "resume-mismatch" ? "different-session" : sessionId,
       sessionFile: `/fake/${sessionId}.jsonl`, isStreaming: active, isCompacting: false, pendingMessageCount: 0 });
     if (scenario === "delayed-state") setTimeout(reply, 80); else reply();
   } else if (command.type === "prompt") {

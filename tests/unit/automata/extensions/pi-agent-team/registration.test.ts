@@ -18,9 +18,23 @@ function fixture(options = {}) {
 
 test("extension registration creates no processes; child environment exposes no manager tools", () => {
   const f = fixture();
-  assert.equal(f.tools.size, 6);
+  assert.equal(f.tools.size, 7);
   assert.equal(f.messages.length, 0);
   const child = fixture({ workerEnvironment: true });
   assert.equal(child.tools.size, 0);
   assert.equal(child.handlers.size, 0);
+});
+
+test("start and resume expose distinct closed parameter schemas", () => {
+  const { tools } = fixture();
+  const start = tools.get("agent_start").parameters;
+  const resume = tools.get("agent_resume").parameters;
+  assert.equal(start.additionalProperties, false);
+  assert.equal(resume.additionalProperties, false);
+  assert.equal(Object.hasOwn(start.properties, "sessionId"), false);
+  assert.ok(resume.required.includes("sessionId"));
+  for (const schema of [start, resume]) {
+    for (const key of ["workerId", "cwd", "provider", "model", "thinking"]) assert.ok(schema.required.includes(key));
+    assert.equal(schema.required.includes("resources"), false);
+  }
 });
