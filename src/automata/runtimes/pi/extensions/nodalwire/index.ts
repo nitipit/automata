@@ -250,6 +250,7 @@ export function registerNodalWire(pi: ExtensionAPI, connect: Connect) {
       "Connect requires name; endpoint defaults to tcp://127.0.0.1:5555. " +
       "An identical active connection is reused; disconnect explicitly before changing it. " +
       "Connecting admits peer messages that can steer or wake this session and incur model usage. " +
+      "Requires matching NodalWire 0.2.0 relay with open default network; this client cannot join protected or named networks. " +
       "Does not start a relay, discover peers, change policy or authenticate names. No automatic retries.",
     parameters: Type.Object({
       action: Type.Union([Type.Literal("status"), Type.Literal("connect"), Type.Literal("disconnect")]),
@@ -293,7 +294,8 @@ export function registerNodalWire(pi: ExtensionAPI, connect: Connect) {
       "Omitted options steer busy peers but do not wake idle ones. triggerTurn:true can wake an idle peer and incur model usage; nextTurn never wakes. " +
       "Options preserve native semantics; all reachable peers may steer. " +
       "Version-2 envelopes are limited to 64 KiB; invalid or over-capacity input is rejected locally without acknowledgement. " +
-      "Success means relay acceptance only, not receipt or action. Never blindly repeat an uncertain send. No retries; names are not authenticated. " +
+      "Sends on default network only. Success means relay acceptance only, not receipt or action. " +
+      "Never blindly repeat an uncertain send. No retries; names are not authenticated. " +
       "No user messages, RPC commands or UI-only notifications.",
     parameters: Type.Object({
       to: Type.String({ description: "Exact recipient node name" }),

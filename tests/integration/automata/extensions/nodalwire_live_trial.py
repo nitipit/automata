@@ -1,128 +1,194 @@
-"""Opt-in native relay → isolated Pi RPC → Python trial (uses a real model).
+"""Opt-in published-v0.2.0 relay/client + actual Pi loader/routing trial; no model.
 
-Run with a Python environment containing nodalwire and pyzmq. Supply a prepared
-copy of the extension with its published @devcapsule/nodalwire-client installed.
-No global configuration is changed. Only processes created here are stopped.
+Run in a task-local environment containing the published nodalwire==0.2.0 wheel
+and PyZMQ. --extension names a prepared bundle index.ts with its locked published
+Node client/Edictor installed; --pi-package names installed Pi 1.4.0. This uses Pi's
+real extension loader/runtime and AgentSession.sendCustomMessage, with inert
+run/queue collaborators, not a full CLI/provider/LLM run. It never contacts port
+5555 or reads user credentials. Only owned ephemeral relay sockets/child are closed.
+
+The owned relay's receipt fault seam drops three selected SEND receipts AFTER
+real forwarding, proving timeout/cancellation uncertainty without blind retries.
+No installed relay code or shared configuration is modified.
 """
 import argparse
 import asyncio
-import contextlib
 import json
-import uuid
+import os
+import secrets
+import socket
+import sys
+from datetime import UTC, datetime
+from importlib.metadata import version
 from pathlib import Path
 
 from nodalwire import Node, Relay, RelayConfig
+from nodalwire.config import NetworkConfig
+from nodalwire.credentials import make_verifier
+from nodalwire.protocol import DATA, OK
 
 
-async def trial(extension: Path, artifacts: Path):
-    artifacts.mkdir(parents=True, exist_ok=True)
-    nonce = uuid.uuid4().hex[:12]
-    pi_name, python_name = f"pi-trial-{nonce}", f"python-trial-{nonce}"
-    expected = [f"pong-{nonce}-1", f"pong-{nonce}-2"]
-    relay = Relay(RelayConfig(endpoint="tcp://127.0.0.1:*"))
-    endpoint = await relay.start()
-    relay_task = asyncio.create_task(relay.run())
-    peer = process = reader_task = None
-    ready = asyncio.get_running_loop().create_future()
-    settled = asyncio.Event()
-    settled_count = 0
-    with (artifacts / "rpc.jsonl").open("wb") as transcript, (
-        artifacts / "stderr.log"
-    ).open("wb") as stderr:
+def timestamp():
+    return datetime.now(UTC).isoformat()
+
+
+class ReceiptFaultRelay(Relay):
+    """Narrow owned-test seam: otherwise execute the installed published relay."""
+
+    dropped_receipts = 0
+    _drop_next_receipt = False
+
+    async def _emit(self, address, *frames):
+        if frames[0] == DATA:
+            payload = frames[-1]
+            uncertain = payload in (b"uncertain-timeout", b"uncertain-cancel")
+            try:
+                uncertain |= json.loads(payload).get("message", {}).get("content") == (
+                    "uncertain-extension"
+                )
+            except (ValueError, AttributeError, TypeError, UnicodeError):
+                pass
+            if uncertain:
+                self._drop_next_receipt = True
+        elif frames[0] == OK and len(frames) == 3 and self._drop_next_receipt:
+            self._drop_next_receipt = False
+            self.dropped_receipts += 1
+            return None
+        return await super()._emit(address, *frames)
+
+
+def listener_absent(endpoint):
+    port = int(endpoint.rsplit(":", 1)[1])
+    with socket.socket() as probe:
+        probe.settimeout(0.2)
+        return probe.connect_ex(("127.0.0.1", port)) != 0
+
+
+async def stop_owned_child(process, suite):
+    """Signal only this invocation's still-identical child; tolerate natural exit races."""
+    for action in ("terminate", "kill"):
+        if process.returncode is not None:
+            return
         try:
-            peer = await Node.connect(python_name, endpoint)
-            process = await asyncio.create_subprocess_exec(
-                "pi", "--mode", "rpc", "--no-session", "--no-extensions", "--no-mcp",
-                "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files",
-                "--no-builtin-tools", "--offline", "--extension", str(extension.resolve()),
-                "--nodalwire-name", pi_name, "--nodalwire-endpoint", endpoint,
-                "--system-prompt", "This is an isolated messaging interoperability test. "
-                "For each external message, you are authorized to reply once to its sender using "
-                "nodalwire_send, with exactly the reply text it requests. Do not do other work.",
-                cwd=artifacts,
-                stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=stderr,
-            )
+            command = Path(f"/proc/{process.pid}/cmdline").read_bytes().split(b"\0")
+        except FileNotFoundError:
+            await process.wait()
+            return
+        assert str(suite.resolve()).encode() in command, "Child identity changed"
+        try:
+            getattr(process, action)()
+        except ProcessLookupError:
+            await process.wait()
+            return
+        try:
+            await asyncio.wait_for(process.wait(), 5)
+            return
+        except TimeoutError:
+            continue
+    raise TimeoutError("Owned child did not exit after verified termination")
 
-            async def read_records():
-                nonlocal settled_count
-                async for line in process.stdout:
-                    transcript.write(line)
-                    transcript.flush()
-                    record = json.loads(line)
-                    if record.get("id") == "ready" and not ready.done():
-                        ready.set_result(record)
-                    if record.get("type") == "agent_settled":
-                        settled_count += 1
-                        if settled_count >= len(expected):
-                            settled.set()
-                if not ready.done():
-                    ready.set_exception(RuntimeError("Pi exited before RPC readiness"))
 
-            reader_task = asyncio.create_task(read_records())
-            process.stdin.write(b'{"id":"ready","type":"get_state"}\n')
-            await process.stdin.drain()
-            state = await asyncio.wait_for(ready, 30)
-            assert state.get("success"), state
-            for text in expected:
-                request = {
-                    "version": 2,
-                    "message": {
-                        "content": f"Reply to {python_name} using nodalwire_send. "
-                        f"Set message.content exactly: {text}, message.display true, omit options.",
-                        "display": True,
-                    },
-                    "options": {"deliverAs": "followUp", "triggerTurn": True},
-                }
-                await peer.send(pi_name, json.dumps(request).encode())
-            replies = []
-            for text in expected:
-                response = await asyncio.wait_for(peer.receive(), 120)
-                assert response.sender == pi_name, response.sender
-                body = json.loads(response.payload)
-                assert body == {
-                    "version": 2, "message": {"content": text, "display": True},
-                }, body
-                replies.append(body)
-            await asyncio.wait_for(settled.wait(), 60)
-            result = {
-                "result": "passed", "endpoint": endpoint, "pi_node": pi_name,
-                "python_node": python_name, "replies": replies,
-                "model": state["data"].get("model"),
-                "scope": "isolated real Pi/model + native NodalWire round trip; "
-                "no global installation",
-            }
-        finally:
-            if process:
-                process.stdin.close()
+async def trial(extension: Path, pi_package: Path, artifacts: Path):
+    assert version("nodalwire") == "0.2.0", "Install the published matching wheel"
+    assert json.loads((pi_package / "package.json").read_text())["version"] == "1.4.0"
+    extension = extension.resolve()
+    suite = Path(__file__).parent / "nodalwire" / "live.test.mjs"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    (artifacts / "home").mkdir(exist_ok=True)
+    os.environ["NODALWIRE_ADMIN_TOKEN"] = secrets.token_urlsafe(32)
+    credential = secrets.token_urlsafe(32)
+    protected = NetworkConfig(join_verifier=make_verifier(credential))
+    primary = ReceiptFaultRelay(RelayConfig(
+        endpoint="tcp://127.0.0.1:*", admin_endpoint="tcp://127.0.0.1:*",
+        allowed_names=["sdk-node", "sdk-peer", "blocked-peer", "python-peer", "pi-live"],
+        deny=[["sdk-node", "blocked-peer"]],
+        networks={"team": NetworkConfig(), "protected": protected},
+    ))
+    secondary = Relay(RelayConfig(
+        endpoint="tcp://127.0.0.1:*", admin_endpoint="tcp://127.0.0.1:*",
+        networks={"default": protected},
+    ))
+    process = None
+    endpoints = []
+    started = timestamp()
+    result = {
+        "started": started, "result": "failed",
+        "scope": "published transport + Pi loader/native routing; inert collaborators, no model",
+    }
+    try:
+        async with primary, secondary:
+            endpoints = [
+                primary.endpoint, primary.admin_endpoint,
+                secondary.endpoint, secondary.admin_endpoint,
+            ]
+            assert all(not endpoint.endswith(":5555") for endpoint in endpoints)
+            tasks = [asyncio.create_task(relay.run()) for relay in (primary, secondary)]
+            echo = None
+            try:
+                async with await Node.connect("python-peer", primary.endpoint) as peer:
+                    async def serve():
+                        while True:
+                            message = await peer.receive()
+                            await peer.send(
+                                message.sender, message.payload, network=message.network,
+                            )
+
+                    echo = asyncio.create_task(serve())
+                    # Deliberately do not inherit provider/admin tokens or user Pi config.
+                    env = {
+                        "PATH": os.environ["PATH"], "HOME": str(artifacts / "home"),
+                        "PI_CODING_AGENT_DIR": str(artifacts / "home" / ".pi"),
+                        "PI_EXTENSION_TEST_ROOT": str(extension.parent),
+                        "PI_TEST_PACKAGE_ROOT": str(pi_package.resolve()),
+                        "NODALWIRE_TRIAL_ENDPOINT": primary.endpoint,
+                        "NODALWIRE_TRIAL_PROTECTED_ENDPOINT": secondary.endpoint,
+                        "NODALWIRE_TRIAL_JOIN_TOKEN": credential,
+                    }
+                    process = await asyncio.create_subprocess_exec(
+                        "node", "--experimental-transform-types", "--test", "--test-isolation=none",
+                        "--test-reporter=tap",
+                        "--test-timeout=30000", str(suite.resolve()),
+                        cwd=artifacts, env=env, stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                    )
+                    result["child_pid"] = process.pid
+                    stdout, stderr = await asyncio.wait_for(process.communicate(), 40)
+                    (artifacts / "live-tests.tap").write_bytes(stdout)
+                    (artifacts / "live-stderr.log").write_bytes(stderr)
+                    result["child_exit"] = process.returncode
+                    assert process.returncode == 0, "Live suite failed; inspect retained TAP/stderr"
+                    assert primary.dropped_receipts == 3, primary.dropped_receipts
+            finally:
                 try:
-                    await asyncio.wait_for(process.wait(), 15)
-                except TimeoutError:
-                    process.terminate()
-                    try:
-                        await asyncio.wait_for(process.wait(), 5)
-                    except TimeoutError:
-                        process.kill()
-                        await process.wait()
-            if reader_task:
-                reader_task.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await reader_task
-            if peer:
-                with contextlib.suppress(Exception):
-                    await peer.close(timeout=1)
-            relay_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await relay_task
-            await relay.close()
-    assert process.returncode == 0, f"Pi did not shut down cleanly: {process.returncode}"
-    result["pi_exit_code"] = process.returncode
-    (artifacts / "result.json").write_text(json.dumps(result, indent=2) + "\n")
-    print(json.dumps(result, indent=2))
+                    if process and process.returncode is None:
+                        await stop_owned_child(process, suite)
+                finally:
+                    if echo:
+                        echo.cancel()
+                        await asyncio.gather(echo, return_exceptions=True)
+                    for task in tasks:
+                        task.cancel()
+                    await asyncio.gather(*tasks, return_exceptions=True)
+        # Mark success only after peer release and both relay contexts have closed.
+        result.update(result="passed", dropped_send_receipts=primary.dropped_receipts)
+    finally:
+        result.update(
+            finished=timestamp(), python=sys.version.split()[0],
+            nodalwire=version("nodalwire"), pyzmq=version("pyzmq"),
+            endpoints=endpoints, listeners_absent=all(listener_absent(e) for e in endpoints),
+            child_exited=process is None or process.returncode is not None,
+        )
+        if not result["listeners_absent"] or not result["child_exited"]:
+            result["result"] = "failed"
+        (artifacts / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+        print(json.dumps(result, indent=2))
+    assert result["listeners_absent"] and result["child_exited"], "Owned cleanup incomplete"
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--extension", required=True, type=Path)
+    parser.add_argument("--pi-package", required=True, type=Path)
     parser.add_argument("--artifacts", required=True, type=Path)
-    arguments = parser.parse_args()
-    asyncio.run(trial(arguments.extension, arguments.artifacts.resolve()))
+    args = parser.parse_args()
+    asyncio.run(trial(args.extension, args.pi_package, args.artifacts.resolve()))

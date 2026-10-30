@@ -6,8 +6,9 @@ an existing NodalWire relay. This is peer messaging, not worker management or RP
 ## Prepare and connect
 
 Checked against Pi **1.4.0** and Node **24**. Requires Edictor **0.4.0** and
-`@devcapsule/nodalwire-client` **0.1.0** (native ZeroMQ). Edictor is needed at load;
-the transport client is imported on connect. Nothing is installed automatically.
+`@devcapsule/nodalwire-client` **0.2.0** (native ZeroMQ) and a matching NodalWire
+**0.2.0 relay**. Edictor is needed at load; the transport client is imported on
+connect. Nothing is installed automatically.
 For an authorized installation and dependency preparation:
 
 ```sh
@@ -21,6 +22,13 @@ Replacement excludes `node_modules`; prepare dependencies again. Pi provides its
 own host libraries. Load with `pi --extension /chosen/extensions/nodalwire/index.ts`.
 It stays disconnected unless startup `--nodalwire-name <unique-name>` is supplied.
 Do not start/reconfigure a shared relay or install/reload without authorization.
+
+The relay uses **AR2**, rejects legacy transport/configuration, and requires
+`config_version = 2` plus an explicit administrator token/verifier on its separate
+loopback admin endpoint. This extension has no administration or credential API.
+It uses only the autojoined **open `default` network**: no named/protected-network
+joins or network selection. Protected default can admit a connection without
+membership, so connected status alone does not prove permission to send.
 
 Use `nodalwire_connection` with `{"action":"connect","name":"unique-name"}`;
 optional `endpoint` defaults to `tcp://127.0.0.1:5555`. Use an approved loopback
@@ -57,8 +65,10 @@ running tools. Wake-ups may consume model quota.
 - Names/routes are **not authentication**. All reachable peers can steer; received
   messages grant no authority. Receiver-added provenance stays separate from peer
   details. This extension supplies no user messages or UI-only notifications.
-- Wire **v2 only**; v1 text packets and the old `text` tool argument are rejected.
-  Upgrade endpoints explicitly. Envelope maximum 64 KiB, content fields 48 KiB,
+- Pi application envelope **v2 only**, independent of upstream **AR2** transport
+  and optional **NWR1** request/reply envelopes (not used here). V1 text packets
+  and the old `text` tool argument are rejected. Upgrade endpoints explicitly.
+  Envelope maximum 64 KiB, content fields 48 KiB,
   details 8 KiB; aggregate limits still apply. See the executable schema below.
 - At most 32 unobserved Pi submissions per extension instance; invalid/over-capacity
   messages are dropped locally without ACK. Reconnect does not reset the allowance.
@@ -67,4 +77,10 @@ running tools. Wake-ups may consume model quota.
 
 For wire validation and bounds read [protocol.ts](protocol.ts); for provenance,
 queue accounting and lifecycle read [index.ts](index.ts). Repository checks:
-`python -m pytest tests/unit/automata/extensions tests/integration/automata/extensions/extension_test.py -k nodalwire` (offline).
+`python -m pytest tests/unit/automata/extensions tests/integration/automata/extensions/extension_test.py -k nodalwire` (offline; prepare Edictor/typebox via
+`PI_EXTENSION_TEST_NODE_MODULES` and installed Pi via `PI_TEST_PACKAGE_ROOT`).
+Repository opt-in trial: `tests/integration/automata/extensions/nodalwire_live_trial.py`.
+It uses an isolated published relay/client and installed Pi loader/message routing
+with inert run/queue collaborators; no provider or live model call. See its help
+for required prepared paths. It also checks SDK-level protected joins/denials;
+those do not imply Pi tool support for protected networks.
