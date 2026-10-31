@@ -169,19 +169,23 @@ def test_nodalwire_bundle_documentation_links_survive_install(
     install_pi_extensions(target_root=extension_root, extension_names=[extension])
 
     bundle = extension_root / extension
-    readme = bundle / "README.md"
-    assert readme.is_file()
-    links = re.findall(r"\[[^\]]*\]\(([^)\s]+)\)", readme.read_text())
-    local_links = [
-        link for link in links
-        if not re.match(r"^[a-z][a-z0-9+.-]*:", link, re.IGNORECASE)
-        and not link.startswith(("#", "//"))
-    ]
-    assert local_links  # Deeper references survive copying outside the checkout.
-    for link in local_links:
-        target = (bundle / link.split("#", 1)[0]).resolve()
-        assert target.is_relative_to(bundle.resolve()), (readme, link)
-        assert target.is_file(), (readme, link)
+    installed_skill = skill_root / skill_name
+    for owner, document in [
+        (bundle, bundle / "README.md"),
+        (installed_skill, installed_skill / "SKILL.md"),
+    ]:
+        assert document.is_file()
+        links = re.findall(r"\[[^\]]*\]\(([^)\s]+)\)", document.read_text())
+        local_links = [
+            link for link in links
+            if not re.match(r"^[a-z][a-z0-9+.-]*:", link, re.IGNORECASE)
+            and not link.startswith(("#", "//"))
+        ]
+        assert local_links  # References survive copying outside the checkout.
+        for link in local_links:
+            target = (document.parent / link.split("#", 1)[0]).resolve()
+            assert target.is_relative_to(owner.resolve()), (document, link)
+            assert target.is_file(), (document, link)
 
 
 def test_changed_portable_guidance_keeps_runtime_details_external() -> None:

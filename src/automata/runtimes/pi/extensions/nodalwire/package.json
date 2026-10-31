@@ -1,12 +1,12 @@
 {
   "name": "@automata/pi-nodalwire",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "engines": { "node": ">=24 <25" },
   "pi": { "extensions": ["./index.ts"] },
   "dependencies": {
-    "@devcapsule/nodalwire-client": "0.2.0",
+    "@devcapsule/nodalwire-client": "0.3.0",
     "edictor": "0.4.0"
   },
   "peerDependencies": {

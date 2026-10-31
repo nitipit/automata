@@ -22,7 +22,10 @@ function client() {
         waiter = message => { signal.removeEventListener("abort", abort); resolve(message); };
       });
     },
-    async send(destination, payload, options) { this.sent.push({ destination, payload, options }); },
+    async send(destination, payload, options) {
+      this.sent.push({ destination, payload, options });
+      return "a".repeat(32); // NWM3 accepted ID is not application acknowledgement.
+    },
     async close() { this.closed++; },
   };
 }
@@ -141,7 +144,7 @@ test("image/text provenance cannot be overwritten by peer details; false display
   await f.emit("session_start");
   const content = [{ type: "image", data: "eA==", mimeType: "image/png" }];
   f.node.push(incoming({ content, display: false, details: { sender: "forged", deliveryId: "forged" } }, "reviewer", { triggerTurn: false }));
-  f.node.push(incoming("omitted"));
+  f.node.push({ ...incoming("omitted"), id: "b".repeat(32), reply_to: "c".repeat(32), network: "default" });
   await tick();
   assert.deepEqual(f.messages[0].message.content, [{ type: "text", text: "[NodalWire: reviewer → pi-test]\n" }, ...content]);
   assert.equal(f.messages[0].message.display, false);
@@ -150,6 +153,9 @@ test("image/text provenance cannot be overwritten by peer details; false display
   assert.notEqual(f.messages[0].message.details.deliveryId, "forged");
   assert.deepEqual(f.messages[0].options, { triggerTurn: false });
   assert.equal(f.messages[1].options, undefined);
+  assert.match(f.messages[1].message.content, /omitted$/);
+  assert.deepEqual(Object.keys(f.messages[1].message.details).sort(), ["deliveryId", "recipient", "sender"],
+    "native correlation metadata does not alter application provenance or delivery");
   assert.equal(f.node.sent.length, 0, "receiving does not auto-reply or acknowledge");
   await f.emit("session_shutdown");
 });

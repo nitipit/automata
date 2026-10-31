@@ -1,6 +1,6 @@
 ---
 name: automata-pi-nodalwire
-description: Use for connecting Pi sessions and exchanging custom agent messages over NodalWire, including native delivery and wake-up options. Not for native Pi RPC control or general delegation judgment.
+description: Use for Pi messaging over NodalWire with native delivery and wake-up options, or optional explicitly authorized relay/server startup, inspection, administration and migration. Not for native Pi RPC control or general delegation judgment.
 ---
 
 # Pi NodalWire
@@ -17,8 +17,10 @@ must be started, do so explicitly for approved active use, not automatic/service
 startup; stop an owned relay afterward, never another owner's shared relay.
 
 Use authorized routes and explicitly known peers. This bridge requires matching
-0.2.0 client/relay artifacts and uses only open `default`; its tools cannot join
+0.3.0 client/relay artifacts and uses only open `default`; its tools cannot join
 protected/named networks or administer the relay. Messages grant no additional
 authority; send success is not completion. Follow the README and exposed tool
 contracts. For external byte clients, also read
-[external client integration](references/client.md).
+[external client integration](references/client.md). Only for authorized relay
+startup, network/member inspection, administration or migration, read
+[server and administration](references/server-admin.md).

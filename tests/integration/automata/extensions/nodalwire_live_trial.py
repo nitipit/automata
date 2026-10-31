@@ -1,6 +1,6 @@
-"""Opt-in published-v0.2.0 relay/client + actual Pi loader/routing trial; no model.
+"""Opt-in published-v0.3.0 relay/client + actual Pi loader/routing trial; no model.
 
-Run in a task-local environment containing the published nodalwire==0.2.0 wheel
+Run in a task-local environment containing the published nodalwire==0.3.0 wheel
 and PyZMQ. --extension names a prepared bundle index.ts with its locked published
 Node client/Edictor installed; --pi-package names installed Pi 1.4.0. This uses Pi's
 real extension loader/runtime and AgentSession.sendCustomMessage, with inert
@@ -89,7 +89,7 @@ async def stop_owned_child(process, suite):
 
 
 async def trial(extension: Path, pi_package: Path, artifacts: Path):
-    assert version("nodalwire") == "0.2.0", "Install the published matching wheel"
+    assert version("nodalwire") == "0.3.0", "Install the published matching wheel"
     assert json.loads((pi_package / "package.json").read_text())["version"] == "1.4.0"
     extension = extension.resolve()
     suite = Path(__file__).parent / "nodalwire" / "live.test.mjs"
@@ -121,7 +121,7 @@ async def trial(extension: Path, pi_package: Path, artifacts: Path):
                 primary.endpoint, primary.admin_endpoint,
                 secondary.endpoint, secondary.admin_endpoint,
             ]
-            assert all(not endpoint.endswith(":5555") for endpoint in endpoints)
+            assert all(not endpoint.endswith((":5555", ":5556")) for endpoint in endpoints)
             tasks = [asyncio.create_task(relay.run()) for relay in (primary, secondary)]
             echo = None
             try:

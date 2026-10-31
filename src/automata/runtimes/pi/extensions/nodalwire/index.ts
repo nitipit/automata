@@ -12,7 +12,8 @@ const MAX_PENDING_MESSAGES = 32;
 
 type Message = { sender: string; payload: Uint8Array };
 type Client = {
-  send(destination: string, payload: Uint8Array, options?: { signal?: AbortSignal }): Promise<void>;
+  // NWM3 returns an accepted native ID; acceptance is not peer receipt/action.
+  send(destination: string, payload: Uint8Array, options?: { signal?: AbortSignal }): Promise<string>;
   receive(options?: { signal?: AbortSignal }): Promise<Message>;
   close(options?: { timeout?: number }): Promise<void>;
 };
@@ -250,7 +251,7 @@ export function registerNodalWire(pi: ExtensionAPI, connect: Connect) {
       "Connect requires name; endpoint defaults to tcp://127.0.0.1:5555. " +
       "An identical active connection is reused; disconnect explicitly before changing it. " +
       "Connecting admits peer messages that can steer or wake this session and incur model usage. " +
-      "Requires matching NodalWire 0.2.0 relay with open default network; this client cannot join protected or named networks. " +
+      "Requires matching NodalWire 0.3.0 relay with open default network; this client cannot join protected or named networks. " +
       "Does not start a relay, discover peers, change policy or authenticate names. No automatic retries.",
     parameters: Type.Object({
       action: Type.Union([Type.Literal("status"), Type.Literal("connect"), Type.Literal("disconnect")]),
