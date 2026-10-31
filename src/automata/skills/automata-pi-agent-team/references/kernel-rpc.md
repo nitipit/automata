@@ -95,8 +95,12 @@ A minimal event-return sequence is:
    disposition, final text/error, aborted flag, relevant counts and uncertainty.
    Execution settlement, exact-output checks and task acceptance remain distinct.
 3. Send a small event/reference through the approved coordinator wake path. For the
-   existing **NodalWire 0.3.0** Pi bridge, use an explicitly known local route/peer,
-   matching prepared client/relay, and the actual Pi application **v2** schema.
+   existing **NodalWire 0.3.0** Pi bridge, use the agreed relay scope/owner and
+   explicitly supplied endpoint/peer names, not an assumed global or task-local
+   relay. Confirm unresolved provisioning/lifecycle choices with the user; reuse
+   existing approval. Participants share the approved relay rather than creating
+   one per worker; connection authority does not grant server/admin control.
+   Use matching prepared client/relay and the actual Pi application **v2** schema.
    With authorized wake-up, options are `triggerTurn:true, deliverAs:"followUp"`.
    Send raw JSON bytes with `send`; native NWM3 IDs are transport metadata, not
    application envelope fields. No upstream request/reply wrapper is needed.
