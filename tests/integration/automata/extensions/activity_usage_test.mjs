@@ -8,10 +8,11 @@ function fixture() {
   register({ on: (name, fn) => handlers.set(name, fn), registerTool: tool => tools.set(tool.name, tool),
     registerCommand: (name, cmd) => commands.set(name, cmd), sendMessage: (...args) => sent.push(args),
     appendEntry: () => assert.fail("unexpected entry") });
-  const ctx = { hasUI: true, ui: { notify() {} } };
+  const notifications = [];
+  const ctx = { hasUI: true, ui: { notify: (...args) => notifications.push(args) } };
   return { sent, emit: (name, event = {}) => handlers.get(name)?.(event, ctx),
     status: async () => (await tools.get("activity_usage").execute()).details,
-    command: () => commands.get("activity-usage").handler("", ctx) };
+    command: (context = ctx) => commands.get("activity-usage").handler("", context), notifications };
 }
 test("input anchor, assistant usage deduplication, compaction preservation, resets", async t => {
   let now = 1_000_000; t.mock.method(Date, "now", () => now); const f = fixture();
@@ -43,17 +44,30 @@ test("negative and nonfinite usage fields are ignored; invalid totals fall back 
   assert.deepEqual((await f.status()).modelUsage,
     { input: 5, output: 7, cacheRead: 6, cacheWrite: 6, totalTokens: 25 });
 });
-test("time observations coalesce at settlement without wake, new input clears pending", async t => {
+test("elapsed boundaries and settlement never send observations; on-demand reads remain current", async t => {
   let now = 1_000_000; t.mock.method(Date, "now", () => now); const f = fixture();
   f.emit("message_start", { message: { role: "user", timestamp: now } });
-  now += 600_000; f.emit("turn_end"); now += 1_260_000; f.emit("agent_end");
-  assert.equal(f.sent.length, 0); f.emit("agent_settled");
-  assert.equal(f.sent.length, 1); assert.equal(f.sent[0][0].details.observations.timeThreshold, 3);
-  assert.equal(f.sent[0][0].details.observedAt, now);
-  assert.match(f.sent[0][0].content, /Historical activity observation/);
-  assert.match(f.sent[0][0].content, new RegExp(new Date(now).toISOString().replaceAll(".", "\\.")));
-  assert.doesNotMatch(f.sent[0][0].content, /latest user input/);
-  assert.deepEqual(f.sent[0][1], { deliverAs: "nextTurn" }); f.emit("agent_settled"); assert.equal(f.sent.length, 1);
-  now += 600_000; f.emit("turn_end"); f.emit("message_start", { message: { role: "user", timestamp: now } });
-  f.emit("agent_settled"); assert.equal(f.sent.length, 1); assert.equal((await f.status()).elapsedMs, 0);
+  for (const elapsed of [600_000, 1_860_000, 7_200_000]) {
+    now = 1_000_000 + elapsed;
+    for (const event of ["turn_end", "agent_end", "agent_settled", "agent_settled"]) f.emit(event);
+    assert.equal((await f.status()).elapsedMs, elapsed);
+    assert.equal(f.sent.length, 0);
+    assert.equal(f.notifications.length, 0);
+  }
+  await f.command();
+  assert.match(f.notifications[0][0], /Elapsed: 2h 0m 0s/);
+  f.emit("message_start", { message: { role: "user", timestamp: now } });
+  f.emit("agent_settled");
+  assert.equal((await f.status()).elapsedMs, 0);
+  assert.equal(f.sent.length, 0);
+});
+test("command supports print and quiet non-UI modes without sending messages", async t => {
+  const f = fixture(), printed = [];
+  t.mock.method(console, "log", text => printed.push(text));
+  await f.command({ hasUI: false, mode: "print" });
+  assert.equal(printed.length, 1);
+  assert.match(printed[0], /Elapsed: unknown/);
+  await f.command({ hasUI: false, mode: "json" });
+  assert.equal(printed.length, 1);
+  assert.equal(f.sent.length, 0);
 });

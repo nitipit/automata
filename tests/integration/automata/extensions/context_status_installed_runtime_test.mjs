@@ -60,7 +60,7 @@ function reminders(messages) {
   return messages.filter((message) => message.customType === RUNTIME_PRESSURE_TYPE);
 }
 
-test("native nextTurn ordering keeps activity observation historical after a new user input", async (t) => {
+test("activity remains on-demand without native nextTurn messages or wake-ups", async (t) => {
   const { default: registerActivity } = await import(pathToFileURL(join(root, "activity-usage.ts")));
   const { AgentSession } = await import(pathToFileURL(join(native, "agent-session.js")));
   let now = 1_000_000; t.mock.method(Date, "now", () => now);
@@ -78,19 +78,19 @@ test("native nextTurn ordering keeps activity observation historical after a new
     registerTool: value => { tool = value; },
     sendMessage: (message, options) => AgentSession.prototype.sendCustomMessage.call(session, message, options) });
   handlers.get("message_start")({ message: { role: "user", timestamp: now } });
-  now += 600_000; handlers.get("agent_settled")();
-  assert.equal(wakes, 0); assert.equal(session._pendingNextTurnMessages.length, 1);
-  const observed = now; now += 1000;
+  now += 600_000;
+  for (const event of ["turn_end", "agent_end", "agent_settled"]) handlers.get(event)?.();
+  assert.equal(wakes, 0); assert.equal(session._pendingNextTurnMessages.length, 0);
+  assert.equal((await tool.execute()).details.elapsedMs, 600_000);
+  now += 1000;
   const messages = await AgentSession.prototype._prepareRun.call(session,
     { messageType: "user", prompt: "new input", images: [] });
-  assert.deepEqual(messages.map(m => m.role), ["user", "custom"]);
+  assert.deepEqual(messages.map(m => m.role), ["user"]);
   handlers.get("message_start")({ message: messages[0] });
   assert.equal((await tool.execute()).details.inputAnchorTimestamp, now);
   const llm = convertToLlm(messages);
-  assert.match(llm[1].content[0].text, /Historical activity observation/);
-  assert.ok(llm[1].content[0].text.includes(new Date(observed).toISOString()));
-  assert.ok(llm[1].content[0].text.includes(new Date(1_000_000).toISOString()));
-  assert.doesNotMatch(llm[1].content[0].text, /since latest user input/);
+  assert.equal(llm.length, 1);
+  assert.match(JSON.stringify(llm[0].content), /new input/);
   assert.equal(wakes, 0);
 });
 

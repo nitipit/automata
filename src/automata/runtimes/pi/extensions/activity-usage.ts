@@ -1,14 +1,10 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-const TIME_THRESHOLD_MS = 10 * 60 * 1000;
-const ACTIVITY_SIGNAL_TYPE = "automata-activity-usage";
 interface ModelUsageTotals { input: number; output: number; cacheRead: number; cacheWrite: number; totalTokens: number }
 interface Checkpoint {
   inputAnchorTimestamp: number | null;
   usage: ModelUsageTotals;
-  lastTimeThreshold: number;
-  pendingTimeThreshold: number | null;
   seenAssistantMessages: WeakSet<object>;
 }
 function finite(value: unknown): number | undefined {
@@ -43,8 +39,7 @@ function formatElapsed(ms: number | null): string {
 export default function (pi: ExtensionAPI) {
   let checkpoint: Checkpoint | undefined;
   const create = (timestamp: number | null): Checkpoint => ({
-    inputAnchorTimestamp: timestamp, usage: zeroUsage(), lastTimeThreshold: 0,
-    pendingTimeThreshold: null, seenAssistantMessages: new WeakSet<object>(),
+    inputAnchorTimestamp: timestamp, usage: zeroUsage(), seenAssistantMessages: new WeakSet<object>(),
   });
   const ensure = () => checkpoint ??= create(null);
   const snapshot = () => {
@@ -59,21 +54,9 @@ export default function (pi: ExtensionAPI) {
     const date = timestamp === null ? null : new Date(timestamp);
     return date && Number.isFinite(date.getTime()) ? date.toISOString() : "unknown";
   };
-  const format = (status: ReturnType<typeof snapshot>, observedAt?: number) => {
+  const format = (status: ReturnType<typeof snapshot>) => {
     const u = status.modelUsage;
-    const heading = observedAt === undefined ? "Activity usage" :
-      `Historical activity observation (as of ${formatTimestamp(observedAt)}; may predate the current input)`;
-    return `${heading}\nElapsed: ${formatElapsed(status.elapsedMs)} wall-clock since the input anchor\nAnchor: ${formatTimestamp(status.inputAnchorTimestamp)}\nModel usage: in ${u.input} | out ${u.output} | cache read ${u.cacheRead} | cache write ${u.cacheWrite} | total ${u.totalTokens}`;
-  };
-  const observeTime = () => {
-    const current = ensure();
-    const elapsed = snapshot().elapsedMs;
-    if (elapsed === null) return;
-    const threshold = Math.floor(elapsed / TIME_THRESHOLD_MS);
-    if (threshold > current.lastTimeThreshold) {
-      current.lastTimeThreshold = threshold;
-      current.pendingTimeThreshold = threshold;
-    }
+    return `Activity usage\nElapsed: ${formatElapsed(status.elapsedMs)} wall-clock since the input anchor\nAnchor: ${formatTimestamp(status.inputAnchorTimestamp)}\nModel usage: in ${u.input} | out ${u.output} | cache read ${u.cacheRead} | cache write ${u.cacheWrite} | total ${u.totalTokens}`;
   };
   const reset = () => { checkpoint = undefined; };
   pi.on("session_start", reset);
@@ -91,21 +74,6 @@ export default function (pi: ExtensionAPI) {
     checkpoint.seenAssistantMessages.add(message);
     checkpoint.usage = addUsage(checkpoint.usage, message.usage);
   });
-  pi.on("turn_end", observeTime);
-  pi.on("agent_end", observeTime);
-  pi.on("agent_settled", () => {
-    observeTime();
-    const current = ensure();
-    if (current.pendingTimeThreshold === null) return;
-    const threshold = current.pendingTimeThreshold;
-    const observedAt = Date.now();
-    const status = snapshot();
-    pi.sendMessage({ customType: ACTIVITY_SIGNAL_TYPE,
-      content: format(status, observedAt),
-      display: false, details: { kind: "time-threshold", observedAt, status, observations: { timeThreshold: threshold } },
-    }, { deliverAs: "nextTurn" });
-    current.pendingTimeThreshold = null;
-  });
   pi.registerCommand("activity-usage", {
     description: "Show wall-clock elapsed and model usage since the latest user input.",
     handler: async (_args, ctx) => {
@@ -116,7 +84,7 @@ export default function (pi: ExtensionAPI) {
   });
   pi.registerTool({
     name: "activity_usage", label: "Activity Usage",
-    description: "Read wall-clock elapsed and provider-reported assistant model usage since the latest user-role input, including coordinator inputs. Elapsed is not active effort; tool results and summaries are excluded. Session/tree changes reset the checkpoint, compaction preserves it.",
+    description: "Read an on-demand snapshot of wall-clock elapsed and provider-reported assistant model usage since the latest user-role input, including coordinator inputs. Elapsed is not active effort or whole-task duration; tool results and summaries are excluded. Session/tree changes reset the checkpoint, compaction preserves it. No automatic notifications.",
     parameters: Type.Object({}),
     async execute() {
       const status = snapshot();
