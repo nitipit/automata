@@ -1,4 +1,4 @@
-# PRIVATE: Knowledge key — v1
+# PRIVATE: Knowledge key — bundle v3 (K07 key v2; other keys unchanged)
 
 Not candidate-readable. Use only after freezing the paper and key. Grade relevant
 meaning, not phrasing; allowed references support but do not replace an answer.
@@ -101,17 +101,20 @@ without evidence. No live evaluation or global edit is authorized here.
 Accept tool-specific recovery through documented owning interfaces. Do not require
 checking unrelated account state or scanning raw Pi sessions.
 
-## K07 (2 points; question/key v1)
+## K07 (2 points; question v1 / key v2)
 
-- 1: managed worker lifecycle/assignments belong to `pi-agent-team`; messaging
-  to an existing named peer belongs to NodalWire. A peer send does not launch,
-  resume, supervise or stop a Pi worker.
+- 1: Pi worker lifecycle and prompts use native Pi RPC, optionally retained in a
+  task-owned persistent kernel; messaging to an existing named peer belongs to
+  NodalWire. A peer send alone does not launch, resume, supervise or stop a worker.
 - 1: routing names are not authenticated identities and grant no control/session
   permission. Resume requires an authorized inactive exact session identity;
   transport reachability does not establish this.
 
 Equivalent capability descriptions count without memorizing package spelling.
-Source: active installed worker/messaging docs and their usage skills.
+Source: active native Pi RPC/messaging contracts and their usage skills.
+This prospective key replaces the retired team extension's ownership label;
+capability distinctions and points are unchanged. Historical v1 keys stay with
+those sittings.
 
 ## K08 (3 points; question/key v1)
 

@@ -66,8 +66,10 @@ the real installer against a miniature source/installed fixture, not shared
 assets. P02 tests actual discovery and editing of an evidence-backed note; it does
 not claim live test execution. P03 uses a real native tool receipt. P04 uses a
 real supervised child assignment, but only in a separately approved standalone
-manager-enabled profile; no nested-worker bypass. P05 creates a verifiable durable
-handoff and uses a fresh local process, not another model, to check recovery. P06
+kernel/native-RPC profile with a prepared event-return route; no restricted-profile
+bypass. This prospective profile is versioned in package v4, not live-certified.
+P05 creates a verifiable durable handoff and uses a fresh local process, not
+another model, to check recovery. P06
 requires actual local repair/export/content verification and preserved boundaries.
 
 Cross-cutting boundaries/reporting intentionally recur, but most points measure
