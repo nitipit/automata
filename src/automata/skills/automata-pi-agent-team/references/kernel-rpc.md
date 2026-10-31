@@ -95,10 +95,12 @@ A minimal event-return sequence is:
    disposition, final text/error, aborted flag, relevant counts and uncertainty.
    Execution settlement, exact-output checks and task acceptance remain distinct.
 3. Send a small event/reference through the approved coordinator wake path. For the
-   existing **NodalWire 0.2** Pi bridge, use an explicitly known local route/peer,
+   existing **NodalWire 0.3.0** Pi bridge, use an explicitly known local route/peer,
    matching prepared client/relay, and the actual Pi application **v2** schema.
    With authorized wake-up, options are `triggerTurn:true, deliverAs:"followUp"`.
-   Send JSON bytes with `send`, not an NWR1 request envelope. The NodalWire skill's
+   Send raw JSON bytes with `send`; native NWM3 IDs are transport metadata, not
+   application envelope fields. No upstream request/reply wrapper is needed.
+   The NodalWire skill's
    external-client reference and active bundle's `protocol.ts` own encoding/bounds.
    If the kernel lacks its Python SDK but an installed Node client is ready, an
    approved tiny kernel-launched send helper can bridge the event; no installation

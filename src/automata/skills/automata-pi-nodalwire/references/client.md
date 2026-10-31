@@ -5,7 +5,7 @@ native delivery semantics. Its `protocol.ts` owns the executable wire schema and
 bounds; inspect that file for encoding/validation details, not a second field list.
 The transport client is `@devcapsule/nodalwire-client`; NodalWire carries opaque
 bytes, while the Pi extension validates the application envelope. Use matching
-published **0.2.0** client/relay artifacts. The Pi bridge uses only open `default`;
+published **0.3.0** client/relay artifacts. The Pi bridge uses only open `default`;
 SDK support for named/protected joins does not imply support in Pi tools.
 
 External clients connect, send UTF-8 JSON bytes, then close their owned connection.
@@ -34,9 +34,12 @@ already be connected under the chosen destination name. This example wakes an id
 receiver; use only with authority for that effect. Consult the installed client's
 README for transport API details; this reference does not provide a send CLI.
 
-Pi application version 2 is independent of upstream AR2 transport and optional
-NWR1 request/reply envelopes. Send the JSON directly with `send`, not `request`;
-the bridge does not unwrap upstream request envelopes or auto-reply.
+Pi application version 2 is unchanged by upstream NWM3. Send JSON bytes directly
+with `send`, not `request`: the bridge does not implement request/reply or
+an automatic response. NWR1 codecs were removed upstream; native `id`/`reply_to`
+are separate transport metadata, not payload fields. `send` returns an accepted
+message-ID string, not proof of receipt or work. The Pi send tool preserves its
+existing relay-acceptance result rather than exposing a correlation API.
 Version 1 text envelopes are rejected, not converted. This envelope has no role,
 customType, sender, message ID, acknowledgement or RPC command. The receiver adds
 transport provenance and its own custom type. Use `encodeMessage`/`decodeMessage`

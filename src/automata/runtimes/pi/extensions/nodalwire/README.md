@@ -6,8 +6,8 @@ an existing NodalWire relay. This is peer messaging, not worker management or RP
 ## Prepare and connect
 
 Checked against Pi **1.4.0** and Node **24**. Requires Edictor **0.4.0** and
-`@devcapsule/nodalwire-client` **0.2.0** (native ZeroMQ) and a matching NodalWire
-**0.2.0 relay**. Edictor is needed at load; the transport client is imported on
+`@devcapsule/nodalwire-client` **0.3.0** (native ZeroMQ) and a matching NodalWire
+**0.3.0 relay** (Python **3.12+**). Edictor is needed at load; the transport client is imported on
 connect. Nothing is installed automatically.
 For an authorized installation and dependency preparation:
 
@@ -22,8 +22,11 @@ Replacement excludes `node_modules`; prepare dependencies again. Pi provides its
 own host libraries. Load with `pi --extension /chosen/extensions/nodalwire/index.ts`.
 It stays disconnected unless startup `--nodalwire-name <unique-name>` is supplied.
 Do not start/reconfigure a shared relay or install/reload without authorization.
+After this SDK upgrade, disconnect and start a **fresh Pi process**: `/reload`
+can retain imported external/native modules and is not a dependency refresh.
+Upgrade all messaging peers and the relay together; no mixed-version mode.
 
-The relay uses **AR2**, rejects legacy transport/configuration, and requires
+The relay uses **NWM3**, rejects AR2 messaging, and still requires
 `config_version = 2` plus an explicit administrator token/verifier on its separate
 loopback admin endpoint. This extension has no administration or credential API.
 It uses only the autojoined **open `default` network**: no named/protected-network
@@ -65,8 +68,9 @@ running tools. Wake-ups may consume model quota.
 - Names/routes are **not authentication**. All reachable peers can steer; received
   messages grant no authority. Receiver-added provenance stays separate from peer
   details. This extension supplies no user messages or UI-only notifications.
-- Pi application envelope **v2 only**, independent of upstream **AR2** transport
-  and optional **NWR1** request/reply envelopes (not used here). V1 text packets
+- Pi application envelope **v2 only**, unchanged by upstream **NWM3**. Payloads
+  are raw bytes; native `id`/`reply_to` metadata stays outside this envelope.
+  Upstream NWR1 codecs were removed; this bridge never used them. V1 text packets
   and the old `text` tool argument are rejected. Upgrade endpoints explicitly.
   Envelope maximum 64 KiB, content fields 48 KiB,
   details 8 KiB; aggregate limits still apply. See the executable schema below.

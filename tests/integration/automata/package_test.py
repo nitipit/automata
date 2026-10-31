@@ -101,6 +101,8 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "skills/automata-pi-extension-dev/SKILL.md",
         "skills/automata-pi-agent-team/SKILL.md",
         "skills/automata-pi-nodalwire/SKILL.md",
+        "skills/automata-pi-nodalwire/references/client.md",
+        "skills/automata-pi-nodalwire/references/server-admin.md",
         "runtimes/pi/extensions/nodalwire/pnpm-workspace.yaml",
         "runtimes/pi/extensions/message-timestamps.ts",
         "skills/automata-pi-context-status/SKILL.md",
@@ -226,6 +228,7 @@ assert (sources['automata-background-process'] / 'SKILL.md').is_file()
 assert (sources['automata-pi-extension-dev'] / 'SKILL.md').is_file()
 assert (sources['automata-pi-agent-team'] / 'SKILL.md').is_file()
 assert (sources['automata-pi-nodalwire'] / 'references/client.md').is_file()
+assert (sources['automata-pi-nodalwire'] / 'references/server-admin.md').is_file()
 assert 'automata-nodalwire' not in sources
 assert 'automata-pi-workers' not in sources
 assert 'automata-thinking-control' not in sources

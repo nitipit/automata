@@ -10,7 +10,7 @@ import test from "node:test";
 const root = process.env.PI_EXTENSION_TEST_ROOT;
 const piRoot = process.env.PI_TEST_PACKAGE_ROOT;
 const clientManifest = findPackageJSON("@devcapsule/nodalwire-client", pathToFileURL(join(root, "package.json")));
-const { Node, ReceiptTimeout, encodeEnvelope } = await import(pathToFileURL(join(dirname(clientManifest), "dist/index.js")));
+const { Node, ReceiptTimeout } = await import(pathToFileURL(join(dirname(clientManifest), "dist/index.js")));
 const { loadExtensions } = await import(pathToFileURL(join(piRoot, "dist/core/extensions/loader.js")));
 const { AgentSession, SessionManager } = await import(pathToFileURL(join(piRoot, "dist/index.js")));
 const { ExtensionRunner } = await import(pathToFileURL(join(piRoot, "dist/core/extensions/runner.js")));
@@ -28,9 +28,9 @@ const waitFor = async predicate => {
   }
 };
 
-assert.equal(JSON.parse(await readFile(clientManifest, "utf8")).version, "0.2.0");
+assert.equal(JSON.parse(await readFile(clientManifest, "utf8")).version, "0.3.0");
 
-test("published v0.2.0 transport and Pi integration (no model)", async t => {
+test("published v0.3.0 transport and Pi integration (no model)", async t => {
   const clients = [];
   const connect = async (name, address = endpoint) => {
     const node = await Node.connect(name, address);
@@ -50,13 +50,24 @@ test("published v0.2.0 transport and Pi integration (no model)", async t => {
       assert.equal(python.sender, "python-peer");
       assert.equal(python.network, "default");
       assert.deepEqual([...python.payload], [...payload]);
-      await alice.send("sdk-peer", payload);
+      const acceptedId = await alice.send("sdk-peer", payload);
+      assert.match(acceptedId, /^[a-f0-9]{32}$/);
       const incoming = await receive(bob);
+      assert.equal(incoming.id, acceptedId);
+      assert.equal(incoming.reply_to, undefined);
       assert.equal(incoming.sender, "sdk-node");
       assert.equal(incoming.network, "default");
       assert.deepEqual([...incoming.payload], [...payload]);
-      await bob.send(incoming.sender, incoming.payload);
-      assert.deepEqual([...(await receive(alice)).payload], [...payload]);
+      const replyId = await bob.send(incoming.sender, incoming.payload, { reply_to: incoming.id });
+      const returned = await receive(alice);
+      assert.equal(returned.id, replyId);
+      assert.notEqual(replyId, acceptedId);
+      assert.equal(returned.reply_to, acceptedId);
+      assert.deepEqual([...returned.payload], [...payload]);
+      // NWM3 never interprets NWR1-looking application bytes.
+      const legacy = Buffer.from("NWR1\\0opaque");
+      await alice.send("sdk-peer", legacy);
+      assert.deepEqual(Buffer.from((await receive(bob)).payload), legacy);
     });
 
     await t.test("admission, duplicate name, directional routing and missing destination", async () => {
@@ -171,7 +182,7 @@ test("published v0.2.0 transport and Pi integration (no model)", async t => {
         fake._pendingCustomMessages = [];
         routed.length = 0;
         const count = received.length;
-        await alice.send("pi-live", encodeMessage({ content: "native-route", display: false, details: { sender: "forged" } }, options));
+        await alice.send("pi-live", encodeMessage({ content: "native-route", display: false, details: { sender: "forged" } }, options), { reply_to: "d".repeat(32) });
         await waitFor(() => received.length === count + 1);
         const { message, options: actualOptions } = received.at(-1);
         assert.deepEqual(actualOptions, options);
@@ -186,15 +197,15 @@ test("published v0.2.0 transport and Pi integration (no model)", async t => {
         await emit("message_end", { message: { role: "custom", ...message } });
       }
       // Malformed/oversized packets are dropped locally; a following valid packet
-      // fences reader progress. No ACK and no native request-envelope unwrapping.
+      // fences reader progress. No ACK and no legacy request-envelope unwrapping.
       fake.isStreaming = false;
       const count = received.length;
       await alice.send("pi-live", Buffer.from("not-json"));
       await alice.send("pi-live", new Uint8Array(65537));
-      await alice.send("pi-live", encodeEnvelope({
-        kind: "request", id: "0".repeat(32),
-        payload: encodeMessage({ content: "not-unwrapped", display: true }),
-      }));
+      await alice.send("pi-live", Buffer.concat([
+        Buffer.from("NWR1"),
+        encodeMessage({ content: "not-unwrapped", display: true }),
+      ]));
       await alice.send("pi-live", encodeMessage({ content: "fence", display: true }));
       await waitFor(() => received.length === count + 1);
       assert.match(received.at(-1).message.content, /fence$/);
