@@ -15,6 +15,10 @@ documentation as needed, rather than building another runtime framework.
    processes do not share its objects. Confirm setup and persistent-process
    authority; do not silently install dependencies or attach to another task's
    kernel. Preserve Jupyter's security defaults and protect connection credentials.
+   Keep the connection-file owner alive: a temporary `KernelManager` can unlink
+   the file when destroyed. For an independently owned kernel, the public
+   `write_connection_file` with a fresh `Session().key` avoids that manager lifetime;
+   never use an empty key. Keep loopback binding and restrictive file permissions.
    A kernel is not a sandbox.
 
 2. **Keep execution observable.** Correlate replies using Jupyter's message IDs
