@@ -12,7 +12,9 @@ directory's `extensions/nodalwire/` (default `~/.pi/agent/extensions/nodalwire/`
 Respect `PI_CODING_AGENT_DIR` and any explicit extension/package location; use the
 bundle actually loaded, not a source checkout or unrelated copy. If it cannot be
 located or its `nodalwire_*` tools are missing, report the gap; do not install,
-reload, start a relay or change shared routing without authorization.
+reload, start a relay or change shared routing without authorization. If a relay
+must be started, do so explicitly for approved active use, not automatic/service
+startup; stop an owned relay afterward, never another owner's shared relay.
 
 Use authorized routes and explicitly known peers. This bridge requires matching
 0.2.0 client/relay artifacts and uses only open `default`; its tools cannot join
