@@ -19,11 +19,9 @@ At 80% or more a reminder recurs on each request, with stronger urgency at 90%.
 Observations never themselves authorize compaction, delegation or stopping work.
 
 For wall-clock elapsed and model usage since the latest user-role input, use the
-independent `activity_usage` tool or `/activity-usage` command. Elapsed is not
-active effort; ten-minute observations coalesce and queue after settlement without
-waking the agent. Queued observations are historical snapshots, identified by their
-observation time and input anchor; they may precede the current input. This is the
-replacement for the former context-status telemetry
-fields. Message creation timestamps and active-branch cumulative token counts are
-separate extensions. Do not persist transient observations or report every one to
-the user.
+independent, on-demand `activity_usage` tool or `/activity-usage` command when time
+or usage matters, not routinely after every action. Elapsed is not active effort
+or whole-task duration: a new user-role input resets the checkpoint. Session/tree
+changes reset it too; compaction preserves it. No activity observations are sent
+automatically. Message creation timestamps are a separate extension. Do not persist
+transient context observations or report every one to the user.

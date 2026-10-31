@@ -81,16 +81,6 @@ def test_install_activity_usage_independently(tmp_path: Path) -> None:
     assert not (target / "context-status.ts").exists()
 
 
-def test_install_pi_extensions_copies_bundled_token_awareness(tmp_path: Path) -> None:
-    target = tmp_path / "extensions"
-    results = install_pi_extensions(target_root=target, extension_names=["token-awareness"])
-    assert [result.name for result in results] == ["token-awareness"]
-    assert (target / "token-awareness.ts").read_bytes() == (
-        bundled_pi_extension_root() / "token-awareness.ts"
-    ).read_bytes()
-    assert not (tmp_path / ".agents").exists()
-
-
 def test_install_pi_extensions_copies_bundled_context_compaction(tmp_path: Path) -> None:
     target_root = tmp_path / ".pi" / "extensions"
 
@@ -100,18 +90,20 @@ def test_install_pi_extensions_copies_bundled_context_compaction(tmp_path: Path)
     assert (target_root / "context-compaction.ts").is_file()
 
 
-@pytest.mark.parametrize("retired_name", ["thinking-control", "pi-agent-team"])
+@pytest.mark.parametrize("retired_name", ["thinking-control", "pi-agent-team", "token-awareness"])
 def test_default_install_excludes_retired_extensions_without_uninstalling(
     tmp_path: Path, retired_name: str
 ) -> None:
     target = tmp_path / "extensions"
-    retired = target / retired_name / "index.ts"
+    retired = target / (
+        f"{retired_name}.ts" if retired_name == "token-awareness" else f"{retired_name}/index.ts"
+    )
     retired.parent.mkdir(parents=True)
     retired.write_text("// existing user installation\n")
     expected = {
         "codex-bridge", "context-compaction", "context-status", "activity-usage",
         "fast-mode",
-        "message-timestamps", "nodalwire", "pi-sessions", "skill-activity", "token-awareness",
+        "message-timestamps", "nodalwire", "pi-sessions", "skill-activity",
     }
     assert set(list_pi_extensions(bundled_pi_extension_root())) == expected
     results = install_pi_extensions(target_root=target)
@@ -158,7 +150,7 @@ def test_bundle_copy_and_replace_exclude_local_dependencies(tmp_path: Path) -> N
     assert (source / "node_modules/native/generated.bin").is_file()
 
 
-@pytest.mark.parametrize("retired_name", ["thinking-control", "pi-agent-team"])
+@pytest.mark.parametrize("retired_name", ["thinking-control", "pi-agent-team", "token-awareness"])
 def test_retired_extension_selection_fails_before_install(
     tmp_path: Path, retired_name: str
 ) -> None:

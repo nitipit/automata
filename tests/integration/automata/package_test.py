@@ -103,7 +103,6 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "skills/automata-pi-nodalwire/SKILL.md",
         "runtimes/pi/extensions/nodalwire/pnpm-workspace.yaml",
         "runtimes/pi/extensions/message-timestamps.ts",
-        "runtimes/pi/extensions/token-awareness.ts",
         "skills/automata-pi-context-status/SKILL.md",
         "skills/automata-pi-context-compaction/SKILL.md",
         "skills/automata-pi-sessions/SKILL.md",
@@ -148,6 +147,7 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         assert not any(path.startswith("skills/automata-pi-team/") for path in paths)
         assert not any(path.startswith("tools/pi-team/") for path in paths)
         assert not any(path.startswith("runtimes/pi/extensions/pi-agent-team/") for path in paths)
+        assert "runtimes/pi/extensions/token-awareness.ts" not in paths
         assert not any(path.startswith("skills/automata-nodalwire/") for path in paths)
         assert "skills/automata-timer/SKILL.md" in paths
     source_catalog = root / "src/automata/skills"
@@ -262,11 +262,11 @@ installed = install_pi_extensions(target_root=work / 'extensions')
 assert {item.name for item in installed} == {
     'codex-bridge', 'context-compaction', 'context-status', 'activity-usage',
     'fast-mode',
-    'message-timestamps', 'nodalwire', 'pi-sessions', 'skill-activity', 'token-awareness',
+    'message-timestamps', 'nodalwire', 'pi-sessions', 'skill-activity',
 }
 assert not (work / 'extensions/thinking-control').exists()
 assert (work / 'extensions/skill-activity/store.py').is_file()
-assert (work / 'extensions/token-awareness.ts').is_file()
+assert not (work / 'extensions/token-awareness.ts').exists()
 assert not (work / 'extensions/pi-agent-team').exists()
 assert (work / 'extensions/fast-mode/index.ts').is_file()
 assert (work / 'extensions/fast-mode/README.md').is_file()
