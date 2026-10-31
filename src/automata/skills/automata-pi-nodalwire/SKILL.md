@@ -1,6 +1,6 @@
 ---
 name: automata-pi-nodalwire
-description: Use for connecting Pi sessions and exchanging custom agent messages over NodalWire, including native delivery and wake-up options. Not for native Pi RPC control or general delegation judgment.
+description: Use for Pi messaging over NodalWire with native delivery and wake-up options, or optional explicitly authorized relay/server startup, inspection, administration and migration. Not for native Pi RPC control or general delegation judgment.
 ---
 
 # Pi NodalWire
