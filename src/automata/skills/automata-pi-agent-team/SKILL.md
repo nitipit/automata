@@ -36,13 +36,3 @@ futures and results across interactions. This needs no parallel task controller.
    Never automatically replay/restart or turn a permission refusal into approval.
    Preserve results, stop owned child/readers/notifier, shut down the kernel when
    no longer needed, and verify exits. Live objects are not durable memory.
-
-## Existing extension compatibility
-
-The `agent_*` extension may still be installed; this workflow does not retire it.
-If using its tools, read `README.md` in the **active installed bundle** and follow
-its contracts, not native commands sent through a second owner. Locate it in
-`.pi/extensions/pi-agent-team/` or the configured agent directory (default
-`~/.pi/agent/extensions/pi-agent-team/`); respect `PI_CODING_AGENT_DIR` and explicit
-package/extension locations. Missing tools or dependencies need an authorized
-setup decision, not an implicit install/reload or control takeover.

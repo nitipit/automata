@@ -1,9 +1,10 @@
-# PRIVATE: Setup and evidence contract — package/setup v3
+# PRIVATE: Setup and evidence contract — package/setup v4 draft
 
-Paper/key bundle revisions are 2 because only P06's question and key/setup are
-now v2; other item versions remain v1. Criteria, points, fixtures and the v2
-Podman runtime profile are unchanged. Historical v2 sittings keep their original
-paper/key versions and records; this clarification is prospective only.
+Paper/key bundle revisions are 3: P04 question/key v2 now use prepared native RPC,
+and K07 key v2 updates worker-control ownership after team-extension retirement.
+P06 remains v2; other item versions, points, fixtures and the Podman pilot profile
+are unchanged. P04's new runtime/notification conditions require a fresh freeze
+and verified setup. Historical sittings keep their original versions and records.
 
 This is a manual examiner checklist, not an exam runner. No step grants new
 installation, isolation, model-call, message, timer or account authority.
@@ -11,17 +12,16 @@ Authoring and fixture tests do not establish candidate runtime readiness.
 
 ## 1. Resolve the launch gate before a candidate exists
 
-The native managed-worker launch path has no exposed filesystem sandbox/launcher
-hook. Normal same-user bash can read keys outside its CWD, including Git history,
+Native Pi RPC subprocess control does not provide a filesystem sandbox. Normal same-user bash can read keys outside its CWD, including Git history,
 other worktrees and parent artifacts. `minimal` changes discovery, not this fact.
 
 The user approved a different launch path: whole standalone Pi in one rootless
 Podman container, described in `../sandbox/README.md`. Package/setup v2 introduced
-this pilot-only boundary; v3 changes only the P06 staging description. Keep actual sittings blocked
+this pilot-only boundary; v3 clarified P06 staging and v4 changes nonpilot P04. Keep actual sittings blocked
 until parent acceptance of its no-model preflight evidence and actual per-sitting
 setup. Verify the exact image/profile, selected materials, source projection,
 canary/negative visibility, credential scope and cleanup backstops. Do not weaken
-the policy or fall back to native same-user `agent_start` if that setup fails.
+the policy or fall back to a same-user native RPC child if that setup fails.
 The pilot launcher does not support P04 or child model calls.
 
 ## 2. Record exact identities and permitted resources
@@ -64,7 +64,7 @@ Practical tasks use separate workspaces, not the repository root:
 | P01 | Stage fixture contents; write selected source/installed package, backups, `out/`; preserve custom sibling | Prepared actual Automata CLI; local fixture installation explicitly allowed |
 | P02 | Stage fixture contents; write `work/status.md`, `out/` only | Normal skill catalog/content; receipts read-only |
 | P03 | Empty `out/`; task/resources read-only | Actual native `activity_usage`, local JSON parser |
-| P04 | Stage request in approved child CWD; child writes only `work/worker-out/`; candidate writes `out/` | Standalone manager-enabled candidate; explicit one-child approval and supervision |
+| P04 | Stage request in approved child CWD; child writes only `work/worker-out/`; candidate writes `out/` and uses declared task-owned runtime state | Prepared standalone kernel/native-RPC profile; explicit child/notification approval and supervision |
 | P05 | Stage fixture contents; write existing `work/handoff.json`, `out/` | Actual native `context_status`; fresh local process, not agent |
 | P06 | Stage fixture contents; write `work/config.json`, `out/` | Python 3 stdlib exporter; other files read-only |
 
@@ -83,11 +83,12 @@ setup; no shared repairs/installations are authorized by this checklist.
 Profiles: `podman-pilot-standalone-v2` is the new fixed P03/P06 pilot profile.
 `managed-local-subset` describes other possible subsets, not an enforced key
 boundary and not the current pilot launch path.
-`standalone-full` supports the full practical paper if actual tools/permissions are
-verified. There is no CLI workaround for excluded recursive manager tools. A
-profile change is an explicit changed condition. Native tool readiness, callback
-and containment must be checked in the actual selected profile, not inferred from
-mechanical mocks or source presence.
+`standalone-full-native-rpc` supports the full practical paper only with prepared
+kernel/RPC controls, actual tools/permissions and the approved completion route.
+Restricted subset profiles gain no child authority through shell/RPC access. A
+profile change is an explicit changed condition. Readiness, actual callback/result
+readback and containment must be checked in the selected profile, not inferred
+from mechanical mocks or source presence. No new P04 sitting is certified here.
 
 ## 4. Freeze conditions and run only with approval
 
@@ -100,8 +101,10 @@ commands; no model call was made by its authoring checks. Full-paper budgets req
 this package does not extrapolate them from the pilot. Parent owns launch,
 supervision, reports, grading and acceptance. Author is not a candidate/examiner.
 
-If P04 is ever selected, preflight its additional model route and one-child call
-budget, 120-second child bound, native callback and examiner fallback. Child
+If P04 is selected after freeze, preflight its native RPC/kernel interfaces,
+additional model route, one-child call budget, 120-second bound, prepared event
+return and examiner fallback. Record exact resource flags and notification
+permissions; no service or route is implicitly authorized. Child
 output is evidence, not authority. Do not claim native cost caps not exposed by
 the API. No P04 call is authorized by approval of the local-only pilot.
 

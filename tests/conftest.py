@@ -94,7 +94,6 @@ def run_extension_node(extension_node: str, tmp_path: Path):
             target.symlink_to(path, target_is_directory=True)
         env = {**os.environ, "PI_EXTENSION_TEST_ROOT": str(prepared)}
         env.pop("PI_TEST_PACKAGE_ROOT", None)
-        env["AUTOMATA_AGENT_TEAM_WORKER"] = ""
         if package is not None:
             env["PI_TEST_PACKAGE_ROOT"] = str(package)
         result = subprocess.run(

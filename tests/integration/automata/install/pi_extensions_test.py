@@ -100,13 +100,16 @@ def test_install_pi_extensions_copies_bundled_context_compaction(tmp_path: Path)
     assert (target_root / "context-compaction.ts").is_file()
 
 
-def test_default_install_excludes_retired_control_without_uninstalling(tmp_path: Path) -> None:
+@pytest.mark.parametrize("retired_name", ["thinking-control", "pi-agent-team"])
+def test_default_install_excludes_retired_extensions_without_uninstalling(
+    tmp_path: Path, retired_name: str
+) -> None:
     target = tmp_path / "extensions"
-    retired = target / "thinking-control" / "index.ts"
+    retired = target / retired_name / "index.ts"
     retired.parent.mkdir(parents=True)
     retired.write_text("// existing user installation\n")
     expected = {
-        "pi-agent-team", "codex-bridge", "context-compaction", "context-status", "activity-usage",
+        "codex-bridge", "context-compaction", "context-status", "activity-usage",
         "fast-mode",
         "message-timestamps", "nodalwire", "pi-sessions", "skill-activity", "token-awareness",
     }
@@ -122,17 +125,6 @@ def test_default_install_excludes_retired_control_without_uninstalling(tmp_path:
             for file in source.rglob("*"):
                 if file.is_file():
                     assert (installed / file.relative_to(source)).read_bytes() == file.read_bytes()
-
-
-@pytest.mark.parametrize("mode", ["copy", "symlink"])
-def test_install_agent_team_bundle(tmp_path: Path, mode: str) -> None:
-    target = tmp_path / "extensions"
-    install_pi_extensions(target_root=target, extension_names=["pi-agent-team"], mode=mode)
-    source = bundled_pi_extension_root() / "pi-agent-team"
-    for name in ("index.ts", "worker.ts", "capture.ts", "README.md"):
-        assert (target / "pi-agent-team" / name).read_bytes() == (source / name).read_bytes()
-    assert (target / "pi-agent-team").is_symlink() == (mode == "symlink")
-    assert not (tmp_path / ".agents").exists()
 
 
 @pytest.mark.parametrize("mode", ["copy", "symlink"])
@@ -166,11 +158,14 @@ def test_bundle_copy_and_replace_exclude_local_dependencies(tmp_path: Path) -> N
     assert (source / "node_modules/native/generated.bin").is_file()
 
 
-def test_retired_control_selection_fails_before_install(tmp_path: Path) -> None:
+@pytest.mark.parametrize("retired_name", ["thinking-control", "pi-agent-team"])
+def test_retired_extension_selection_fails_before_install(
+    tmp_path: Path, retired_name: str
+) -> None:
     target = tmp_path / "extensions"
     with pytest.raises(PiExtensionInstallError, match="Source Pi extension does not exist"):
         install_pi_extensions(
-            target_root=target, extension_names=["context-compaction", "thinking-control"]
+            target_root=target, extension_names=["context-compaction", retired_name]
         )
     assert not target.exists()
 

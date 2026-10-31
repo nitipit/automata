@@ -10,7 +10,7 @@ This README is a quick orientation map; follow the relevant source for details.
 | --- | --- |
 | [`src/automata/character/`](src/automata/character/) | Identity, language and behavior components |
 | [`src/automata/skills/`](src/automata/skills/) | Canonical skills, nested packages, discovery and export |
-| [`src/automata/tools/`](src/automata/tools/) | Shell tools, including Anatomy and bounded Pi teams |
+| [`src/automata/tools/`](src/automata/tools/) | Shell tools for Anatomy, timers and LINE |
 | [`src/automata/runtimes/pi/extensions/`](src/automata/runtimes/pi/extensions/) | Pi-native tools and event integrations |
 | [`src/automata/install/`](src/automata/install/) | Asset discovery and installation |
 | [`src/automata/plugin/`](src/automata/plugin/) | Selected-asset plugin export |
@@ -41,7 +41,7 @@ This README is a quick orientation map; follow the relevant source for details.
 - [Delegation](src/automata/skills/automata-delegation/SKILL.md): work division, handoffs, coordination and acceptance, with conditional team-design and hierarchy references.
 - [Manager](src/automata/skills/automata-manager/SKILL.md): an optional dedicated management role, not a requirement for ordinary delegation.
 - [Communication](src/automata/skills/automata-communication/SKILL.md): receiver, channel and outcome judgment; transport is an external integration.
-- [Pi agent workers](src/automata/skills/automata-pi-agent-team/SKILL.md): find the installed worker extension's operational guide before using its tools.
+- [Pi agent workers](src/automata/skills/automata-pi-agent-team/SKILL.md): control native RPC subprocesses, retain live state in a task-owned kernel and return results by event.
 - [Pi NodalWire](src/automata/skills/automata-pi-nodalwire/SKILL.md): find the installed peer-messaging extension's preparation and usage guide.
 - [Storage](src/automata/skills/automata-storage/SKILL.md) and [task spaces](src/automata/skills/automata-task-space/SKILL.md): ownership, placement and cleanup.
 
@@ -66,15 +66,19 @@ before activation. Premium access and native costs are not billing evidence.
 
 ## Pi agent workers
 
-The [`pi-agent-team` extension](src/automata/runtimes/pi/extensions/pi-agent-team/README.md)
-provides six tools to start, assign, inspect, read, abort and stop independent Pi
-RPC workers directly over stdio. Completion reports are event-driven and delivered
-as parent follow-ups; no Python kernel, `pi-team` CLI or relay is needed. Its
-compact usage skill points to the installed README. Workers start only on explicit
-tool calls, with verified model/thinking
-and session settings. Normal shutdown/reload stops owned workers; abrupt parent
-exit requires manual recovery. Automated tests use offline workers; live-model
-trials and installation require separate approval.
+Use [native Pi RPC guidance](src/automata/skills/automata-pi-agent-team/SKILL.md)
+for approved worker subprocesses. A task-owned persistent Python kernel can retain
+handles and results; an approved event bridge such as NodalWire returns completion
+evidence to the interactive coordinator. Native RPC owns process/session control;
+agent reasoning owns task policy and acceptance. No separate team controller is
+bundled. Verify effective settings before dispatch and stop owned resources after
+use. Installation, callbacks and live-model trials require their own authority.
+
+The legacy `pi-agent-team` extension is retired. Its usage skill remains as the
+kernel/native-RPC entry point; it no longer requires the extension's `agent_*`
+tools. Installation does not remove old copies: retire any existing bundle only
+with explicit authority, then use a supported reload or a fresh Pi process to
+refresh the loaded tools.
 
 ## Pi NodalWire messaging
 

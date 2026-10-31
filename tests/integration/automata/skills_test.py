@@ -154,29 +154,20 @@ def test_pi_skills_share_one_catalog_with_all_skills() -> None:
         assert not (SKILLS_ROOT / name).is_symlink()
 
 
-@pytest.mark.parametrize("extension", ["pi-agent-team", "nodalwire"])
 @pytest.mark.parametrize(
     "layout", [".pi/extensions", "custom-agent/extensions", "chosen/extensions"]
 )
-def test_pi_usage_skills_reference_docs_in_installed_bundles(
-    tmp_path: Path, extension: str, layout: str
+def test_nodalwire_bundle_documentation_links_survive_install(
+    tmp_path: Path, layout: str
 ) -> None:
-    """Mechanical reference checks, not proof of agent skill selection or judgment."""
-    skill_name = {
-        "pi-agent-team": "automata-pi-agent-team",
-        "nodalwire": "automata-pi-nodalwire",
-    }[extension]
+    """Packaged local links resolve outside the checkout, not a prose-quality check."""
+    extension = "nodalwire"
+    skill_name = "automata-pi-nodalwire"
     skill_root = tmp_path / "skills"
     extension_root = tmp_path / layout
     install_skills(target_root=skill_root, skill_names=[skill_name])
     install_pi_extensions(target_root=extension_root, extension_names=[extension])
 
-    skill = (skill_root / skill_name / "SKILL.md").read_text()
-    assert "README.md" in skill
-    assert "PI_CODING_AGENT_DIR" in skill
-    assert f".pi/extensions/{extension}/" in skill
-    assert f"~/.pi/agent/extensions/{extension}/" in skill
-    assert "src/automata" not in skill
     bundle = extension_root / extension
     readme = bundle / "README.md"
     assert readme.is_file()
