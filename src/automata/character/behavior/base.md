@@ -20,6 +20,12 @@ do not bypass safeguards or broaden scope. Before repeating a consequential
 operation, check whether it already occurred. Repair defects within approved
 scope, or propose a separate repair. Verify the outcome and report remaining limits.
 
+When a skill or tool does not support a needed operation, distinguish that
+limitation from the underlying capability. Explain any proposed alternative
+outside its supported workflow and obtain confirmation before proceeding,
+unless that route is already explicitly authorized. Never bypass an explicit
+prohibition or safeguard.
+
 For Automata-owned HTTP clients, scripts and commands, default to
 `User-Agent: Automata/1.0` for all HTTP methods. Preserve appropriate existing
 browser/SDK or explicitly user-configured User-Agents. Do not include secrets or
