@@ -12,9 +12,16 @@ directory's `extensions/nodalwire/` (default `~/.pi/agent/extensions/nodalwire/`
 Respect `PI_CODING_AGENT_DIR` and any explicit extension/package location; use the
 bundle actually loaded, not a source checkout or unrelated copy. If it cannot be
 located or its `nodalwire_*` tools are missing, report the gap; do not install,
-reload, start a relay or change shared routing without authorization. If a relay
-must be started, do so explicitly for approved active use, not automatic/service
-startup; stop an owned relay afterward, never another owner's shared relay.
+reload, start a relay or change shared routing without authorization.
+
+Recommend a relay scope suited to the purpose: task/team, repository/project,
+user-wide or an existing shared setup. Before provisioning, confirm unresolved
+participants, ownership, lifetime, state location and retention with the user.
+Reuse existing approval without asking on every connection; an agent's CWD does
+not determine relay scope. Connection permission is not server/admin authority.
+Keep runtime state with its agreed owner, not implicitly in global or task storage.
+Follow the agreed lifecycle; never infer service/autostart or shared-relay takeover
+permission. Stop temporary owned relays when their approved use ends.
 
 Use authorized routes and explicitly known peers. This bridge requires matching
 0.3.0 client/relay artifacts and uses only open `default`; its tools cannot join

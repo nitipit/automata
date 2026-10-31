@@ -9,11 +9,36 @@ CLI/API (Python **3.12+**). Check `nodalwire --help`, `serve --help` and
 [configuration](https://github.com/keenlycode/nodalwire/blob/v0.3.0/src/docs-src/reference/config/index.html)
 and [migration notes](https://github.com/keenlycode/nodalwire/blob/v0.3.0/RELEASE_NOTES.md).
 
+## Agree on scope and ownership
+
+Recommend a suitable scope, then confirm unresolved purpose, participants, relay
+owner, lifetime, endpoints, state location and retention with the user before
+provisioning. Reuse existing approval; do not ask again on every connection.
+
+- Task/team scope suits temporary coordination; repository/project scope suits
+  reusable project communication; user-wide scope suits cross-repository or local
+  application communication. An existing shared relay may need no provisioning.
+- Scope belongs to the communication setup, not an agent's CWD. Participants can
+  share one relay across repositories; do not create a relay for every agent.
+- Keep configuration, credentials, logs and process identity with the agreed
+  owner. Possible locations are a task area, repository `.agents/var/apps/nodalwire/`
+  or its user-wide equivalent; none is an implicit default. Global software and
+  reusable skills are separate from relay runtime state. Do not relocate existing
+  state or search another scope for credentials without authority.
+- Connection permission does not grant startup, shutdown, administration or
+  ownership takeover. The relay owner keeps admin credentials; share only needed
+  routing/join information within authority. Protect private directories/files
+  (normally 0700/0600), exclude secrets/runtime state from Git and public serving.
+- Agree whether to stop, retain or hand off the relay and its records. Task
+  completion does not authorize stopping a shared/reusable relay or deleting
+  configuration. Persistent/service operation needs explicit lifecycle approval.
+
 ## Explicit startup, readiness and shutdown
 
 - Reuse a suitable approved relay; do not start one merely because this skill was
-  loaded. Start only on demand for approved active use, not as an automatic service.
-  Record the owner, process handle, actual endpoints and bounded lifetime.
+  loaded. Start explicitly within its approved lifecycle; never infer automatic
+  or service startup permission. Record the owner, process handle and endpoints,
+  and any stop deadline or handoff obligation.
 - Supply a strong private `NODALWIRE_ADMIN_TOKEN` through an approved protected
   environment, or use a private config with `admin_verifier`. Never print/read back
   secrets or put bearer values in command arguments, prompts, logs or task reports.
@@ -29,11 +54,12 @@ and [migration notes](https://github.com/keenlycode/nodalwire/blob/v0.3.0/RELEAS
   neither readiness nor admin authentication. For messaging readiness also confirm
   the recipient is connected and has membership; the Pi bridge needs open `default`.
   A protected default can admit a client without allowing sends.
-- On completion, stop only the owned relay: Ctrl-C for its foreground process or
-  orderly signalling via the retained owned handle. Await exit and confirm owned
-  listeners are absent; escalate only against a verified still-owned process.
-  Never stop another owner's relay. Remove ephemeral secrets by their retention
-  policy; do not remove shared configuration or credentials.
+- When its approved lifetime ends, stop only the owned relay: Ctrl-C for its
+  foreground process or orderly signalling via the retained owned handle. Await
+  exit and confirm owned listeners are absent; escalate only against a verified
+  still-owned process. Otherwise follow the agreed retention/handoff, not an
+  automatic task-end shutdown. Never stop another owner's relay. Remove ephemeral
+  secrets by their retention policy; do not remove shared configuration/credentials.
 
 ## Safe read-only inspection
 
