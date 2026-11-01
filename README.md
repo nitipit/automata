@@ -54,6 +54,25 @@ appearance and live reload. Serving is foreground by default. Prepare the option
 require web dependencies. Use `automata anatomy` or `automata-anatomy`.
 There is no maintained `src/automata/apps/` category or separate skill-site server.
 
+## Pi compaction planning
+
+The `context-status.ts` extension inserts one request-local planning notice at the
+configured used-token threshold. Automata must immediately insert a compaction
+break into its work plan, finish the small in-flight step, preserve continuity and
+queue `context_compact` at the nearest suitable boundary in the coming turns.
+There are no periodic token-bucket notices or percentage-pressure levels.
+The notice remains present while usage is at or above the threshold; it neither
+persists in history nor wakes an idle agent. Unknown usage and unconfigured models
+produce no notice. Thresholds are owned by `COMPACTION_PLANNING_TOKENS` in the
+[extension source](src/automata/runtimes/pi/extensions/context-status.ts) and shown
+by `context_status` or `/context-status`.
+
+Native Pi automatic compaction remains unchanged as a guardrail. Configure its
+reserve separately so its trigger is later than Automata's planning threshold;
+the extension does not enforce or change that configuration. Existing summarizer
+model/thinking selection, deferred execution and failure safeguards are unchanged.
+See [compaction guidance](src/automata/skills/automata-pi-context-compaction/SKILL.md).
+
 ## Pi Fast mode
 
 The separate [`fast-mode` extension](src/automata/runtimes/pi/extensions/fast-mode/README.md)

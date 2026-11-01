@@ -599,7 +599,7 @@ export default function (pi: ExtensionAPI) {
     promptSnippet:
       "Compact context at a stable boundary after preserving durable task state",
     promptGuidelines: [
-      "Treat context signals as observations, not automatic compaction commands. Call context_compact only when compaction is materially useful at a stable boundary.",
+      "When the compaction planning threshold is reached, immediately insert a compaction break into the current work plan. Finish the small in-flight step, preserve continuity, then call context_compact at the nearest suitable boundary in the coming turns, before another substantial work unit or large input. Keep native Pi auto-compaction as a fallback.",
       "Preserve durable decisions, constraints, ownership, validation state, and next steps before calling. Use context_compact as the only final tool action when practical.",
       "Pass an approved provider/model preference when present; otherwise omit model to use the current model without asking. A selected model failure never triggers fallback.",
       "Pass thinking when a compaction-specific thinking level is requested; omit it to inherit the session level. This does not change the working session's settings.",

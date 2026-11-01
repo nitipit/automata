@@ -9,17 +9,18 @@ Use the exposed `context_compact` extension; installation alone does not expose 
 Report missing capability rather than injecting `/compact` or inventing a call.
 Pi owns automatic compaction; changing its settings needs separate approval.
 
-1. **Choose a safe boundary.** Assess remaining work and expected large inputs,
-   the value of active evidence versus stale history, and both the working model's
-   and summarizer's input/output headroom. Finish coherent edits and preserve
-   ownership and pending evidence before compacting; do not interrupt an operation.
-   Model-specific preferences are advisory ranges, not hard triggers. Without an
-   applicable preference, above 75% consider compaction when meaningful work remains;
-   at 90% preserve a minimal checkpoint and seek the earliest safe boundary.
-   Runtime limits are authoritative, and summarizer headroom can require earlier
-   action. Pressure is advice, not a command. Unknown usage, elapsed time or a new
-   phase alone is insufficient; after compaction require fresh evidence of material
-   benefit before another attempt. Briefly announce; do not compact just to finish.
+1. **Plan the compaction break immediately.** A compaction planning notice means
+   insert compaction into the current work plan now, not merely observe usage.
+   Name the nearest suitable boundary in the coming turns: finish the small
+   in-flight step, preserve continuity, compact, then resume. Do not start another
+   substantial work unit or large input first, or keep deferring the break.
+   Threshold detection belongs to the context-status extension; native Pi
+   auto-compaction remains the fallback, not the intended timing. Do not interrupt
+   an operation. Account for likely inputs and the working model's and summarizer's
+   headroom; if little room remains, preserve a minimal checkpoint and compact
+   promptly. Unknown usage, elapsed time or a new phase alone does not trigger
+   compaction. After successful compaction, require fresh evidence of material
+   benefit before another attempt. Briefly announce the break.
 
 2. **Use approved selections.** Apply current instructions, project preferences,
    global preferences, then session defaults. Existing paths remain:

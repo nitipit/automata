@@ -1,6 +1,6 @@
 # Compaction preferences
 
-Use for requested model, thinking, threshold or saved-default customization—not
+Use for requested model, thinking or saved-default customization—not
 every compaction call. Use the preference paths and precedence in `SKILL.md`.
 
 ## Evaluate the choice
@@ -10,15 +10,14 @@ Inspect both models' runtime-advertised limits and effective Pi compaction setti
 summary quality and input/output headroom; a smaller summarizer may need earlier
 compaction. Lower price does not prove fit, and budget preflight is heuristic.
 
-Preferences may specify defaults and optional per-working-model overrides with
-advisory token ranges or percentage guidance. Ranges guide judgment, not automatic
-triggers; consider remaining work, likely inputs, useful active evidence and both
-models' input/output headroom. Runtime-advertised hard limits override stored
-assumptions. For legacy percentage pairs require `0 < trigger < urgent < 100`;
-for ranges require finite positive ascending bounds. Use runtime/provider-supported
-model and thinking selections. Resolve invalid or conflicting choices with the user
-rather than replacing them. Changing Pi's automatic-compaction settings requires
-separate approval; preference guidance alone does not authorize it.
+Preferences may specify summarizer model/thinking defaults and per-working-model
+selections. The context-status extension owns planning thresholds; old advisory
+ranges or percentage pairs must not postpone a threshold-triggered compaction
+break. Consider both models' input/output headroom and compact earlier when needed.
+Use runtime/provider-supported selections. Resolve invalid or conflicting choices
+with the user rather than replacing them. Changing planning thresholds or Pi's
+automatic-compaction settings requires approval; summary preferences do not
+change either.
 
 ## Save approved choices
 
