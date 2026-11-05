@@ -27,7 +27,7 @@ TOOLS_ROOT = PACKAGE_ROOT / "tools"
 SOURCES = skill_sources()
 SKILL_FILES = sorted(path / "SKILL.md" for path in SOURCES.values())
 REQUIRED_SKILLS = {
-    "automata-adaptive-ui",
+    "automata-ui-design",
     "automata-agents-md",
     "automata-agent-design",
     "automata-model-selection",
@@ -66,6 +66,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-adaptive-ui",
     "automata-pi-delegation",
     "automata-nodalwire",
     "automata-pi-team",
@@ -227,7 +228,10 @@ def test_skill_tool_mappings_resolve_to_bundled_entries() -> None:
 
 
 def test_declared_skill_asset_references_exist() -> None:
-    for asset in ("automata-agent-evaluation/references/scoring.md",):
+    for asset in (
+        "automata-agent-evaluation/references/scoring.md",
+        "automata-ui-design/references/web-ui.md",
+    ):
         assert (SKILLS_ROOT / asset).is_file(), asset
     # Check actual package paths, not prose, example commands, or runtime destinations.
     for skill in SKILL_FILES:
@@ -249,7 +253,7 @@ def test_bundled_skills_exclude_runtime_and_provider_state() -> None:
         assert not [path for root in SKILL_ROOTS for path in root.rglob(name)], name
     assert not (TOOLS_ROOT / "ui-channel").exists()
     assert not (PACKAGE_ROOT / "runtimes/pi/extensions/ui-channel.ts").exists()
-    assert not (SKILLS_ROOT / "automata-adaptive-ui/references/build-and-preview.md").exists()
+    assert not (SKILLS_ROOT / "automata-ui-design/references/build-and-preview.md").exists()
 
 
 def test_default_install_includes_every_shared_and_pi_skill(tmp_path: Path) -> None:

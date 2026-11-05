@@ -110,7 +110,8 @@ def test_built_archives_ship_pi_resources_only_at_new_paths(tmp_path: Path) -> N
         "skills/automata-pi-sessions/SKILL.md",
         "skills/automata-pi-imagegen/SKILL.md",
         "skills/automata-pi-skill-activity/SKILL.md",
-        "skills/automata-adaptive-ui/SKILL.md",
+        "skills/automata-ui-design/SKILL.md",
+        "skills/automata-ui-design/references/web-ui.md",
         "runtimes/pi/extensions/codex-bridge.ts",
         "skills/automata-workplan/SKILL.md",
         "skills/automata-storage/SKILL.md",
@@ -235,7 +236,9 @@ assert 'automata-thinking-control' not in sources
 assert 'automata-pi-sessions' in sources
 assert 'automata-web-design' not in sources
 assert 'automata-web-app' not in sources
-assert (sources['automata-adaptive-ui'] / 'SKILL.md').is_file()
+assert 'automata-adaptive-ui' not in sources
+assert (sources['automata-ui-design'] / 'SKILL.md').is_file()
+assert (sources['automata-ui-design'] / 'references/web-ui.md').is_file()
 assert 'automata-pi-team' not in sources
 assert 'automata-pi-delegation' not in sources
 assert 'automata-web-dev' not in sources
@@ -253,7 +256,7 @@ results = install_skills(target_root=work / 'skills')
 assert set(skill_sources(work / 'skills')) == set(sources)
 for name in ('automata-storage', 'automata-pi-context-status',
              'automata-workplan', 'automata-agent-design', 'automata-pi-nodalwire',
-             'automata-pi-extension-dev', 'automata-pi-agent-team', 'automata-adaptive-ui'):
+             'automata-pi-extension-dev', 'automata-pi-agent-team', 'automata-ui-design'):
     assert (work / 'skills' / name / 'SKILL.md').is_file()
 install_skills(target_root=work / 'linked', skill_names=['automata-agent-design'], mode='symlink')
 linked = work / 'linked/automata-agent-design'
