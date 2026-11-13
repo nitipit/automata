@@ -1,17 +1,20 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
 
 const { registerNodalWire, encodeMessage, decodeMessage, default: register } =
   await import(pathToFileURL(join(process.env.PI_EXTENSION_TEST_ROOT, "index.ts")));
 const tick = () => new Promise(resolve => setImmediate(resolve));
+const text = result => result.content.filter(block => block.type === "text").map(block => block.text).join("");
 
 function client() {
   const inbox = [];
   let waiter;
   return {
-    sent: [], closed: 0,
+    sent: [], requests: [], replies: [], membershipCalls: [], memberships: new Set(["default"]), closed: 0,
     push(message) { if (waiter) { const fn = waiter; waiter = undefined; fn(message); } else inbox.push(message); },
     async receive({ signal }) {
       signal.throwIfAborted();
@@ -25,6 +28,23 @@ function client() {
     async send(destination, payload, options) {
       this.sent.push({ destination, payload, options });
       return "a".repeat(32); // NWM3 accepted ID is not application acknowledgement.
+    },
+    async join(network, credential, options) {
+      this.membershipCalls.push({ action: "join", network, credential, options });
+      const changed = !this.memberships.has(network); this.memberships.add(network);
+      return { network, joined: true, changed };
+    },
+    async leave(network, options) {
+      this.membershipCalls.push({ action: "leave", network, options });
+      return { network, joined: false, changed: this.memberships.delete(network) };
+    },
+    async request(destination, payload, options) {
+      this.requests.push({ destination, payload, options });
+      return { ...incoming("native reply", destination), network: options.network, reply_to: "a".repeat(32) };
+    },
+    async reply(message, payload, options) {
+      this.replies.push({ message, payload, options });
+      return "d".repeat(32);
     },
     async close() { this.closed++; },
   };
@@ -43,7 +63,7 @@ function fixture({ name, connect } = {}) {
     registerTool(tool) { tools.push(tool); },
     sendMessage(message, options) { messages.push({ message, options }); },
   };
-  const ctx = { hasUI: true, ui: {
+  const ctx = { cwd: process.cwd(), hasUI: true, ui: {
     notify(...args) { notices.push(args); }, setStatus(...args) { statuses.push(args); },
   } };
   registerNodalWire(pi, async (...args) => { connections.push(args); return connect ? connect(...args) : node; });
@@ -56,6 +76,9 @@ function fixture({ name, connect } = {}) {
       const message = typeof content === "string" ? { content, display: true } : content;
       return tools.find(tool => tool.name === "nodalwire_send").execute("call-1", { to, message, options }, signal);
     },
+    call(name, params, signal) {
+      return tools.find(tool => tool.name === name).execute("call", params, signal, undefined, ctx);
+    },
     connection(action, options = {}, signal) {
       return tools.find(tool => tool.name === "nodalwire_connection")
         .execute("connection-1", { action, ...options }, signal, undefined, ctx);
@@ -63,8 +86,10 @@ function fixture({ name, connect } = {}) {
   };
 }
 
+let nextNativeId = 0;
 const incoming = (content, sender = "python-peer", options) => ({
-  sender, payload: encodeMessage(typeof content === "string" ? { content, display: true } : content, options),
+  id: (++nextNativeId).toString(16).padStart(32, "0"), network: "default", sender,
+  payload: encodeMessage(typeof content === "string" ? { content, display: true } : content, options),
 });
 
 test("strict version-2 UTF-8 API envelope with bounded bytes", () => {
@@ -117,7 +142,9 @@ test("busy follow-up does not block later steering; provenance and native option
   assert.equal(message.details.sender, "python-peer");
   assert.equal(message.details.recipient, "pi-test");
   assert.equal(typeof message.details.deliveryId, "string");
-  assert.equal(message.content, "[NodalWire: python-peer → pi-test]\nfirst");
+  assert.match(message.content, /^\[NodalWire: python-peer → pi-test; network=default; id=[a-f0-9]{32}; replyRef=/);
+  assert.match(message.content, /\]\nfirst$/);
+  assert.ok(message.content.includes(message.details.replyRef));
   assert.equal(message.display, true);
   assert.deepEqual(options, { triggerTurn: true, deliverAs: "followUp" });
   assert.deepEqual(f.messages[1].options, { triggerTurn: true, deliverAs: "steer" });
@@ -146,7 +173,9 @@ test("image/text provenance cannot be overwritten by peer details; false display
   f.node.push(incoming({ content, display: false, details: { sender: "forged", deliveryId: "forged" } }, "reviewer", { triggerTurn: false }));
   f.node.push({ ...incoming("omitted"), id: "b".repeat(32), reply_to: "c".repeat(32), network: "default" });
   await tick();
-  assert.deepEqual(f.messages[0].message.content, [{ type: "text", text: "[NodalWire: reviewer → pi-test]\n" }, ...content]);
+  assert.equal(f.messages[0].message.content[0].type, "text");
+  assert.match(f.messages[0].message.content[0].text, /^\[NodalWire: reviewer → pi-test; network=default; id=/);
+  assert.deepEqual(f.messages[0].message.content.slice(1), content);
   assert.equal(f.messages[0].message.display, false);
   assert.equal(f.messages[0].message.details.sender, "reviewer");
   assert.equal(f.messages[0].message.details.peerDetails.sender, "forged");
@@ -154,8 +183,10 @@ test("image/text provenance cannot be overwritten by peer details; false display
   assert.deepEqual(f.messages[0].options, { triggerTurn: false });
   assert.equal(f.messages[1].options, undefined);
   assert.match(f.messages[1].message.content, /omitted$/);
-  assert.deepEqual(Object.keys(f.messages[1].message.details).sort(), ["deliveryId", "recipient", "sender"],
-    "native correlation metadata does not alter application provenance or delivery");
+  assert.deepEqual(Object.keys(f.messages[1].message.details).sort(), ["deliveryId", "id", "network", "recipient", "replyRef", "reply_to", "sender"]);
+  assert.equal(f.messages[1].message.details.id, "b".repeat(32));
+  assert.equal(f.messages[1].message.details.reply_to, "c".repeat(32));
+  assert.notEqual(f.messages[1].message.details.deliveryId, f.messages[1].message.details.id);
   assert.equal(f.node.sent.length, 0, "receiving does not auto-reply or acknowledge");
   await f.emit("session_shutdown");
 });
@@ -206,12 +237,14 @@ test("outbound bytes, cancellation, honest acceptance and no transparent retry",
   assert.equal(f.node.sent.length, 1);
   assert.equal(decodeMessage(f.node.sent[0].payload).message.content, "reply");
   assert.equal(f.node.sent[0].destination, "bob");
-  assert.equal(f.node.sent[0].options.signal, signal);
-  assert.deepEqual(result.details, { to: "bob", status: "relay_accepted" });
+  assert.notEqual(f.node.sent[0].options.signal, signal, "call and connection signals are combined");
+  assert.equal(f.node.sent[0].options.signal.aborted, false);
+  assert.equal(f.node.sent[0].options.network, "default");
+  assert.deepEqual(result.details, { to: "bob", network: "default", id: "a".repeat(32), status: "relay_accepted" });
   assert.match(result.content[0].text, /not confirmed/);
   let calls = 0;
   f.node.send = async () => { calls++; throw new Error("ReceiptTimeout: effect uncertain"); };
-  await assert.rejects(f.send("bob", "uncertain"), /effect uncertain/);
+  await assert.rejects(f.send("bob", "uncertain"), /uncertain/);
   assert.equal(calls, 1);
   await assert.rejects(f.send("bad name", "hi"), /Invalid recipient/);
   await f.emit("session_shutdown");
@@ -223,7 +256,7 @@ test("send tool requires to and does not accept destination as an alias", async 
   assert.deepEqual(tool.parameters.required, ["to", "message"]);
   assert.ok(!("destination" in tool.parameters.properties));
   await f.emit("session_start");
-  await assert.rejects(tool.execute("legacy", { destination: "bob", text: "old schema" }), /Invalid recipient/);
+  await assert.rejects(tool.execute("legacy", { destination: "bob", text: "old schema" }), /Unexpected NodalWire argument/);
   assert.equal(f.node.sent.length, 0);
   await f.send("bob", "new schema");
   assert.equal(f.node.sent[0].destination, "bob", "native client's positional interface is unchanged");
@@ -405,7 +438,7 @@ test("operator replacement supersedes a pending tool attempt without closing the
 test("connection tool respects cancellation before dispatch or before native connect", async () => {
   const f = fixture();
   const stopped = new AbortController(); stopped.abort();
-  await assert.rejects(f.connection("connect", { name: "pi-tool" }, stopped.signal), /abort/i);
+  await assert.rejects(f.connection("connect", { name: "pi-tool" }, stopped.signal), /cancel/i);
   const immediate = new AbortController();
   const connecting = f.connection("connect", { name: "pi-tool" }, immediate.signal);
   immediate.abort();
@@ -432,3 +465,252 @@ test("shutdown during connect cancels pending attempt and closes a late result",
   assert.equal(late.closed, 1);
   await assert.rejects(f.send("bob", "hi"), /disconnected/);
 });
+
+test("explicit network join/leave and send never select a mutable current network", async () => {
+  const f = fixture({ name: "pi-test" });
+  await f.emit("session_start");
+  assert.deepEqual((await f.call("nodalwire_network", { action: "join", network: "team" })).details,
+    { network: "team", joined: true, changed: true });
+  assert.equal((await f.call("nodalwire_network", { action: "join", network: "team" })).details.changed, false);
+  await f.call("nodalwire_send", { to: "peer", network: "team", message: { content: "named", display: true } });
+  await f.send("peer", "default");
+  assert.deepEqual(f.node.sent.map(x => x.options.network), ["team", "default"]);
+  assert.deepEqual((await f.call("nodalwire_network", { action: "leave", network: "team" })).details,
+    { network: "team", joined: false, changed: true });
+  await assert.rejects(f.call("nodalwire_network", { action: "leave", network: "team", credentialRef: "alias" }), /join only/);
+  await assert.rejects(f.call("nodalwire_network", { action: "join", network: "bad name" }), /valid network/);
+  await assert.rejects(f.call("nodalwire_network", { action: "status", network: "team" }), /Unknown network/);
+  await assert.rejects(f.call("nodalwire_send", { to: "peer", network: "bad/name", message: { content: "x", display: true } }), /Invalid network/);
+  await f.emit("session_shutdown");
+});
+
+test("protected join resolves only configured endpoint/network-bound alias and redacts errors", async () => {
+  const f = fixture({ name: "pi-test" });
+  const dir = await mkdtemp(join(tmpdir(), "nw-credential-unit-"));
+  const config = join(dir, "aliases.json");
+  const envName = "AUTOMATA_NW_UNIT_CREDENTIAL";
+  const old = process.env[envName];
+  const secret = "synthetic-join-secret";
+  try {
+    process.env[envName] = secret;
+    await writeFile(config, JSON.stringify({ aliases: { team: {
+      endpoint: "tcp://127.0.0.1:5555", network: "protected", env: envName,
+    } } }), { mode: 0o600 });
+    f.flags.set("nodalwire-credentials", config);
+    await f.emit("session_start");
+    const r = await f.call("nodalwire_network", { action: "join", network: "protected", credentialRef: "team" });
+    assert.equal(f.node.membershipCalls[0].credential, secret);
+    assert.ok(!JSON.stringify(r).includes(secret));
+    await assert.rejects(f.call("nodalwire_network", { action: "join", network: "other", credentialRef: "team" }));
+    assert.equal(f.node.membershipCalls.length, 1, "binding mismatch fails before SDK dispatch");
+    await assert.rejects(f.call("nodalwire_network", { action: "join", network: "protected", credentialRef: "missing" }));
+    f.node.join = async () => { throw Object.assign(new Error(secret), { code: "join_denied" }); };
+    await assert.rejects(f.call("nodalwire_network", { action: "join", network: "protected", credentialRef: "team" }), e => {
+      assert.ok(!e.message.includes(secret)); assert.match(e.message, /join_denied/); return true;
+    });
+    assert.ok(!JSON.stringify(f.notices).includes(secret));
+  } finally {
+    if (old === undefined) delete process.env[envName]; else process.env[envName] = old;
+    await f.emit("session_shutdown"); await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("native receive metadata is validated and peer details cannot forge it", async () => {
+  const f = fixture({ name: "pi-test" }); await f.emit("session_start");
+  for (const patch of [{ id: "bad" }, { network: "bad name" }, { reply_to: "bad" }]) {
+    f.node.push({ ...incoming("reject"), ...patch });
+  }
+  const good = incoming({ content: "accepted", display: true, details: {
+    id: "forged", network: "forged", reply_to: "forged", replyRef: "forged", recipient: "forged",
+  } });
+  f.node.push(good); await tick();
+  assert.equal(f.messages.length, 1);
+  const d = f.messages[0].message.details;
+  assert.equal(d.id, good.id); assert.equal(d.network, "default");
+  assert.equal(d.reply_to, undefined); assert.notEqual(d.replyRef, "forged");
+  assert.equal(d.recipient, "pi-test"); assert.equal(d.peerDetails.id, "forged");
+  await f.emit("session_shutdown");
+});
+
+test("reply references preserve routing, validate before consumption and permit only one dispatch", async () => {
+  const f = fixture({ name: "pi-test" }); await f.emit("session_start");
+  const native = { ...incoming("please reply"), network: "team" };
+  f.node.push(native); await tick();
+  const ref = f.messages[0].message.details.replyRef;
+  await assert.rejects(f.call("nodalwire_reply", { replyRef: ref, message: { content: "x".repeat(60_000), display: true } }));
+  const r = await f.call("nodalwire_reply", { replyRef: ref, message: { content: "yes", display: false }, options: { triggerTurn: false } });
+  assert.equal(f.node.replies.length, 1);
+  assert.deepEqual(f.node.replies[0].message, { id: native.id, sender: native.sender, network: "team", payload: new Uint8Array() });
+  assert.equal(decodeMessage(f.node.replies[0].payload).message.display, false);
+  assert.deepEqual(decodeMessage(f.node.replies[0].payload).options, { triggerTurn: false });
+  assert.equal(r.details.reply_to, native.id); assert.equal(r.details.network, "team");
+  await assert.rejects(f.call("nodalwire_reply", { replyRef: ref, message: { content: "again", display: true } }), /unavailable or expired/);
+  assert.equal(f.node.replies.length, 1);
+  await f.emit("session_shutdown");
+});
+
+test("uncertain reply consumes its reference; leave and disconnect invalidate references", async () => {
+  const f = fixture({ name: "pi-test" }); await f.emit("session_start");
+  f.node.push(incoming("first")); await tick();
+  const ref = f.messages[0].message.details.replyRef;
+  let calls = 0;
+  f.node.reply = async () => { calls++; throw new Error("SECRET-transport-error"); };
+  await assert.rejects(f.call("nodalwire_reply", { replyRef: ref, message: { content: "x", display: true } }), e => !e.message.includes("SECRET"));
+  await assert.rejects(f.call("nodalwire_reply", { replyRef: ref, message: { content: "x", display: true } }), /unavailable or expired/);
+  assert.equal(calls, 1);
+  f.node.push({ ...incoming("named"), network: "team" }); await tick();
+  const named = f.messages.at(-1).message.details.replyRef;
+  await f.call("nodalwire_network", { action: "leave", network: "team" });
+  await assert.rejects(f.call("nodalwire_reply", { replyRef: named, message: { content: "x", display: true } }), /unavailable or expired/);
+  f.node.push(incoming("before reconnect")); await tick();
+  const stale = f.messages.at(-1).message.details.replyRef;
+  await f.connection("disconnect"); await f.connection("connect", { name: "pi-test" });
+  await assert.rejects(f.call("nodalwire_reply", { replyRef: stale, message: { content: "x", display: true } }), /unavailable or expired/);
+  await f.emit("session_shutdown");
+});
+
+test("request delegates correlation/deadline to SDK and returns reply only as a tool result", async () => {
+  const f = fixture({ name: "pi-test" }); await f.emit("session_start");
+  const r = await f.call("nodalwire_request", { to: "peer", network: "team", message: { content: "reply please", display: true }, options: { triggerTurn: true, deliverAs: "followUp" }, timeoutSeconds: 12 });
+  assert.equal(f.node.requests.length, 1);
+  assert.equal(f.node.requests[0].options.network, "team"); assert.equal(f.node.requests[0].options.timeout, 12);
+  assert.deepEqual(decodeMessage(f.node.requests[0].payload).options, { triggerTurn: true, deliverAs: "followUp" });
+  assert.equal(r.details.status, "reply_received"); assert.equal(r.details.sender, "peer");
+  assert.equal(r.details.network, "team"); assert.equal(typeof r.details.replyRef, "string");
+  assert.match(text(r), /native reply$/); assert.equal(f.messages.length, 0);
+  await f.call("nodalwire_request", { to: "peer", message: { content: "defaults", display: true } });
+  assert.equal(f.node.requests.at(-1).options.timeout, 30); assert.equal(f.node.requests.at(-1).options.network, "default");
+  for (const timeoutSeconds of [0, 121, 1.5, Infinity, NaN, "30"]) {
+    await assert.rejects(f.call("nodalwire_request", { to: "peer", message: { content: "x", display: true }, timeoutSeconds }), /timeout/);
+  }
+  assert.equal(f.node.requests.length, 2); await f.emit("session_shutdown");
+});
+
+test("ordinary receive continues while a request waits; invalid matched replies are not injected", async () => {
+  const f = fixture({ name: "pi-test" }); await f.emit("session_start");
+  let finish;
+  f.node.request = async () => new Promise(resolve => { finish = resolve; });
+  const waiting = f.call("nodalwire_request", { to: "peer", message: { content: "query", display: true } });
+  f.node.push(incoming("ordinary", "other", { triggerTurn: true, deliverAs: "steer" })); await tick();
+  assert.equal(f.messages.length, 1); assert.deepEqual(f.messages[0].options, { triggerTurn: true, deliverAs: "steer" });
+  finish({ ...incoming("matched", "peer"), reply_to: "a".repeat(32) });
+  assert.match(text(await waiting), /matched$/); assert.equal(f.messages.length, 1);
+  for (const reply of [
+    { ...incoming("wrong sender", "other"), reply_to: "a".repeat(32) },
+    { ...incoming("wrong network", "peer"), network: "other", reply_to: "a".repeat(32) },
+    { ...incoming("no correlation", "peer") },
+    { ...incoming("bad envelope", "peer"), reply_to: "a".repeat(32), payload: Buffer.from("SECRET-invalid") },
+  ]) {
+    f.node.request = async () => reply;
+    await assert.rejects(f.call("nodalwire_request", { to: "peer", message: { content: "q", display: true } }), e => {
+      assert.match(e.message, /Invalid matched Pi reply/); assert.ok(!e.message.includes("SECRET")); return true;
+    });
+  }
+  assert.equal(f.messages.length, 1); await f.emit("session_shutdown");
+});
+
+test("request capacity is independent of reconnect and released when old operations settle", async () => {
+  const f = fixture({ name: "pi-test" }); await f.emit("session_start");
+  const finish = [];
+  f.node.request = async () => new Promise(resolve => finish.push(resolve));
+  const params = { to: "peer", message: { content: "query", display: true } };
+  const pending = Array.from({ length: 4 }, () => f.call("nodalwire_request", params));
+  const all = Promise.allSettled(pending);
+  await assert.rejects(f.call("nodalwire_request", params), /capacity reached/);
+  assert.equal(finish.length, 4);
+  await f.connection("disconnect"); await f.connection("connect", { name: "pi-test" });
+  await assert.rejects(f.call("nodalwire_request", params), /capacity reached/);
+  for (const resolve of finish) resolve({ ...incoming("stale", "peer"), reply_to: "a".repeat(32) });
+  assert.ok((await all).every(r => r.status === "rejected"));
+  f.node.request = async () => ({ ...incoming("new", "peer"), reply_to: "b".repeat(32) });
+  assert.match(text(await f.call("nodalwire_request", params)), /new$/);
+  await f.emit("session_shutdown");
+});
+
+test("request cancellation is sanitized, never replayed and releases capacity", async () => {
+  const f = fixture({ name: "pi-test" }); await f.emit("session_start");
+  const stopped = new AbortController(); stopped.abort("SECRET-before-dispatch");
+  const params = { to: "peer", message: { content: "query", display: true } };
+  await assert.rejects(f.call("nodalwire_request", params, stopped.signal), e => !e.message.includes("SECRET"));
+  assert.equal(f.node.requests.length, 0);
+  let attempts = 0;
+  f.node.request = async (_to, _payload, { signal }) => {
+    attempts++;
+    return new Promise((_resolve, reject) => signal.addEventListener("abort", () => reject(new Error("SECRET-after-dispatch")), { once: true }));
+  };
+  const c = new AbortController(); const request = f.call("nodalwire_request", params, c.signal);
+  c.abort("SECRET-reason");
+  await assert.rejects(request, e => !e.message.includes("SECRET")); assert.equal(attempts, 1);
+  await f.emit("session_shutdown");
+});
+
+test("outbound validation uses fixed errors without reflecting submitted content", async () => {
+  const f = fixture({ name: "pi-test" }); await f.emit("session_start");
+  const invalid = { content: "SYNTHETIC-ONLY-private-payload", display: "invalid" };
+  for (const tool of ["nodalwire_send", "nodalwire_request"]) {
+    await assert.rejects(f.call(tool, { to: "peer", message: invalid }), error => {
+      assert.equal(error.message, "Invalid or oversized Pi v2 message/options; no message dispatched.");
+      assert.equal(error.cause, undefined); return true;
+    });
+  }
+  f.node.push(incoming("reply")); await tick();
+  const ref = f.messages[0].message.details.replyRef;
+  await assert.rejects(f.call("nodalwire_reply", { replyRef: ref, message: invalid }), error => !error.message.includes("SYNTHETIC"));
+  await f.call("nodalwire_reply", { replyRef: ref, message: { content: "valid", display: true } });
+  assert.equal(f.node.sent.length, 0); assert.equal(f.node.requests.length, 0); assert.equal(f.node.replies.length, 1);
+  await f.emit("session_shutdown");
+});
+
+test("aggregate reply output is explicitly bounded without corrupting text or image bytes", async () => {
+  const f = fixture({ name: "pi-test" }); await f.emit("session_start");
+  const image = Buffer.alloc(22_500, 7).toString("base64");
+  const cases = [
+    [{ type: "text", text: "x".repeat(40_000) }, { type: "text", text: "y".repeat(20_000) }],
+    [{ type: "text", text: "😀".repeat(8000) }, { type: "text", text: "😀".repeat(8000) }],
+    [{ type: "image", data: image, mimeType: "image/png" }, { type: "image", data: image, mimeType: "image/png" }],
+    [{ type: "text", text: "\u0001".repeat(8000) }, { type: "text", text: "z".repeat(8000) }],
+  ];
+  try {
+    for (const content of cases) {
+      f.node.request = async () => ({ ...incoming({ content, display: true }, "peer"), reply_to: "a".repeat(32) });
+      const r = await f.call("nodalwire_request", { to: "peer", message: { content: "query", display: true } });
+      assert.equal(r.details.truncated, true);
+      assert.ok(Buffer.byteLength(JSON.stringify(r.content)) <= 50 * 1024);
+      assert.deepEqual(r.details.message.content, content, "original reply remains in native result details");
+      assert.match(r.content.at(-1).text, /truncated.*50 KiB/);
+      for (const block of r.content) {
+        if (block.type === "image") assert.equal(block.data, image);
+        else {
+          assert.ok(Buffer.byteLength(block.text) <= 48 * 1024);
+          assert.ok(!Array.from(block.text).some(c => c.length === 1 && /[\uD800-\uDFFF]/.test(c)), "no split surrogate pair");
+        }
+      }
+    }
+    f.node.request = async () => ({ ...incoming("x".repeat(48 * 1024), "peer"), reply_to: "a".repeat(32) });
+    const full = await f.call("nodalwire_request", { to: "peer", message: { content: "query", display: true } });
+    assert.equal(full.details.truncated, false); assert.equal(full.content[1].text.length, 48 * 1024);
+  } finally { await f.emit("session_shutdown"); }
+});
+
+for (const change of ["disconnect", "cancel"]) {
+  test(`request fences ${change} between transport resolution and caller continuation`, async () => {
+    const f = fixture({ name: "pi-test" }); await f.emit("session_start");
+    const abort = new AbortController(); let closing;
+    f.node.request = async () => {
+      queueMicrotask(() => queueMicrotask(() => {
+        if (change === "disconnect") closing = f.connection("disconnect");
+        else abort.abort(new Error("PRIVATE-boundary-cancellation"));
+      }));
+      return { ...incoming("must not escape", "peer"), reply_to: "a".repeat(32) };
+    };
+    try {
+      await assert.rejects(f.call("nodalwire_request", { to: "peer", message: { content: "query", display: true } }, abort.signal), error => {
+        assert.match(error.message, /changed|cancel|uncertain/i);
+        assert.ok(!error.message.includes("PRIVATE")); return true;
+      });
+    } finally {
+      if (closing) await closing;
+      await f.emit("session_shutdown");
+    }
+  });
+}

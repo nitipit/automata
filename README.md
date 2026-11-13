@@ -104,11 +104,13 @@ refresh the loaded tools.
 The opt-in [`nodalwire` extension](src/automata/runtimes/pi/extensions/nodalwire/README.md)
 connects Pi to an existing trusted-local NodalWire relay. It receives custom
 messages preserving native `pi.sendMessage()` delivery/wake-up options and provides
-`nodalwire_connection` for client lifecycle control and `nodalwire_send` for
-API-shaped named-peer messages. Prepare the pinned Edictor validator and published
-`@devcapsule/nodalwire-client` dependencies as described in its README. There is no
-automatic installation, relay startup, peer discovery or authentication. Live-model
-trials require separate approval; automated checks do not prove live delivery.
+client lifecycle, explicit network membership, native message metadata and bounded
+request/reply tools. Protected joins use operator-configured credential aliases;
+omitted send/request networks remain literal `default`. Prepare the pinned Edictor
+validator and published `@devcapsule/nodalwire-client` dependencies as described in
+its README. There is no automatic installation, relay startup, peer discovery or
+authenticated peer identity. Live-model trials require separate approval; isolated
+relay tests do not establish production-peer readiness.
 
 ## Entry points
 

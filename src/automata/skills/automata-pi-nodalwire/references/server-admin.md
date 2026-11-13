@@ -52,7 +52,8 @@ provisioning. Reuse existing approval; do not ask again on every connection.
 - Observe the bound endpoint and `serving` status, then verify the intended relay
   using an authorized bounded read below. A live process/open socket alone proves
   neither readiness nor admin authentication. For messaging readiness also confirm
-  the recipient is connected and has membership; the Pi bridge needs open `default`.
+  the recipient is connected and both peers belong to the selected network. Check
+  the active Pi bundle's membership tools; older bridges support only open `default`.
   A protected default can admit a client without allowing sends.
 - When its approved lifetime ends, stop only the owned relay: Ctrl-C for its
   foreground process or orderly signalling via the retained owned handle. Await
@@ -121,8 +122,9 @@ or claim no effect. A successful receipt is not proof of downstream work.
 Stop old messaging applications/relay under their owners' approval. Upgrade the
 relay and **every** messaging peer to 0.3.0 together: NWM3 cannot mix with 0.2.x
 AR2. NA1 administration and `config_version = 2` are unchanged; no automatic
-config conversion is needed. Pi application envelope v2 and tool arguments stay
-unchanged. External clients remove NWR1 codecs; payloads are raw bytes, native
+config conversion is needed. Pi application envelope v2 and existing ordinary
+send arguments remain compatible; expanded tools add explicit networks and native
+request/reply. External clients remove NWR1 codecs; payloads are raw bytes, native
 `id`/`reply_to` carry correlation, and `send`/`reply` return accepted ID strings.
 Regenerate old saved CLI message-event inputs before using 0.3 reply commands.
 

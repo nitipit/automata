@@ -10,9 +10,10 @@ import pytest
     [
         ("nodalwire", "protocol.test.ts", ("edictor",)),
         ("nodalwire", "messaging.test.ts", ("edictor", "typebox")),
+        ("nodalwire", "support.test.ts", ()),
     ],
     ids=[
-        "nodalwire-protocol", "nodalwire-messaging",
+        "nodalwire-protocol", "nodalwire-messaging", "nodalwire-support",
     ],
 )
 def test_extension_unit(run_extension_node, bundle: str, suite: str, libraries: tuple[str, ...]):

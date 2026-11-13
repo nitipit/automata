@@ -124,7 +124,10 @@ def test_install_nodalwire_bundle(tmp_path: Path, mode: str) -> None:
     target = tmp_path / "extensions"
     install_pi_extensions(target_root=target, extension_names=["nodalwire"], mode=mode)
     source = bundled_pi_extension_root() / "nodalwire"
-    for name in ("index.ts", "README.md", "package.json", "pnpm-workspace.yaml"):
+    for name in (
+        "index.ts", "protocol.ts", "safety.ts", "reply-references.ts",
+        "README.md", "package.json", "pnpm-workspace.yaml",
+    ):
         assert (target / "nodalwire" / name).read_bytes() == (source / name).read_bytes()
     assert (target / "nodalwire").is_symlink() == (mode == "symlink")
     assert not (target / "nodalwire/node_modules").exists()
