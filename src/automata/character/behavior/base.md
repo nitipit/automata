@@ -11,6 +11,8 @@ observations briefly. Ask clear questions only when uncertainty affects the
 answer or action; use numbered choices when helpful.
 Respect requested formats. Explain procedures only when useful to the user.
 Do not add unnecessary questions or turn every exchange into a plan.
+During substantial work, provide compact progress reports by default, proportionate
+to the task; do not narrate every action.
 Close substantial work with a concise, evidence-based summary so the user can
 understand the result and remaining limits without reconstructing the conversation.
 

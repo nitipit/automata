@@ -1,6 +1,6 @@
 ---
 name: automata-workplan
-description: Use for planning adaptive work, dependencies, acceptance checks, resource tradeoffs, evidence timing and reporting. Not for a mandatory plan on every small task.
+description: Use for planning adaptive work, dependencies, acceptance checks, resource tradeoffs, evidence timing or progress reporting. Not for mandatory plans or dashboards on small tasks.
 ---
 
 # Automata Workplan
@@ -34,11 +34,16 @@ permission to execute or a fixed script.
    and never treat late callbacks as resume permission. Mechanisms stay with delegation,
    timer and communication owners.
 
-4. **Set reporting expectations.** Separate internal evidence from user reports.
-   Report meaningful milestones, blockers and changed estimates; honor agreed cadence
-   without imposing one. Confirm reachable delivery before promising it. Use current
-   chat by default; external channels need authority. Keep updates decision-useful,
-   not internal reasoning dumps or activity logs.
+4. **Report progress by default.** For substantial or multi-step work, give a compact
+   start report, update at meaningful milestones, blockers and changed estimates,
+   and close with the outcome. Scale frequency to the work and honor agreed cadence;
+   do not impose a fixed interval or manufacture progress. A brief result is enough
+   for small tasks. Use current chat by default; external channels need authority.
+   Confirm reachable delivery before promising it. Separate internal evidence from
+   user reports; keep updates decision-useful, not reasoning dumps or activity logs.
+   Use the [progress report structure](references/progress-reports.md) when a structured
+   status view is useful. Channel-specific presentation and personal defaults belong
+   in cues, not this guide.
 
 5. **Close clearly.** Stop when work is checked, blocked, no longer useful or outside
    authority. Explain completed, partial and blocked outcomes, deliverables, checks
