@@ -1,5 +1,6 @@
-import { Adapter } from "@devcapsule/adapter";
-import { nativeDialogStyle } from "./native-dialog.style";
+import { Base } from "./base";
+import type { ResolvedTheme } from "../_theme/index";
+import { nativeDialogStyle, nativeDialogTheme } from "./native-dialog.style";
 
 /** A single native RPC interaction. Undefined is cancellation, never an implicit yes. */
 export type DialogRequest =
@@ -11,7 +12,8 @@ export type DialogRequest =
 export type DialogResult = boolean | string | undefined;
 
 /** Presentation only: callers own RPC correlation, timeout and cancellation. */
-export class NativeDialog extends Adapter {
+export class NativeDialog extends Base {
+  protected themedStyle(theme: ResolvedTheme): string { return nativeDialogTheme(theme); }
   private dialog: HTMLDialogElement;
   private resolve?: (value: DialogResult) => void;
 
@@ -101,7 +103,7 @@ export class NativeDialog extends Adapter {
 
   cancel(): void { this.finish(undefined); }
 
-  disconnectedCallback(): void { this.cancel(); }
+  disconnectedCallback(): void { this.cancel(); super.disconnectedCallback(); }
 
   private finish(value: DialogResult): void {
     const resolve = this.resolve;

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import re
 import secrets
 import signal
 import webbrowser
@@ -69,13 +70,15 @@ class BrowserHost:
         async def asset(name: str, request: Request):
             if not self.runtime._local_request(request):
                 return Response(status_code=403)
-            # Exact flat build output only; never mount frontend/node_modules/repo.
-            if (
-                name not in {"index.js", "adaptive.css"}
-                or not (PACKAGE / "public" / name).is_file()
-            ):
+            # Reviewed flat ESM graph only; never mount frontend/node_modules/repo.
+            allowed = name in {
+                "index.js", "ui.js", "adaptive.css", "adapter-LICENSE.txt",
+                "third-party-LICENSES.txt",
+            } or re.fullmatch(r"chunk-[A-Z0-9]{8}\.js", name)
+            path = PACKAGE / "public" / name
+            if not allowed or not path.is_file() or path.is_symlink():
                 return Response(status_code=404)
-            return FileResponse(PACKAGE / "public" / name, headers={"Cache-Control": "no-store"})
+            return FileResponse(path, headers={"Cache-Control": "no-store"})
 
         async def connector(operation: str, request: Request):
             expected = f"Bearer {self.connector_token}"

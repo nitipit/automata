@@ -1,6 +1,8 @@
 import { Adapter } from "@devcapsule/adapter";
 import { applyBaseStyles } from "./_base.css";
-import { appStyle } from "./index.style";
+import { appStyle, appThemeStyle } from "./index.style";
+import { bindTheme } from "./_theme/index";
+import { Markdown } from "./_components/markdown";
 import "./_components/status-badge";
 import "./_components/native-dialog";
 import type { NativeDialog, DialogRequest } from "./_components/native-dialog";
@@ -15,6 +17,9 @@ const element = <T extends Element>(selector: string): T => {
   if (!result) throw new Error(`Missing interface element: ${selector}`);
   return result;
 };
+const appHost = element<AutomataApp>("automata-app");
+const unbindAppTheme = bindTheme(appHost, theme => { appHost.css = appThemeStyle(theme); });
+window.addEventListener("pagehide", unbindAppTheme, { once: true });
 const transcript = element<HTMLElement>("#transcript");
 const form = element<HTMLFormElement>("#composer");
 const prompt = element<HTMLTextAreaElement>("#prompt");
@@ -64,8 +69,10 @@ function createMessage(role: string, text: string): MessageView {
   const label = document.createElement("span");
   label.className = "message-label";
   label.textContent = role === "user" ? "You" : "Automata";
-  const body = document.createElement("div");
-  body.textContent = text;
+  const body = role === "assistant" ? new Markdown() : document.createElement("div");
+  body.className = "message-body";
+  if (body instanceof Markdown) body.source = text;
+  else body.textContent = text;
   const ui = document.createElement("div");
   ui.className = "message-ui";
   node.append(label, body, ui);
@@ -271,8 +278,9 @@ function handleEvent(event: RecordValue) {
       const index = Number(update.contentIndex ?? 0);
       if (update.type === "text_delta") stream.blocks.set(index, (stream.blocks.get(index) ?? "") + String(update.delta ?? ""));
       if (update.type === "text_end") stream.blocks.set(index, String(update.content ?? ""));
-      stream.view.body.textContent = [...stream.blocks.entries()].sort((a, b) => a[0] - b[0]).map(([, value]) => value).join("");
-      if (stream.view.body.textContent) reveal(stream.view);
+      const text = [...stream.blocks.entries()].sort((a, b) => a[0] - b[0]).map(([, value]) => value).join("");
+      (stream.view.body as Markdown).source = text;
+      if (text) reveal(stream.view);
       break;
     }
     case "message_end":
@@ -280,7 +288,7 @@ function handleEvent(event: RecordValue) {
         const text = textOf(event.message);
         if (stream) {
           registerOwners(event.message, stream.view, true);
-          stream.view.body.textContent = text;
+          (stream.view.body as Markdown).source = text;
           if (text || stream.view.ui.childNodes.length) reveal(stream.view);
         } else {
           const view = showMessage(event.message);
@@ -297,7 +305,8 @@ function handleFrame(frame: RecordValue) {
     case "snapshot":
       // Rebuild native text/ownership, retaining page-local block nodes by ID.
       const focused = document.activeElement instanceof HTMLElement &&
-        [...liveBlocks.values()].some(block => block.contains(document.activeElement))
+        ([...liveBlocks.values()].some(block => block.contains(document.activeElement)) ||
+          !!stream?.view.body.contains(document.activeElement))
         ? document.activeElement : null;
       transcript.replaceChildren();
       owners.clear();

@@ -1,5 +1,9 @@
 await new Promise(resolve => setTimeout(resolve, 100));
 const check = (value, label) => { if (!value) failures.push(label); };
+const { checkTextComponents } = await import('/text-test.js');
+await checkTextComponents(check);
+const { checkControls } = await import('/controls-test.js');
+await checkControls(check);
 const send = document.querySelector("#send");
 const prompt = document.querySelector("#prompt");
 const state = document.querySelector("#run-status");
@@ -29,6 +33,23 @@ check(transcript.textContent.includes("partial"), "stream delta");
 sock.emit({type:"rpc_event", event:{type:"message_end", message:{role:"assistant", content:[{type:"text", text:"final <b>safe</b>"}]}}});
 check(transcript.textContent.includes("final <b>safe</b>"), "final authoritative");
 check(!transcript.querySelector("img,b"), "text not HTML");
+// An owned live root is a sibling of assistant Markdown, never a render target.
+sock.emit({type:'rpc_event',event:{type:'message_start',message:{role:'assistant',content:[{type:'toolCall',id:'markdown-live-owner'}]}}});
+sock.emit({type:'rpc_event',event:{type:'message_update',assistantMessageEvent:{type:'text_delta',contentIndex:0,delta:'```js\nconst x ='}}});
+const streamingMarkdown = transcript.querySelector('article:last-child ui-markdown');
+const streamingFence = streamingMarkdown.querySelector('ui-codeblock');
+const streamingCopy = streamingFence.querySelector('button');
+streamingCopy.focus();
+sock.emit({type:'snapshot',messages:[],state:{status:'running'}});
+check(streamingMarkdown.isConnected && streamingMarkdown.querySelector('ui-codeblock') === streamingFence && document.activeElement === streamingCopy, 'in-flight snapshot preserves fence control identity and Copy focus');
+const streamingRoot = window.automataUI.context('markdown-live-owner').root;
+const streamingInput = document.createElement('input');
+streamingInput.value = 'kept'; streamingRoot.append(streamingInput); streamingInput.focus();
+sock.emit({type:'rpc_event',event:{type:'message_update',assistantMessageEvent:{type:'text_delta',contentIndex:0,delta:' 1;\n```\n\n**Done**'}}});
+check(streamingMarkdown.querySelector('ui-codeblock') === streamingFence && streamingFence.querySelector('button') === streamingCopy, 'assistant streaming uses shared Markdown and stable fence controls');
+check(streamingRoot.isConnected && streamingRoot.contains(streamingInput) && streamingInput.value === 'kept' && document.activeElement === streamingInput, 'streaming Markdown retains owned live root input and focus');
+sock.emit({type:'rpc_event',event:{type:'message_end',message:{role:'assistant',content:[{type:'text',text:'```js\nconst x = 1;\n```\n\n**Done**'},{type:'toolCall',id:'markdown-live-owner'}]}}});
+check(streamingMarkdown.querySelector('strong')?.textContent === 'Done' && document.activeElement === streamingInput && window.automataUI.context('markdown-live-owner').root === streamingRoot, 'final Markdown reconciliation preserves live ownership');
 const call = id => ({type:"toolCall", id, name:"web_ui_execute", arguments:{code:""}});
 if (window.bridgeSock) {
   sock.emit({type:"rpc_event",event:{type:"message_start",message:{role:"assistant",content:[]}}});

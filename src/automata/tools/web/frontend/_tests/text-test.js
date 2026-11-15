@@ -1,0 +1,81 @@
+// Synthetic component checks. No model execution or external submissions.
+export async function checkTextComponents(check) {
+  const { CodeBlock, Markdown, createTheme, setTheme, clearTheme, bindTheme, themeDiagnostics } = await import('/ui.js');
+  const tick = () => new Promise(resolve => setTimeout(resolve, 20));
+  const mount = document.createElement('section');
+  mount.setAttribute('aria-label', 'Synthetic text component fixtures');
+  document.body.append(mount);
+  const markdown = new Markdown();
+  mount.append(markdown);
+  check(customElements.get('ui-markdown') === Markdown && customElements.get('ui-codeblock') === CodeBlock, 'public ESM exports share registered text classes');
+  markdown.source = '# Heading\n\n<script>window.unsafeMarkdown = true</script>\n<img src=x onerror="window.unsafeMarkdown=true">\n\n[bad](javascript:alert(1)) [bad](vbscript:x) [bad](file:///x) [bad](data:text/html;base64,eA==) [good](https://example.org)';
+  check(markdown.querySelector('h1')?.textContent === 'Heading', 'Markdown headings render');
+  check(!markdown.querySelector('script,img') && !window.unsafeMarkdown && markdown.textContent.includes('<script>'), 'Markdown raw HTML stays escaped text');
+  check(markdown.querySelectorAll('a').length === 1 && markdown.querySelector('a')?.getAttribute('href') === 'https://example.org', 'unsafe Markdown URL schemes rejected');
+  markdown.source = '> Quoted\n\n- first\n- second\n\n| A | B |\n|---|---|\n| one | two |';
+  check(!!markdown.querySelector('blockquote') && markdown.querySelectorAll('li').length === 2 && !!markdown.querySelector('table'), 'Markdown quote list table support');
+  const source = '<script>alert("never")</script>\r\nconst quoted = `x`;\r\n';
+  const block = new CodeBlock();
+  block.setCode(source, 'made-up');
+  mount.append(block);
+  check(block.source === source && block.querySelector('code')?.textContent === source, 'unknown language exact plaintext source');
+  check(!block.querySelector('script') && !window.unsafeCode, 'code source is never executable DOM');
+  const button = block.querySelector('button');
+  const oldClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  let copied;
+  const setClipboard = value => Object.defineProperty(navigator, 'clipboard', { configurable: true, value });
+  try {
+    setClipboard({ writeText: async text => { copied = text; } });
+    button.click(); await Promise.resolve(); await Promise.resolve();
+    check(copied === source && block.textContent.includes('Copied'), 'Copy writes exact original property source');
+    setClipboard({ writeText: async () => { throw new Error('synthetic denial'); } });
+    button.click(); await Promise.resolve(); await Promise.resolve();
+    check(block.textContent.includes('Copy failed') && !button.disabled, 'clipboard rejection is reported and retry remains enabled');
+    setClipboard(undefined);
+    button.click(); await Promise.resolve(); await Promise.resolve();
+    check(block.textContent.includes('Copy failed'), 'clipboard API absence handled');
+    let finishCopy;
+    setClipboard({ writeText: () => new Promise(resolve => { finishCopy = resolve; }) });
+    button.click(); block.source = 'updated while copying'; finishCopy();
+    await Promise.resolve(); await Promise.resolve();
+    check(!block.textContent.includes('Copied') && !button.hasAttribute('aria-busy'), 'source update suppresses stale asynchronous Copy success');
+  } finally {
+    if (oldClipboard) Object.defineProperty(navigator, 'clipboard', oldClipboard);
+    else delete navigator.clipboard;
+  }
+  block.setCode(source, 'js');
+  check(block.querySelector('code')?.textContent === source, 'highlighted source retains carriage returns and quotes');
+  block.setCode('const value = "<img>";', 'js');
+  check(!!block.querySelector('.hljs-keyword') && block.querySelector('code')?.textContent === block.source, 'explicit local highlighting preserves source text');
+  check(block.querySelector('button') === button, 'code update retains Copy control');
+  markdown.source = 'Before\n\n```typescript\nconst value =';
+  const fence = markdown.querySelector('ui-codeblock');
+  const copy = fence.querySelector('button');
+  copy.focus();
+  markdown.source += ' 1;\n';
+  check(markdown.querySelector('ui-codeblock') === fence && fence.querySelector('button') === copy && document.activeElement === copy, 'incomplete streamed fence preserves component Copy identity and focus');
+  markdown.source += '```\n\nAfter';
+  check(markdown.querySelector('ui-codeblock') === fence && fence.querySelector('button') === copy && document.activeElement === copy && fence.source === 'const value = 1;\n', 'closing streamed fence retains stable controls and semantic source');
+  markdown.source = '```unknown language="unsafe"\n<img src=x onerror=alert(1)>\n```';
+  const unknown = markdown.querySelector('ui-codeblock');
+  check(unknown.source === '<img src=x onerror=alert(1)>\n' && !unknown.querySelector('img') && unknown.querySelector('code').textContent === unknown.source, 'fenced code source uses text property, not HTML attribute interpolation');
+  const explicit = createTheme({ mode: 'dark', roles: { surface: '#123456' } });
+  markdown.theme = explicit; await tick();
+  check(markdown.theme === explicit && unknown.theme === explicit, 'Markdown explicit theme reference reaches owned code block');
+  setTheme(mount, { mode: 'light', roles: { surface: '#345678' } });
+  markdown.theme = undefined; await tick();
+  check(markdown.theme !== explicit && unknown.theme === markdown.theme && unknown.theme.value.roles.surface === '#345678', 'explicit theme removal restores nearest inherited scope');
+  clearTheme(mount);
+  const diagnostics = themeDiagnostics();
+  const ref = createTheme({ mode: 'light' });
+  const callbacks = [0, 0, 0, 0];
+  const stops = callbacks.map((_, index) => bindTheme(mount, () => { callbacks[index]++; }, ref));
+  ref.set({ mode: 'dark' }); // Queue all four effects, then dispose a subset before flush.
+  stops[0](); stops[1](); await tick();
+  const disposedCounts = callbacks.slice(0, 2);
+  ref.set({ mode: 'light' }); await tick();
+  check(callbacks[0] === disposedCounts[0] && callbacks[1] === disposedCounts[1] && callbacks[2] >= 3 && callbacks[3] >= 3, 'queued theme watcher disposal neither re-registers null listeners nor invokes disposed callbacks');
+  stops[2](); stops[3](); await tick();
+  check(JSON.stringify(themeDiagnostics()) === JSON.stringify(diagnostics), 'disposed theme watcher bindings and observed roots return to baseline');
+  mount.remove();
+}
