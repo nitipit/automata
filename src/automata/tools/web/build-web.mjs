@@ -3,7 +3,7 @@ import { mkdir, copyFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 // Only this flat output is public. Never publish sources or dependency trees.
-const root = new URL("../", import.meta.url);
+const root = new URL("../../../../", import.meta.url);
 const output = process.argv[2] ? resolve(process.argv[2]) : new URL("src/automata/tools/web/public/", root).pathname;
 await mkdir(output, { recursive: true });
 await build({

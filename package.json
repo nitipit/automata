@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:web": "node scripts/build-web.mjs"
+    "build:web": "node src/automata/tools/web/build-web.mjs"
   },
   "dependencies": {
     "@devcapsule/adapter": "https://npm.jsr.io/~/11/@jsr/devcapsule__adapter/4.0.0.tgz"
