@@ -147,8 +147,8 @@ async def main(no_build=False):
                 failures = [name for name, passed in result["checks"].items() if not passed]
                 assert not failures, f"Production graph checks failed: {failures}; {result}"
                 example = (
-                    files("automata.tools.web")
-                    .joinpath("authoring.md")
+                    files("automata")
+                    .joinpath("skills/automata-web-ui/SKILL.md")
                     .read_text()
                     .split("```js\n", 1)[1]
                     .split("\n```", 1)[0]
@@ -166,7 +166,7 @@ async def main(no_build=False):
                     example,
                 )
                 assert example_ok, (
-                    "Authoring code example must execute against actual runtime exports"
+                    "Web UI skill example must execute against actual runtime exports"
                 )
                 result["checks"]["authoringExample"] = example_ok
                 assert rpc.prompts == 0

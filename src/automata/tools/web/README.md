@@ -4,8 +4,9 @@
 with its usual working directory, configuration, tools and persistence. Generated
 HTML/Web Components/JavaScript belong inline in assistant messages, not a separate
 panel. Full-page JavaScript is **not sandboxed**. Restored UI history is inactive;
-historical JavaScript is never automatically replayed. See [the authoring example](authoring.md)
-for the canonical local ESM imports, themed components and owned-root contract.
+historical JavaScript is never automatically replayed. See the
+[Web UI skill](../../skills/automata-web-ui/SKILL.md) for shared-component authoring
+and a practical example; the Pi extension's tool definitions own exact contracts.
 
 ## Build and run
 

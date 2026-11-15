@@ -3,7 +3,12 @@
 Loaded by Automata browser mode into its native Pi RPC process. Requires that
 host's `AUTOMATA_WEB_CONNECTOR_URL` and separate `AUTOMATA_WEB_CONNECTOR_TOKEN`;
 never put secrets in tool arguments. Pi supplies typebox; no new npm dependency
-or connection starts in the extension factory.
+or connection starts in the extension factory. With valid host configuration and
+`web_ui_execute` active, a compact Pi prompt section orients the agent automatically.
+The bundled [Web UI skill](../../../../skills/automata-web-ui/SKILL.md) is added
+through native skill discovery in source and Python-package layouts. A standalone
+copy of just this extension needs that skill installed separately; no global skill
+or configuration is changed automatically.
 
 1. `web_ui_subscribe({name:"answer:chosen",correlationId:"question-1"})` before
    enabling input.

@@ -11,7 +11,7 @@ function fixture(handler = async () => ({ ok: true }), config = env) {
     const call = { url, ...options, payload: JSON.parse(options.body) }; calls.push(call);
     return Response.json(await handler(call));
   }, config);
-  return { tools, calls, pi, shutdown: () => events.get("session_shutdown")(),
+  return { tools, calls, pi, events, shutdown: () => events.get("session_shutdown")(),
     call: (name, params, signal, toolCallId = "call") => tools.find(tool => tool.name === "web_ui_" + name).execute(toolCallId, params, signal) };
 }
 
@@ -22,6 +22,33 @@ test("factory registers actual four-tool surface without network; missing env fa
   assert.equal((await f.call("execute", { code: "return 1;" })).details.error.code, "configuration");
   assert.equal(f.calls.length, 0);
   register(f.pi); // Real default factory is safe without host configuration.
+  await f.shutdown();
+});
+
+test("orientation is configuration/tool scoped and changes only its own stable section", async () => {
+  for (const config of [{}, { ...env, AUTOMATA_WEB_CONNECTOR_TOKEN: "" },
+    { ...env, AUTOMATA_WEB_CONNECTOR_URL: "https://example.com/connector" },
+    { ...env, AUTOMATA_WEB_CONNECTOR_URL: env.AUTOMATA_WEB_CONNECTOR_URL + "?secret=no" }]) {
+    const f = fixture(undefined, config);
+    const options = { selectedTools: ["web_ui_execute"], sections: { other: "preserved", automata_web_ui: "stale" } };
+    assert.equal(f.events.get("before_agent_start")({ systemPromptOptions: options }), undefined);
+    assert.deepEqual(options.sections, { other: "preserved" });
+    assert.equal(f.calls.length, 0);
+    await f.shutdown();
+  }
+  const config = { ...env }, f = fixture(undefined, config);
+  const options = { selectedTools: ["read", "web_ui_execute"], sections: { other: "preserved" }, customPrompt: "USER CONFIG" };
+  f.events.get("before_agent_start")({ systemPromptOptions: options });
+  const once = structuredClone(options);
+  assert.ok(options.sections.automata_web_ui.length > 0);
+  assert.equal(JSON.stringify(options).includes("PRIVATE"), false);
+  f.events.get("before_agent_start")({ systemPromptOptions: options });
+  assert.deepEqual(options, once);
+  options.selectedTools = ["read"];
+  f.events.get("before_agent_start")({ systemPromptOptions: options });
+  assert.deepEqual(options.sections, { other: "preserved" });
+  assert.equal(options.customPrompt, "USER CONFIG");
+  assert.equal(f.calls.length, 0);
   await f.shutdown();
 });
 

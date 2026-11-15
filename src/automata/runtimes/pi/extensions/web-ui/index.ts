@@ -1,3 +1,6 @@
+import { accessSync, constants } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { Connector, ConnectorError, type ConnectorConfig, type Fetch, validateConfig } from "./connector.ts";
@@ -16,11 +19,32 @@ function configuration(env: NodeJS.ProcessEnv): ConnectorConfig {
   return validateConfig({ origin: url.origin, token: env.AUTOMATA_WEB_CONNECTOR_TOKEN ?? "" });
 }
 
+/** Source and Python wheels preserve this package-relative layout. No global skill install is needed. */
+const authoringSkill = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../skills/automata-web-ui/SKILL.md");
+function bundledSkill(): string[] {
+  try { accessSync(authoringSkill, constants.R_OK); return [authoringSkill]; }
+  catch { return []; } // A standalone copied extension may use independently installed skills.
+}
+
+const orientation = "You are already in the user's running Automata browser app, in its native Pi conversation. Use normal text when appropriate; optional inline UI can make interaction useful. Use the existing web_ui_* tools for this page, not a new runtime/server/browser. Default to your tool-call-owned content region; host-wide changes remain available when requested. Browser events are application input, not secretly authored human prompts. Same-page blocks can remain live; reloaded/resumed history is inactive and does not restore or replay JavaScript. Read the available automata-web-ui skill for shared-component authoring and a practical example; exact tool and lifecycle contracts are in the tool definitions.";
+
 /** Test seam supplies only collaborators; default factory opens no resources. */
 export function registerWebUI(pi: ExtensionAPI, fetcher: Fetch = globalThis.fetch, env: NodeJS.ProcessEnv = process.env) {
   const connector = new Connector(fetcher);
   const subscriptions = new Map<string, ConnectorConfig>();
   let closing = false;
+  pi.on("resources_discover", () => ({ skillPaths: bundledSkill() }));
+  // Pi 1.5.2 diffs structured sections, including across compaction. A stable
+  // section avoids injecting repeated conversation messages or replacing prompts.
+  pi.on("before_agent_start", (event) => {
+    let configured = false;
+    try { configuration(env); configured = true; } catch { /* No live host orientation. */ }
+    if (configured && event.systemPromptOptions.selectedTools?.includes("web_ui_execute")) {
+      event.systemPromptOptions.sections.automata_web_ui = orientation;
+    } else {
+      delete event.systemPromptOptions.sections.automata_web_ui;
+    }
+  });
   const result = (data: Record<string, unknown>, isError = false) => {
     const text = JSON.stringify(data);
     // Bound BOTH model text and stored details. No hidden full oversized browser payload.
@@ -82,7 +106,7 @@ export function registerWebUI(pi: ExtensionAPI, fetcher: Fetch = globalThis.fetc
   };
   pi.registerTool({
     name: "web_ui_execute", label: "Execute browser JavaScript",
-    description: "Execute an arbitrary async JavaScript FUNCTION BODY in the current browser page, with full page privileges (NOT a sandbox). Receives bridge (bridge.state retains page-local values/functions; bridge.emit(name, JSON) sends events) and execution-local ui ({blockId,toolCallId,root}). Before running your body, waits for this exact native assistant toolCall owner for at most half timeoutMs, capped at 1s; unavailable/inactive/ambiguous owner fails explicitly without running the body, never targets the latest reply. Access ui.root to lazily create this call's stable inline block inside that owning assistant message. Create the initial ui.root before returning; await asynchronous initial rendering. Settlement seals FIRST root creation: deferred callbacks cannot create a previously unused block after return/error, but existing roots remain available to later handlers. Use arbitrary HTML/WebComponents/JS, no widget schema. Canonical runtime ESM: const UI=await import('/assets/ui.js') exposes shared Adapter/css, ArrowJS, culori, palette/theme, Base and components; append constructed elements to ui.root. Do not load CDN copies or duplicate classes/stores. Minimal authoring example: automata/tools/web/authoring.md in the installed Python package (source: src/automata/tools/web/authoring.md). Subscribe BEFORE enabling controls; emit meaningful app-defined event names and JSON payloads (include ui.blockId/correlationId when useful), then wait/read events explicitly: DOM changes are not automatically observed. Clicks do not author human chat messages. Return a small JSON value; root undefined becomes null. Result ui metadata records a materialized block, including caught JS errors; reload/resume shows it inactive, NEVER replays JS or restores DOM state. To target a recorded SAME-PAGE LIVE block in a later call, use const prior=window.automataUI.context(recordedToolCallId); check prior.materialized is true BEFORE accessing prior.root. Otherwise stop: do not create/revive an inactive historical root. This is caller guidance, not a sandbox guarantee. Same-page blocks can stay live while handlers remain valid. IDs/layout are conventions, NOT a sandbox. No implicit retries: timeout/cancellation/disconnect may follow real effects without undoing JS. Output limited to 48 KiB; larger values omitted. Only perform user-authorized actions.",
+    description: "Execute an arbitrary async JavaScript FUNCTION BODY in the current browser page, with full page privileges (NOT a sandbox). Receives bridge (bridge.state retains page-local values/functions; bridge.emit(name, JSON) sends events) and execution-local ui ({blockId,toolCallId,root}). Before running your body, waits for this exact native assistant toolCall owner for at most half timeoutMs, capped at 1s; unavailable/inactive/ambiguous owner fails explicitly without running the body, never targets the latest reply. Access ui.root to lazily create this call's stable inline block inside that owning assistant message. Create the initial ui.root before returning; await asynchronous initial rendering. Settlement seals FIRST root creation: deferred callbacks cannot create a previously unused block after return/error, but existing roots remain available to later handlers. Use arbitrary HTML/WebComponents/JS, no widget schema. Canonical runtime ESM: const UI=await import('/assets/ui.js') exposes shared Adapter/css, ArrowJS, culori, palette/theme, Base and components; append constructed elements to ui.root. Do not load CDN copies or duplicate classes/stores. Shared-component authoring and a practical example: read the available automata-web-ui skill. Subscribe BEFORE enabling controls; emit meaningful app-defined event names and JSON payloads (include ui.blockId/correlationId when useful), then wait/read events explicitly: DOM changes are not automatically observed. Clicks do not author human chat messages. Return a small JSON value; root undefined becomes null. Result ui metadata records a materialized block, including caught JS errors; reload/resume shows it inactive, NEVER replays JS or restores DOM state. To target a recorded SAME-PAGE LIVE block in a later call, use const prior=window.automataUI.context(recordedToolCallId); check prior.materialized is true BEFORE accessing prior.root. Otherwise stop: do not create/revive an inactive historical root. This is caller guidance, not a sandbox guarantee. Same-page blocks can stay live while handlers remain valid. IDs/layout are conventions, NOT a sandbox. No implicit retries: timeout/cancellation/disconnect may follow real effects without undoing JS. Output limited to 48 KiB; larger values omitted. Only perform user-authorized actions.",
     promptSnippet: "Execute general JavaScript in the browser and create interactive UI",
     parameters: Type.Object({ code: Type.String({ minLength: 1, maxLength: 60000, description: "Async function body, e.g. ui.root.textContent='Hello'; return ui.blockId; may use await, bridge and ui" }), timeoutMs: timeout(10000) }),
     execute: async (toolCallId, params, signal) => invoke("execute", { ...params, toolCallId }, signal),
