@@ -44,6 +44,37 @@ app.command(plugin_app, name="plugin")
 pi_extension_app = App(help="Install bundled or local Pi extension files.")
 app.command(pi_extension_app, name="pi-extension")
 
+
+@app.command(name="web")
+def web(
+    *,
+    cwd: Path | None = None,
+    pi: str = "pi",
+    port: int = 0,
+    provider: str | None = None,
+    model: str | None = None,
+    thinking: str | None = None,
+    open_browser: bool = True,
+) -> None:
+    """Start a fresh browser-first Pi RPC session (requires the web extra)."""
+    try:
+        from automata.tools.web.host import run
+
+        run(
+            cwd=cwd,
+            pi=pi,
+            port=port,
+            provider=provider,
+            model=model,
+            thinking=thinking,
+            open_browser=open_browser,
+        )
+    except ModuleNotFoundError as exc:
+        raise SystemExit(
+            "Browser mode requires Automata's web extra; install automata[web]."
+        ) from exc
+
+
 DEFAULT_AGENT_INSTRUCTIONS_PATH = Path(".agents/var/skills/automata-agents-md")
 
 

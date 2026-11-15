@@ -103,7 +103,7 @@ def test_default_install_excludes_retired_extensions_without_uninstalling(
     expected = {
         "codex-bridge", "context-compaction", "context-status", "activity-usage",
         "fast-mode",
-        "message-timestamps", "nodalwire", "pi-sessions", "skill-activity",
+        "message-timestamps", "nodalwire", "pi-sessions", "skill-activity", "web-ui",
     }
     assert set(list_pi_extensions(bundled_pi_extension_root())) == expected
     results = install_pi_extensions(target_root=target)

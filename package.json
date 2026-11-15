@@ -1,0 +1,14 @@
+{
+  "name": "automata-browser-build",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:web": "node scripts/build-web.mjs"
+  },
+  "dependencies": {
+    "@devcapsule/adapter": "https://npm.jsr.io/~/11/@jsr/devcapsule__adapter/4.0.0.tgz"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}
