@@ -16,20 +16,6 @@ const element = <T extends Element>(selector: string): T => {
   return result;
 };
 const transcript = element<HTMLElement>("#transcript");
-const generated = element<HTMLElement>("#generated-ui");
-// Keep one stable bridge target: moving it preserves live controls and listeners.
-// It enters the transcript at the current reply when its content changes.
-const generatedObserver = new MutationObserver(() => {
-  generated.hidden = ![...generated.childNodes].some(node =>
-    node.nodeType === Node.ELEMENT_NODE || Boolean(node.textContent?.trim()));
-  if (!generated.hidden) {
-    transcript.querySelector(".empty-state")?.remove();
-    if (transcript.lastElementChild !== generated) transcript.append(generated);
-    transcript.scrollTop = transcript.scrollHeight;
-  }
-});
-generatedObserver.observe(generated, { childList: true, subtree: true, characterData: true });
-window.addEventListener("pagehide", () => generatedObserver.disconnect(), { once: true });
 const form = element<HTMLFormElement>("#composer");
 const prompt = element<HTMLTextAreaElement>("#prompt");
 const send = element<HTMLButtonElement>("#send");
@@ -43,7 +29,14 @@ type RecordValue = Record<string, any>;
 let state: "idle" | "running" | "stopping" | "error" = "error";
 let connected = false;
 let promptPending = false;
-let stream: { body: HTMLElement; blocks: Map<number, string> } | undefined;
+type MessageView = { node: HTMLElement; body: HTMLElement; ui: HTMLElement; anchor: Comment };
+let stream: { view: MessageView; blocks: Map<number, string>; message: RecordValue } | undefined;
+const owners = new Map<string, MessageView | null>();
+const liveOwners = new Set<string>();
+const liveBlocks = new Map<string, HTMLElement>();
+const finishedContexts = new Set<string>();
+const ownerWaiters = new Map<string, Set<() => void>>();
+let ownerWaiterCount = 0;
 let dialogQueue: RecordValue[] = [];
 const seenDialogs = new Set<string>();
 let dialogActive = false;
@@ -51,6 +44,9 @@ let generation = 0;
 let socket: WebSocket | undefined;
 const pending = new Map<string, "prompt" | "stop">();
 
+function setUIAvailable(available: boolean) {
+  for (const block of liveBlocks.values()) block.inert = !available;
+}
 function refresh() {
   send.disabled = !connected || state !== "idle" || promptPending;
   prompt.disabled = !connected;
@@ -58,11 +54,11 @@ function refresh() {
 }
 function setStatus(next: typeof state, detail?: string) {
   state = next;
+  if (next === "stopping" || next === "error") notifyOwnerWaiters();
   status.textContent = detail || ({ idle: "Ready", running: "Responding…", stopping: "Stopping…", error: "Unavailable" }[next]);
   refresh();
 }
-function appendMessage(role: string, text: string) {
-  transcript.querySelector(".empty-state")?.remove();
+function createMessage(role: string, text: string): MessageView {
   const node = document.createElement("article");
   node.className = `message ${role === "user" ? "user" : "assistant"}`;
   const label = document.createElement("span");
@@ -70,10 +66,127 @@ function appendMessage(role: string, text: string) {
   label.textContent = role === "user" ? "You" : "Automata";
   const body = document.createElement("div");
   body.textContent = text;
-  node.append(label, body);
-  transcript.append(node);
+  const ui = document.createElement("div");
+  ui.className = "message-ui";
+  node.append(label, body, ui);
+  const anchor = document.createComment("message");
+  transcript.append(anchor);
+  return { node, body, ui, anchor };
+}
+function reveal(view: MessageView) {
+  if (!view.node.isConnected) {
+    transcript.querySelector(".empty-state")?.remove();
+    if (view.anchor.isConnected) view.anchor.replaceWith(view.node);
+    else transcript.append(view.node);
+  }
   transcript.scrollTop = transcript.scrollHeight;
-  return body;
+}
+function notifyOwnerWaiters(id?: string) {
+  if (id !== undefined) ownerWaiters.get(id)?.forEach(check => check());
+  else for (const waiters of ownerWaiters.values()) waiters.forEach(check => check());
+}
+function registerOwners(message: RecordValue, view: MessageView, live = false) {
+  if (!Array.isArray(message?.content)) return;
+  for (const part of message.content) {
+    if (part?.type !== "toolCall" || typeof part.id !== "string" || !part.id) continue;
+    if (live) liveOwners.add(part.id);
+    const prior = owners.get(part.id);
+    // Ambiguous IDs must never target a different message.
+    if (prior && prior !== view) {
+      owners.set(part.id, null);
+      liveBlocks.get(part.id)?.remove();
+    }
+    else if (prior !== null) owners.set(part.id, view);
+    notifyOwnerWaiters(part.id);
+  }
+}
+function waitForOwner(toolCallId: string, timeoutMs: number): Promise<void> {
+  if (!Number.isFinite(timeoutMs) || timeoutMs < 1 || timeoutMs > 1000) return Promise.reject(new Error("Invalid owner readiness deadline"));
+  if (ownerWaiterCount >= 32) return Promise.reject(new Error("Too many owner readiness waits"));
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const checks = ownerWaiters.get(toolCallId) ?? new Set<() => void>();
+    ownerWaiters.set(toolCallId, checks);
+    ownerWaiterCount++;
+    const cleanup = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      clearInterval(watch);
+      checks.delete(check);
+      if (!checks.size) ownerWaiters.delete(toolCallId);
+      ownerWaiterCount--;
+    };
+    const check = () => {
+      if (!connected || state === "stopping" || state === "error" ||
+          (window as Window & { awr?: { status: string } }).awr?.status !== "connected") {
+        cleanup(); reject(new Error("Browser connection unavailable"));
+      } else if (owners.get(toolCallId) === null) {
+        cleanup(); reject(new Error("Assistant tool-call owner is ambiguous"));
+      } else if (owners.has(toolCallId) && liveOwners.has(toolCallId)) {
+        cleanup(); resolve();
+      }
+    };
+    const deadline = window.setTimeout(() => { cleanup(); reject(new Error("Assistant tool-call owner not available before deadline")); }, timeoutMs);
+    const watch = window.setInterval(check, 25);
+    checks.add(check);
+    check();
+  });
+}
+function context(toolCallId: string) {
+  if (typeof toolCallId !== "string" || !toolCallId) throw new Error("A tool call ID is required");
+  return {
+    blockId: toolCallId,
+    toolCallId,
+    get materialized() { return liveBlocks.has(toolCallId); },
+    ready(timeoutMs: number) { return waitForOwner(toolCallId, timeoutMs); },
+    finish() { finishedContexts.add(toolCallId); },
+    get root() {
+      const owner = owners.get(toolCallId);
+      if (!owner) throw new Error("Assistant tool-call owner is unavailable or ambiguous");
+      let block = liveBlocks.get(toolCallId);
+      if (!block) {
+        if (finishedContexts.has(toolCallId)) throw new Error("Initial UI root must be created before execution finishes");
+        block = document.createElement("div");
+        block.className = "generated-content";
+        block.setAttribute("role", "region");
+        block.setAttribute("aria-label", "Interactive content");
+        block.dataset.blockId = toolCallId;
+        block.inert = !connected || (window as Window & { awr?: { status: string } }).awr?.status !== "connected";
+        liveBlocks.set(toolCallId, block);
+      }
+      owner.ui.querySelectorAll<HTMLElement>(".inactive-ui").forEach(node => {
+        if (node.dataset.blockId === toolCallId) node.remove();
+      });
+      if (block.parentElement !== owner.ui) owner.ui.append(block);
+      reveal(owner);
+      return block;
+    },
+  };
+}
+(window as Window & { automataUI?: { context: typeof context } }).automataUI = { context };
+function inactiveBlock(toolCallId: string, blockId: string) {
+  if (toolCallId !== blockId) return;
+  const owner = owners.get(toolCallId);
+  if (!owner) {
+    const notice = document.createElement("p");
+    notice.className = "inactive-ui";
+    notice.textContent = "Inactive interactive content has no available assistant owner in this history.";
+    transcript.append(notice);
+    return;
+  }
+  const live = liveBlocks.get(toolCallId);
+  if (owner.ui.querySelectorAll<HTMLElement>(".inactive-ui").length &&
+      [...owner.ui.querySelectorAll<HTMLElement>(".inactive-ui")].some(node => node.dataset.blockId === blockId)) return;
+  if (live) owner.ui.append(live);
+  else {
+    const placeholder = document.createElement("div");
+    placeholder.className = "inactive-ui";
+    placeholder.dataset.blockId = blockId;
+    placeholder.textContent = "Interactive content from this reply is inactive after reload.";
+    owner.ui.append(placeholder);
+  }
+  reveal(owner);
 }
 function textOf(message: RecordValue): string {
   if (typeof message.content === "string") return message.content;
@@ -83,8 +196,10 @@ function textOf(message: RecordValue): string {
 function showMessage(message: RecordValue) {
   if (message?.role !== "user" && message?.role !== "assistant") return undefined;
   const text = textOf(message);
-  if (!text && message.role === "assistant") return undefined;
-  return appendMessage(message.role, text);
+  const view = createMessage(message.role, text);
+  if (message.role === "assistant") registerOwners(message, view);
+  if (text || message.role === "user") reveal(view);
+  return view;
 }
 function transmit(message: RecordValue): boolean {
   if (!socket || socket.readyState !== WebSocket.OPEN) return false;
@@ -139,24 +254,38 @@ function handleEvent(event: RecordValue) {
       if (state !== "stopping" && state !== "error") setStatus("idle");
       break;
     case "message_start":
-      if (event.message?.role === "assistant") { stream = { body: appendMessage("assistant", ""), blocks: new Map() }; }
+      if (event.message?.role === "assistant") {
+        const view = createMessage("assistant", "");
+        registerOwners(event.message, view, true);
+        stream = { view, blocks: new Map(), message: event.message };
+      }
       else showMessage(event.message);
       break;
     case "message_update": {
       const update = event.assistantMessageEvent;
       if (!stream || !update) break;
+      if (update.partial?.role === "assistant") {
+        stream.message = update.partial;
+        registerOwners(update.partial, stream.view, true);
+      }
       const index = Number(update.contentIndex ?? 0);
       if (update.type === "text_delta") stream.blocks.set(index, (stream.blocks.get(index) ?? "") + String(update.delta ?? ""));
       if (update.type === "text_end") stream.blocks.set(index, String(update.content ?? ""));
-      stream.body.textContent = [...stream.blocks.entries()].sort((a, b) => a[0] - b[0]).map(([, value]) => value).join("");
-      transcript.scrollTop = transcript.scrollHeight;
+      stream.view.body.textContent = [...stream.blocks.entries()].sort((a, b) => a[0] - b[0]).map(([, value]) => value).join("");
+      if (stream.view.body.textContent) reveal(stream.view);
       break;
     }
     case "message_end":
       if (event.message?.role === "assistant") {
         const text = textOf(event.message);
-        if (stream) { if (text) stream.body.textContent = text; else stream.body.parentElement?.remove(); }
-        else if (text) appendMessage("assistant", text);
+        if (stream) {
+          registerOwners(event.message, stream.view, true);
+          stream.view.body.textContent = text;
+          if (text || stream.view.ui.childNodes.length) reveal(stream.view);
+        } else {
+          const view = showMessage(event.message);
+          if (view) registerOwners(event.message, view, true);
+        }
         stream = undefined;
       }
       break;
@@ -166,17 +295,39 @@ function handleEvent(event: RecordValue) {
 function handleFrame(frame: RecordValue) {
   switch (frame.type) {
     case "snapshot":
-      // A snapshot refresh must not destroy page-local UI or its event handlers.
-      generated.remove();
+      // Rebuild native text/ownership, retaining page-local block nodes by ID.
+      const focused = document.activeElement instanceof HTMLElement &&
+        [...liveBlocks.values()].some(block => block.contains(document.activeElement))
+        ? document.activeElement : null;
       transcript.replaceChildren();
-      for (const message of Array.isArray(frame.messages) ? frame.messages : []) showMessage(message);
-      if (!transcript.children.length && generated.hidden) {
+      owners.clear();
+      const messages = Array.isArray(frame.messages) ? frame.messages : [];
+      for (const message of messages) showMessage(message);
+      if (stream) {
+        // Keep an unfinished live reply; snapshot history contains completed messages.
+        transcript.append(stream.view.anchor);
+        registerOwners(stream.message, stream.view, true);
+        if (stream.view.body.textContent || stream.view.ui.childNodes.length) reveal(stream.view);
+      }
+      for (const message of messages) {
+        const ui = message?.details?.ui;
+        if (message?.role === "toolResult" && typeof message.toolCallId === "string" &&
+            ui?.toolCallId === message.toolCallId && typeof ui.blockId === "string") {
+          inactiveBlock(message.toolCallId, ui.blockId);
+        }
+      }
+      // Live nodes may precede their tool result in a snapshot.
+      for (const [id, block] of liveBlocks) {
+        const owner = owners.get(id);
+        if (owner) { owner.ui.append(block); reveal(owner); }
+      }
+      if (focused?.isConnected) focused.focus({ preventScroll: true });
+      if (!transcript.children.length) {
         const empty = document.createElement("p");
         empty.className = "empty-state";
         empty.textContent = "Start a conversation. Replies will appear here as they arrive.";
         transcript.append(empty);
       }
-      transcript.append(generated);
       setStatus(["idle", "running", "stopping", "error"].includes(frame.state?.status) ? frame.state.status : "error");
       for (const request of Array.isArray(frame.dialogs) ? frame.dialogs : []) addDialog(request);
       break;
@@ -237,6 +388,8 @@ if (!token) {
   socket.addEventListener("message", (event) => { try { handleFrame(JSON.parse(event.data)); } catch { setStatus("error", "Invalid server message"); } });
   socket.addEventListener("close", () => {
     connected = false; generation++; dialogQueue = []; dialog.cancel(); pending.clear(); promptPending = false;
+    notifyOwnerWaiters();
+    setUIAvailable(false);
     badge.dataset.state = "error"; connection.textContent = "Disconnected"; setStatus("error", "Connection lost. Reload to start again.");
   });
   socket.addEventListener("error", () => { badge.dataset.state = "error"; connection.textContent = "Connection error"; });
@@ -245,6 +398,7 @@ if (!token) {
   const bridge = (window as Window & { awr?: { status: string; connect(): Promise<void> } }).awr;
   const showBridgeStatus = () => {
     if (!connected) return;
+    setUIAvailable(bridge?.status === "connected");
     if (bridge?.status === "connected") { delete badge.dataset.state; connection.textContent = "Connected"; }
     else if (!bridge || bridge.status === "disconnected" || bridge.status === "closed") {
       badge.dataset.state = "error"; connection.textContent = "UI bridge unavailable";

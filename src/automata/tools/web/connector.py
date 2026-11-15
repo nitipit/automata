@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 import uuid
 from dataclasses import dataclass, field
@@ -21,6 +22,38 @@ def timeout_seconds(body: dict, default: int) -> float:
     if type(value) not in (int, float) or not math.isfinite(value) or not 100 <= value <= 120000:
         raise ConnectorError("invalid_request", "timeoutMs must be between 100 and 120000")
     return value / 1000
+
+
+def inline_execution(
+    code: str, tool_call_id: str, nonce: str, ready_timeout_ms: int = 1000
+) -> str:
+    """Private app adapter around the unchanged upstream async function body.
+
+    A nested function isolates agent locals/returns from wrapper bookkeeping. JSON
+    normalization runs inside the catch boundary so serialization errors also
+    retain an already-materialized root, without leaking arbitrary error values.
+    Settlement seals first root creation so delayed callbacks cannot create an
+    unrecorded historical block; existing roots remain usable by their handlers.
+    The per-call nonce and nesting prevent user return objects being mistaken for
+    adapter metadata; neither this helper nor root ownership is a sandbox.
+    """
+    return f"""
+const context = window.automataUI.context({json.dumps(tool_call_id)});
+let outcome;
+let started = false;
+try {{
+  await context.ready({ready_timeout_ms});
+  started = true;
+  const value = await (async function(bridge, ui) {{
+{code}
+  }})(bridge, context);
+  outcome = {{ok: true, value: JSON.parse(JSON.stringify(value === undefined ? null : value))}};
+}} catch {{
+  outcome = {{ok: false, phase: started ? 'body' : 'readiness'}};
+}}
+context.finish();
+return {{execution: {json.dumps(nonce)}, ...outcome, materialized: context.materialized === true}};
+"""
 
 
 @dataclass
@@ -139,14 +172,50 @@ class BrowserConnector:
         if not isinstance(code, str) or not code or len(code) > 262144:
             raise ConnectorError("invalid_request", "code must be a nonempty bounded string")
         timeout = timeout_seconds(body, 10000)
+        tool_call_id = body.get("toolCallId")
+        if tool_call_id is not None and (
+            not isinstance(tool_call_id, str) or not 1 <= len(tool_call_id) <= 1024
+        ):
+            raise ConnectorError("invalid_request", "Invalid toolCallId")
+        nonce = uuid.uuid4().hex if tool_call_id is not None else None
+        if nonce is not None:
+            # Exact-owner arrival uses the independent chat transport; reserve at
+            # least half the server budget for body/result delivery, never retry.
+            ready_ms = max(1, min(1000, int(timeout * 500)))
+            code = inline_execution(code, tool_call_id, nonce, ready_ms)
         try:
             value = await session.execute(code, timeout=timeout)
-            return {"ok": True, "value": value}
+            if nonce is None:
+                return {"ok": True, "value": value}
+            if (
+                not isinstance(value, dict)
+                or value.get("execution") != nonce
+                or type(value.get("ok")) is not bool
+                or (value["ok"] and "value" not in value)
+            ):
+                raise ConnectorError("protocol", "Invalid browser execution result", uncertain=True)
+            result = {"ok": value["ok"]}
+            if value["ok"]:
+                result["value"] = value["value"]
+            else:
+                before_body = value.get("phase") == "readiness"
+                result["error"] = {
+                    "code": "ui_unavailable" if before_body else "javascript_error",
+                    "message": (
+                        "Inline UI owner unavailable before execution; JavaScript body was not run"
+                        if before_body
+                        else "Browser JavaScript failed; effects may have occurred"
+                    ),
+                    "uncertain": not before_body,
+                }
+            if value.get("materialized") is True:
+                result["ui"] = {"blockId": tool_call_id, "toolCallId": tool_call_id}
+            return result
         except TimeoutError as error:
             raise ConnectorError(
                 "timeout", "JavaScript deadline expired; effects may continue", uncertain=True
             ) from error
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, ConnectorError):
             raise
         except Exception as error:
             # Public runtime exceptions have safe messages, but JS error stacks can

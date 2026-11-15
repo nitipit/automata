@@ -11,6 +11,7 @@ import webbrowser
 from pathlib import Path
 
 from automata.tools.web.connector import BrowserConnector, ConnectorError
+from automata.tools.web.launch import prepare_launch
 from automata.tools.web.rpc import PiRpc, RpcError
 
 PACKAGE = Path(__file__).resolve().parent
@@ -18,7 +19,7 @@ DIALOGS = {"select", "confirm", "input", "editor"}
 
 
 class BrowserHost:
-    """Own one runtime/server, one fresh RPC child and one browser chat client."""
+    """Own one runtime/server, one native RPC session and one browser chat client."""
 
     def __init__(self, *, port: int = 0, runtime=None, rpc=None):
         from automata_web_runtime import WebRuntime
@@ -28,6 +29,7 @@ class BrowserHost:
         self.connector = BrowserConnector()
         self.connector_token = secrets.token_urlsafe(32)
         self.messages: list[dict] = []
+        self._startup_messages: list[dict] | None = None
         self.state: dict = {"status": "idle"}
         self.dialogs: dict[str, dict] = {}
         self._dialog_timers: dict[str, asyncio.TimerHandle] = {}
@@ -148,37 +150,65 @@ class BrowserHost:
         provider: str | None = None,
         model: str | None = None,
         thinking: str | None = None,
+        session: Path | None = None,
+        session_inactive: bool = False,
         extra_args: tuple[str, ...] = (),
     ):
         try:
-            await self.runtime.start()
             extension = (
                 PACKAGE.parents[1] / "runtimes" / "pi" / "extensions" / "web-ui" / "index.ts"
             )
-            argv = [pi, "--mode", "rpc", "--no-session", "-e", str(extension)]
-            for flag, value in (
-                ("--provider", provider),
-                ("--model", model),
-                ("--thinking", thinking),
-            ):
-                if value:
-                    argv.extend((flag, value))
-            argv.extend(extra_args)
-            await self.rpc.start(
-                argv,
+            launch = prepare_launch(
+                pi=pi,
+                extension=extension,
                 cwd=cwd,
+                provider=provider,
+                model=model,
+                thinking=thinking,
+                session=session,
+                session_inactive=session_inactive,
+                extra_args=extra_args,
+            )
+            self._startup_messages = []
+            await self.runtime.start()
+            await self.rpc.start(
+                launch.argv,
+                cwd=launch.cwd,
                 env={
                     "AUTOMATA_WEB_CONNECTOR_URL": self.runtime.origin + "/connector",
                     "AUTOMATA_WEB_CONNECTOR_TOKEN": self.connector_token,
                 },
             )
             state = await self.rpc.command("get_state", timeout=30)
-            self.state.update({key: state.get(key) for key in ("model", "thinkingLevel")})
+            self.state.update(
+                {
+                    key: state.get(key)
+                    for key in ("sessionId", "sessionName", "model", "thinkingLevel")
+                }
+            )
+            history = await self.rpc.command("get_messages", timeout=30)
+            self._hydrate_messages(history)
             self._monitor = asyncio.create_task(self._monitor_browser())
             return self
         except BaseException:
             await self.close()
             raise
+
+    def _hydrate_messages(self, history: dict):
+        """Reconcile startup events with native history without stripping tool metadata."""
+        messages = history.get("messages") if isinstance(history, dict) else None
+        if not isinstance(messages, list) or any(not isinstance(m, dict) for m in messages):
+            raise RpcError("Pi returned an invalid message snapshot")
+        buffered = self._startup_messages or []
+        # Events may arrive after the get_messages response but before this coroutine
+        # resumes. The last event represented in the snapshot is the merge boundary.
+        boundary = -1
+        for index in range(len(buffered) - 1, -1, -1):
+            if buffered[index] in messages:
+                boundary = index
+                break
+        self.messages = [*messages, *buffered[boundary + 1 :]]
+        self._startup_messages = None
 
     def _spawn(self, coro):
         task = asyncio.create_task(coro)
@@ -212,9 +242,8 @@ class BrowserHost:
     def on_event(self, event: dict):
         kind = event.get("type")
         if kind == "message_end":
-            self.messages.append(event["message"])
-            # Bound recovery snapshot; Pi remains authoritative for its own context.
-            self.messages[:] = self.messages[-500:]
+            target = self.messages if self._startup_messages is None else self._startup_messages
+            target.append(event["message"])
         elif kind == "agent_start":
             if self.state["status"] not in {"stopping", "error"}:
                 self._status("running")
@@ -372,6 +401,7 @@ class BrowserHost:
 
         if (
             self._closed
+            or self._startup_messages is not None
             or self._chat is not None
             or not self.runtime._local_request(socket)
             or socket.headers.get("origin") != self.runtime.origin
@@ -473,6 +503,8 @@ async def serve(
     provider: str | None = None,
     model: str | None = None,
     thinking: str | None = None,
+    session: Path | None = None,
+    session_inactive: bool = False,
     open_browser: bool = True,
 ):
     host = BrowserHost(port=port)
@@ -481,7 +513,15 @@ async def serve(
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stopped.set)
     try:
-        await host.start(pi=pi, cwd=cwd, provider=provider, model=model, thinking=thinking)
+        await host.start(
+            pi=pi,
+            cwd=cwd,
+            provider=provider,
+            model=model,
+            thinking=thinking,
+            session=session,
+            session_inactive=session_inactive,
+        )
         if open_browser:
             webbrowser.open(host.runtime.url)
         print(f"Automata browser mode running at {host.runtime.origin} (admission URL private).")

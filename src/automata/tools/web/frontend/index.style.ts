@@ -24,8 +24,8 @@ export const appStyle = `
   & .message { max-width: 92%; padding: .8rem 1rem; border-radius: .9rem; background: #f2f6f2; overflow-wrap: anywhere; white-space: pre-wrap; }
   & .message.user { align-self: flex-end; background: ${color.accentSoft}; }
   & .message-label { display: block; color: ${color.muted}; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; margin-bottom: .3rem; }
-  & .generated-content { min-width: 0; max-width: 100%; flex-shrink: 0; padding: 1rem; border: 1px solid ${color.line}; border-radius: .9rem; overflow-x: auto; overflow-wrap: anywhere; }
-  & .generated-content[hidden] { display: none; }
+  & .generated-content { min-width: 0; max-width: 100%; margin-top: .7rem; padding: 1rem; border: 1px solid ${color.line}; border-radius: .9rem; overflow-x: auto; overflow-wrap: anywhere; white-space: normal; }
+  & .inactive-ui { margin-top: .7rem; color: ${color.muted}; font-size: .85rem; }
   & .composer { padding: 1rem 1.35rem 1.2rem; border-top: 1px solid ${color.line}; }
   & .composer label { display: block; font-size: .8rem; font-weight: 700; margin-bottom: .4rem; }
   & textarea { width: 100%; resize: vertical; min-height: 5rem; padding: .7rem .8rem; border: 1px solid #a8beb0; border-radius: .6rem; color: ${color.ink}; background: white; }

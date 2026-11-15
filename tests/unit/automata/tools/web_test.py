@@ -2,7 +2,9 @@
 
 import asyncio
 import json
+import os
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -11,6 +13,7 @@ httpx = pytest.importorskip("httpx")
 
 from automata.tools.web.connector import BrowserConnector, ConnectorError  # noqa: E402
 from automata.tools.web.host import BrowserHost  # noqa: E402
+from automata.tools.web.launch import prepare_launch  # noqa: E402
 from automata.tools.web.rpc import PiRpc, RpcError  # noqa: E402
 
 
@@ -53,6 +56,224 @@ class FakeRpc:
 
     async def close(self):
         self.closed = True
+
+
+def test_native_launch_defaults_and_caller_environment(tmp_path, monkeypatch):
+    monkeypatch.setenv("VIRTUAL_ENV", "/intentional/project/venv")
+    monkeypatch.setenv("PATH", "/intentional/project/venv/bin:/user/bin")
+    monkeypatch.setenv("PI_CODING_AGENT_DIR", "/user/pi-config")
+    before = dict(os.environ)
+    launch = prepare_launch(pi="pi", extension=Path("ui.ts"), cwd=tmp_path)
+    assert launch.argv == ("pi", "--mode", "rpc", "-e", "ui.ts")
+    assert launch.cwd == tmp_path
+    explicit = prepare_launch(
+        pi="custom-pi",
+        extension=Path("ui.ts"),
+        cwd=tmp_path,
+        provider="custom",
+        model="exact-model",
+        thinking="high",
+    )
+    assert explicit.argv[-6:] == (
+        "--provider",
+        "custom",
+        "--model",
+        "exact-model",
+        "--thinking",
+        "high",
+    )
+    assert dict(os.environ) == before
+
+
+def test_native_resume_requires_exact_file_and_honest_inactive_assertion(tmp_path, monkeypatch):
+    session = tmp_path / "chosen.jsonl"
+    session.write_text("fixture")
+    options = {"pi": "pi", "extension": Path("ui.ts"), "cwd": tmp_path}
+    with pytest.raises(ValueError, match="requires --session-inactive"):
+        prepare_launch(**options, session=session)
+    with pytest.raises(ValueError, match="requires --session"):
+        prepare_launch(**options, session_inactive=True)
+    with pytest.raises(FileNotFoundError):
+        prepare_launch(**options, session=Path("not-an-id"), session_inactive=True)
+    with pytest.raises(ValueError, match="exact existing"):
+        prepare_launch(**options, session=tmp_path, session_inactive=True)
+    launch = prepare_launch(**options, session=Path(session.name), session_inactive=True)
+    assert launch.argv[-2:] == ("--session", str(session))
+    monkeypatch.setenv("PI_SESSION_FILE", str(session))
+    with pytest.raises(ValueError, match="calling Pi session"):
+        prepare_launch(**options, session=session, session_inactive=True)
+
+
+def test_host_start_hydrates_native_identity_and_retains_startup_event_tail(tmp_path):
+    owner = {
+        "role": "assistant",
+        "timestamp": 1,
+        "content": [
+            {"type": "toolCall", "id": "owner-call", "name": "web_ui_execute", "arguments": {}}
+        ],
+    }
+    result = {
+        "role": "toolResult",
+        "toolCallId": "owner-call",
+        "details": {"ui": {"blockId": "block", "toolCallId": "owner-call"}, "arbitrary": [1, 2]},
+    }
+
+    class StartupRpc(FakeRpc):
+        async def start(self, argv, **kwargs):
+            self.argv, self.launch_kwargs = argv, kwargs
+            self.host.on_event({"type": "message_end", "message": owner})
+
+        async def command(self, kind, **data):
+            self.commands.append((kind, data))
+            if kind == "get_state":
+                return {
+                    "sessionId": "native-id",
+                    "sessionName": "Normal Pi",
+                    "thinkingLevel": "high",
+                }
+            if kind == "get_messages":
+                # Simulate a later event already read before the startup waiter runs.
+                self.host.on_event({"type": "message_end", "message": result})
+                return {"messages": [owner]}
+            return {}
+
+    async def check():
+        rpc = StartupRpc()
+        host = BrowserHost(rpc=rpc)
+        rpc.host = host
+        try:
+            await host.start(cwd=tmp_path)
+            assert "--no-session" not in rpc.argv
+            assert host.messages == [owner, result]
+            assert host.messages[1]["details"] == result["details"]
+            assert host.state["sessionId"] == "native-id"
+            assert host.state["sessionName"] == "Normal Pi"
+            assert [name for name, _ in rpc.commands] == ["get_state", "get_messages"]
+            assert set(rpc.launch_kwargs["env"]) == {
+                "AUTOMATA_WEB_CONNECTOR_URL",
+                "AUTOMATA_WEB_CONNECTOR_TOKEN",
+            }
+        finally:
+            await host.close()
+
+    run(check())
+
+
+def test_rpc_preserves_intentional_agent_venv_and_config_without_activation(monkeypatch):
+    monkeypatch.setenv("VIRTUAL_ENV", "/intentional/project/venv")
+    monkeypatch.setenv("PATH", "/intentional/project/venv/bin:/user/bin")
+    monkeypatch.setenv("PI_CODING_AGENT_DIR", "/intentional/pi-config")
+
+    async def check():
+        events = []
+        rpc = PiRpc(events.append)
+        source = """import os,json,sys
+keys = ["PATH","VIRTUAL_ENV","PI_CODING_AGENT_DIR","CONNECTOR_TEST"]
+print(json.dumps({"type":"environment","values":{k:os.environ[k] for k in keys}}),flush=True)
+for line in sys.stdin: pass
+"""
+        await rpc.start([sys.executable, "-u", "-c", source], env={"CONNECTOR_TEST": "injected"})
+        try:
+            for _ in range(100):
+                if events:
+                    break
+                await asyncio.sleep(0.01)
+            assert events[0]["values"] == {
+                "PATH": "/intentional/project/venv/bin:/user/bin",
+                "VIRTUAL_ENV": "/intentional/project/venv",
+                "PI_CODING_AGENT_DIR": "/intentional/pi-config",
+                "CONNECTOR_TEST": "injected",
+            }
+        finally:
+            await rpc.close()
+
+    run(check())
+
+
+def test_cli_web_forwards_explicit_resume_and_native_options(monkeypatch, tmp_path):
+    from automata.cli import web
+
+    received = {}
+    monkeypatch.setattr("automata.tools.web.host.run", lambda **kwargs: received.update(kwargs))
+    selected = tmp_path / "selected.jsonl"
+    web(cwd=tmp_path, session=selected, session_inactive=True, open_browser=False)
+    assert received == {
+        "cwd": tmp_path,
+        "pi": "pi",
+        "port": 0,
+        "provider": None,
+        "model": None,
+        "thinking": None,
+        "session": selected,
+        "session_inactive": True,
+        "open_browser": False,
+    }
+
+
+def test_host_invalid_hydration_fails_closed_without_monitor(tmp_path):
+    class InvalidRpc(FakeRpc):
+        async def start(self, argv, **kwargs):
+            pass
+
+        async def command(self, kind, **data):
+            return {"messages": [None]} if kind == "get_messages" else {}
+
+    async def check():
+        rpc = InvalidRpc()
+        host = BrowserHost(rpc=rpc)
+        with pytest.raises(RpcError, match="invalid message snapshot"):
+            await host.start(cwd=tmp_path)
+        assert rpc.closed and host.runtime._closed
+        assert host._monitor is None
+        await host.close()
+
+    run(check())
+
+
+def test_chat_admission_waits_for_native_startup_hydration(tmp_path):
+    import websockets
+    from websockets.exceptions import InvalidStatus
+
+    class DelayedRpc(FakeRpc):
+        def __init__(self):
+            super().__init__()
+            self.started = asyncio.Event()
+            self.release = asyncio.Event()
+
+        async def start(self, argv, **kwargs):
+            self.started.set()
+
+        async def command(self, kind, **data):
+            if kind == "get_state":
+                await self.release.wait()
+                return {"sessionId": "hydrated-session"}
+            if kind == "get_messages":
+                return {"messages": [{"role": "assistant", "content": "native history"}]}
+            return {}
+
+    async def check():
+        rpc = DelayedRpc()
+        host = BrowserHost(rpc=rpc)
+        starting = asyncio.create_task(host.start(cwd=tmp_path))
+        try:
+            await asyncio.wait_for(rpc.started.wait(), 2)
+            url = host.runtime.origin.replace("http:", "ws:") + "/chat?token=" + host.runtime.token
+            with pytest.raises(InvalidStatus) as rejected:
+                async with websockets.connect(url, origin=host.runtime.origin):
+                    pytest.fail("Startup chat was admitted before hydration")
+            assert rejected.value.response.status_code == 403
+            rpc.release.set()
+            await starting
+            async with websockets.connect(url, origin=host.runtime.origin) as ready:
+                frame = json.loads(await ready.recv())
+                assert frame["state"]["sessionId"] == "hydrated-session"
+                assert frame["messages"] == [{"role": "assistant", "content": "native history"}]
+        finally:
+            rpc.release.set()
+            await asyncio.gather(starting, return_exceptions=True)
+            await host.close()
+
+    run(check())
 
 
 def test_connector_registration_correlation_duplicate_names_and_unsubscribe():

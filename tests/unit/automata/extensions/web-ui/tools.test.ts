@@ -12,7 +12,7 @@ function fixture(handler = async () => ({ ok: true }), config = env) {
     return Response.json(await handler(call));
   }, config);
   return { tools, calls, pi, shutdown: () => events.get("session_shutdown")(),
-    call: (name, params, signal) => tools.find(tool => tool.name === "web_ui_" + name).execute("call", params, signal) };
+    call: (name, params, signal, toolCallId = "call") => tools.find(tool => tool.name === "web_ui_" + name).execute(toolCallId, params, signal) };
 }
 
 test("factory registers actual four-tool surface without network; missing env fails closed", async () => {
@@ -35,9 +35,10 @@ test("subscribe before execute retains early event; correlation and exact JS rou
   });
   const subscribed = await f.call("subscribe", { name: "choice", correlationId: "request-1" });
   assert.equal(subscribed.details.subscriptionId, "s1");
-  const code = "document.querySelector('#generated-ui').textContent='hello'; return null;";
+  const code = "ui.root.textContent='hello'; return null;";
   assert.equal((await f.call("execute", { code })).isError, false);
   assert.equal(f.calls[1].payload.code, code);
+  assert.equal(f.calls[1].payload.toolCallId, "call");
   const waited = await f.call("wait_event", { subscriptionId: "s1" });
   assert.deepEqual(waited.details.event, { correlationId: "request-1", choice: "yes" });
   await f.call("unsubscribe", { subscriptionId: "s1" });
@@ -82,6 +83,8 @@ test("large browser result is omitted from both content and details", async () =
   const result = await f.call("execute", { code: "return large;" });
   assert.equal(result.isError, true); assert.equal(result.details.code, "output_limit");
   assert.ok(JSON.stringify(result).length < 1024);
+  assert.equal("ui" in result.details, false);
+  assert.equal(result.content[0].text.includes("Materialized UI identity"), false);
   await f.shutdown();
 });
 
@@ -117,4 +120,68 @@ test("independent concurrent executions return their own correlated values", asy
   const [first, second] = await Promise.all([f.call("execute", { code: "first" }), f.call("execute", { code: "second" })]);
   assert.equal(first.details.value, "first"); assert.equal(second.details.value, "second");
   await f.shutdown();
+});
+
+test("native execution owner is internal, metadata persists without altering arbitrary value", async () => {
+  const value = { ok: false, execution: "not-an-envelope", ui: { blockId: "other" } };
+  const f = fixture(async ({ payload }) => ({ ok: true, value,
+    ui: { blockId: payload.toolCallId, toolCallId: payload.toolCallId, unwanted: "PRIVATE" } }));
+  const result = await f.call("execute", { code: "ui.root; return arbitrary;" }, undefined, "native-owner");
+  assert.deepEqual(f.calls[0].payload, { code: "ui.root; return arbitrary;", toolCallId: "native-owner" });
+  assert.deepEqual(result.details.value, value);
+  assert.deepEqual(result.details.ui, { blockId: "native-owner", toolCallId: "native-owner" });
+  assert.deepEqual(JSON.parse(result.content[0].text), result.details);
+  await f.shutdown();
+});
+
+test("caught JS failure and oversized value preserve only bounded materialized identity", async () => {
+  for (const reply of [
+    { ok: false, error: { code: "javascript_error", message: "JS failed", uncertain: true } },
+    { ok: true, value: "x".repeat(50000) },
+  ]) {
+    const ui = { blockId: "call", toolCallId: "call" };
+    const f = fixture(async () => ({ ...reply, ui }));
+    const result = await f.call("execute", { code: "ui.root; failOrReturn();" });
+    assert.equal(result.isError, true);
+    assert.deepEqual(result.details.ui, ui);
+    assert.equal(result.details.effects, "unknown");
+    assert.ok(JSON.stringify(result).length < 1024);
+    await f.shutdown();
+  }
+});
+
+test("oversized value omission keeps validated identity in bounded model-facing content", async () => {
+  const toolCallId = '\"\\n😀'.repeat(200);
+  const ui = { blockId: toolCallId, toolCallId };
+  const f = fixture(async () => ({ ok: true, value: "x".repeat(50000), ui }));
+  const result = await f.call("execute", { code: "ui.root; return large;" }, undefined, toolCallId);
+  assert.equal(result.details.code, "output_limit");
+  assert.deepEqual(result.details.ui, ui);
+  assert.ok(result.content[0].text.includes(JSON.stringify({ ui })));
+  assert.ok(Buffer.byteLength(result.content[0].text) < 48 * 1024);
+  assert.ok(Buffer.byteLength(JSON.stringify(result.details)) < 48 * 1024);
+  assert.equal("value" in result.details, false);
+  assert.equal(result.content[0].text.includes("x".repeat(100)), false);
+  await f.shutdown();
+
+  const oversizedId = "i".repeat(1025);
+  const invalid = fixture(async () => ({ ok: true, value: null,
+    ui: { blockId: oversizedId, toolCallId: oversizedId } }));
+  const rejected = await invalid.call("execute", { code: "ui.root" }, undefined, oversizedId);
+  assert.equal(rejected.details.error.code, "protocol");
+  assert.equal("ui" in rejected.details, false);
+  await invalid.shutdown();
+});
+
+test("plain executions have no invented UI marker; foreign metadata fails closed", async () => {
+  const plain = fixture(async () => ({ ok: true, value: null }));
+  assert.equal("ui" in (await plain.call("execute", { code: "return null" })).details, false);
+  await plain.shutdown();
+  for (const ui of [null, {}, { blockId: "foreign", toolCallId: "call" }, { blockId: "call", toolCallId: "foreign" }]) {
+    const f = fixture(async () => ({ ok: true, value: null, ui }));
+    const result = await f.call("execute", { code: "ui.root" });
+    assert.equal(result.details.error.code, "protocol");
+    assert.equal(result.details.effects, "unknown");
+    await f.shutdown();
+  }
 });

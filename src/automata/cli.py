@@ -54,9 +54,17 @@ def web(
     provider: str | None = None,
     model: str | None = None,
     thinking: str | None = None,
+    session: Annotated[
+        Path | None,
+        Parameter(help="Resume this exact existing .jsonl file; requires --session-inactive."),
+    ] = None,
+    session_inactive: Annotated[
+        bool,
+        Parameter(help="Assert no other Pi process owns --session; not an activity detector."),
+    ] = False,
     open_browser: bool = True,
 ) -> None:
-    """Start a fresh browser-first Pi RPC session (requires the web extra)."""
+    """Open a normal persistent Pi session in chat (requires the web extra)."""
     try:
         from automata.tools.web.host import run
 
@@ -67,8 +75,12 @@ def web(
             provider=provider,
             model=model,
             thinking=thinking,
+            session=session,
+            session_inactive=session_inactive,
             open_browser=open_browser,
         )
+    except (ValueError, OSError) as exc:
+        raise SystemExit(str(exc)) from exc
     except ModuleNotFoundError as exc:
         raise SystemExit(
             "Browser mode requires Automata's web extra; install automata[web]."
