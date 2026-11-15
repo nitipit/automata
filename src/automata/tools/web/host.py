@@ -8,7 +8,7 @@ import json
 import re
 import secrets
 import signal
-import webbrowser
+import sys
 from pathlib import Path
 
 from automata.tools.web.connector import BrowserConnector, ConnectorError
@@ -17,6 +17,54 @@ from automata.tools.web.rpc import PiRpc, RpcError
 
 PACKAGE = Path(__file__).resolve().parent
 DIALOGS = {"select", "confirm", "input", "editor"}
+
+# Keep browser selection in stdlib (including BROWSER), but outside the host loop.
+# The private admission URL travels over stdin, never process arguments or output.
+_BROWSER_OPEN = """import sys, webbrowser
+try:
+    opened = webbrowser.open(sys.stdin.read())
+except BaseException:
+    sys.exit(2)
+sys.exit(0 if opened else 1)
+"""
+
+
+async def _open_browser(url: str):
+    """Own/reap only the launcher helper, never terminate a user's browser tree."""
+    process = None
+    # Shield creation so cancellation cannot lose a just-created owned process.
+    launching = asyncio.create_task(
+        asyncio.create_subprocess_exec(
+            sys.executable,
+            "-c",
+            _BROWSER_OPEN,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    )
+    try:
+        process = await asyncio.shield(launching)
+        await process.communicate(url.encode("utf-8"))
+        if process.returncode:
+            print("Browser auto-open failed (admission URL remains private).", file=sys.stderr)
+    except OSError:
+        # A configured command/exception may echo credentials. Never relay it.
+        print("Browser auto-open failed (admission URL remains private).", file=sys.stderr)
+    finally:
+        if process is None:
+            with contextlib.suppress(OSError):
+                process = await launching
+        if process is not None and process.returncode is None:
+            with contextlib.suppress(ProcessLookupError):
+                process.terminate()
+            try:
+                await asyncio.wait_for(process.wait(), 1)
+            except TimeoutError:
+                with contextlib.suppress(ProcessLookupError):
+                    process.kill()
+                await process.wait()
 
 
 class BrowserHost:
@@ -511,6 +559,7 @@ async def serve(
     open_browser: bool = True,
 ):
     host = BrowserHost(port=port)
+    opener = None
     stopped = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -526,13 +575,20 @@ async def serve(
             session_inactive=session_inactive,
         )
         if open_browser:
-            webbrowser.open(host.runtime.url)
+            opener = asyncio.create_task(_open_browser(host.runtime.url))
         print(f"Automata browser mode running at {host.runtime.origin} (admission URL private).")
         await stopped.wait()
     finally:
-        await host.close()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.remove_signal_handler(sig)
+        try:
+            if opener is not None:
+                opener.cancel()
+                await asyncio.gather(opener, return_exceptions=True)
+        finally:
+            try:
+                await host.close()
+            finally:
+                for sig in (signal.SIGINT, signal.SIGTERM):
+                    loop.remove_signal_handler(sig)
 
 
 def run(**kwargs):
