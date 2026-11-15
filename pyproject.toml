@@ -11,6 +11,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+web = [
+    "automata-web-runtime @ git+https://github.com/keenlycode/automata-web-runtime.git@cba648e627082bfa39696bfdd5af6f79c2f0b281",
+    "jinja2>=3.1,<4",
+]
 anatomy = [
     "fastapi>=0.115,<1",
     "jinja2>=3.1,<4",
@@ -54,11 +58,18 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-name = "automata"
+source-include = ["package.json", "package-lock.json"]
 source-exclude = [
     "src/automata/skills/**/__pycache__/**",
     "src/automata/tools/**/__pycache__/**",
     "src/automata/tools/anatomy/frontend/node_modules",
     "src/automata/tools/anatomy/frontend/node_modules/**",
+    "node_modules",
+    "node_modules/**",
+    "src/automata/tools/web/frontend/node_modules",
+    "src/automata/tools/web/frontend/node_modules/**",
+    "src/automata/tools/web/frontend/_tests",
+    "src/automata/tools/web/frontend/_tests/**",
     "src/automata/runtimes/pi/extensions/**/node_modules",
     "src/automata/runtimes/pi/extensions/**/node_modules/**",
     "src/automata/runtimes/pi/extensions/**/__pycache__/**",

@@ -28,6 +28,7 @@ SOURCES = skill_sources()
 SKILL_FILES = sorted(path / "SKILL.md" for path in SOURCES.values())
 REQUIRED_SKILLS = {
     "automata-ui-design",
+    "automata-web-runtime",
     "automata-agents-md",
     "automata-agent-design",
     "automata-model-selection",

@@ -85,7 +85,12 @@ def run_extension_node(extension_node: str, tmp_path: Path):
                 pytest.skip(f"Prepare {name}; set PI_EXTENSION_TEST_NODE_MODULES")
             dependencies[name] = path
         prepared = tmp_path / bundle
-        prepared.mkdir()
+        if bundle == "web-ui":
+            # Preserve the Python package layout used by native resource discovery.
+            prepared = tmp_path / "automata/runtimes/pi/extensions" / bundle
+            skill = Path(str(files("automata").joinpath("skills/automata-web-ui")))
+            shutil.copytree(skill, tmp_path / "automata/skills/automata-web-ui")
+        prepared.mkdir(parents=True)
         for path in source.glob("*.ts"):
             shutil.copy2(path, prepared / path.name)
         for name, path in dependencies.items():
