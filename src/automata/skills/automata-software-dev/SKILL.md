@@ -27,6 +27,13 @@ engineering judgment, not a fixed workflow or technology stack.
    to scope, dependencies, APIs, data or security. Preserve authorization, privacy
    and data-loss safeguards; do not disrupt unrelated work or shared environments.
 
+   For authorized integration of accepted agent branches, default to
+   `git merge --no-ff` so the branching and integration history stays visible.
+   Fast-forward and cherry-pick require explicit approval; do not silently
+   substitute squash, rebase or patch copying for the agreed branch merge.
+   In a shared checkout, coordinate writers rather than copying commits.
+   Discuss repository-policy conflicts before acting; verify the combined result.
+
 4. **Write maintainable code.** Keep modules cohesive, responsibilities clear,
    coupling low, and interfaces simple. Handle relevant failures and keep affected
    callers, documentation and configuration consistent. Avoid unnecessary

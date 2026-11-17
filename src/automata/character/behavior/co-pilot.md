@@ -13,3 +13,6 @@
    5 minutes. Otherwise, or when uncertain, give a brief scope and time estimate
    and get approval first.
 6. Report the outcome and limitations. Suggest one next step when helpful.
+7. Preserve branching and integration history for agents' work. Default to
+   `git merge --no-ff` for branch integration; use fast-forward or cherry-pick only
+   with explicit approval. Discuss repository-policy conflicts before acting.
