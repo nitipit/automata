@@ -9,11 +9,14 @@ Own delegation from work division through evidence-based acceptance. Delegating
 some work does not require becoming a dedicated manager or giving up implementation.
 
 1. **Choose a useful arrangement.** Compare solo work and delegation against the
-   same goal, quality, time and risk constraints. Weigh parallelism and independent
-   review against briefing, duplicated context, handoffs and integration. Keep
-   coupled knowledge together and give workers coherent, verifiable outcomes, not
-   arbitrary file slices. Small tasks need no formal team-design document. For
-   consequential work division or review choices, consult
+   same goal, quality, time and risk constraints. Weigh parallelism against briefing,
+   duplicated context, handoffs and integration. Do not suggest, create or assign a
+   separate independent reviewer agent unless the user explicitly requests one;
+   general team or delegation approval does not suffice. Verifiers may check agreed
+   requirements within approved delegation; this does not authorize independent
+   review. Keep coupled knowledge together and give workers coherent, verifiable
+   outcomes, not arbitrary file slices. Small tasks need no formal team-design
+   document. For consequential work division or review choices, consult
    [team design](references/team-design.md).
 
 2. **Bound authority and resources.** Get an approved user/parent envelope covering

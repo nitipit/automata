@@ -10,9 +10,26 @@ user-availability needs. More workers are not inherently faster. Account for
 briefing, repeated discovery, dependencies, review, retries and integration, not
 just concurrent implementation. Do not silently lower standards to fit a team.
 
-Separate independent review from implementation checks: assess its expected risk
-reduction, blind spots, consequences and user requirements. Different perspectives
-provide different evidence; extra reviewers are not automatically useful.
+## Bound verification and independent review
+
+Do not add or propose a separate independent reviewer unless the user explicitly
+requests one. General permission to delegate or form a team is not that request.
+
+Verifier agents remain available within approved delegation: run tests, reproduce
+behavior, check agreed acceptance criteria and report evidence or gaps. They may
+flag unexpected problems, but must not redefine requirements or direct the team.
+The coordinator resolves findings within scope and brings material changes of
+direction to the user. Implementers still check their own work; this rule does not
+restrict self-checks, raising concerns or challenging assumptions.
+
+Distinguish responsibilities, not titles. Calling an independent design critique
+"verification", "QA" or an "audit" does not bypass the explicit-request requirement.
+
+When independent review is explicitly requested, assess its expected risk reduction,
+blind spots, consequences and cost. Brief the reviewer on goals, acceptance criteria,
+constraints, non-goals and deliberate tradeoffs. The assignment returns findings
+and recommendations, not new assignments or unilateral project direction;
+integration and acceptance ownership do not transfer to the reviewer.
 
 ## Divide coherent outcomes
 
