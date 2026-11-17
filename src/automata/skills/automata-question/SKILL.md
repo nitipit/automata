@@ -18,6 +18,8 @@ move; stop once there is enough context to use judgment.
    short yes/no question for one clear proposition or action. Do not force exploration
    or ordinary acknowledgements into options. Name what a yes would authorize when
    several proposals are in view.
+   When you need the user to reply, put each question on its own line in bold.
+   Keep supporting context separate.
 
 3. **Make choices easy.** Put each alternative on its own numbered line so the user
    can answer by number. State choose-one, multiple-choice or ranking. Keep options
