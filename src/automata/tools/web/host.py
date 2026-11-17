@@ -120,7 +120,8 @@ class BrowserHost:
                 return Response(status_code=403)
             # Reviewed flat ESM graph only; never mount frontend/node_modules/repo.
             allowed = name in {
-                "index.js", "ui.js", "adaptive.css", "adapter-LICENSE.txt",
+                "index.js", "ui.js", "connection-bootstrap.js", "adaptive.css",
+                "adapter-LICENSE.txt",
                 "third-party-LICENSES.txt",
             } or re.fullmatch(r"chunk-[A-Z0-9]{8}\.js", name)
             path = PACKAGE / "public" / name
@@ -179,6 +180,26 @@ class BrowserHost:
                     }
                 )
 
+        async def connection(request: Request):
+            # Read-only admission probe: distinguish invalid credentials from the
+            # previous chat's reserved interrupt/command cleanup, before retrying.
+            expected = f"Bearer {self.runtime.token}"
+            if (
+                not self.runtime._local_request(request)
+                or request.headers.get("origin") != self.runtime.origin
+                or not secrets.compare_digest(request.headers.get("authorization", ""), expected)
+            ):
+                return JSONResponse(
+                    {"error": "Access credential rejected or expired"}, status_code=403
+                )
+            if self._closed:
+                return JSONResponse({"error": "Host is closed"}, status_code=410)
+            if self._chat is not None or self._startup_messages is not None:
+                return JSONResponse(
+                    {"error": "Previous connection is still stopping"}, status_code=409
+                )
+            return JSONResponse({"ready": True}, headers={"Cache-Control": "no-store"})
+
         async def chat(socket: WebSocket):
             await self._chat_socket(socket)
 
@@ -187,10 +208,12 @@ class BrowserHost:
         index.__annotations__["request"] = Request
         asset.__annotations__["request"] = Request
         connector.__annotations__["request"] = Request
+        connection.__annotations__["request"] = Request
         chat.__annotations__["socket"] = WebSocket
         app.add_api_route("/", index, methods=["GET"])
         app.add_api_route("/assets/{name}", asset, methods=["GET"])
         app.add_api_route("/connector/{operation}", connector, methods=["POST"])
+        app.add_api_route("/chat/connection", connection, methods=["POST"])
         app.add_api_websocket_route("/chat", chat)
 
     async def start(
@@ -295,6 +318,8 @@ class BrowserHost:
         if kind == "message_end":
             target = self.messages if self._startup_messages is None else self._startup_messages
             target.append(event["message"])
+        elif kind == "session_info_changed":
+            self.state["sessionName"] = event.get("name")
         elif kind == "agent_start":
             if self.state["status"] not in {"stopping", "error"}:
                 self._status("running")
@@ -429,6 +454,15 @@ class BrowserHost:
                         and self.state["status"] not in {"stopping", "error"}
                     ):
                         self._status("idle")
+            elif kind == "rename":
+                name = record.get("name")
+                if not isinstance(name, str) or not name.strip():
+                    raise ValueError("Session name cannot be empty")
+                async with self._control:
+                    await self.rpc.command("set_session_name", name=name.strip())
+                    native = await self.rpc.command("get_state")
+                    self.state["sessionName"] = native.get("sessionName")
+                    data = {"sessionName": self.state["sessionName"]}
             elif kind == "stop":
                 data = await self.stop()
             elif kind == "extension_ui_response":

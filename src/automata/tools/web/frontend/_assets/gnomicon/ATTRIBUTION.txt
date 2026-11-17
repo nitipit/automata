@@ -1,0 +1,11 @@
+document-edit-symbolic.svg
+Source: Gnomicon https://github.com/keenlycode/gnomicon
+Revision: 2e666f7270293c150a1248109ae4aa25b690df11
+Canonical file: src/icons/adwaita/actions/document-edit-symbolic.svg
+Upstream artwork: GNOME Project, https://www.gnome.org/
+Artwork license: Creative Commons Attribution-ShareAlike 3.0 US
+https://creativecommons.org/licenses/by-sa/3.0/us/
+Gnomicon contributions: Nitipit Nontasuwan, CC BY-SA 4.0 International
+https://creativecommons.org/licenses/by-sa/4.0/
+Local change: path fill changed from #2e3436 to currentColor for theme inheritance.
+See COPYING, COPYING_CCBYSA3 and LICENSE.md for original notices and terms.

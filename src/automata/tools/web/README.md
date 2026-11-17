@@ -32,7 +32,21 @@ existing file explicitly (there is no automatic activity detector or takeover):
 uv run automata web --session /path/to/session.jsonl --session-inactive
 ```
 
-The browser admission URL is private and is not printed. Browser auto-open uses
-the configured system browser; `--no-open-browser` disables it. Ctrl+C/SIGTERM
-closes the owned host/Pi process; closing chat stops pending agent work. Do not
-expose the loopback server remotely or share admission/connector credentials.
+The browser admission URL is private and is not printed. Its credential is kept
+in same-origin, per-tab `sessionStorage` and removed from the visible URL. Refresh
+and bounded connection retries reconnect to the same existing host/Pi session;
+Retry connection is available after transport failures. Missing or rejected
+credentials require a valid admission URL and never start a new agent. If tab
+storage is unavailable, reopen the original admission URL after a refresh.
+
+Disconnecting or refreshing interrupts pending replies rather than continuing
+background generation. Reconnection restores native history, including partial
+interrupted replies; it never resends prompts or replays historical UI code.
+The heading and browser tab use the saved Pi session name, then a compact preview
+of the first native user message, then `Untitled session`. The adjacent edit
+control renames the native session, without generating a model prompt.
+
+Browser auto-open uses the configured system browser; `--no-open-browser` disables
+it. Ctrl+C/SIGTERM closes the owned host/Pi process; closing chat stops pending
+agent work. Do not expose the loopback server remotely or share admission/connector
+credentials.

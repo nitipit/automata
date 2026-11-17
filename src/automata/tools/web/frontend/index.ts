@@ -1,9 +1,9 @@
+import editIcon from "./_assets/gnomicon/document-edit-symbolic.svg";
 import { Adapter } from "@devcapsule/adapter";
 import { applyBaseStyles } from "./_base.css";
 import { appStyle, appThemeStyle } from "./index.style";
 import { bindTheme } from "./_theme/index";
 import { Markdown } from "./_components/markdown";
-import "./_components/status-badge";
 import "./_components/native-dialog";
 import type { NativeDialog, DialogRequest } from "./_components/native-dialog";
 
@@ -26,7 +26,22 @@ const prompt = element<HTMLTextAreaElement>("#prompt");
 const send = element<HTMLButtonElement>("#send");
 const stop = element<HTMLButtonElement>("#stop");
 const connection = element<HTMLElement>("#connection-status");
-const badge = element<HTMLElement>("status-badge");
+const sessionTitle = element<HTMLElement>("#session-name");
+const rename = element<HTMLButtonElement>("#rename");
+const renameForm = element<HTMLFormElement>("#rename-form");
+const nameInput = element<HTMLInputElement>("#session-name-input");
+const renameSave = element<HTMLButtonElement>("#rename-save");
+const renameCancel = element<HTMLButtonElement>("#rename-cancel");
+const renameError = element<HTMLElement>("#rename-error");
+let sessionName = "";
+let firstUserPreview = "";
+let firstUserSeen = false;
+let renamePending = false;
+const connectButton = element<HTMLButtonElement>("#connect");
+const connectionDetail = element<HTMLElement>("#connection-detail");
+// Bundled, reviewed Gnomicon SVG only; never server/user markup.
+rename.innerHTML = editIcon;
+rename.querySelector("svg")?.setAttribute("aria-hidden", "true");
 const status = element<HTMLElement>("#run-status");
 const dialog = element<NativeDialog>("native-rpc-dialog");
 
@@ -47,7 +62,59 @@ const seenDialogs = new Set<string>();
 let dialogActive = false;
 let generation = 0;
 let socket: WebSocket | undefined;
-const pending = new Map<string, "prompt" | "stop">();
+const pending = new Map<string, "prompt" | "stop" | "rename">();
+let runView: MessageView | undefined;
+let activity: HTMLElement | undefined;
+let placeholder: MessageView | undefined;
+let runActive = false;
+let runFailure = false;
+
+function updateName(name: unknown) {
+  sessionName = typeof name === "string" ? name : "";
+  const title = sessionName.trim() ? sessionName : firstUserPreview || "Untitled session";
+  sessionTitle.textContent = title;
+  document.title = title;
+}
+function observeUser(message: RecordValue) {
+  if (firstUserSeen || message?.role !== "user") return;
+  firstUserSeen = true;
+  const points = Array.from(textOf(message).replace(/\s+/gu, " ").trim());
+  firstUserPreview = points.slice(0, 64).join("") + (points.length > 64 ? "…" : "");
+  updateName(sessionName);
+}
+function clearActivity() {
+  activity?.remove(); activity = undefined;
+  if (placeholder) { placeholder.node.remove(); placeholder.anchor.remove(); placeholder = undefined; }
+  if (runView && !runView.body.textContent && !runView.ui.childNodes.length && !runView.node.querySelector(".reply-outcome")) runView.node.remove();
+}
+function replyOutcome(view: MessageView, text: string) {
+  let note = view.node.querySelector<HTMLElement>(".reply-outcome");
+  if (!note) { note = document.createElement("p"); note.className = "reply-outcome"; note.setAttribute("role", "status"); view.node.append(note); }
+  note.textContent = text; reveal(view);
+}
+function messageOutcome(message: RecordValue, view: MessageView) {
+  if (message.stopReason === "aborted" || message.stopReason === "error") {
+    replyOutcome(view, message.stopReason === "aborted" ? "Reply interrupted." : `Reply failed: ${message.errorMessage || "Please try again."}`);
+    return true;
+  }
+  return false;
+}
+function renderActivity() {
+  if (!runActive || (state !== "running" && state !== "stopping")) return;
+  if (!runView) placeholder ??= createMessage("assistant", "");
+  const view = runView || placeholder!;
+  activity ??= document.createElement("p");
+  activity.className = "reply-activity"; activity.setAttribute("role", "status");
+  activity.textContent = state === "stopping" ? "Stopping…" : "Responding…";
+  view.node.append(activity); reveal(view);
+}
+function finishRun(detail?: string) {
+  if (runActive && detail && !runFailure) {
+    if (runView) replyOutcome(runView, detail);
+    else status.textContent = detail;
+  }
+  clearActivity(); runActive = false; runView = undefined;
+}
 
 function setUIAvailable(available: boolean) {
   for (const block of liveBlocks.values()) block.inert = !available;
@@ -56,11 +123,22 @@ function refresh() {
   send.disabled = !connected || state !== "idle" || promptPending;
   prompt.disabled = !connected;
   stop.disabled = !connected || (state !== "running" && !promptPending);
+  rename.disabled = !connected;
+  renameSave.disabled = !connected || renamePending;
+  renameCancel.disabled = renamePending;
+  nameInput.disabled = renamePending;
 }
 function setStatus(next: typeof state, detail?: string) {
+  const previous = state;
+  const hadReply = runActive && !!runView;
   state = next;
   if (next === "stopping" || next === "error") notifyOwnerWaiters();
-  status.textContent = detail || ({ idle: "Ready", running: "Responding…", stopping: "Stopping…", error: "Unavailable" }[next]);
+  if (next === "running" && !runActive) {
+    runActive = true; runView = undefined; runFailure = false; status.textContent = "";
+  }
+  if (next === "idle" || next === "error") finishRun(next === "error" ? detail || "Reply unavailable. Check the connection." : previous === "stopping" ? "Reply interrupted." : undefined);
+  else renderActivity();
+  if (detail && next === "error" && !hadReply) status.textContent = detail;
   refresh();
 }
 function createMessage(role: string, text: string): MessageView {
@@ -202,10 +280,12 @@ function textOf(message: RecordValue): string {
 }
 function showMessage(message: RecordValue) {
   if (message?.role !== "user" && message?.role !== "assistant") return undefined;
+  observeUser(message);
   const text = textOf(message);
   const view = createMessage(message.role, text);
   if (message.role === "assistant") registerOwners(message, view);
   if (text || message.role === "user") reveal(view);
+  if (message.role === "assistant") messageOutcome(message, view);
   return view;
 }
 function transmit(message: RecordValue): boolean {
@@ -213,7 +293,7 @@ function transmit(message: RecordValue): boolean {
   socket.send(JSON.stringify(message));
   return true;
 }
-function command(type: "prompt" | "stop", extra: RecordValue = {}) {
+function command(type: "prompt" | "stop" | "rename", extra: RecordValue = {}) {
   const id = crypto.randomUUID();
   if (!transmit({ type, id, ...extra })) return false;
   pending.set(id, type);
@@ -256,6 +336,7 @@ function handleEvent(event: RecordValue) {
   if (!event || typeof event.type !== "string") return;
   switch (event.type) {
     case "agent_start": if (state !== "stopping" && state !== "error") setStatus("running"); break;
+    case "session_info_changed": updateName(event.name); break;
     case "agent_settled":
       promptPending = false;
       if (state !== "stopping" && state !== "error") setStatus("idle");
@@ -263,8 +344,11 @@ function handleEvent(event: RecordValue) {
     case "message_start":
       if (event.message?.role === "assistant") {
         const view = createMessage("assistant", "");
+        clearActivity();
+        runView = view; runFailure = false;
         registerOwners(event.message, view, true);
         stream = { view, blocks: new Map(), message: event.message };
+        renderActivity();
       }
       else showMessage(event.message);
       break;
@@ -290,11 +374,13 @@ function handleEvent(event: RecordValue) {
           registerOwners(event.message, stream.view, true);
           (stream.view.body as Markdown).source = text;
           if (text || stream.view.ui.childNodes.length) reveal(stream.view);
+          runFailure = messageOutcome(event.message, stream.view) || runFailure;
         } else {
           const view = showMessage(event.message);
-          if (view) registerOwners(event.message, view, true);
+          if (view) { registerOwners(event.message, view, true); runView = view; runFailure = messageOutcome(event.message, view) || runFailure; }
         }
         stream = undefined;
+        renderActivity();
       }
       break;
     case "extension_ui_request": addDialog(event); break;
@@ -308,10 +394,20 @@ function handleFrame(frame: RecordValue) {
         ([...liveBlocks.values()].some(block => block.contains(document.activeElement)) ||
           !!stream?.view.body.contains(document.activeElement))
         ? document.activeElement : null;
+      clearActivity();
+      firstUserPreview = ""; firstUserSeen = false;
+      updateName(frame.state?.sessionName);
+      if (!["running", "stopping"].includes(frame.state?.status)) stream = undefined;
+      runView = undefined; runActive = false; runFailure = false;
       transcript.replaceChildren();
       owners.clear();
       const messages = Array.isArray(frame.messages) ? frame.messages : [];
-      for (const message of messages) showMessage(message);
+      for (const message of messages) {
+        const view = showMessage(message);
+        if (message.role === "user") runView = undefined;
+        else if (message.role === "assistant") runView = view;
+      }
+      const snapshotView = stream?.view || runView;
       if (stream) {
         // Keep an unfinished live reply; snapshot history contains completed messages.
         transcript.append(stream.view.anchor);
@@ -337,6 +433,9 @@ function handleFrame(frame: RecordValue) {
         empty.textContent = "Start a conversation. Replies will appear here as they arrive.";
         transcript.append(empty);
       }
+      runActive = ["running", "stopping"].includes(frame.state?.status);
+      runView = runActive ? snapshotView : undefined;
+      runFailure = !!runView?.node.querySelector(".reply-outcome");
       setStatus(["idle", "running", "stopping", "error"].includes(frame.state?.status) ? frame.state.status : "error");
       for (const request of Array.isArray(frame.dialogs) ? frame.dialogs : []) addDialog(request);
       break;
@@ -359,15 +458,36 @@ function handleFrame(frame: RecordValue) {
         promptPending = false;
         if (frame.success && frame.data?.disposition === "handled") setStatus("idle");
       }
+      if (kind === "rename") {
+        renamePending = false;
+        if (frame.success) { updateName(frame.data?.sessionName); closeRename(); }
+        else { renameError.textContent = `Could not rename: ${frame.error || "Try again."}`; nameInput.disabled = false; nameInput.focus(); }
+        refresh(); break;
+      }
       if (!frame.success) {
+        status.textContent = String(frame.error ?? "Request failed");
         const recovery = state === "error" ? "error" : kind === "prompt" ? "idle" : kind === "stop" ? "running" : state;
-        setStatus(recovery, String(frame.error ?? "Request failed"));
+        setStatus(recovery);
       }
       refresh();
       break;
     }
   }
 }
+function closeRename() { renameForm.hidden = true; rename.hidden = false; renameError.textContent = ""; rename.focus(); }
+rename.addEventListener("click", () => {
+  nameInput.value = sessionName; renameForm.hidden = false; rename.hidden = true; renameError.textContent = ""; nameInput.focus(); nameInput.select();
+});
+renameCancel.addEventListener("click", closeRename);
+renameForm.addEventListener("keydown", event => { if (event.key === "Escape" && !renamePending) { event.preventDefault(); closeRename(); } });
+renameForm.addEventListener("submit", event => {
+  event.preventDefault();
+  const name = nameInput.value.trim();
+  if (!name) { renameError.textContent = "Enter a session name."; nameInput.focus(); return; }
+  if (renamePending) return;
+  if (command("rename", { name })) { renamePending = true; renameError.textContent = ""; refresh(); }
+  else renameError.textContent = "Connection unavailable. Reconnect before saving.";
+});
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   const message = prompt.value.trim();
@@ -383,38 +503,141 @@ function requestStop() {
 stop.addEventListener("click", requestStop);
 dialog.addEventListener("stop-request", requestStop);
 
+updateName(sessionName);
 const fragment = new URLSearchParams(location.hash.slice(1));
-const token = fragment.get("token");
+let token = fragment.get("token");
+try { token ||= sessionStorage.getItem("automata.chat.token"); } catch { /* storage denied */ }
 history.replaceState(null, "", location.pathname + location.search);
-if (!token) {
-  badge.dataset.state = "error";
-  connection.textContent = "Missing access token";
-  setStatus("error");
-} else {
-  const wsOrigin = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}`;
-  socket = new WebSocket(`${wsOrigin}/chat?token=${encodeURIComponent(token)}`);
-  socket.addEventListener("open", () => { connected = true; delete badge.dataset.state; connection.textContent = "Connected"; refresh(); });
-  socket.addEventListener("message", (event) => { try { handleFrame(JSON.parse(event.data)); } catch { setStatus("error", "Invalid server message"); } });
-  socket.addEventListener("close", () => {
-    connected = false; generation++; dialogQueue = []; dialog.cancel(); pending.clear(); promptPending = false;
-    notifyOwnerWaiters();
-    setUIAvailable(false);
-    badge.dataset.state = "error"; connection.textContent = "Disconnected"; setStatus("error", "Connection lost. Reload to start again.");
-  });
-  socket.addEventListener("error", () => { badge.dataset.state = "error"; connection.textContent = "Connection error"; });
-  // Upstream's classic bootstrap has already consumed the fragment and started
-  // its bridge. Reuse it; its protocol and lifecycle are not reimplemented here.
-  const bridge = (window as Window & { awr?: { status: string; connect(): Promise<void> } }).awr;
-  const showBridgeStatus = () => {
-    if (!connected) return;
-    setUIAvailable(bridge?.status === "connected");
-    if (bridge?.status === "connected") { delete badge.dataset.state; connection.textContent = "Connected"; }
-    else if (!bridge || bridge.status === "disconnected" || bridge.status === "closed") {
-      badge.dataset.state = "error"; connection.textContent = "UI bridge unavailable";
-    } else connection.textContent = "Connecting UI…";
-  };
-  if (bridge) void bridge.connect().then(showBridgeStatus, showBridgeStatus);
-  else showBridgeStatus();
-  const bridgeWatch = window.setInterval(showBridgeStatus, 1000);
-  window.addEventListener("pagehide", () => window.clearInterval(bridgeWatch), { once: true });
+// Pasting an admission URL into this already-open path may only change its hash.
+// A full bootstrap is required so both upstream bridge and chat see the token.
+window.addEventListener("hashchange", () => {
+  if (new URLSearchParams(location.hash.slice(1)).get("token")) location.reload();
+});
+
+type Bridge = { status: string; connect(): Promise<void>; close(): void; constructor: Function };
+const bridgeWindow = window as Window & { awr?: Bridge };
+// The upstream bridge owns its protocol and execution. Its disconnected handles
+// are terminal: instantiate its original class, never revive/replay old handles.
+const BridgeClass = bridgeWindow.awr?.constructor as (new (options: { url: string; token: string }) => Bridge) | undefined;
+const wsOrigin = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}`;
+let connecting = false;
+let terminal = !token;
+let disposed = false;
+let connectionEpoch = 0;
+let snapshotReceived = false;
+const delay = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
+function showConnection(label: string, detail = "") {
+  connection.textContent = label;
+  connectionDetail.textContent = detail;
+  connectButton.hidden = connected;
+  connectButton.disabled = connecting || terminal;
+  connectButton.textContent = "Retry connection";
 }
+function disconnectView() {
+  const wasActive = runActive;
+  const hadReply = !!runView;
+  const previousNotice = status.textContent;
+  connected = false; snapshotReceived = false; generation++;
+  dialogQueue = []; dialog.cancel(); pending.clear(); promptPending = false;
+  notifyOwnerWaiters(); setUIAvailable(false);
+  liveBlocks.clear(); liveOwners.clear(); finishedContexts.clear();
+  renamePending = false;
+  if (!renameForm.hidden) renameError.textContent = "Connection lost. Confirm the saved name after reconnecting before retrying.";
+  setStatus("error", "Connection lost; reply interrupted.");
+  // Connection notices belong to the header/detail, not stale input errors.
+  if (!wasActive) status.textContent = previousNotice;
+  else if (!hadReply) status.textContent = "Reply interrupted before a response arrived.";
+}
+function closeConnections() {
+  const previous = socket; socket = undefined;
+  previous?.close();
+  bridgeWindow.awr?.close();
+}
+function rejectCredential() {
+  terminal = true;
+  try { sessionStorage.removeItem("automata.chat.token"); } catch { /* storage denied */ }
+}
+async function openChat(epoch: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const candidate = new WebSocket(`${wsOrigin}/chat?token=${encodeURIComponent(token!)}`);
+    socket = candidate;
+    const deadline = window.setTimeout(() => { candidate.close(); reject(new Error("Connection timed out")); }, 10000);
+    candidate.addEventListener("message", event => {
+      if (socket !== candidate || epoch !== connectionEpoch || disposed) return;
+      try {
+        const frame = JSON.parse(event.data);
+        if (frame.type === "snapshot") {
+          snapshotReceived = true;
+          connected = bridgeWindow.awr?.status === "connected";
+        }
+        handleFrame(frame);
+        if (snapshotReceived && connected) { clearTimeout(deadline); resolve(); }
+      } catch { clearTimeout(deadline); candidate.close(); reject(new Error("Invalid server message")); }
+    });
+    candidate.addEventListener("close", event => {
+      clearTimeout(deadline);
+      if (socket !== candidate || epoch !== connectionEpoch || disposed) return;
+      socket = undefined;
+      const established = snapshotReceived;
+      disconnectView();
+      reject(new Error("Chat connection closed"));
+      if (event.code === 1008) {
+        rejectCredential();
+        showConnection("Disconnected", "Connection rejected. Open a valid admission URL from the existing host.");
+      }
+      if (established && !connecting) void reconnect();
+    });
+    candidate.addEventListener("error", () => { /* close/deadline handles recovery */ });
+  });
+}
+async function reconnect() {
+  if (connecting || terminal || disposed) return;
+  connecting = true;
+  const epoch = ++connectionEpoch;
+  if (connected || snapshotReceived) disconnectView();
+  showConnection("Connecting…", "Reconnecting to the existing session; no messages are resent.");
+  let detail = "Connection unavailable. Check that the existing host is running, then Retry connection.";
+  for (let attempt = 0; attempt < 5 && !terminal && !disposed; attempt++) {
+    closeConnections();
+    if (attempt) await delay([0, 500, 2000, 4000, 5000][attempt]);
+    if (disposed || epoch !== connectionEpoch) break;
+    try {
+      const response = await fetch("/chat/connection", {
+        method: "POST", headers: { Authorization: `Bearer ${token}` }, cache: "no-store",
+        signal: AbortSignal.timeout(5000),
+      });
+      if (response.status === 403 || response.status === 410) {
+        rejectCredential(); detail = "Access credential rejected or expired. Open the original admission URL from the existing host, or ask its owner for a valid URL."; break;
+      }
+      if (response.status === 409) { detail = "The previous connection is still stopping. Wait briefly, then Retry connection."; continue; }
+      if (!response.ok) continue;
+      let bridge = bridgeWindow.awr;
+      if (!bridge || ["closed", "disconnected"].includes(bridge.status)) {
+        if (!BridgeClass) { detail = "UI bridge unavailable. Reload this tab with the existing host's admission URL."; break; }
+        bridge = new BridgeClass({ url: `${wsOrigin}/ws`, token: token! });
+        Object.defineProperty(window, "awr", { value: bridge, configurable: true });
+      }
+      await bridge.connect();
+      await openChat(epoch);
+      if (disposed || epoch !== connectionEpoch) break;
+      connected = true; connecting = false;
+      setUIAvailable(true); refresh(); showConnection("Connected"); return;
+    } catch { /* Bounded transport/admission retries; never replay commands. */ }
+  }
+  closeConnections(); connecting = false; connected = false;
+  refresh(); showConnection("Disconnected", terminal ? "Access credential rejected or expired. Open a valid admission URL from the existing host." : detail);
+}
+connectButton.addEventListener("click", () => { void reconnect(); });
+if (!token) {
+  showConnection("Disconnected", "Missing access credential. Open the admission URL from the existing host; connecting never starts a new agent.");
+  setStatus("error");
+} else void reconnect();
+const bridgeWatch = window.setInterval(() => {
+  if (!connected || connecting || disposed) return;
+  if (bridgeWindow.awr?.status !== "connected") {
+    disconnectView(); closeConnections(); void reconnect();
+  }
+}, 250);
+window.addEventListener("pagehide", () => {
+  disposed = true; connectionEpoch++; window.clearInterval(bridgeWatch); closeConnections();
+}, { once: true });

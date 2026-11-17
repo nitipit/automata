@@ -19,3 +19,7 @@ class FakeSocket extends EventTarget {
   emit(value) { this.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(value) })); }
 }
 window.WebSocket = FakeSocket;
+const originalFetch = window.fetch.bind(window);
+window.fetch = (url, options) => String(url) === '/chat/connection'
+  ? Promise.resolve(new Response('{"ready":true}', {status:200}))
+  : originalFetch(url, options);

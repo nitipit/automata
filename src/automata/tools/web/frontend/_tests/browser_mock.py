@@ -39,7 +39,7 @@ def main():
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         subprocess.run(["npm", "run", "build:web", "--", str(root)], check=True)
-        for module in ("text-test.js", "controls-test.js"):
+        for module in ("text-test.js", "controls-test.js", "session-status-test.js"):
             shutil.copyfile(TESTS / module, root / module)
         (root / "index.html").write_text(
             "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'></head><body>"
@@ -63,6 +63,7 @@ def main():
             })
             + "</script>"
             + content
+            + "<script src='/connection-bootstrap.js'></script>"
             + "<script src='/bridge.js'></script><script type='module' src='/index.js'></script>"
             + TEST
             + "</body></html>"
@@ -71,7 +72,10 @@ def main():
         if bridge:
             shutil.copyfile(bridge, root / "bridge.js")
         else:
-            (root / "bridge.js").write_text("window.awr={status:'connected',connect:async()=>{}};")
+            (root / "bridge.js").write_text(
+                "class FixtureBridge {status='idle'; async connect(){this.status='connected';}"
+                "close(){this.status='closed';}}; window.awr=new FixtureBridge();"
+            )
         with socketserver.TCPServer(
             ("127.0.0.1", 0), functools.partial(QuietHandler, directory=directory)
         ) as server:

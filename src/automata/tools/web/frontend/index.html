@@ -3,16 +3,23 @@
 <automata-app class="app-shell">
 <a class="skip-link" href="#conversation">Skip to conversation</a>
   <header class="app-header">
-    <div><span class="eyebrow">AUTOMATA</span><h1>Conversation</h1></div>
-    <status-badge role="status" aria-live="polite"><span id="connection-status">Connecting…</span></status-badge>
+    <div class="session-identity"><span class="eyebrow">AUTOMATA</span><div class="session-title"><h1 id="session-name">Untitled session</h1><button id="rename" type="button" aria-label="Rename session" title="Rename session" disabled></button></div></div>
+    <div class="connection-controls"><span id="connection-status" role="status">Connecting…</span><button id="connect" type="button" disabled>Connect</button></div>
+    <form id="rename-form" hidden>
+      <label for="session-name-input">Session name</label>
+      <input id="session-name-input" autocomplete="off" required aria-describedby="rename-error">
+      <div><button id="rename-save" type="submit">Save</button><button id="rename-cancel" type="button">Cancel</button></div>
+      <p id="rename-error" role="alert"></p>
+    </form>
   </header>
   <main class="workspace">
-    <section class="chat-panel" aria-label="Chat">
-      <div class="panel-heading"><div><span class="eyebrow">SESSION</span><h2 id="conversation">Chat</h2></div><span id="run-status" role="status" aria-live="polite">Starting…</span></div>
+    <section id="conversation" class="chat-panel" aria-label="Conversation" tabindex="-1">
       <div id="transcript" class="transcript" role="log" aria-label="Conversation messages" aria-live="polite" aria-relevant="additions text">
         <p class="empty-state">Start a conversation. Replies will appear here as they arrive.</p>
       </div>
       <form id="composer" class="composer">
+        <p id="connection-detail" role="status"></p>
+        <p id="run-status" role="status" aria-live="polite"></p>
         <label for="prompt">Message</label>
         <textarea id="prompt" name="prompt" rows="3" placeholder="Write a message…" required></textarea>
         <div class="composer-actions"><p>Enter to send · Shift+Enter for a new line</p><div><button id="stop" type="button" disabled>Stop</button><button id="send" type="submit" disabled>Send</button></div></div>
@@ -22,4 +29,4 @@
 </automata-app>
 <native-rpc-dialog></native-rpc-dialog>
 {% endblock %}
-{% block scripts %}<script src="/bridge.js"></script><script type="module" src="/assets/index.js"></script>{% endblock %}
+{% block scripts %}<script src="/assets/connection-bootstrap.js"></script><script src="/bridge.js"></script><script type="module" src="/assets/index.js"></script>{% endblock %}

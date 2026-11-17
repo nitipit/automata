@@ -8,15 +8,28 @@ export const appStyle = `
   padding: clamp(1rem, 3vw, 2.5rem);
   & .skip-link { position: absolute; left: -10000px; }
   & .skip-link:focus { position: fixed; left: 1rem; top: 1rem; z-index: 10; padding: .5rem; }
-  & .app-header, & .panel-heading, & .composer-actions { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-  & .app-header { margin-bottom: 1.5rem; }
-  & .app-header h1, & .panel-heading h2, & .composer p { margin: 0; }
+  & .app-header, & .composer-actions { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+  & .app-header { margin-bottom: 1.5rem; flex-wrap: wrap; }
+  & .session-identity { min-width: 0; flex: 1 1 16rem; overflow-wrap: anywhere; }
+  & .session-title { display: flex; align-items: center; gap: .35rem; }
+  & .session-title h1 { min-width: 0; }
+  & #rename { flex: 0 0 44px; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; }
+  & #rename svg { width: 20px; height: 20px; }
+  & .connection-controls { display: flex; align-items: center; gap: .5rem; font-size: .85rem; }
+  & #connect[hidden] { display: none; }
+  & .app-header button:disabled { opacity: .5; cursor: not-allowed; }
+  & #rename-form { flex: 1 1 100%; min-width: 0; }
+  & #rename-form[hidden], & #rename[hidden] { display: none; }
+  & #rename-form input { display: block; width: 100%; margin: .4rem 0; padding: .6rem; border: 1px solid; border-radius: .55rem; }
+  & .app-header button { cursor: pointer; padding: .55rem .85rem; border: 1px solid; border-radius: .55rem; }
+  & #rename-form button + button { margin-left: .4rem; }
+  & #rename-error:empty, & #run-status:empty, & #connection-detail:empty { display: none; }
+  & .reply-activity, & .reply-outcome { font-size: .85rem; margin: .5rem 0 0; }
+  & .app-header h1, & .composer p { margin: 0; }
   & .app-header h1 { font-size: clamp(1.6rem, 3vw, 2.25rem); letter-spacing: -.04em; line-height: 1.15; }
-  & .panel-heading h2 { font-size: 1.15rem; letter-spacing: -.015em; }
   & .eyebrow { font-size: .68rem; font-weight: 750; letter-spacing: .13em; }
   & .workspace { display: grid; grid-template-columns: minmax(0, 1fr); }
   & .chat-panel { min-width: 0; border: 1px solid; border-radius: 1.1rem; overflow: hidden; box-shadow: 0 12px 40px #183c2910; display: flex; flex-direction: column; min-height: min(72vh, 800px); }
-  & .panel-heading { padding: 1.15rem 1.35rem; border-bottom: 1px solid; }
   & #run-status { font-size: .85rem; }
   & .transcript { flex: 1; display: flex; flex-direction: column; align-items: stretch; gap: 1rem; padding: 1.35rem; overflow-y: auto; max-height: 60vh; }
   & .empty-state { font-size: .93rem; }
@@ -45,12 +58,13 @@ export const appStyle = `
 export function appThemeStyle({ mode, roles: r }: ResolvedTheme): string {
   return `
     color: ${r.text}; color-scheme: ${mode};
-    & .skip-link:focus, & .chat-panel, & .composer textarea, & .composer button { background: ${r.surface}; color: ${r.text}; }
-    & .eyebrow, & #run-status, & .empty-state, & .message-label, & .inactive-ui, & .composer-actions p { color: ${r.mutedText}; }
-    & .chat-panel, & .panel-heading, & .generated-content, & .composer, & .composer textarea, & .composer button { border-color: ${r.border}; }
+    & .skip-link:focus, & .chat-panel, & .composer textarea, & .composer button, & .app-header button, & #rename-form input { background: ${r.surface}; color: ${r.text}; }
+    & .eyebrow, & #run-status, & #connection-status, & #connection-detail, & .reply-activity, & .empty-state, & .message-label, & .inactive-ui, & .composer-actions p { color: ${r.mutedText}; }
+    & .chat-panel, & .generated-content, & .composer, & .composer textarea, & .composer button, & .app-header button, & #rename-form input { border-color: ${r.border}; }
     & .message { background: ${r.surfaceRaised}; }
     & .message.user { background: ${r.accentSoft}; }
     & #send { color: ${r.accentText}; background: ${r.accent}; border-color: ${r.accent}; }
-    & .composer :focus-visible, & .skip-link:focus-visible { outline-color: ${r.focus}; }
+    & #rename-error, & .reply-outcome { color: ${r.mutedText}; }
+    & .app-header :focus-visible, & .composer :focus-visible, & .skip-link:focus-visible { outline-color: ${r.focus}; }
   `;
 }

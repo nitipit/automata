@@ -4,6 +4,8 @@ const { checkTextComponents } = await import('/text-test.js');
 await checkTextComponents(check);
 const { checkControls } = await import('/controls-test.js');
 await checkControls(check);
+const { checkSessionStatus } = await import('/session-status-test.js');
+await checkSessionStatus(check);
 const send = document.querySelector("#send");
 const prompt = document.querySelector("#prompt");
 const state = document.querySelector("#run-status");
@@ -193,7 +195,7 @@ request("d6", "confirm");
 sock.emit({type:"dialog_closed", id:"d6"}); await tick();
 check(sock.sent.some(x => x.type === "stop"), "stop sent");
 sock.emit({type:"rpc_event", event:{type:"agent_settled"}});
-check(send.disabled && state.textContent.includes("Stopping"), "late settled cannot override stop");
+check(send.disabled && transcript.querySelector('.reply-activity')?.textContent.includes("Stopping"), "late settled cannot override stop");
 sock.emit({type:"host_status", status:"error"});
 sock.emit({type:"ack", id:sock.sent.find(x => x.type === "stop").id, success:false, error:"Restart required"});
 sock.emit({type:"rpc_event", event:{type:"agent_settled"}});
@@ -208,7 +210,7 @@ if (window.bridgeSock) {
   const disconnected = bridgeSock.sent.find(x => x.id === "disconnect-owner")?.value;
   check(disconnected?.ok === false && disconnected?.phase === "readiness" && !window.disconnectedBodyRan, "disconnect rejects readiness before body");
 }
-check(send.disabled && state.textContent.includes("Connection lost"), "disconnect disables");
+check(send.disabled && document.querySelector('#connection-status').textContent !== 'Connected', "disconnect disables");
 check(root1.inert, "disconnect makes retained controls inert");
 let result = document.createElement("pre"); result.id = "test-result";
 result.textContent = JSON.stringify({pass:failures.length === 0, failures}); document.body.append(result);
