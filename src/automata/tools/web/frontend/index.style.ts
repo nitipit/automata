@@ -8,22 +8,7 @@ export const appStyle = `
   padding: clamp(1rem, 3vw, 2.5rem);
   & .skip-link { position: absolute; left: -10000px; }
   & .skip-link:focus { position: fixed; left: 1rem; top: 1rem; z-index: 10; padding: .5rem; }
-  & .app-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-  & .app-header { margin-bottom: 1.5rem; flex-wrap: wrap; }
-  & .session-identity { min-width: 0; flex: 1 1 16rem; overflow-wrap: anywhere; }
-  & .session-title { position: relative; display: flex; align-items: center; gap: .35rem; }
-  & .session-title h1 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  & .session-title:has(#rename:not(:disabled)) h1 { cursor: text; }
-  & .session-title[data-editing] > :is(h1, button) { visibility: hidden; }
-  & .app-header #rename { flex: 0 0 44px; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border-color: transparent; background: transparent; }
-  & #rename svg { width: 16px; height: 16px; }
-  & .connection-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; font-size: .85rem; }
-  & #connect[hidden] { display: none; }
-  & .app-header button:disabled { opacity: .5; cursor: not-allowed; }
-  & #rename-form { position: absolute; inset: 0; }
-  & #rename-form input { display: block; width: 100%; height: 100%; padding: 0 .35rem; border: 1px solid; border-radius: .55rem; }
-  & #rename-error { margin: .25rem 0 0; font-size: .85rem; }
-  & .app-header button, & #sessions-picker button { cursor: pointer; padding: .55rem .85rem; border: 1px solid; border-radius: .55rem; }
+  & #sessions-picker button { cursor: pointer; padding: .55rem .85rem; border: 1px solid; border-radius: .55rem; }
   & #sessions-picker { width: min(62rem, calc(100% - 2rem)); height: min(42rem, 91dvh); max-height: 91dvh; padding: 0; border: 1px solid; border-radius: 1.05rem; overflow: hidden; box-shadow: 0 24px 80px #0004; }
   & #sessions-picker[open] { display: flex; flex-direction: column; }
   & #sessions-picker::backdrop { background: #0008; }
@@ -76,9 +61,6 @@ export const appStyle = `
     & #sessions-detail:not([hidden]) { display: block; }
     & #sessions-preview-scroll { overflow-y: visible; }
   }
-  & #rename-error:empty { display: none; }
-  & .app-header h1 { margin: 0; }
-  & .app-header h1, & #rename-form input { font-size: clamp(1.6rem, 3vw, 2.25rem); font-weight: 700; letter-spacing: -.04em; line-height: 1.15; }
   & .eyebrow { font-size: .68rem; font-weight: 750; letter-spacing: .13em; }
   & .workspace { display: grid; grid-template-columns: minmax(0, 1fr); }
   & .chat-panel { min-width: 0; border: 1px solid; border-radius: 1.1rem; overflow: hidden; box-shadow: 0 12px 40px #183c2910; display: flex; flex-direction: column; min-height: min(72vh, 800px); }
@@ -92,11 +74,9 @@ export const appStyle = `
 export function appThemeStyle({ mode, roles: r }: ResolvedTheme): string {
   return `
     color: ${r.text}; color-scheme: ${mode};
-    & .skip-link:focus, & .chat-panel, & .app-header button, & #rename-form input { background: ${r.surface}; color: ${r.text}; }
-    & .eyebrow, & #connection-status, & .empty-state, & #messages > .inactive-ui { color: ${r.mutedText}; }
-    & .chat-panel, & .app-header button, & #rename-form input { border-color: ${r.border}; }
-    & .app-header #rename:not(:disabled):hover { background: ${r.surfaceRaised}; }
-    & #rename-error { color: ${r.mutedText}; }
+    & .skip-link:focus, & .chat-panel { background: ${r.surface}; color: ${r.text}; }
+    & .eyebrow, & .empty-state, & #messages > .inactive-ui { color: ${r.mutedText}; }
+    & .chat-panel { border-color: ${r.border}; }
     & #sessions-picker, & #sessions-picker button { background: ${r.surface}; color: ${r.text}; border-color: ${r.border}; }
     & .sessions-directory, & .sessions-facts, & .sessions-turn { background: ${r.surfaceRaised}; }
     & .sessions-header, & .sessions-directory, & .sessions-facts, & #sessions-status, & #sessions-opening { border-color: ${r.border}; }
@@ -104,6 +84,6 @@ export function appThemeStyle({ mode, roles: r }: ResolvedTheme): string {
     & #sessions-list button[aria-pressed="true"] { background: ${r.accentSoft}; border-color: ${r.accent}; }
     & #sessions-open:not(:disabled) { color: ${r.accentText}; background: ${r.accent}; border-color: ${r.accent}; }
     & #sessions-list small, & #sessions-list time, & #sessions-status, & #sessions-preview-status, & .sessions-facts dt, & .sessions-turn strong, & #sessions-caution, & #sessions-placeholder p { color: ${r.mutedText}; }
-    & .app-header :focus-visible, & #sessions-picker :focus-visible, & .skip-link:focus-visible { outline-color: ${r.focus}; }
+    & #sessions-picker :focus-visible, & .skip-link:focus-visible { outline-color: ${r.focus}; }
   `;
 }

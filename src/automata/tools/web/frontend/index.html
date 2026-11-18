@@ -1,27 +1,8 @@
 {% extends "_base.html" %}
+{% block title %}Untitled session{% endblock %}
 {% block content %}
 <automata-app class="app-shell">
-<a class="skip-link" href="#conversation">Skip to conversation</a>
-  <header class="app-header">
-    <div class="session-identity">
-      <span class="eyebrow">AUTOMATA</span>
-      <div class="session-title">
-        <h1 id="session-name">Untitled session</h1>
-        <button id="rename" type="button" aria-label="Rename session" title="Rename session" disabled></button>
-        <form id="rename-form" hidden>
-          <input id="session-name-input" aria-label="Session name" autocomplete="off" aria-describedby="rename-error">
-        </form>
-      </div>
-      <p id="rename-error" role="alert"></p>
-    </div>
-    <div class="connection-controls">
-      <button id="sessions" type="button" aria-haspopup="dialog" disabled>Sessions</button>
-      <form id="new-chat-form" method="post" action="/sessions" target="_blank" rel="noopener">
-        <button id="new-chat" type="submit" title="Open a new chat in a new tab" disabled>New chat</button>
-      </form>
-      <span id="connection-status" role="status">Connecting…</span><button id="connect" type="button" disabled>Connect</button>
-    </div>
-  </header>
+  <a class="skip-link" href="#conversation">Skip to conversation</a>
   <dialog id="sessions-picker" aria-labelledby="sessions-heading">
     <header class="sessions-header">
       <div><span class="eyebrow">WORKSPACE</span><h2 id="sessions-heading">Project sessions</h2></div>
@@ -75,7 +56,10 @@
       <div id="messages" role="log" aria-label="Conversation messages" aria-live="polite" aria-relevant="additions text">
         <p class="empty-state">Start a conversation. Replies will appear here as they arrive.</p>
       </div>
-      <chat-composer></chat-composer>
+      <div class="chat-controls">
+        <chat-session-controls></chat-session-controls>
+        <chat-composer></chat-composer>
+      </div>
     </section>
   </main>
 </automata-app>

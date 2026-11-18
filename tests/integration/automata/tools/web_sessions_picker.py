@@ -52,7 +52,7 @@ async def seed(host, label, message):
 
 
 async def choose(page, label):
-    await page.get_by_role("button", name="Sessions", exact=True).click()
+    await page.get_by_role("button", name="Switch session", exact=True).click()
     picker = page.get_by_role("dialog", name="Project sessions")
     await expect(picker).to_be_visible()
     await picker.get_by_role("button", name=label, exact=False).click()
@@ -81,7 +81,7 @@ async def check_page(host_a, host_b, browser):
     async def current_is(expected):
         assert await page.evaluate("location.pathname") == f"/sessions/{expected}/"
         assert len(page.context.pages) == 1 and a.id == a_id and b.id == b_id
-    sessions = page.get_by_role("button", name="Sessions", exact=True)
+    sessions = page.get_by_role("button", name="Switch session", exact=True)
     title = page.locator("#session-name")
     transcript = page.locator("#messages")
     prompt = page.locator("#prompt")

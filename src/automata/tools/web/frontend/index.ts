@@ -1,6 +1,7 @@
 import "./chat-composer";
 import type { ChatComposer } from "./chat-composer";
-import editIcon from "./_assets/gnomicon/document-edit-symbolic.svg";
+import "./chat-session-controls";
+import type { ChatSessionControls } from "./chat-session-controls";
 import { Adapter } from "@devcapsule/adapter";
 import { applyBaseStyles } from "./_base.css";
 import { createBrowserTrustRenewal } from "./browser-trust-renewal";
@@ -28,16 +29,7 @@ window.addEventListener("pagehide", unbindAppTheme, { once: true });
 const messageList = element<HTMLElement>("#messages");
 const composer = element<ChatComposer>("chat-composer");
 
-const connection = element<HTMLElement>("#connection-status");
-const sessionTitle = element<HTMLElement>("#session-name");
-const titleRow = element<HTMLElement>(".session-title");
-const rename = element<HTMLButtonElement>("#rename");
-const renameForm = element<HTMLFormElement>("#rename-form");
-const nameInput = element<HTMLInputElement>("#session-name-input");
-const renameError = element<HTMLElement>("#rename-error");
-const sessions = element<HTMLButtonElement>("#sessions");
-const newChat = element<HTMLButtonElement>("#new-chat");
-const newChatForm = element<HTMLFormElement>("#new-chat-form");
+const sessionControls = element<ChatSessionControls>("chat-session-controls");
 const picker = element<HTMLDialogElement>("#sessions-picker");
 const pickerStatus = element<HTMLElement>("#sessions-status");
 const pickerList = element<HTMLUListElement>("#sessions-list");
@@ -67,12 +59,6 @@ let sessionName = "";
 let firstUserPreview = "";
 let firstUserSeen = false;
 let renamePending = false;
-let renameInitial = "";
-let renameAttempt: string | undefined;
-const connectButton = element<HTMLButtonElement>("#connect");
-// Bundled, reviewed Gnomicon SVG only; never server/user markup.
-rename.innerHTML = editIcon;
-rename.querySelector("svg")?.setAttribute("aria-hidden", "true");
 const dialog = element<NativeDialog>("native-rpc-dialog");
 
 type RecordValue = Record<string, any>;
@@ -123,11 +109,13 @@ function discardSubmittedUser() {
 let runActive = false;
 let runFailure = false;
 
+function displayName() {
+  return sessionName.trim() ? sessionName : firstUserPreview || "Untitled session";
+}
 function updateName(name: unknown) {
   sessionName = typeof name === "string" ? name : "";
-  const title = sessionName.trim() ? sessionName : firstUserPreview || "Untitled session";
-  sessionTitle.textContent = title;
-  sessionTitle.title = title;
+  const title = displayName();
+  sessionControls.setName(title);
   document.title = title;
 }
 function observeUser(message: RecordValue) {
@@ -218,16 +206,17 @@ composer.onThinking = level => {
   if (levels.includes(level)) changeControls("set_thinking_level", { level });
 };
 function canStop() { return connected && !switching && state !== "stopping" && (state === "running" || promptPending); }
+function canSwitchSession() { return canSend() && !renamePending && !dialogActive; }
+function canCreateSession() { return connected && !!pairTicket && !switching && state !== "error"; }
+function canRename() { return connected && state !== "switching" && state !== "error" && !switching; }
 function refresh() {
   const mode = state === "stopping" ? "stopping" : canStop() ? "stop" : "send";
   composer.setAction(mode, canSend(), !connected || switching || state === "switching");
   refreshControls();
-  sessions.disabled = !canSend() || renamePending || dialogActive;
-  newChat.disabled = !connected || !pairTicket || switching || state === "error";
-  rename.disabled = !connected || state === "switching" || state === "error" || switching;
-  nameInput.readOnly = renamePending;
+  const switchSession = canSwitchSession();
+  sessionControls.setAvailability({ switchSession, newSession: canCreateSession(), rename: canRename(), renamePending });
   pickerClose.disabled = pickerBack.disabled = switching;
-  pickerOpen.disabled = sessions.disabled || pickerBusy || !pickerReceipt || !previewReady || !selectedSession || !!selectedSession.row.current;
+  pickerOpen.disabled = !switchSession || pickerBusy || !pickerReceipt || !previewReady || !selectedSession || !!selectedSession.row.current;
   pickerPrev.disabled = pickerNext.disabled = pickerReload.disabled = pickerBusy || switching;
 }
 function setStatus(next: typeof state, detail?: string) {
@@ -460,7 +449,7 @@ function renderSessions(data: RecordValue) {
   pickerNext.hidden = nextOffset === undefined;
   pickerPrev.hidden = previousOffset === undefined;
   const rows = Array.isArray(data.sessions) ? [...data.sessions] : [];
-  if (data.current) rows.unshift({ label: sessionTitle.textContent, ...data.current });
+  if (data.current) rows.unshift({ label: displayName(), ...data.current });
   pickerStatus.textContent = !data.persistent ? "This chat has no persistent session store."
     : data.sessions?.length ? "" : "No other saved sessions on this page.";
   for (const row of rows) {
@@ -685,8 +674,8 @@ function handleFrame(frame: RecordValue) {
         renamePending = false;
         if (frame.success) {
           updateName(frame.data?.sessionName);
-          closeRename(document.activeElement === nameInput);
-        } else renameError.textContent = `Could not rename: ${frame.error || "Try again."}`;
+          sessionControls.finishRename();
+        } else sessionControls.finishRename(`Could not rename: ${frame.error || "Try again."}`);
         refresh(); break;
       }
       if (!frame.success) {
@@ -699,11 +688,11 @@ function handleFrame(frame: RecordValue) {
     }
   }
 }
-sessions.addEventListener("click", () => {
-  if (sessions.disabled || picker.open || pickerBusy) return;
+sessionControls.onSwitch = () => {
+  if (!canSwitchSession() || picker.open || pickerBusy) return;
   picker.showModal();
   loadSessions();
-});
+};
 pickerClose.addEventListener("click", () => picker.close());
 picker.addEventListener("cancel", event => { if (switching) event.preventDefault(); });
 picker.addEventListener("close", () => {
@@ -711,7 +700,7 @@ picker.addEventListener("close", () => {
   resetPickerChoice();
   pickerList.replaceChildren();
   pickerReceipt = undefined;
-  if (!sessions.disabled) sessions.focus();
+  sessionControls.focusSwitch();
 });
 pickerBack.addEventListener("click", () => {
   const selectedButton = selectedSession?.button;
@@ -776,68 +765,22 @@ async function openSelectedSession() {
   pickerOpenFailure(error);
 }
 pickerOpen.addEventListener("click", () => { void openSelectedSession(); });
-newChatForm.addEventListener("submit", event => {
-  if (newChat.disabled || !sessionId || !admission || !pairTicket) event.preventDefault();
-});
-newChatForm.addEventListener("formdata", event => {
+sessionControls.onNewSubmit = () => canCreateSession() && !!sessionId && !!admission;
+sessionControls.onNewData = data => {
   if (!sessionId || !admission || !pairTicket) return;
   // Stay out of URL parameters and DOM inputs. The browser submits the form
   // directly from this trusted action; noopener prevents cloned storage.
-  event.formData.set("sourceSessionId", sessionId);
-  event.formData.set("admission", admission);
-  event.formData.set("ticket", pairTicket);
-  event.formData.set("nonce", crypto.randomUUID());
-});
-function clearRenameError() {
-  renameError.textContent = "";
-  nameInput.removeAttribute("aria-invalid");
-}
-function closeRename(restoreFocus: boolean) {
-  renameForm.hidden = true;
-  delete titleRow.dataset.editing;
-  clearRenameError();
-  if (restoreFocus && !rename.disabled) rename.focus({ preventScroll: true });
-}
-function editName() {
-  if (rename.disabled || !renameForm.hidden) return;
-  renameInitial = sessionTitle.textContent?.trim() ?? "";
-  renameAttempt = undefined;
-  nameInput.value = renameInitial;
-  renameForm.hidden = false;
-  titleRow.dataset.editing = "";
-  clearRenameError();
-  nameInput.focus({ preventScroll: true });
-  nameInput.select();
-}
-function saveName(fromBlur: boolean) {
-  if (renameForm.hidden || renamePending) return;
-  const name = nameInput.value.trim();
-  if (fromBlur && name === renameAttempt) return;
-  if (name === renameInitial) { closeRename(!fromBlur); return; }
-  if (!name) {
-    renameError.textContent = "Enter a session name.";
-    nameInput.setAttribute("aria-invalid", "true");
-    return;
-  }
-  renameAttempt = name;
-  if (!rename.disabled && command("rename", { name })) {
-    renamePending = true;
-    clearRenameError();
-    refresh();
-  } else renameError.textContent = "Connection unavailable. Reconnect before saving.";
-}
-rename.addEventListener("click", editName);
-sessionTitle.addEventListener("click", editName);
-nameInput.addEventListener("input", () => { renameAttempt = undefined; clearRenameError(); });
-nameInput.addEventListener("blur", () => saveName(true));
-nameInput.addEventListener("keydown", event => {
-  if (event.isComposing) return;
-  if (event.key === "Escape" && !renamePending) {
-    event.preventDefault();
-    closeRename(true);
-  }
-});
-renameForm.addEventListener("submit", event => { event.preventDefault(); saveName(false); });
+  data.set("sourceSessionId", sessionId);
+  data.set("admission", admission);
+  data.set("ticket", pairTicket);
+  data.set("nonce", crypto.randomUUID());
+};
+sessionControls.onRename = name => {
+  if (renamePending || !canRename() || !command("rename", { name })) return false;
+  renamePending = true;
+  refresh();
+  return true;
+};
 composer.onSend = message => {
   if (!message || !canSend()) return;
   if (command("prompt", { message })) {
@@ -870,11 +813,7 @@ let connectionEpoch = 0;
 let snapshotReceived = false;
 const delay = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
 function showConnection(label: string, detail = "") {
-  connection.textContent = label;
-  composer.connectionDetail = detail;
-  connectButton.hidden = connected;
-  connectButton.disabled = connecting || terminal || bridgeNeedsReload();
-  connectButton.textContent = "Retry connection";
+  sessionControls.setConnection(label, detail, !connected, !connecting && !terminal && !bridgeNeedsReload());
 }
 function disconnectView() {
   const wasActive = runActive;
@@ -893,9 +832,9 @@ function disconnectView() {
   stream = undefined;
   liveBlocks.clear(); liveOwners.clear(); finishedContexts.clear();
   renamePending = false;
-  if (!renameForm.hidden) renameError.textContent = "Connection lost. Confirm the saved name after reconnecting before retrying.";
+  sessionControls.finishRename("Connection lost. Confirm the saved name after reconnecting before retrying.");
   setStatus("error", "Connection lost; reply interrupted.");
-  // Connection notices belong to the header/detail, not stale input errors.
+  // Connection notices belong to the session row, not stale input errors.
   if (wasSwitching) composer.runStatus = "Connection lost while opening a session. No open request was resent.";
   else if (!wasActive) composer.runStatus = previousNotice;
   else if (!hadReply) composer.runStatus = "Reply interrupted before a response arrived.";
@@ -996,7 +935,7 @@ async function reconnect() {
   closeConnections(); connecting = false; connected = false;
   refresh(); showConnection("Disconnected", detail);
 }
-connectButton.addEventListener("click", () => { void reconnect(); });
+sessionControls.onRetry = () => { void reconnect(); };
 if (terminal) {
   showConnection("Disconnected", "Missing access credential. Open the admission URL from the existing host; connecting never starts a new agent.");
   setStatus("error");

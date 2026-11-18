@@ -28,7 +28,6 @@ export class ChatComposer extends Base {
     const form = this.form;
     form.id = "composer";
     form.innerHTML = `
-      <p id="connection-detail" role="status"></p>
       <p id="run-status" role="status" aria-live="polite"></p>
       <label for="prompt">Message</label>
       <textarea id="prompt" name="prompt" rows="3" placeholder="Write a message…" required></textarea>
@@ -78,7 +77,6 @@ export class ChatComposer extends Base {
   set draft(text: string) { this.prompt.value = text; this.refreshButton(); }
   get runStatus() { return this.form.querySelector("#run-status")!.textContent ?? ""; }
   set runStatus(text: string) { this.form.querySelector("#run-status")!.textContent = text; }
-  set connectionDetail(text: string) { this.form.querySelector("#connection-detail")!.textContent = text; }
   setAction(mode: Action, allowSend: boolean, editorDisabled: boolean) {
     this.allowSend = allowSend;
     this.prompt.disabled = editorDisabled;

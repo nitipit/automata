@@ -81,6 +81,7 @@ class Browser:
             connection: document.querySelector('#connection-detail')?.textContent,
             status: document.querySelector('#run-status')?.textContent,
             picker: document.querySelector('#sessions-status')?.textContent,
+            focus: document.activeElement?.id,
             action: document.querySelector('#send')?.dataset.action,
             controls: document.querySelector('#runtime-controls-status')?.textContent,
             model: document.querySelector('select[name=model]')?.value,
@@ -484,7 +485,8 @@ async def streaming_descriptor(browser, tab, project):
           catch (error) { return error instanceof TypeError && error.message.includes('unknown component tag'); }
           return false;
         };
-        return descriptorMounted && !('ChatComposer' in ui) && isPrivate('chat-composer') &&
+        return descriptorMounted && !('ChatComposer' in ui) && !('ChatSessionControls' in ui) &&
+          isPrivate('chat-composer') && isPrivate('chat-session-controls') &&
           isPrivate('chat-message') && window.checkStreamingChild(0);
     })()""")
     (project / ".fixture-stream-update").touch()
@@ -521,6 +523,21 @@ async def exercise(host, browser, project):
     )
     await browser.wait_for_renewals(a, 2)
     print("PASS: paired writer minted trust over HTTP; accelerated focus catch-up renewed it")
+    assert await browser.evaluate(a, """(() => {
+        const controls = document.querySelector('chat-session-controls');
+        const composer = document.querySelector('chat-composer');
+        const rename = controls.querySelector('#rename-form');
+        const fresh = controls.querySelector('#new-chat-form');
+        const switcher = controls.querySelector('#sessions');
+        return controls.previousElementSibling === null && controls.nextElementSibling === composer &&
+          controls.parentElement.previousElementSibling.id === 'messages' &&
+          document.querySelectorAll('h1').length === 1 && document.querySelector('h1').textContent === document.title &&
+          !document.querySelector('.app-header') &&
+          switcher.textContent === 'Switch session' && fresh.querySelector('button').textContent === 'New session' &&
+          fresh.method === 'post' && fresh.target === '_blank' && fresh.rel === 'noopener' &&
+          !rename.contains(fresh) && !fresh.contains(rename) && !composer.contains(controls.querySelector('#connection-detail'));
+    })()""")
+    await browser.evaluate(a, "const p = document.querySelector('#prompt'); p.value = 'A untouched new-session draft'; p.dispatchEvent(new Event('input'))")
     before = await browser.tabs()
     await browser.click(a, "#new-chat")
     b = await browser.child(before)
@@ -532,7 +549,10 @@ async def exercise(host, browser, project):
         b,
         f"window.opener === null && !sessionStorage.getItem('automata.chat.admission.{a_id}') && !document.querySelector('#messages article')",
     )
-    print("PASS: native New chat opens clean independent Firefox tab on the same origin/port")
+    assert await browser.evaluate(a, READY + " && document.querySelector('#prompt').value === 'A untouched new-session draft'")
+    assert await browser.evaluate(b, "document.querySelector('#prompt').value === ''")
+    assert await route(browser, a, origin) == a_id
+    print("PASS: sibling session controls and composer; native New session opens clean independent tab without changing A’s draft")
 
     # Browser-created duplicate intentionally inherits B's route-keyed storage;
     # the server, not frontend storage identity, must refuse its writer claim.
@@ -543,7 +563,7 @@ async def exercise(host, browser, project):
         clone.id = 'test-browser-duplicate'; clone.textContent = 'Fixture duplicate';
         clone.onclick = () => { const child = window.open(location.pathname, '_blank');
             if (child) child.opener = null; clone.remove(); };
-        document.querySelector('.connection-controls').append(clone);
+        document.querySelector('.session-actions').append(clone);
     })()""",
     )
     before = await browser.tabs()
@@ -558,9 +578,27 @@ async def exercise(host, browser, project):
         duplicate,
         f"!!sessionStorage.getItem('automata.chat.admission.{b_id}') && document.querySelector('#prompt').disabled && document.querySelector('#new-chat').disabled && !window.awr",
     )
-    await browser.close(duplicate)
     assert b_entry.chat.rpc.process.returncode is None and await browser.evaluate(b, READY)
     print("PASS: cloned storage refused as competing writer without clearing proof or evicting B")
+    assert await browser.evaluate(duplicate, """(() => {
+        const controls = document.querySelector('chat-session-controls');
+        const retry = controls.querySelector('#connect');
+        return retry.textContent === 'Retry connection' && !retry.disabled && !retry.hidden &&
+            controls.querySelector('#connection-detail').textContent.includes('open in another tab');
+    })()""")
+    # Establish an independently observable Retry path: no competing writer and
+    # no automatic follow-up after the duplicate's original denial.
+    b_pid = b_entry.chat.rpc.process.pid
+    await browser.close(b)
+    async with asyncio.timeout(5):
+        while b_entry.pair:
+            await asyncio.sleep(0.05)
+    await browser.click(duplicate, "#connect")
+    b = duplicate
+    await browser.wait(b, READY, "manual retry admits B after its preceding writer closes")
+    assert b_pid == b_entry.chat.rpc.process.pid and await route(browser, b, origin) == b_id
+    await browser.wait_for_renewals(b, 1)
+    print("PASS: session-local Retry re-paired the same B route and native Pi, with no new tab or agent")
 
     await runtime_controls(browser, a, b, a_entry.chat, b_entry.chat)
     await browser.call("browsingContext.activate", context=a)
@@ -670,8 +708,19 @@ async def exercise(host, browser, project):
         a, "document.querySelector('#rename-form').hidden && document.activeElement.id === 'rename'"
     )
     assert await browser.evaluate(a, "document.title") == heading
+    assert await browser.evaluate(a, """(() => {
+        const draft = document.querySelector('#prompt');
+        draft.value = 'Rename must not send me';
+        draft.dispatchEvent(new Event('input', {bubbles: true}));
+        return !document.querySelector('#send').disabled;
+    })()""")
     await browser.key(a, "\ue007")  # WebDriver Enter activates the focused pencil.
     assert await browser.evaluate(a, "document.activeElement.id === 'session-name-input'")
+    await browser.evaluate(a, "document.activeElement.value = ''")
+    await browser.key(a, "\ue007")
+    assert await browser.evaluate(a, """document.querySelector('#rename-error').textContent === 'Enter a session name.' &&
+        document.activeElement.getAttribute('aria-invalid') === 'true' &&
+        document.querySelector('#prompt').value === 'Rename must not send me'""")
     await browser.evaluate(a, "document.activeElement.value = 'Enter title'")
     await browser.key(a, "\ue007")
     await browser.wait(
@@ -679,6 +728,7 @@ async def exercise(host, browser, project):
         "document.title === 'Enter title' && document.querySelector('#rename-form').hidden",
         "native Enter rename confirmed",
     )
+    assert await browser.evaluate(a, SEND + " && document.querySelector('#prompt').value === 'Rename must not send me' && !" + transcript("Rename must not send me"))
     await browser.click(a, "#rename")
     await browser.evaluate(a, "document.activeElement.value = 'Blur title'")
     await browser.click(a, "#prompt")
@@ -690,9 +740,13 @@ async def exercise(host, browser, project):
     assert await browser.evaluate(a, "document.activeElement.id === 'prompt'")
     assert (await a_entry.chat.rpc.command("get_state"))["sessionName"] == "Blur title"
     print(
-        "PASS: inline title/pencil activation, no row shift, Escape, native Enter/blur confirmation and focus"
+        "PASS: inline title/pencil activation, no row shift, Escape, visible validation, native Enter/blur confirmation and focus; no message submit"
     )
 
+    await browser.click(a, "#sessions")
+    await browser.wait(a, "document.querySelector('#sessions-picker').open && document.activeElement.id === 'sessions-close'", "picker opens with focused Close")
+    await browser.key(a, "\ue00c")
+    await browser.wait(a, "!document.querySelector('#sessions-picker').open && document.activeElement.id === 'sessions'", "Escape restores Switch session focus")
     await browser.evaluate(a, "document.querySelector('#prompt').value = 'Draft belongs to A'")
     before = await browser.tabs()
     await picker_open(browser, a, b_id)
