@@ -30,12 +30,11 @@ or limits to the host's JavaScript capabilities.
 
 ## Reuse the shared foundation
 
-Automata serves a canonical ESM entry at `/assets/ui.js`: `Adapter`, `css`,
-ArrowJS `reactive`, `watch`, `nextTick`, `html`, the runtime `culori` namespace,
-`palette`, `appTheme`, `createTheme`, `setTheme`, `clearTheme`, `bindTheme`, `Base`,
-`Button`, `Card`, `Field`, `CodeBlock` and `Markdown`. Import that module to share
-class identity and stores rather than loading CDN/re-bundled copies or creating
-a second app theme. Arbitrary HTML, Web Components and JavaScript remain usable;
+When interaction would help, inspect the running Automata host’s exports with
+`Object.keys(await import('/assets/ui.js'))` and reuse a component that fits.
+If its inputs or events are unclear, check its implementation rather than guessing.
+Import from that same module to share class identity and stores rather than
+loading CDN/re-bundled copies or creating a second app theme. Arbitrary HTML, Web Components and JavaScript remain usable;
 the components are a starting point, not a widget schema.
 
 Use `CodeBlock.source`/`.language` or `.setCode(source, language)` for source;
