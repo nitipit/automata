@@ -87,8 +87,8 @@ export async function checkSessionStatus(check) {
   check(title.textContent==='Untitled session' && document.title==='Untitled session', 'assistant history is never used for title fallback');
   const plain = { provider: 'fixture', id: 'plain', name: 'Plain' };
   const reasoning = { provider: 'fixture', id: 'r', name: 'Reasoning' };
-  const model = document.querySelector('#model');
-  const thinking = document.querySelector('#thinking-level');
+  const model = document.querySelector('select[name=model]');
+  const thinking = document.querySelector('select[name=thinking-level]');
   const controls = document.querySelector('#runtime-controls-status');
   const composer = document.querySelector('#composer');
   const send = document.querySelector('#send');
@@ -102,7 +102,7 @@ export async function checkSessionStatus(check) {
   check(model.disabled && thinking.disabled && controls.textContent.includes('unavailable'), 'discovery failure distinct from empty pins');
   frame({type:'host_status',...settings(plain, 'off', ['off'])});
   check(model.value === plainKey && thinking.value === 'off' && !model.disabled, 'authoritative settings initialize native controls');
-  check(model.labels[0]?.textContent.startsWith('Model') && thinking.labels[0]?.textContent.startsWith('Thinking') && thinking.getBoundingClientRect().right < send.getBoundingClientRect().left, 'labeled settings stay left of Send');
+  check(model.closest('ui-select') && thinking.closest('ui-select') && model.labels[0]?.textContent === 'Model' && thinking.labels[0]?.textContent === 'Thinking' && thinking.getBoundingClientRect().right < send.getBoundingClientRect().left, 'native shared selects stay labeled and left of Send');
   prompt.value = 'Keep draft';
   change(model, reasoningKey);
   command = sock.sent.at(-1);
@@ -111,13 +111,16 @@ export async function checkSessionStatus(check) {
   composer.requestSubmit();
   check(sock.sent.at(-1) === command && prompt.value === 'Keep draft', 'race guard keeps typed prompt intact');
   frame({type:'ack',id:command.id,success:false,error:'Not permitted'});
-  check(model.value === plainKey && !model.disabled && controls.textContent.includes('Not permitted'), 'refusal preserves confirmed selection and is visible');
+  check(model.value === plainKey && thinking.value === 'off' && !model.disabled && controls.textContent.includes('Not permitted') && prompt.value === 'Keep draft', 'model refusal preserves confirmed settings and draft and is visible');
   change(model, reasoningKey); command = sock.sent.at(-1);
   frame({type:'host_status',...settings(reasoning, 'low', ['off', 'low', 'high'])});
   frame({type:'ack',id:command.id,success:true});
   check(model.value === reasoningKey && thinking.value === 'low' && thinking.options.length === 3 && !controls.textContent, 'native model change atomically renders effective thinking and allowed levels');
   change(thinking, 'high'); command = sock.sent.at(-1);
   check(command.type === 'set_thinking_level' && command.level === 'high' && thinking.value === 'low', 'thinking command constrained to authoritative levels without optimism');
+  frame({type:'ack',id:command.id,success:false,error:'Not permitted'});
+  check(thinking.value === 'low' && model.value === reasoningKey && !thinking.disabled && controls.textContent.includes('Not permitted') && prompt.value === 'Keep draft', 'thinking refusal preserves confirmed settings and draft and is visible');
+  change(thinking, 'high'); command = sock.sent.at(-1);
   frame({type:'host_status',...settings(reasoning, 'high', ['off', 'low', 'high'])});
   frame({type:'ack',id:command.id,success:true});
   check(thinking.value === 'high' && prompt.value === 'Keep draft', 'thinking confirmation applies without changing draft');

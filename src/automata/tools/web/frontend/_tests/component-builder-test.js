@@ -19,7 +19,7 @@ function rejects(operation, pattern) {
 
 export async function run() {
   const ui = await import("/assets/ui.js");
-  const { createComponent, Card, Button, Field, Markdown, CodeBlock } = ui;
+  const { createComponent, Card, Button, Field, Select, Markdown, CodeBlock } = ui;
   check(!("ChatMessage" in ui) && !("createComponentRegistry" in ui), "public entry leaks an internal API");
 
   let executed = 0;
@@ -58,6 +58,57 @@ export async function run() {
     check(named instanceof Button && generic instanceof Button && named.outerHTML === generic.outerHTML,
       "named and generic constructors agree");
   } finally { card.remove(); }
+
+  const selectDescriptor = JSON.parse(JSON.stringify({ _class: "ui-select", _data: {
+    label, name: "speed", value: "standard", required: true,
+    options: [
+      { value: "", label: "Unavailable", disabled: true },
+      { value: "standard", label: "Standard" },
+      { value: label, label, onclick: "do not reflect" },
+      { value: 3, label: "Not a valid row" },
+    ],
+  } }));
+  const select = createComponent(selectDescriptor);
+  const another = Select.create({ _data: { label: "Other speeds", disabled: true,
+    options: selectDescriptor._data.options, value: "" } });
+  const form = document.createElement("form");
+  let changes = 0;
+  select.addEventListener("change", event => {
+    check(event.target === select.control, "change originates at the native control");
+    changes++;
+  });
+  form.append(select, another);
+  document.body.append(form);
+  try {
+    check(select instanceof Select && another instanceof Select && select.control.id !== another.control.id
+      && select.control.labels[0].textContent === label && another.control.labels[0].textContent === "Other speeds",
+      "each select owns its native accessible name");
+    const rows = [...select.control.options];
+    check(rows.map(row => row.value).join("|") === `|standard|${label}` && rows[0].disabled
+      && rows[2].textContent === label && !rows[2].hasAttribute("onclick") && !form.querySelector("img"),
+      "options stay ordered and text-safe; invalid rows are ignored");
+    check(select.control.required && select.value === "standard" && new FormData(form).get("speed") === "standard"
+      && another.control.disabled && another.control.selectedIndex === 0,
+      "native form state and an explicit disabled selection");
+    select.focus();
+    check(document.activeElement === select.control, "widget focus reaches the native select");
+    select.value = label;
+    check(select.value === label && new FormData(form).get("speed") === label && changes === 0, "programmatic value is silent");
+    select.control.dispatchEvent(new Event("change", { bubbles: true }));
+    check(changes === 1, "one native change bubbles through the wrapper");
+    form.reset();
+    check(select.value === "standard" && changes === 1, "native form reset restores the configured default silently");
+    const options = selectDescriptor._data.options.slice(0, 2);
+    select.setOptions(options, "unknown");
+    check(select.control.selectedIndex === -1 && !form.checkValidity(), "an unmatched value is not silently substituted");
+    select.setOptions(options);
+    check(select.value === "standard" && changes === 1, "native default skips a disabled row");
+  } finally { form.remove(); }
+  const rowsWithGetter = [{ get value() { executed++; return "a"; }, label: "A" }];
+  Object.defineProperty(rowsWithGetter, "1", { get() { executed++; return { value: "b", label: "B" }; } });
+  const skipped = Select.create({ _data: { options: rowsWithGetter } });
+  check(executed === 0 && skipped.control.options.length === 0, "descriptor option accessors are not executed");
+  rejects(() => Select.create({ _children: [buttonDescriptor] }), /ui-select does not accept _children/);
 
   rejects(() => createComponent({ _clas: "ui-card" }), /unknown descriptor key _clas/);
   rejects(() => createComponent({ _class: "Button" }), /unknown component tag "Button"/);

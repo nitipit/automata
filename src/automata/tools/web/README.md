@@ -147,6 +147,7 @@ Use `addEventListener` for behavior rather than passing event handlers as data.
 | `ui-card` | `Card.create` | `label` (accessible name) | Yes |
 | `ui-button` | `Button.create` | `text`, `type` (`button`, `submit`, `reset`), `disabled` (boolean) | Yes, as button contents |
 | `ui-field` | `Field.create` | `label`, `help`, `error`, `type`, `name`, `placeholder`, `autocomplete`, `value`, `disabled` and `required` (booleans) | No |
+| `ui-select` | `Select.create` | `label`, `name`, `value`, `options` (ordered array of `{ value, label, disabled? }`), `disabled` and `required` (booleans) | No |
 | `ui-markdown` | `Markdown.create` | `source` | No |
 | `ui-codeblock` | `CodeBlock.create` | `source`, `language` | No |
 
@@ -154,3 +155,30 @@ Fields are optional strings unless noted otherwise. The shared widgets ignore
 unrecognized data fields and values of the wrong type. The public registry does
 not resolve private chat components or arbitrary browser custom elements; plain
 DOM methods and the existing class APIs remain available.
+
+For example, build a native single-choice control from JSON and append it to a
+form. Give each select a descriptive `label`; `name` is its native form key.
+
+```json
+{
+  "_class": "ui-select",
+  "_data": {
+    "label": "Delivery speed",
+    "name": "speed",
+    "value": "standard",
+    "options": [
+      { "value": "standard", "label": "Standard" },
+      { "value": "overnight", "label": "Overnight (unavailable)", "disabled": true }
+    ]
+  }
+}
+```
+
+Option labels are plain text. Rows without string `value` and `label` are
+ignored; an optional row-level `disabled` flag is boolean. With no explicit
+`value`, the browser chooses the initial selection. An explicit value selects
+its first matching row (even a disabled row, useful for displaying an
+unavailable current setting); an unmatched value leaves no selection.
+`select.control` is the native `<select>`. Listen for its bubbling `change`
+event on the widget and read `select.value`. Setting `select.value` or calling
+`select.setOptions(options, value)` does not dispatch a change event.

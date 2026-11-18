@@ -11,5 +11,7 @@ export { Base } from "./_components/base";
 export { Button } from "./_components/button";
 export { Card } from "./_components/card";
 export { Field } from "./_components/field";
+export { Select } from "./_components/select";
+export type { SelectOption } from "./_components/select";
 export { CodeBlock } from "./_components/codeblock";
 export { Markdown } from "./_components/markdown";

@@ -1,5 +1,5 @@
-import sendIcon from "./_assets/gnomicon/paper-plane.svg";
-import stopIcon from "./_assets/gnomicon/media-playback-stop.svg";
+import "./chat-composer";
+import type { ChatComposer } from "./chat-composer";
 import editIcon from "./_assets/gnomicon/document-edit-symbolic.svg";
 import { Adapter } from "@devcapsule/adapter";
 import { applyBaseStyles } from "./_base.css";
@@ -26,12 +26,7 @@ const appHost = element<AutomataApp>("automata-app");
 const unbindAppTheme = bindTheme(appHost, theme => { appHost.css = appThemeStyle(theme); });
 window.addEventListener("pagehide", unbindAppTheme, { once: true });
 const messageList = element<HTMLElement>("#messages");
-const form = element<HTMLFormElement>("#composer");
-const prompt = element<HTMLTextAreaElement>("#prompt");
-const send = element<HTMLButtonElement>("#send");
-const modelSelect = element<HTMLSelectElement>("#model");
-const thinkingSelect = element<HTMLSelectElement>("#thinking-level");
-const controlsStatus = element<HTMLElement>("#runtime-controls-status");
+const composer = element<ChatComposer>("chat-composer");
 
 const connection = element<HTMLElement>("#connection-status");
 const sessionTitle = element<HTMLElement>("#session-name");
@@ -63,7 +58,7 @@ const pickerClose = element<HTMLButtonElement>("#sessions-close");
 const pickerOpen = element<HTMLButtonElement>("#sessions-open");
 const drafts = takeDrafts();
 if (sessionId) {
-  prompt.value = drafts.get(sessionId) ?? "";
+  composer.draft = drafts.get(sessionId) ?? "";
   drafts.delete(sessionId);
 }
 const admission = readAdmission();
@@ -75,11 +70,9 @@ let renamePending = false;
 let renameInitial = "";
 let renameAttempt: string | undefined;
 const connectButton = element<HTMLButtonElement>("#connect");
-const connectionDetail = element<HTMLElement>("#connection-detail");
 // Bundled, reviewed Gnomicon SVG only; never server/user markup.
 rename.innerHTML = editIcon;
 rename.querySelector("svg")?.setAttribute("aria-hidden", "true");
-const status = element<HTMLElement>("#run-status");
 const dialog = element<NativeDialog>("native-rpc-dialog");
 
 type RecordValue = Record<string, any>;
@@ -113,9 +106,7 @@ type ControlsCommand = "set_model" | "set_thinking_level";
 type Command = "prompt" | "stop" | "rename" | "list_sessions" | "preview_session" | ControlsCommand;
 type ModelChoice = { provider: string; id: string; name: string };
 let models: ModelChoice[] = [];
-let selectedModel: ModelChoice | undefined;
 let levels: string[] = [];
-let selectedLevel: string | undefined;
 let controlsSignature: string | undefined;
 let controlsError = "";
 let controlsNotice = "";
@@ -173,7 +164,7 @@ function renderActivity() {
 function finishRun(detail?: string) {
   if (runActive && detail && !runFailure) {
     if (runView) replyOutcome(runView, detail);
-    else status.textContent = detail;
+    else composer.runStatus = detail;
   }
   discardSubmittedUser();
   clearActivity(); runActive = false; runView = undefined;
@@ -191,16 +182,6 @@ function readModel(value: unknown): value is ModelChoice {
 const modelKey = (model: ModelChoice) => JSON.stringify([model.provider, model.id]);
 const modelLabel = (model: ModelChoice) => `${model.name || model.id} · ${model.provider}`;
 const levelLabel = (level: string) => level === "xhigh" ? "Extra high" : level.charAt(0).toUpperCase() + level.slice(1);
-function controlOptions(select: HTMLSelectElement, choices: [string, string][], selected: string | undefined, label: string) {
-  const options = choices.map(([value, text]) => new Option(text, value));
-  if (!selected || !choices.some(([value]) => value === selected)) {
-    const current = new Option(label, selected ?? "");
-    current.disabled = true;
-    options.unshift(current);
-  }
-  select.replaceChildren(...options);
-  select.value = selected ?? "";
-}
 function applyControls(value: RecordValue | null = {}) {
   value ??= {};
   const found = Array.isArray(value.modelChoices) && Array.isArray(value.thinkingLevels);
@@ -212,18 +193,16 @@ function applyControls(value: RecordValue | null = {}) {
   const signature = JSON.stringify([choices, current, allowed, level, error]);
   if (signature === controlsSignature) return;
   controlsSignature = signature;
-  models = choices; selectedModel = current; levels = allowed; selectedLevel = level; controlsError = error;
-  controlOptions(modelSelect, models.map(model => [modelKey(model), modelLabel(model)]),
-    current && modelKey(current), current ? `Current: ${modelLabel(current)}` : "Unavailable");
-  controlOptions(thinkingSelect, levels.map(item => [item, levelLabel(item)]),
-    level, level ? `Current: ${levelLabel(level)}` : "Unavailable");
+  models = choices; levels = allowed; controlsError = error;
+  composer.setOptions(
+    { choices: models.map(model => [modelKey(model), modelLabel(model)]), selected: current && modelKey(current), fallback: current ? `Current: ${modelLabel(current)}` : "Unavailable" },
+    { choices: levels.map(item => [item, levelLabel(item)]), selected: level, fallback: level ? `Current: ${levelLabel(level)}` : "Unavailable" },
+  );
 }
 function refreshControls() {
   const inactive = !canSend() || dialogActive;
-  modelSelect.disabled = inactive || !!controlsError || !models.length;
-  thinkingSelect.disabled = inactive || !!controlsError || !levels.length;
   const note = !connected ? "" : controlsNotice || controlsError || (!models.length ? "No pinned models configured." : !levels.length ? "Thinking levels unavailable." : "");
-  if (controlsStatus.textContent !== note) controlsStatus.textContent = note;
+  composer.setControls(inactive || !!controlsError || !models.length, inactive || !!controlsError || !levels.length, note);
 }
 function changeControls(type: ControlsCommand, data: RecordValue) {
   if (!canSend() || dialogActive || controlsError) return;
@@ -231,34 +210,18 @@ function changeControls(type: ControlsCommand, data: RecordValue) {
   controlsNotice = controlsPending ? "Applying message settings…" : "Connection unavailable. No change was confirmed.";
   refresh();
 }
-modelSelect.addEventListener("change", () => {
-  const candidate = models.find(model => modelKey(model) === modelSelect.value);
-  modelSelect.value = selectedModel ? modelKey(selectedModel) : "";
-  if (candidate && modelKey(candidate) !== modelSelect.value) {
-    changeControls("set_model", { provider: candidate.provider, modelId: candidate.id });
-  }
-});
-thinkingSelect.addEventListener("change", () => {
-  const level = thinkingSelect.value;
-  thinkingSelect.value = selectedLevel ?? "";
-  if (level !== selectedLevel && levels.includes(level)) changeControls("set_thinking_level", { level });
-});
+composer.onModel = key => {
+  const candidate = models.find(model => modelKey(model) === key);
+  if (candidate) changeControls("set_model", { provider: candidate.provider, modelId: candidate.id });
+};
+composer.onThinking = level => {
+  if (levels.includes(level)) changeControls("set_thinking_level", { level });
+};
 function canStop() { return connected && !switching && state !== "stopping" && (state === "running" || promptPending); }
-function renderComposerAction() {
-  const mode = state === "stopping" ? "stopping" : canStop() ? "stop" : "send";
-  if (send.dataset.action !== mode) {
-    send.dataset.action = mode;
-    send.innerHTML = mode === "send" ? sendIcon : stopIcon;
-    send.firstElementChild?.setAttribute("aria-hidden", "true");
-    send.title = mode === "send" ? "Send message" : mode === "stop" ? "Stop response" : "Stopping…";
-    send.setAttribute("aria-label", send.title);
-  }
-  send.disabled = mode === "stopping" || (mode === "send" && (!canSend() || !prompt.value.trim()));
-}
 function refresh() {
-  renderComposerAction();
+  const mode = state === "stopping" ? "stopping" : canStop() ? "stop" : "send";
+  composer.setAction(mode, canSend(), !connected || switching || state === "switching");
   refreshControls();
-  prompt.disabled = !connected || switching || state === "switching";
   sessions.disabled = !canSend() || renamePending || dialogActive;
   newChat.disabled = !connected || !pairTicket || switching || state === "error";
   rename.disabled = !connected || state === "switching" || state === "error" || switching;
@@ -273,11 +236,11 @@ function setStatus(next: typeof state, detail?: string) {
   state = next;
   if (next === "stopping" || next === "switching" || next === "error") notifyOwnerWaiters();
   if (next === "running" && !runActive) {
-    runActive = true; runView = undefined; runFailure = false; status.textContent = "";
+    runActive = true; runView = undefined; runFailure = false; composer.runStatus = "";
   }
   if (next === "idle" || next === "error") finishRun(next === "error" ? detail || "Reply unavailable. Check the connection." : previous === "stopping" ? "Reply interrupted." : undefined);
   else renderActivity();
-  if (detail && next === "error" && !hadReply) status.textContent = detail;
+  if (detail && next === "error" && !hadReply) composer.runStatus = detail;
   refresh();
 }
 function createMessage(role: ChatMessageData["role"], text: string): MessageView {
@@ -526,9 +489,9 @@ function renderSessions(data: RecordValue) {
 }
 function addDialog(request: RecordValue) {
   if (!request || typeof request.id !== "string") return;
-  if (request.method === "notify") { status.textContent = String(request.message ?? ""); return; }
-  if (request.method === "setStatus") { status.textContent = String(request.statusText ?? ""); return; }
-  if (request.method === "set_editor_text") { prompt.value = String(request.text ?? ""); renderComposerAction(); return; }
+  if (request.method === "notify") { composer.runStatus = String(request.message ?? ""); return; }
+  if (request.method === "setStatus") { composer.runStatus = String(request.statusText ?? ""); return; }
+  if (request.method === "set_editor_text") { composer.draft = String(request.text ?? ""); return; }
   if (!["confirm", "select", "input", "editor"].includes(request.method)) return;
   if (seenDialogs.has(request.id)) return;
   seenDialogs.add(request.id);
@@ -727,7 +690,7 @@ function handleFrame(frame: RecordValue) {
         refresh(); break;
       }
       if (!frame.success) {
-        status.textContent = String(frame.error ?? "Request failed");
+        composer.runStatus = String(frame.error ?? "Request failed");
         const recovery = state === "error" ? "error" : kind === "prompt" ? "idle" : kind === "stop" ? "running" : state;
         setStatus(recovery);
       }
@@ -767,7 +730,7 @@ pickerNext.addEventListener("click", () => { if (nextOffset !== undefined) loadS
 pickerReload.addEventListener("click", () => loadSessions(0, true));
 function pickerOpenFailure(message: string) {
   pickerStatus.textContent = message;
-  if (state === "error") status.textContent = message;
+  if (state === "error") composer.runStatus = message;
   pickerReceipt = undefined;
   pickerPrev.hidden = pickerNext.hidden = true;
   pickerReload.hidden = state === "error";
@@ -799,7 +762,7 @@ async function openSelectedSession() {
       const url = savedSessionURL(result.url, target);
       if (url) {
         const outgoingDrafts = new Map(drafts);
-        if (prompt.value) outgoingDrafts.set(sessionId, prompt.value);
+        if (composer.draft) outgoingDrafts.set(sessionId, composer.draft);
         if (carryDrafts(target, outgoingDrafts)) {
           location.assign(url.href);
           return;
@@ -875,24 +838,18 @@ nameInput.addEventListener("keydown", event => {
   }
 });
 renameForm.addEventListener("submit", event => { event.preventDefault(); saveName(false); });
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const message = prompt.value.trim();
+composer.onSend = message => {
   if (!message || !canSend()) return;
   if (command("prompt", { message })) {
     submittedUser = createMessage("user", message);
     reveal(submittedUser);
-    prompt.value = ""; promptPending = true; setStatus("running");
+    composer.draft = ""; promptPending = true; setStatus("running");
   }
-});
-prompt.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); form.requestSubmit(); }
-});
+};
 function requestStop() {
   if (canStop() && command("stop")) setStatus("stopping");
 }
-prompt.addEventListener("input", renderComposerAction);
-send.addEventListener("click", () => { if (canStop()) requestStop(); else if (canSend()) form.requestSubmit(); });
+composer.onStop = requestStop;
 dialog.addEventListener("stop-request", requestStop);
 
 updateName(sessionName);
@@ -914,7 +871,7 @@ let snapshotReceived = false;
 const delay = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
 function showConnection(label: string, detail = "") {
   connection.textContent = label;
-  connectionDetail.textContent = detail;
+  composer.connectionDetail = detail;
   connectButton.hidden = connected;
   connectButton.disabled = connecting || terminal || bridgeNeedsReload();
   connectButton.textContent = "Retry connection";
@@ -922,7 +879,7 @@ function showConnection(label: string, detail = "") {
 function disconnectView() {
   const wasActive = runActive;
   const hadReply = !!runView;
-  const previousNotice = status.textContent;
+  const previousNotice = composer.runStatus;
   connected = false; snapshotReceived = false; pairTicket = undefined; generation++;
   browserTrust?.stop();
   dialogQueue = []; seenDialogs.clear(); dialog.cancel(); pending.clear(); promptPending = false;
@@ -939,9 +896,9 @@ function disconnectView() {
   if (!renameForm.hidden) renameError.textContent = "Connection lost. Confirm the saved name after reconnecting before retrying.";
   setStatus("error", "Connection lost; reply interrupted.");
   // Connection notices belong to the header/detail, not stale input errors.
-  if (wasSwitching) status.textContent = "Connection lost while opening a session. No open request was resent.";
-  else if (!wasActive) status.textContent = previousNotice;
-  else if (!hadReply) status.textContent = "Reply interrupted before a response arrived.";
+  if (wasSwitching) composer.runStatus = "Connection lost while opening a session. No open request was resent.";
+  else if (!wasActive) composer.runStatus = previousNotice;
+  else if (!hadReply) composer.runStatus = "Reply interrupted before a response arrived.";
 }
 function closeConnections() {
   pairTicket = undefined;

@@ -75,21 +75,7 @@
       <div id="messages" role="log" aria-label="Conversation messages" aria-live="polite" aria-relevant="additions text">
         <p class="empty-state">Start a conversation. Replies will appear here as they arrive.</p>
       </div>
-      <form id="composer" class="composer">
-        <p id="connection-detail" role="status"></p>
-        <p id="run-status" role="status" aria-live="polite"></p>
-        <label for="prompt">Message</label>
-        <textarea id="prompt" name="prompt" rows="3" placeholder="Write a message…" required></textarea>
-        <div class="composer-actions">
-          <div class="runtime-controls" role="group" aria-label="Next message settings">
-            <label for="model">Model<select id="model" disabled><option value="">Unavailable</option></select></label>
-            <label for="thinking-level">Thinking<select id="thinking-level" disabled><option value="">Unavailable</option></select></label>
-          </div>
-          <button id="send" type="button" aria-label="Send message" title="Send message" disabled></button>
-        </div>
-        <p id="runtime-controls-status" role="status"></p>
-        <p class="composer-hint">Enter to send · Shift+Enter for a new line</p>
-      </form>
+      <chat-composer></chat-composer>
     </section>
   </main>
 </automata-app>

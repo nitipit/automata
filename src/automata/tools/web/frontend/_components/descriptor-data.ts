@@ -1,5 +1,5 @@
 // Read only the keys a widget explicitly names; do not call getters or coerce values.
-function ownValue(data: unknown, key: string): unknown {
+export function ownValue(data: unknown, key: string): unknown {
   return data !== null && typeof data === "object" ? Object.getOwnPropertyDescriptor(data, key)?.value : undefined;
 }
 

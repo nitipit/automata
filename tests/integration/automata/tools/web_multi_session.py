@@ -21,6 +21,7 @@ from urllib.parse import urlsplit
 import websocket
 
 from automata.tools.web.host import BrowserHost
+from automata.tools.web.rpc import RpcRejected
 
 
 class Browser:
@@ -82,8 +83,8 @@ class Browser:
             picker: document.querySelector('#sessions-status')?.textContent,
             action: document.querySelector('#send')?.dataset.action,
             controls: document.querySelector('#runtime-controls-status')?.textContent,
-            model: document.querySelector('#model')?.value,
-            thinking: document.querySelector('#thinking-level')?.value,
+            model: document.querySelector('select[name=model]')?.value,
+            thinking: document.querySelector('select[name=thinking-level]')?.value,
             messages: document.querySelector('#messages')?.textContent?.slice(-450),
         })""",
         )
@@ -301,22 +302,23 @@ async def runtime_controls(browser, a, b, a_chat, b_chat):
         }})()""",
         )
 
-    async def selected(model, level):
+    async def selected(tab, model, level):
         await browser.wait(
-            a,
+            tab,
             f"""
-            !document.querySelector('#model').disabled &&
-            document.querySelector('#model').value === {model_key(model)} &&
-            document.querySelector('#thinking-level').value === {json.dumps(level)}
+            !document.querySelector('select[name=model]').disabled &&
+            !document.querySelector('select[name=thinking-level]').disabled &&
+            document.querySelector('select[name=model]').value === {model_key(model)} &&
+            document.querySelector('select[name=thinking-level]').value === {json.dumps(level)}
         """,
             f"confirmed native settings {model} / {level}",
         )
 
-    await selected("fixture", "low")
+    await selected(a, "fixture", "low")
     assert await browser.evaluate(
         a,
         """
-        JSON.stringify([...document.querySelectorAll('#model option:not(:disabled)')]
+        JSON.stringify([...document.querySelectorAll('select[name=model] option:not(:disabled)')]
             .map(option => JSON.parse(option.value)[1]).sort()) === '["fixture","plain"]'
     """,
     )
@@ -326,33 +328,94 @@ async def runtime_controls(browser, a, b, a_chat, b_chat):
         """(() => {
         // Constrain the actual Firefox composer, rather than resizing the desktop window.
         const composer = document.querySelector('#composer');
-        composer.style.maxWidth = '390px';
+        const model = composer.elements.model;
+        const level = composer.elements['thinking-level'];
         try {
-            const model = document.querySelector('#model').getBoundingClientRect();
-            const thinking = document.querySelector('#thinking-level').getBoundingClientRect();
-            const send = document.querySelector('#send').getBoundingClientRect();
-            return composer.clientWidth <= 390 && composer.scrollWidth <= composer.clientWidth &&
-                model.width > 0 && model.right < thinking.left && thinking.right < send.left;
+            return [320, 390, 960].every(width => {
+                composer.style.maxWidth = `${width}px`;
+                const m = model.getBoundingClientRect();
+                const l = level.getBoundingClientRect();
+                const send = document.querySelector('#send').getBoundingClientRect();
+                return composer.clientWidth <= width && composer.scrollWidth <= composer.clientWidth &&
+                    m.width > 0 && l.width > 0 && m.right < l.left && l.right < send.left &&
+                    m.height >= 44 && l.height >= 44 && Math.abs(l.bottom - send.bottom) < 1;
+            });
         } finally { composer.style.removeProperty('max-width'); }
     })()""",
     )
     await browser.evaluate(a, "document.querySelector('#prompt').focus()")
     await browser.key(a, "\ue004")  # WebDriver Tab
-    assert await browser.evaluate(a, "document.activeElement.id === 'model'")
-    await browser.key(a, "\ue004")
-    assert await browser.evaluate(a, "document.activeElement.id === 'thinking-level'")
-    await select("#model", model_key("plain"))
-    await selected("plain", "off")
     assert await browser.evaluate(
-        a, "document.querySelector('#thinking-level').options.length === 1"
+        a,
+        "document.activeElement.matches('ui-select > select[name=model]') && "
+        "document.activeElement.labels[0].textContent === 'Model'",
     )
-    await select("#model", model_key("fixture"))
-    await selected("fixture", "off")  # The prior level remains supported on this model.
-    await select("#thinking-level", json.dumps("high"))
-    await selected("fixture", "high")
+    await browser.key(a, "\ue004")
+    assert await browser.evaluate(
+        a,
+        "document.activeElement.matches('ui-select > select[name=thinking-level]') && "
+        "document.activeElement.labels[0].textContent === 'Thinking' && "
+        "document.activeElement.labels[0].control === document.activeElement",
+    )
+    await select("select[name=model]", model_key("plain"))
+    await selected(a, "plain", "off")
+    assert await browser.evaluate(
+        a, "document.querySelector('select[name=thinking-level]').options.length === 1"
+    )
+    await select("select[name=model]", model_key("fixture"))
+    await selected(a, "fixture", "off")  # The prior level remains supported on this model.
+
+    # Inject exactly one negative mutation response at A's Pi RPC boundary;
+    # catalog validation, native read-back, WebSocket ack, and the UI remain real.
+    native_command = a_chat.rpc.command
+    refused = []
+
+    async def refuse_high(kind, **kwargs):
+        if kind == "set_thinking_level" and kwargs.get("level") == "high":
+            refused.append(kind)
+            raise RpcRejected("Fixture refusal")
+        return await native_command(kind, **kwargs)
+
+    await browser.evaluate(
+        a,
+        """(() => {
+            const draft = document.querySelector('#prompt');
+            draft.value = 'Retain this draft';
+            draft.dispatchEvent(new Event('input', {bubbles: true}));
+            const level = document.querySelector('select[name=thinking-level]');
+            window.levelBeforeRefusal = level;
+            level.addEventListener('change', event => {
+                window.trustedLevelChange = event.isTrusted && event.target.value === 'high';
+            }, {capture: true, once: true});
+            level.focus();
+        })()""",
+    )
+    with patch.object(a_chat.rpc, "command", new=refuse_high):
+        await browser.key(a, "h")  # Firefox type-ahead selects High on the native control.
+        await browser.wait(
+            a,
+            "document.querySelector('#runtime-controls-status').textContent.includes('Pi did not complete')",
+            "native settings refusal reached the composer",
+        )
+    assert refused == ["set_thinking_level"]
+    await selected(a, "fixture", "off")
+    assert await browser.evaluate(
+        a,
+        "trustedLevelChange === true && "
+        "levelBeforeRefusal === document.querySelector('select[name=thinking-level]') && "
+        "document.querySelector('#prompt').value === 'Retain this draft'",
+    )
+    assert (await a_chat.rpc.command("get_state"))["thinkingLevel"] == "off"
+    print(
+        "PASS: trusted Firefox keyboard change; RPC refusal preserves confirmed settings, "
+        "control node and draft"
+    )
+
+    await select("select[name=thinking-level]", json.dumps("high"))
+    await selected(a, "fixture", "high")
     assert (await a_chat.rpc.command("get_state"))["thinkingLevel"] == "high"
     assert (await b_chat.rpc.command("get_state"))["thinkingLevel"] == "low"
-    assert await browser.evaluate(b, "document.querySelector('#thinking-level').value === 'low'")
+    await selected(b, "fixture", "low")
     # Observe the DOM synchronously at the end of the submit event, before any WS echo.
     await browser.evaluate(a, """document.addEventListener('submit', () => {
         const rows = [...document.querySelectorAll('#messages > chat-message > article')].slice(-2);
@@ -369,8 +432,18 @@ async def runtime_controls(browser, a, b, a_chat, b_chat):
     )
     assert await browser.evaluate(a, """[...document.querySelectorAll('.user .message-body')]
         .filter(node => node.textContent === 'Fixture runtime settings').length === 1""")
+    await browser.call("browsingContext.activate", context=b)
+    await prompt(browser, b, "Fixture runtime settings")
+    await browser.wait(
+        b,
+        SEND + " && " + transcript("Native next message: fixture / low"),
+        "other chat's next native message uses its own unchanged settings",
+    )
+    assert not await browser.evaluate(a, transcript("Native next message: fixture / low"))
+    assert not await browser.evaluate(b, transcript("Native next message: fixture / high"))
     print(
-        "PASS: exact pins and native thinking, responsive keyboard controls, per-chat isolation and next-prompt observation"
+        "PASS: exact pins, responsive label and keyboard checks, "
+        "both chats' next prompts use their own confirmed settings"
     )
 
 
@@ -379,7 +452,8 @@ async def streaming_descriptor(browser, tab, project):
     await prompt(browser, tab, "Stream descriptor child")
     await browser.wait(tab, STOP + " && " + transcript("Descriptor stream started"), "native first text delta")
     assert await browser.evaluate(tab, """(async () => {
-        const { createComponent } = await import('/assets/ui.js');
+        const ui = await import('/assets/ui.js');
+        const { createComponent } = ui;
         const root = window.automataUI.context('descriptor-stream-owner').root;
         const article = root.closest('article');
         const descriptor = { _class: 'ui-card', _children: [
@@ -405,10 +479,13 @@ async def streaming_descriptor(browser, tab, project):
           [...child.querySelectorAll('button')].every((node, i) => node === [first, second][i]) &&
           first.textContent === 'Activate first' && second.textContent === 'Activate second' &&
           document.activeElement === first && clicks === expectedClicks;
-        let privateRejected = false;
-        try { createComponent({ _class: 'chat-message' }); }
-        catch (error) { privateRejected = error instanceof TypeError && error.message.includes('unknown component tag'); }
-        return descriptorMounted && privateRejected && window.checkStreamingChild(0);
+        const isPrivate = tag => {
+          try { createComponent({ _class: tag }); }
+          catch (error) { return error instanceof TypeError && error.message.includes('unknown component tag'); }
+          return false;
+        };
+        return descriptorMounted && !('ChatComposer' in ui) && isPrivate('chat-composer') &&
+          isPrivate('chat-message') && window.checkStreamingChild(0);
     })()""")
     (project / ".fixture-stream-update").touch()
     updated = transcript("Descriptor stream started and updated")
@@ -486,7 +563,15 @@ async def exercise(host, browser, project):
     print("PASS: cloned storage refused as competing writer without clearing proof or evicting B")
 
     await runtime_controls(browser, a, b, a_entry.chat, b_entry.chat)
-    await prompt(browser, a, "Parallel A")
+    await browser.call("browsingContext.activate", context=a)
+    await browser.evaluate(a, "window.fixtureEditor = document.querySelector('chat-composer textarea'); fixtureEditor.focus(); fixtureEditor.value = 'Parallel A'; fixtureEditor.setSelectionRange(10,10)")
+    await browser.call("input.performActions", context=a, actions=[{"type": "key", "id": "composer-keys", "actions": [
+        {"type": "keyDown", "value": "\ue008"}, {"type": "keyDown", "value": "\ue007"},
+        {"type": "keyUp", "value": "\ue007"}, {"type": "keyUp", "value": "\ue008"},
+    ]}])
+    assert await browser.evaluate(a, SEND + " && fixtureEditor.value === 'Parallel A\\n'")
+    await browser.key(a, "\ue007")  # One submission; submitted text is trimmed.
+    await browser.wait(a, STOP + " && fixtureEditor.value === ''", "Enter accepted the prompt")
     await prompt(browser, b, "Parallel B")
     await browser.wait(
         a, STOP + " && " + transcript("Partial Parallel A"), "A live offline partial"
@@ -497,15 +582,19 @@ async def exercise(host, browser, project):
     for tab in (a, b):
         assert await browser.evaluate(
             tab,
-            "document.querySelector('#model').disabled && document.querySelector('#thinking-level').disabled && !document.querySelector('#send').disabled",
+            "document.querySelector('select[name=model]').disabled && document.querySelector('select[name=thinking-level]').disabled && !document.querySelector('#send').disabled",
         )
     await browser.click(b, "#send")
     await browser.wait(b, SEND + " && " + transcript("Reply interrupted"), "B native Stop settled")
+    await browser.call("browsingContext.activate", context=a)
+    await browser.evaluate(a, "fixtureEditor.focus(); fixtureEditor.value='Next draft'; fixtureEditor.dispatchEvent(new Event('input',{bubbles:true}))")
     await browser.wait(
         a,
         SEND + " && " + transcript("Offline history: Fixture runtime settings | Parallel A"),
         "A completed independently",
     )
+    assert await browser.evaluate(a, "fixtureEditor === document.activeElement && fixtureEditor === document.querySelector('chat-composer textarea') && fixtureEditor.value === 'Next draft' && [...document.querySelectorAll('article.user .message-body')].filter(node => node.textContent === 'Parallel A').length === 1")
+    print("PASS: Shift+Enter inserts a newline, Enter sends once, and reply settlement preserves draft, node and focus")
     assert not await browser.evaluate(a, transcript("Parallel B"))
     assert not await browser.evaluate(
         b, transcript("Parallel A") + " || " + transcript("Offline history: Parallel B")
