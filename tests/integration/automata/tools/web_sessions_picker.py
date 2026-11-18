@@ -97,7 +97,7 @@ async def check_page(host_a, host_b, browser):
     await expect(picker.locator("#sessions-assistant")).to_have_text("Offline history: B first")
     await expect(picker.locator("#sessions-model")).to_have_text("picker-fixture/fixture")
     await expect(picker.locator("#sessions-tokens")).to_have_text("2")
-    await expect(picker.get_by_text("Unavailable", exact=True)).to_be_visible()
+    await expect(picker.get_by_text("Saved context window", exact=True)).to_have_count(0)
     assert host_a.state["sessionId"] == a_id
     await picker.get_by_role("button", name="Back to sessions", exact=False).click()
     await expect(picker.get_by_role("button", name="Conversation B", exact=False)).to_be_focused()
