@@ -3,14 +3,24 @@
 <automata-app class="app-shell">
 <a class="skip-link" href="#conversation">Skip to conversation</a>
   <header class="app-header">
-    <div class="session-identity"><span class="eyebrow">AUTOMATA</span><div class="session-title"><h1 id="session-name">Untitled session</h1><button id="rename" type="button" aria-label="Rename session" title="Rename session" disabled></button></div></div>
-    <div class="connection-controls"><button id="sessions" type="button" aria-haspopup="dialog" disabled>Sessions</button><span id="connection-status" role="status">Connecting…</span><button id="connect" type="button" disabled>Connect</button></div>
-    <form id="rename-form" hidden>
-      <label for="session-name-input">Session name</label>
-      <input id="session-name-input" autocomplete="off" required aria-describedby="rename-error">
-      <div><button id="rename-save" type="submit">Save</button><button id="rename-cancel" type="button">Cancel</button></div>
+    <div class="session-identity">
+      <span class="eyebrow">AUTOMATA</span>
+      <div class="session-title">
+        <h1 id="session-name">Untitled session</h1>
+        <button id="rename" type="button" aria-label="Rename session" title="Rename session" disabled></button>
+        <form id="rename-form" hidden>
+          <input id="session-name-input" aria-label="Session name" autocomplete="off" aria-describedby="rename-error">
+        </form>
+      </div>
       <p id="rename-error" role="alert"></p>
-    </form>
+    </div>
+    <div class="connection-controls">
+      <button id="sessions" type="button" aria-haspopup="dialog" disabled>Sessions</button>
+      <form id="new-chat-form" method="post" action="/sessions" target="_blank" rel="noopener">
+        <button id="new-chat" type="submit" title="Open a new chat in a new tab" disabled>New chat</button>
+      </form>
+      <span id="connection-status" role="status">Connecting…</span><button id="connect" type="button" disabled>Connect</button>
+    </div>
   </header>
   <dialog id="sessions-picker" aria-labelledby="sessions-heading">
     <header class="sessions-header">
@@ -70,11 +80,19 @@
         <p id="run-status" role="status" aria-live="polite"></p>
         <label for="prompt">Message</label>
         <textarea id="prompt" name="prompt" rows="3" placeholder="Write a message…" required></textarea>
-        <div class="composer-actions"><p>Enter to send · Shift+Enter for a new line</p><button id="send" type="button" aria-label="Send message" title="Send message" disabled></button></div>
+        <div class="composer-actions">
+          <div class="runtime-controls" role="group" aria-label="Next message settings">
+            <label for="model">Model<select id="model" disabled><option value="">Unavailable</option></select></label>
+            <label for="thinking-level">Thinking<select id="thinking-level" disabled><option value="">Unavailable</option></select></label>
+          </div>
+          <button id="send" type="button" aria-label="Send message" title="Send message" disabled></button>
+        </div>
+        <p id="runtime-controls-status" role="status"></p>
+        <p class="composer-hint">Enter to send · Shift+Enter for a new line</p>
       </form>
     </section>
   </main>
 </automata-app>
 <native-rpc-dialog></native-rpc-dialog>
 {% endblock %}
-{% block scripts %}<script src="/assets/connection-bootstrap.js"></script><script src="/bridge.js"></script><script type="module" src="/assets/index.js"></script>{% endblock %}
+{% block scripts %}<script src="/assets/connection-bootstrap.js"></script><script type="module" src="/assets/index.js"></script>{% endblock %}

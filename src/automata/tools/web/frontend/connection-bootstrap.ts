@@ -1,18 +1,11 @@
-// Classic script, deliberately before the upstream bridge and the chat module.
-// Retain only this tab/origin's admission credential, never titles or history.
+// Classic script: scrub incoming credentials before the chat module loads.
+// Only #admission is a reconnect credential; #token is a transient bridge ticket.
 (() => {
   const fragment = new URLSearchParams(location.hash.slice(1));
-  const supplied = fragment.get("token");
-  try {
-    if (supplied) sessionStorage.setItem("automata.chat.token", supplied);
-    else {
-      const saved = sessionStorage.getItem("automata.chat.token");
-      if (saved) {
-        fragment.set("token", saved);
-        history.replaceState(null, "", `${location.pathname}${location.search}#${fragment}`);
-      }
-    }
-  } catch {
-    // Storage-denied tabs can still use their original admission URL once.
+  if (!fragment.has("admission") && !fragment.has("token")) return;
+  const values = fragment.getAll("admission");
+  if (values.length === 1 && values[0]) {
+    (window as Window & { __automataChatAdmission?: string }).__automataChatAdmission = values[0];
   }
+  history.replaceState(history.state, "", location.pathname + location.search);
 })();

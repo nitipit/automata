@@ -7,10 +7,11 @@ const root = new URL("../../../../", import.meta.url);
 const output = process.argv[2] ? resolve(process.argv[2]) : new URL("src/automata/tools/web/public/", root).pathname;
 await mkdir(output, { recursive: true });
 for (const name of await readdir(output)) {
-  if (/^(?:index|ui|connection-bootstrap|chunk-[A-Z0-9]{8})\.js$/.test(name)) await rm(resolve(output, name));
+  if (/^(?:index|ui|connection-bootstrap|browser-trust-landing|chunk-[A-Z0-9]{8})\.js$/.test(name)) await rm(resolve(output, name));
 }
 const result = await build({
   entryPoints: {
+    "browser-trust-landing": new URL("src/automata/tools/web/frontend/browser-trust-landing.ts", root).pathname,
     "connection-bootstrap": new URL("src/automata/tools/web/frontend/connection-bootstrap.ts", root).pathname,
     index: new URL("src/automata/tools/web/frontend/index.ts", root).pathname,
     ui: new URL("src/automata/tools/web/frontend/ui.ts", root).pathname,

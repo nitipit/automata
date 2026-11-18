@@ -10,44 +10,61 @@ model response or production hook. No browser downloads, credentials or services
 
 import asyncio
 import json
+import os
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 from playwright.async_api import async_playwright
 
 from automata.tools.web.host import BrowserHost
+from automata.tools.web.rpc import PiRpc
 
 
 async def main():
+    with tempfile.TemporaryDirectory(prefix="automata-web-smoke-") as temporary:
+        directory = Path(temporary)
+        home, agent = directory / "home", directory / "agent"
+        home.mkdir()
+        agent.mkdir()
+        with patch.dict(os.environ, {"HOME": str(home), "PI_CODING_AGENT_DIR": str(agent)}):
+            os.environ.pop("PI_SESSION_FILE", None)
+            await exercise(directory)
+
+
+async def exercise(directory):
     fixture = Path(__file__).with_suffix(".ts").resolve()
-    scratch = tempfile.TemporaryDirectory(prefix="automata-web-smoke-")
-    directory = Path(scratch.name)
+    options = (
+        "--offline", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes"
+    )
     project = directory / "project"
     project.mkdir()
     sessions = directory / "sessions"
     sessions.mkdir()
     other = directory / "other"
     other.mkdir()
-    host = BrowserHost()
     browser = None
     notifications = []
     errors = []
-    original = host.rpc.on_event
 
-    def event(record):
-        original(record)
-        if record.get("type") == "extension_ui_request" and record.get("method") == "notify":
-            notifications.append(record.get("message", ""))
+    def rpc_factory(forward):
+        def event(record):
+            forward(record)
+            if record.get("type") == "extension_ui_request" and record.get("method") == "notify":
+                notifications.append(record.get("message", ""))
 
-    host.rpc.on_event = event
+        return PiRpc(event)
+
+    host = BrowserHost(rpc_factory=rpc_factory)
     try:
         # Native new-session default: no latest-session lookup or provider prompt.
-        await host.start(cwd=project, extra_args=("--session-dir", str(sessions)))
-        fresh = await host.rpc.command("get_state")
+        await host.start(cwd=project, extra_args=(*options, "--session-dir", str(sessions)))
+        chat = host.initial_session
+        fresh = await chat.rpc.command("get_state")
         assert fresh["sessionId"] and Path(fresh["sessionFile"]).parent == sessions
-        assert host.messages == []
+        assert chat.messages == []
         await host.close()
-        assert host.rpc.process.returncode == 0
+        assert chat.rpc.process.returncode == 0
         # Seed through native SessionManager with the owner stopped, not a host DB.
         process = await asyncio.create_subprocess_exec(
             "node",
@@ -60,18 +77,18 @@ async def main():
         output, _ = await process.communicate()
         assert process.returncode == 0, "Native fixture setup failed (diagnostics withheld)"
         seeded = json.loads(output)
-        host = BrowserHost()
-        original = host.rpc.on_event
-        host.rpc.on_event = event
+        host = BrowserHost(rpc_factory=rpc_factory)
         await host.start(
             cwd=other,
             session=Path(seeded["sessionFile"]),
             session_inactive=True,
-            extra_args=("-e", str(fixture)),
+            extra_args=(*options, "-e", str(fixture)),
         )
-        assert host.state["sessionId"] == seeded["sessionId"] != fresh["sessionId"]
-        assert host.messages[-2]["details"]["retained"] == [1, 2]
-        await host.handle_command(
+        chat = host.initial_session
+        connector = chat.connector
+        assert chat.id == seeded["sessionId"] != fresh["sessionId"]
+        assert chat.messages[-2]["details"]["retained"] == [1, 2]
+        await chat.handle_command(
             {"type": "prompt", "id": "context-check", "message": "/web-smoke-context"}
         )
         assert json.loads(notifications[-1])["cwd"] == str(project)
@@ -80,20 +97,16 @@ async def main():
             page = await browser.new_page()
             page.on("pageerror", lambda error: errors.append(str(error)))
             # Intentionally not logged: private admission URL.
-            await page.goto(host.runtime.url)
+            await page.goto(host.admission_url)
             await page.wait_for_function("window.awr?.status === 'connected'")
             await page.wait_for_function("!document.querySelector('#sessions').disabled")
             assert await page.evaluate("location.hash") == ""
             await page.locator('.inactive-ui[data-block-id="smoke-history"]').wait_for()
             assert not await page.evaluate("Boolean(window.__historicalJavaScriptReplayed)")
             assert await page.locator("#generated-ui").count() == 0
-            await host.runtime.wait_for_browser()
-            for _ in range(100):
-                if host.connector.session:
-                    break
-                await asyncio.sleep(0.01)
+            assert connector.session is not None
             # A restored native toolCall is history, not a live execution owner.
-            historical = await host.connector.execute(
+            historical = await connector.execute(
                 {
                     "toolCallId": "smoke-plain-history",
                     "timeoutMs": 1000,
@@ -119,12 +132,10 @@ async def main():
                     },
                 ],
             }
-            host.on_event({"type": "message_start", "message": synthetic_owner})
-            host.on_event({"type": "message_end", "message": synthetic_owner})
-            subscription = host.connector.subscribe(
-                {"name": "smoke-choice", "correlationId": "probe"}
-            )
-            executed = await host.connector.execute(
+            chat.on_event({"type": "message_start", "message": synthetic_owner})
+            chat.on_event({"type": "message_end", "message": synthetic_owner})
+            subscription = connector.subscribe({"name": "smoke-choice", "correlationId": "probe"})
+            executed = await connector.execute(
                 {
                     "toolCallId": "smoke-synthetic-live",
                     "code": """
@@ -148,22 +159,20 @@ async def main():
             }
             assert await page.locator("article.assistant #probe-control").count() == 1
             await page.locator("#probe-control").click()
-            result = await host.connector.wait({"subscriptionId": subscription["subscriptionId"]})
+            result = await connector.wait({"subscriptionId": subscription["subscriptionId"]})
             assert result["event"] == {
                 "blockId": "smoke-synthetic-live",
                 "correlationId": "probe",
                 "value": "A",
             }
-            host.connector.unsubscribe(subscription)
-            # A hash-only goto is same-document navigation, not a reload. Leave
-            # the page, await old chat cleanup, then re-admit with its private token.
+            connector.unsubscribe(subscription)
+            # Leave the page and wait for its old pair to clean up before re-admission.
             await page.goto("about:blank")
-            for _ in range(100):
-                if host._chat is None:
-                    break
-                await asyncio.sleep(0.01)
-            assert host._chat is None
-            await page.goto(host.runtime.url)
+            entry = host._entries[chat.id]
+            async with asyncio.timeout(5):
+                while entry.pair is not None:
+                    await asyncio.sleep(0.01)
+            await page.goto(host.admission_url)
             await page.wait_for_function("window.awr?.status === 'connected'")
             await page.wait_for_function("!document.querySelector('#sessions').disabled")
             await page.locator('.inactive-ui[data-block-id="smoke-history"]').wait_for()
@@ -189,7 +198,7 @@ async def main():
                 "input": "synthetic input",
                 "edited": "synthetic edit\nline two",
             }
-            assert not host.dialogs
+            assert not chat.dialogs
             # Sequential extension-command dialogs must not deadlock Stop behind
             # their prompt's control lock. Every later native request fails closed.
             await page.locator("#prompt").fill("/web-smoke")
@@ -201,9 +210,9 @@ async def main():
                 .click()
             )
             await page.wait_for_function("!document.querySelector('#sessions').disabled")
-            assert host.state["status"] == "idle"
-            assert host.rpc.process.returncode is None
-            assert not host.dialogs
+            assert chat.state["status"] == "idle"
+            assert chat.rpc.process.returncode is None
+            assert not chat.dialogs
             assert await page.locator("native-rpc-dialog dialog[open]").count() == 0
             assert not errors, "Browser had JavaScript errors (details withheld)"
             await browser.close()
@@ -230,8 +239,7 @@ async def main():
         if browser is not None:
             await browser.close()
         await host.close()
-        scratch.cleanup()
-    assert host.rpc.process.returncode == 0
+    assert chat.rpc.process.returncode == 0
     print("Owned browser, Pi and runtime cleanup: pass")
 
 

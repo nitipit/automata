@@ -32,16 +32,40 @@ existing file explicitly (there is no automatic activity detector or takeover):
 uv run automata web --session /path/to/session.jsonl --session-inactive
 ```
 
-The browser admission URL is private and is not printed. Its credential is kept
-in same-origin, per-tab `sessionStorage` and removed from the visible URL. Refresh
-and bounded connection retries reconnect to the same existing host/Pi session;
-Retry connection is available after transport failures. Missing or rejected
-credentials require a valid admission URL and never start a new agent. If tab
-storage is unavailable, reopen the original admission URL after a refresh.
+One `automata web` invocation serves the project's chats on one loopback HTTP
+port. Each chat has its own native Pi process and URL at `/sessions/{native-id}/`.
+**New chat** opens a separate tab on the same port with a fresh native session;
+it does not interrupt or move the original chat. Both can answer at once, and
+**Stop** affects only the current session.
 
-Disconnecting or refreshing interrupts pending replies rather than continuing
-background generation. Reconnection restores native history, including partial
-interrupted replies; it never resends prompts or replays historical UI code.
+You can also enter `http://127.0.0.1:<host-port>/sessions/` in a fresh tab of the
+same browser profile after a chat has connected. A supported direct address-bar
+navigation starts one new chat without an extra click; if the browser cannot
+identify that navigation, choose **Create a new chat** on the landing page.
+Loading or prefetching the page does not itself start Pi. Reloading a chat
+reattaches that same session rather than starting another. The address-bar flow
+has been verified in Firefox.
+
+An active chat renews this create-only browser trust every ten minutes and checks
+for missed renewal on return to its tab. The host rejects grants after thirty
+minutes without renewal and on host restart. If trust has expired, connect an
+existing authenticated chat tab before opening the landing page again. This
+requires browser cookies and origin-local storage. A grant cannot open saved
+sessions, access a transcript, authenticate a writer, or renew itself.
+
+The private admission URL is not printed. Its scoped credential is stored by
+native session ID in that tab's `sessionStorage` and removed from the address.
+A clean existing-session URL alone is not admission. A second writer is
+refused; it does not evict the original tab. Refresh reconnects to the same host
+and Pi while that session is retained. Retry connection is available after
+transport failures. Missing or rejected credentials require a valid admission URL
+and never start a new agent. If tab storage is unavailable, reopen the original
+admission URL after a refresh, while the host still owns that session.
+
+Disconnecting or refreshing interrupts only that chat's pending reply rather
+than continuing background generation. Reconnection restores its transcript,
+including any retained partial reply; it never resends prompts or replays
+historical UI code.
 The heading and browser tab use the saved Pi session name, then a compact preview
 of the first native user message, then `Untitled session`. The adjacent edit
 control renames the native session, without generating a model prompt.
@@ -54,19 +78,37 @@ model and token usage where available. History is shown as bounded plain text,
 without running tools or historical UI. Pi does not persist the historical
 context window with its ordinary usage records, so the picker does not estimate it.
 
-To switch conversations, use the separate **Open session** button. First close
-the selected session in any terminal or other Pi. Web Chat rejects the calling
-Pi's session and uses advisory locks to prevent takeover from another Web Chat
-host that supports this picker, but cannot detect all terminal, older Web Chat,
-or other Pi processes.
+To open a saved conversation, use **Open session** after closing it in any
+terminal or other Pi. Web Chat rejects the calling Pi's session and uses
+advisory locks to prevent concurrent writers among cooperating Web Chat hosts.
+It cannot detect all terminal, older Web Chat, or other Pi processes.
 
-Opening a session switches native Pi in place and replaces the transcript with
-that session's active history. New messages are saved back to the same session,
-not a copy. Historical interactive content is inactive, and unsent drafts are
-kept separate in the current tab until it reloads. Sessions not yet saved to
-disk cannot be reopened through the picker.
+On success, the current tab navigates to the saved native session; the original
+Pi is not rebound. A refusal leaves the current tab and draft intact. New
+messages are saved back to the selected session, not a copy. Historical
+interactive content is inactive. Drafts are kept separate for intentional picker
+navigation in that tab, not persisted through ordinary reload. Sessions not yet
+saved to disk cannot be reopened through the picker.
+
+A host owns at most four native sessions at a time, including ones starting or
+closing. A browser has 10 seconds to attach both transports. Detached sessions
+are retained for 120 seconds after cleanup for refresh; unused new chats are
+retired if they do not attach within 120 seconds. Closing one chat stops only
+its pending work. If all chats have expired, restart `automata web` to get a new
+trusted admission URL. These limits do not apply to ordinary terminal Pi.
 
 Browser auto-open uses the configured system browser; `--no-open-browser` disables
-it. Ctrl+C/SIGTERM closes the owned host/Pi process; closing chat stops pending
-agent work. Do not expose the loopback server remotely or share admission/connector
-credentials.
+it. Ctrl+C/SIGTERM closes all owned Pi processes and the shared listener. Do not
+expose the loopback server remotely or share admission/connector credentials.
+Same-origin generated JavaScript is trusted, not isolated by a security sandbox.
+Browser trust requires both an HttpOnly cookie and independent browser proof tied
+to the exact loopback origin. Cookies themselves are **not** isolated by port;
+another service at the same IP may receive or overwrite the cookie, but cannot
+read the browser's origin-local proof. This design does not protect against
+same-origin JavaScript, a compromised browser or OS, or interception of the
+local plaintext HTTP connection.
+
+Maintainers: the pinned Web Runtime is single-browser. The shared-listener
+adapter embeds one unstarted child ASGI app per admitted pair by attaching it to
+the parent's origin and running state. Upgrade the runtime only after validating
+this compatibility seam with real bridge and browser tests.
