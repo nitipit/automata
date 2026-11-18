@@ -29,15 +29,24 @@ class PiRpc:
     async def start(self, argv: Sequence[str], *, cwd=None, env=None) -> None:
         if self.process is not None or self._closed:
             raise RpcError("RPC transport cannot be restarted")
-        self.process = await asyncio.create_subprocess_exec(
-            *argv,
-            cwd=cwd,
-            env={**os.environ, **(env or {})},
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            limit=4 * 1024 * 1024,
+        creating = asyncio.create_task(
+            asyncio.create_subprocess_exec(
+                *argv,
+                cwd=cwd,
+                env={**os.environ, **(env or {})},
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                limit=4 * 1024 * 1024,
+            )
         )
+        try:
+            self.process = await asyncio.shield(creating)
+        except asyncio.CancelledError:
+            # Cancellation concurrent with fork must not lose the process handle.
+            self.process = await creating
+            await self.close()
+            raise
         self._reader = asyncio.create_task(self._read())
         self._stderr = asyncio.create_task(self._drain_stderr())
 

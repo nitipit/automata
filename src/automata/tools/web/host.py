@@ -1,4 +1,4 @@
-"""Browser-first Pi application hosted on the existing WebRuntime FastAPI app."""
+"""One loopback listener for independently owned native Pi Web Chat sessions."""
 
 from __future__ import annotations
 
@@ -10,25 +10,20 @@ import re
 import secrets
 import signal
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import parse_qsl
 
-from automata.tools.web.connector import BrowserConnector, ConnectorError
+from automata.tools.web.chat import ChatSession
+from automata.tools.web.connector import ConnectorError
 from automata.tools.web.launch import prepare_launch
 from automata.tools.web.rpc import PiRpc, RpcError
-from automata.tools.web.sessions import (
-    PAGE_SIZE,
-    SessionClaim,
-    SessionRow,
-    list_rows,
-    read_preview,
-    recorded_project,
-)
+from automata.tools.web.runtime_adapter import SharedRuntime
+from automata.tools.web.sessions import SessionRow, list_rows, read_row, recorded_project
 
 PACKAGE = Path(__file__).resolve().parent
-DIALOGS = {"select", "confirm", "input", "editor"}
-
-# Keep browser selection in stdlib (including BROWSER), but outside the host loop.
-# The private admission URL travels over stdin, never process arguments or output.
+_ROUTE_ID = re.compile(r"[A-Za-z0-9_-]{1,256}")
+_PRIVATE = {"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"}
 _BROWSER_OPEN = """import sys, webbrowser
 try:
     opened = webbrowser.open(sys.stdin.read())
@@ -38,10 +33,58 @@ sys.exit(0 if opened else 1)
 """
 
 
+def _safe_id(value):
+    return isinstance(value, str) and _ROUTE_ID.fullmatch(value) is not None
+
+
+def _match(value, expected):
+    return (
+        isinstance(value, str)
+        and len(value) <= 512
+        and secrets.compare_digest(value.encode(), expected.encode())
+    )
+
+
+@dataclass(eq=False)
+class _Pair:
+    bridge: object
+    deadline: float
+    expiry: asyncio.TimerHandle | None = None
+    bridge_task: asyncio.Task | None = None
+    chat_task: asyncio.Task | None = None
+    chat_socket: object | None = None
+    ready: bool = False
+    cleanup: asyncio.Task | None = None
+    nonces: set[str] = field(default_factory=set)
+
+    @property
+    def ticket(self):
+        return self.bridge.token
+
+
+@dataclass(eq=False)
+class _Entry:
+    chat: ChatSession
+    initial: bool = False
+    joined: bool = False
+    pair: _Pair | None = None
+    idle_timer: asyncio.TimerHandle | None = None
+    retiring: asyncio.Task | None = None
+
+    @property
+    def url(self):
+        return f"/sessions/{self.chat.id}/#admission={self.chat.admission}"
+
+
+class _Refusal(Exception):
+    def __init__(self, status, code, message):
+        super().__init__(message)
+        self.status, self.code = status, code
+
+
 async def _open_browser(url: str):
-    """Own/reap only the launcher helper, never terminate a user's browser tree."""
+    """Pass the private URL over stdin; own/reap only the launcher helper."""
     process = None
-    # Shield creation so cancellation cannot lose a just-created owned process.
     launching = asyncio.create_task(
         asyncio.create_subprocess_exec(
             sys.executable,
@@ -59,7 +102,6 @@ async def _open_browser(url: str):
         if process.returncode:
             print("Browser auto-open failed (admission URL remains private).", file=sys.stderr)
     except OSError:
-        # A configured command/exception may echo credentials. Never relay it.
         print("Browser auto-open failed (admission URL remains private).", file=sys.stderr)
     finally:
         if process is None:
@@ -77,45 +119,161 @@ async def _open_browser(url: str):
 
 
 class BrowserHost:
-    """Own one runtime/server, one native RPC session and one browser chat client."""
-
-    def __init__(self, *, port: int = 0, runtime=None, rpc=None):
-        from automata_web_runtime import WebRuntime
-
-        self.runtime = runtime or WebRuntime(port=port)
-        self.rpc = rpc or PiRpc(self.on_event)
-        self.connector = BrowserConnector()
-        self.connector_token = secrets.token_urlsafe(32)
-        self.messages: list[dict] = []
-        self._startup_messages: list[dict] | None = None
-        self.state: dict = {"status": "idle"}
-        self.dialogs: dict[str, dict] = {}
-        self._dialog_timers: dict[str, asyncio.TimerHandle] = {}
-        self._chat = None
-        self._outbox: asyncio.Queue | None = None
-        self._seen: set[str] = set()
-        self._tasks: set[asyncio.Task] = set()
-        self._monitor: asyncio.Task | None = None
-        self._control = asyncio.Lock()
+    def __init__(
+        self, *, port=0, rpc_factory=PiRpc, max_sessions=4, pair_seconds=10, idle_seconds=120
+    ):
+        self._runtime = SharedRuntime(port=port)
+        self.runtime = self._runtime.parent
+        self._rpc_factory = rpc_factory
+        self._max_sessions, self._pair_seconds, self._idle_seconds = (
+            max_sessions,
+            pair_seconds,
+            idle_seconds,
+        )
+        self._entries: dict[str, _Entry] = {}
+        self._tickets: dict[str, tuple[_Entry, _Pair]] = {}
+        self._connectors: dict[str, _Entry] = {}
+        self._owned: set[ChatSession] = set()
+        self._starts: set[asyncio.Task] = set()
+        self._starting_ids: set[str] = set()
+        self._initial: _Entry | None = None
         self._project: Path | None = None
-        self._session_path: Path | None = None
-        self._claim: SessionClaim | None = None
-        self._caller_session = os.environ.get("PI_SESSION_FILE")
-        self._listing: tuple[str, dict[str, SessionRow]] | None = None
-        self._switching = False
-        self._switch_failed = False
+        self._launch_options: dict = {}
+        inherited = os.environ.get("PI_SESSION_FILE")
+        self._caller_session = Path(inherited).expanduser().resolve() if inherited else None
         self._closed = False
         self._close_task: asyncio.Task | None = None
-        self._slow_close_requested = False
+        self._cleanup_failed = False
         self._install_routes()
+
+    @property
+    def admission_url(self):
+        if self._initial is None or self._closed or self._initial.retiring:
+            raise RuntimeError("Initial Web Chat admission is unavailable")
+        return self.runtime.origin + self._initial.url
+
+    @property
+    def initial_session(self):
+        """Initial native context, for owned tooling and isolated integration fixtures."""
+        return self._initial.chat if self._initial else None
+
+    def _origin_ok(self, request):
+        return (
+            self._runtime.local_request(request)
+            and request.headers.get("origin") == self.runtime.origin
+        )
+
+    @staticmethod
+    def _canonical(request, id, suffix):
+        if not _safe_id(id):
+            return False
+        raw = request.scope.get("raw_path")
+        return raw is None or raw == f"/sessions/{id}{suffix}".encode()
+
+    def _authenticate(self, request, id, suffix, proof):
+        entry = self._entries.get(id)
+        if (
+            not self._canonical(request, id, suffix)
+            or not self._origin_ok(request)
+            or entry is None
+            or not _match(proof, entry.chat.admission)
+        ):
+            raise _Refusal(403, "forbidden", "Web Chat admission was rejected")
+        if self._closed:
+            raise _Refusal(410, "host_closed", "Web Chat is shutting down")
+        if entry.retiring or entry.chat._dead:
+            raise _Refusal(403, "forbidden", "Web Chat admission is no longer available")
+        return entry
+
+    @staticmethod
+    async def _read_body(request, limit):
+        body = bytearray()
+        async for chunk in request.stream():
+            if len(body) + len(chunk) > limit:
+                raise ValueError("Request is too large")
+            body.extend(chunk)
+        return body
+
+    @staticmethod
+    def _bearer(request):
+        value = request.headers.get("authorization", "")
+        return value[7:] if value.startswith("Bearer ") else ""
+
+    def _new_pair(self, entry):
+        current = entry.pair
+        if current:
+            code = (
+                "cleanup_pending"
+                if current.cleanup
+                else "writer_active"
+                if current.ready
+                else "pair_reserved"
+            )
+            message = {
+                "cleanup_pending": "Previous connection is still stopping",
+                "writer_active": "This Pi session already has a writer",
+                "pair_reserved": "Another browser connection is pairing",
+            }[code]
+            raise _Refusal(409, code, message)
+        loop = asyncio.get_running_loop()
+        pair = _Pair(self._runtime.new_bridge(), loop.time() + self._pair_seconds)
+        entry.pair = pair
+        self._tickets[pair.ticket] = (entry, pair)
+        pair.expiry = loop.call_at(pair.deadline, self._drop_pair, entry, pair)
+        return pair
+
+    def _lookup_pair(self, socket):
+        if self._closed or not self._origin_ok(socket):
+            return None
+        supplied = socket.query_params.getlist("token")
+        if len(supplied) != 1:
+            return None
+        found = self._tickets.get(supplied[0])
+        if found:
+            entry, pair = found
+            if (
+                entry.pair is pair
+                and not entry.retiring
+                and not entry.chat._dead
+                and not pair.cleanup
+                and (pair.ready or asyncio.get_running_loop().time() < pair.deadline)
+            ):
+                return found
+        return None
+
+    def _mutation_pair(self, entry, body):
+        pair = entry.pair
+        if (
+            self._closed
+            or entry.retiring
+            or entry.chat._dead
+            or pair is None
+            or not pair.ready
+            or pair.cleanup
+            or not _match(body.get("ticket"), pair.ticket)
+        ):
+            raise _Refusal(403, "forbidden", "This request is not from the current writer")
+        nonce = body.get("nonce")
+        if not _safe_id(nonce):
+            raise _Refusal(400, "invalid_request", "A valid request nonce is required")
+        if nonce in pair.nonces:
+            raise _Refusal(
+                409, "replayed_request", "This request was already submitted; it was not replayed"
+            )
+        if len(pair.nonces) >= 64:
+            raise _Refusal(
+                409, "capacity", "Request limit reached. Reconnect before opening another chat."
+            )
+        pair.nonces.add(nonce)
+        return pair
 
     def _install_routes(self):
         from fastapi import Request, WebSocket
         from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
         from jinja2 import Environment, FileSystemLoader, select_autoescape
+        from starlette.requests import ClientDisconnect
 
         app = self.runtime.app
-        # Replace GET / only, preserving upstream bridge and WebSocket routes.
         app.router.routes[:] = [
             route for route in app.router.routes if getattr(route, "path", None) != "/"
         ]
@@ -123,18 +281,26 @@ class BrowserHost:
             loader=FileSystemLoader(PACKAGE / "frontend"), autoescape=select_autoescape()
         )
 
-        async def index(request: Request):
-            if not self.runtime._local_request(request):
+        def refusal(error):
+            return JSONResponse(
+                {"code": error.code, "error": str(error)},
+                status_code=error.status,
+                headers=_PRIVATE,
+            )
+
+        async def index(request: Request, id: str | None = None):
+            if not self._runtime.local_request(request):
                 return Response(status_code=403)
+            if id is not None and not self._canonical(request, id, "/"):
+                return Response(status_code=404)
             return HTMLResponse(
                 templates.get_template("index.html").render(),
-                headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+                headers={**_PRIVATE, "Referrer-Policy": "same-origin"},
             )
 
         async def asset(name: str, request: Request):
-            if not self.runtime._local_request(request):
+            if not self._runtime.local_request(request):
                 return Response(status_code=403)
-            # Reviewed flat ESM graph only; never mount frontend/node_modules/repo.
             allowed = name in {
                 "index.js",
                 "ui.js",
@@ -146,14 +312,81 @@ class BrowserHost:
             path = PACKAGE / "public" / name
             if not allowed or not path.is_file() or path.is_symlink():
                 return Response(status_code=404)
-            return FileResponse(path, headers={"Cache-Control": "no-store"})
+            return FileResponse(path, headers=_PRIVATE)
+
+        async def connection(id: str, request: Request):
+            try:
+                entry = self._authenticate(request, id, "/chat/connection", self._bearer(request))
+                return JSONResponse({"ticket": self._new_pair(entry).ticket}, headers=_PRIVATE)
+            except _Refusal as error:
+                return refusal(error)
+
+        async def bridge(socket: WebSocket):
+            matched = self._lookup_pair(socket)
+            if matched is None or matched[1].bridge_task is not None:
+                await socket.close(code=1008)
+                return
+            entry, pair = matched
+            pair.bridge_task = asyncio.current_task()
+            try:
+                # Dispatch the unchanged /ws request to the real upstream endpoint.
+                await pair.bridge.app(socket.scope, socket.receive, socket.send)
+            finally:
+                self._drop_pair(entry, pair)
+
+        async def chat(id: str, socket: WebSocket):
+            matched = self._lookup_pair(socket)
+            if (
+                matched is None
+                or not self._canonical(socket, id, "/chat")
+                or matched[0].chat.id != id
+                or matched[1].bridge_task is None
+                or matched[1].chat_task is not None
+            ):
+                await socket.close(code=1008)
+                return
+            entry, pair = matched
+            pair.chat_task, pair.chat_socket = asyncio.current_task(), socket
+            try:
+                remaining = pair.deadline - asyncio.get_running_loop().time()
+                browser = await pair.bridge.wait_for_browser(timeout=remaining)
+                async with asyncio.timeout_at(pair.deadline):
+                    native = await entry.chat.read_native(timeout=5)
+                if not entry.chat.matches_native(native):
+                    entry.chat.invalidate()
+                    return
+
+                def active():
+                    if (
+                        self._closed
+                        or entry.pair is not pair
+                        or entry.retiring
+                        or entry.chat._dead
+                        or pair.cleanup
+                        or not browser.is_connected
+                    ):
+                        raise RuntimeError("Pair expired before chat became active")
+                    entry.chat.connector.bind(browser)
+                    pair.ready = entry.joined = True
+                    if pair.expiry:
+                        pair.expiry.cancel()
+                    self._cancel_idle(entry)
+
+                await entry.chat.serve_chat(socket, active, lambda: pair.cleanup is None)
+            except (RpcError, RuntimeError, TimeoutError, OSError):
+                pass
+            finally:
+                self._drop_pair(entry, pair)
 
         async def connector(operation: str, request: Request):
-            expected = f"Bearer {self.connector_token}"
+            proof = self._bearer(request)
+            entry = self._connectors.get(proof)
             if (
-                not self.runtime._local_request(request)
+                not self._runtime.local_request(request)
                 or request.headers.get("origin") is not None
-                or not secrets.compare_digest(request.headers.get("authorization", ""), expected)
+                or entry is None
+                or self._closed
+                or entry.retiring
             ):
                 return JSONResponse(
                     {
@@ -161,31 +394,35 @@ class BrowserHost:
                         "error": {"code": "forbidden", "message": "Connector access denied"},
                     },
                     status_code=403,
+                    headers=_PRIVATE,
                 )
             try:
-                if len(await request.body()) > 300000:
-                    raise ConnectorError("invalid_request", "Request is too large")
-                body = await request.json()
+                body = json.loads(await self._read_body(request, 300000))
                 if not isinstance(body, dict):
-                    raise ConnectorError("invalid_request", "JSON object required")
+                    raise ValueError("Expected a JSON object")
+                client = entry.chat.connector
                 if operation == "execute":
-                    result = await self.connector.execute(body)
+                    result = await client.execute(body)
                 elif operation == "subscribe":
-                    result = self.connector.subscribe(body)
+                    result = client.subscribe(body)
                 elif operation == "wait":
-                    result = await self.connector.wait(body)
+                    result = await client.wait(body)
                 elif operation == "unsubscribe":
-                    result = self.connector.unsubscribe(body)
+                    result = client.unsubscribe(body)
                 else:
                     raise ConnectorError("invalid_request", "Unknown connector operation")
-                return JSONResponse(result)
-            except (ValueError, UnicodeError):
+                return JSONResponse(result, headers=_PRIVATE)
+            except (ValueError, UnicodeError, ClientDisconnect, RecursionError):
                 return JSONResponse(
                     {
                         "ok": False,
-                        "error": {"code": "invalid_request", "message": "Invalid JSON object"},
+                        "error": {
+                            "code": "invalid_request",
+                            "message": "Invalid or oversized JSON object",
+                        },
                     },
                     status_code=400,
+                    headers=_PRIVATE,
                 )
             except ConnectorError as error:
                 return JSONResponse(
@@ -196,660 +433,477 @@ class BrowserHost:
                             "message": str(error),
                             "uncertain": error.uncertain,
                         },
-                    }
+                    },
+                    headers=_PRIVATE,
                 )
 
-        async def connection(request: Request):
-            # Read-only admission probe: distinguish invalid credentials from the
-            # previous chat's reserved interrupt/command cleanup, before retrying.
-            expected = f"Bearer {self.runtime.token}"
-            if (
-                not self.runtime._local_request(request)
-                or request.headers.get("origin") != self.runtime.origin
-                or not secrets.compare_digest(request.headers.get("authorization", ""), expected)
-            ):
+        async def opened(id: str, request: Request):
+            try:
+                entry = self._authenticate(request, id, "/open", self._bearer(request))
+                if (
+                    request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                    != "application/json"
+                ):
+                    raise ValueError("Expected JSON")
+                body = json.loads(await self._read_body(request, 4096))
+                if (
+                    not isinstance(body, dict)
+                    or set(body) != {"ticket", "nonce", "receipt", "sessionId", "inactiveConfirmed"}
+                    or body["inactiveConfirmed"] is not True
+                    or not _safe_id(body["sessionId"])
+                    or not _safe_id(body["receipt"])
+                ):
+                    raise ValueError("Invalid picker selection")
+                pair = self._mutation_pair(entry, body)
+                target = await self._open_saved(entry, pair, body)
                 return JSONResponse(
-                    {"error": "Access credential rejected or expired"}, status_code=403
+                    {"sessionId": target.chat.id, "url": target.url}, headers=_PRIVATE
                 )
-            if self._closed:
-                return JSONResponse({"error": "Host is closed"}, status_code=410)
-            if self._chat is not None or self._startup_messages is not None:
-                return JSONResponse(
-                    {"error": "Previous connection is still stopping"}, status_code=409
+            except _Refusal as error:
+                return refusal(error)
+            except (ValueError, UnicodeError, ClientDisconnect, RecursionError):
+                return refusal(_Refusal(400, "invalid_request", "Invalid saved session selection"))
+
+        async def new_session(request: Request):
+            from html import escape
+
+            try:
+                if not self._origin_ok(request):
+                    raise _Refusal(403, "forbidden", "Web Chat admission was rejected")
+                if (
+                    request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                    != "application/x-www-form-urlencoded"
+                ):
+                    raise ValueError("Expected URL-encoded form")
+                fields = parse_qsl(
+                    (await self._read_body(request, 4096)).decode(),
+                    keep_blank_values=True,
+                    strict_parsing=True,
+                    errors="strict",
+                    max_num_fields=4,
                 )
-            return JSONResponse({"ready": True}, headers={"Cache-Control": "no-store"})
+                body = dict(fields)
+                if len(fields) != 4 or set(body) != {
+                    "sourceSessionId",
+                    "admission",
+                    "ticket",
+                    "nonce",
+                }:
+                    raise ValueError("Invalid new chat form")
+                id = body["sourceSessionId"]
+                entry = self._entries.get(id) if _safe_id(id) else None
+                if entry is None or not _match(body["admission"], entry.chat.admission):
+                    raise _Refusal(403, "forbidden", "Web Chat admission was rejected")
+                if self._closed:
+                    raise _Refusal(410, "host_closed", "Web Chat is shutting down")
+                self._mutation_pair(entry, body)
+                child = await self._await_start(self._start_worker())
+                return Response(status_code=303, headers={**_PRIVATE, "Location": child.url})
+            except (ValueError, UnicodeError, ClientDisconnect, _Refusal) as error:
+                if not isinstance(error, _Refusal):
+                    error = _Refusal(400, "invalid_request", "Invalid new chat request")
+                return HTMLResponse(
+                    "<!doctype html><meta charset=utf-8>"
+                    "<title>Web Chat — New chat unavailable</title>"
+                    "<h1>New chat unavailable</h1><p>" + escape(str(error)) + "</p>"
+                    "<p>Return to the original tab to continue.</p>",
+                    status_code=error.status,
+                    headers=_PRIVATE,
+                )
 
-        async def chat(socket: WebSocket):
-            await self._chat_socket(socket)
-
-        # These imports are local to keep non-web CLI paths optional-dependency free.
-        # FastAPI resolves annotations in globals; assign concrete runtime types.
-        index.__annotations__["request"] = Request
-        asset.__annotations__["request"] = Request
-        connector.__annotations__["request"] = Request
-        connection.__annotations__["request"] = Request
-        chat.__annotations__["socket"] = WebSocket
+        # Annotations in these local route closures are postponed at import time.
+        for endpoint in (index, asset, connection, connector, opened, new_session):
+            endpoint.__annotations__["request"] = Request
+        for endpoint in (bridge, chat):
+            endpoint.__annotations__["socket"] = WebSocket
         app.add_api_route("/", index, methods=["GET"])
+        app.add_api_route("/sessions/{id}/", index, methods=["GET"])
         app.add_api_route("/assets/{name}", asset, methods=["GET"])
+        app.add_api_route("/sessions/{id}/chat/connection", connection, methods=["POST"])
+        app.add_api_route("/sessions/{id}/open", opened, methods=["POST"])
+        app.add_api_route("/sessions", new_session, methods=["POST"])
         app.add_api_route("/connector/{operation}", connector, methods=["POST"])
-        app.add_api_route("/chat/connection", connection, methods=["POST"])
-        app.add_api_websocket_route("/chat", chat)
+        app.add_api_websocket_route("/ws", bridge)
+        app.add_api_websocket_route("/sessions/{id}/chat", chat)
 
     async def start(
         self,
         *,
-        pi: str = "pi",
-        cwd: Path | None = None,
-        provider: str | None = None,
-        model: str | None = None,
-        thinking: str | None = None,
-        session: Path | None = None,
-        session_inactive: bool = False,
-        extra_args: tuple[str, ...] = (),
+        pi="pi",
+        cwd=None,
+        provider=None,
+        model=None,
+        thinking=None,
+        session=None,
+        session_inactive=False,
+        extra_args=(),
     ):
+        extension = PACKAGE.parents[1] / "runtimes" / "pi" / "extensions" / "web-ui" / "index.ts"
+        if any(
+            arg.split("=", 1)[0] in {"--session", "--continue", "--no-session", "-c"}
+            for arg in extra_args
+        ):
+            raise ValueError("Native session selection is owned by Web Chat")
+        self._launch_options = dict(
+            pi=pi,
+            extension=extension,
+            cwd=cwd,
+            provider=provider,
+            model=model,
+            thinking=thinking,
+            extra_args=extra_args,
+        )
         try:
-            extension = (
-                PACKAGE.parents[1] / "runtimes" / "pi" / "extensions" / "web-ui" / "index.ts"
-            )
             launch = prepare_launch(
-                pi=pi,
-                extension=extension,
-                cwd=cwd,
-                provider=provider,
-                model=model,
-                thinking=thinking,
-                session=session,
-                session_inactive=session_inactive,
-                extra_args=extra_args,
+                **self._launch_options, session=session, session_inactive=session_inactive
             )
             self._project = launch.cwd
+            target = None
             if session is not None:
-                selected = Path(launch.argv[launch.argv.index("--session") + 1])
-                # Explicit resume uses the recorded directory, not the launch directory.
-                self._project = recorded_project(selected)
-                self._claim = SessionClaim(selected)
-            self._startup_messages = []
+                path = Path(launch.argv[launch.argv.index("--session") + 1])
+                self._project = recorded_project(path)
+                target = await asyncio.to_thread(read_row, path, self._project)
+                if target is None or not _safe_id(target.id):
+                    raise ValueError("Saved session does not have a valid native Web Chat identity")
+                self._launch_options["cwd"] = self._project
+            else:
+                self._launch_options["cwd"] = launch.cwd
             await self.runtime.start()
-            await self.rpc.start(
-                launch.argv,
-                cwd=launch.cwd,
-                env={
-                    "AUTOMATA_WEB_CONNECTOR_URL": self.runtime.origin + "/connector",
-                    "AUTOMATA_WEB_CONNECTOR_TOKEN": self.connector_token,
-                },
+            self._initial = await asyncio.shield(
+                self._start_worker(target=target, initial=True, launch=launch)
             )
-            state = await self._read_native_state(timeout=30)
-            path = self._native_path(state)
-            if self._claim and self._claim.path != path:
-                raise RpcError("Pi opened an unexpected session")
-            if path is not None and self._claim is None:
-                self._claim = SessionClaim(path)
-                if path.is_file():
-                    self._project = recorded_project(path)
-            self._session_path = path
-            self._update_session(state)
-            history = await self.rpc.command("get_messages", timeout=30)
-            self._hydrate_messages(history)
-            self._monitor = asyncio.create_task(self._monitor_browser())
             return self
         except BaseException:
             await self.close()
             raise
 
-    @staticmethod
-    def _native_path(native: dict) -> Path | None:
-        path = native.get("sessionFile")
-        return Path(path).resolve() if isinstance(path, str) and path else None
-
-    def _update_session(self, native: dict):
-        self.state.update(
-            {key: native.get(key) for key in ("sessionId", "sessionName", "model", "thinkingLevel")}
+    def _start_worker(self, target=None, *, initial=False, launch=None):
+        if self._closed:
+            raise _Refusal(410, "host_closed", "Web Chat is shutting down")
+        if len(self._owned) >= self._max_sessions:
+            raise _Refusal(
+                409,
+                "capacity",
+                "Web Chat is at its session limit. Close an unused tab and retry after cleanup.",
+            )
+        if target is not None and (target.id in self._starting_ids or target.id in self._entries):
+            raise _Refusal(409, "target_unavailable", "Session is already open or starting")
+        chat = ChatSession(
+            rpc_factory=self._rpc_factory,
+            on_exit=self._rpc_exited,
+            unavailable=self._row_unavailable,
         )
+        self._owned.add(chat)  # Atomic reservation before the first await.
+        if target is not None:
+            self._starting_ids.add(target.id)
+        task = asyncio.create_task(self._spawn_worker(chat, target, initial, launch))
+        self._starts.add(task)
 
-    def _snapshot(self):
-        return {
-            "type": "snapshot",
-            "messages": list(self.messages),
-            "state": dict(self.state),
-            "dialogs": list(self.dialogs.values()),
-        }
+        def finished(completed):
+            self._starts.discard(completed)
+            if not completed.cancelled():
+                completed.exception()  # Request may have disconnected after dispatch.
 
-    def _is_caller(self, path: Path) -> bool:
-        return bool(
-            self._caller_session and path == Path(self._caller_session).expanduser().resolve()
-        )
-
-    async def _list_sessions(self, offset):
-        if type(offset) is not int or offset < 0 or offset % PAGE_SIZE:
-            raise ValueError("Invalid Sessions page")
-        current_path, current_id = self._session_path, self.state.get("sessionId")
-        self._listing = None
-        current = {"id": current_id, "current": True} if current_id else None
-        if current_path is None or self._project is None:
-            return {"current": current, "sessions": [], "persistent": False}
-        try:
-            rows, counts = await asyncio.to_thread(list_rows, current_path.parent, self._project)
-        except OSError as error:
-            raise RpcError("Could not list the project session store") from error
-        if current_path != self._session_path or self._switching:
-            raise ValueError("Session changed; reopen Sessions")
-
-        def summary(row, reason=None):
-            return {
-                "id": row.id,
-                "label": row.label,
-                "snippet": row.snippet,
-                "modified": row.modified,
-                "unavailable": reason,
-            }
-
-        current_row = next((row for row in rows if row.path == current_path), None)
-        rows = [row for row in rows if row.path != current_path]
-        page = rows[offset : offset + PAGE_SIZE]
-        receipt = secrets.token_urlsafe(24)
-        choices, summaries = {}, []
-        if current_row and current_row.id == current_id:
-            current = {**summary(current_row), "current": True}
-            choices[current_row.id] = current_row
-        for row in page:
-            reason = None
-            if counts[row.id] != 1 or row.id == current_id:
-                reason = "Duplicate session ID"
-            elif self._is_caller(row.path):
-                reason = "Open in the calling Pi session"
-            if reason is None:
-                choices[row.id] = row
-            summaries.append(summary(row, reason))
-        self._listing = (receipt, choices)
-        return {
-            "current": current,
-            "sessions": summaries,
-            "receipt": receipt,
-            "persistent": True,
-            "nextOffset": offset + PAGE_SIZE if offset + PAGE_SIZE < len(rows) else None,
-            "previousOffset": offset - PAGE_SIZE if offset else None,
-        }
-
-    def _listed_row(self, record: dict, listing) -> SessionRow | None:
-        target = record.get("sessionId")
-        if isinstance(target, str) and listing and record.get("receipt") == listing[0]:
-            return listing[1].get(target)
-        return None
-
-    async def _preview_session(self, record: dict):
-        listing = self._listing
-        current = self.state.get("sessionId")
-        row = self._listed_row(record, listing)
-        if row is None or record.get("fromSessionId") != current:
-            raise ValueError("Session is not available in this listing. Reload Sessions.")
-        preview = await asyncio.to_thread(read_preview, row)
-        if listing is not self._listing or current != self.state.get("sessionId"):
-            raise ValueError("Session changed. Reload Sessions.")
-        return preview
-
-    def _ensure_switch_ready(self):
-        if (
-            self._closed
-            or (self._chat is not None and self._outbox is None)
-            or self.state["status"] != "idle"
-            or self.dialogs
-        ):
-            raise ValueError("Pi is busy or disconnected; no session was switched")
-
-    async def _read_native_state(self, *, timeout=15) -> dict:
-        state = await self.rpc.command("get_state", timeout=timeout)
-        if not isinstance(state, dict):
-            raise RpcError("Pi returned an invalid session state")
-        return state
-
-    async def _switch_session(self, record: dict):
-        if (
-            self._control.locked()
-            or self._switching
-            or self.state["status"] != "idle"
-            or self.dialogs
-        ):
-            raise ValueError("Pi is busy; wait for the reply or use Stop before switching")
-        async with self._control:
-            target = record.get("sessionId")
-            if not isinstance(target, str) or record.get("fromSessionId") != self.state.get(
-                "sessionId"
-            ):
-                raise ValueError("Session changed; reopen Sessions")
-            if target == self.state.get("sessionId"):
-                return {"unchanged": True}
-            listing, self._listing = self._listing, None
-            row = self._listed_row(record, listing)
-            if row is None:
-                raise ValueError("Session is not selectable in this listing; reopen Sessions")
-            self._switching = True
-            claim = None
-            dispatched = False
-            try:
-                native = await self._read_native_state()
-                self._ensure_switch_ready()
-                if (
-                    native.get("isStreaming") is not False
-                    or native.get("isCompacting") is not False
-                    or native.get("pendingMessageCount") != 0
-                ):
-                    raise ValueError("Pi is busy; no session was switched")
-                if (
-                    native.get("sessionId") != self.state.get("sessionId")
-                    or self._native_path(native) != self._session_path
-                ):
-                    raise ValueError("Native session changed outside the picker; restart Web Chat")
-                claim = SessionClaim(row.path)
-                if not row.unchanged() or self._is_caller(row.path):
-                    raise ValueError("Session changed or is unavailable; reopen Sessions")
-                # Pi owns rebind and persistence. Never use abort as part of switching.
-                self._status("switching")
-                dispatched = True
-                result = await self.rpc.command(
-                    "switch_session", sessionPath=str(row.path), timeout=30
-                )
-                if isinstance(result, dict) and result.get("cancelled") is True:
-                    dispatched = False
-                    self._status("idle")
-                    raise ValueError("Pi cancelled the session switch")
-                if not isinstance(result, dict) or result.get("cancelled") is not False:
-                    raise RpcError("Pi did not confirm the switch")
-                self._startup_messages = []
-                history = await self.rpc.command("get_messages")
-                native = await self._read_native_state()
-                if native.get("sessionId") != row.id or self._native_path(native) != row.path:
-                    raise RpcError("Pi opened an unexpected session")
-                if self._closed or self.state["status"] == "error":
-                    raise RpcError("Pi closed while restoring the selected session")
-                self._hydrate_messages(history)
-                self._update_session(native)
-                self._session_path = row.path
-                if self._claim:
-                    self._claim.close()
-                self._claim, claim = claim, None
-                self.connector.cancel_all("session_changed", "Chat switched to another Pi session")
-                self.state["status"] = (
-                    "running"
-                    if native.get("isStreaming")
-                    or native.get("isCompacting")
-                    or native.get("pendingMessageCount")
-                    else "idle"
-                )
-                self._publish(self._snapshot())
-                return {"sessionId": row.id}
-            except (RpcError, TimeoutError) as error:
-                if dispatched:
-                    # Mutation may have happened. Keep the prior labeled transcript,
-                    # but do not accept more prompts against an unverified binding.
-                    self._startup_messages = None
-                    self._switch_failed = True
-                    self._status("error")
-                    self.connector.cancel_all(
-                        "rpc_unavailable", "Session switch outcome unconfirmed"
-                    )
-                    await self.rpc.close()
-                    raise RpcError(
-                        "Session switch could not be verified. Pi stopped; restart Web Chat."
-                    ) from error
-                raise
-            finally:
-                if claim:
-                    claim.close()
-                self._switching = False
-
-    def _hydrate_messages(self, history: dict):
-        """Reconcile startup events with native history without stripping tool metadata."""
-        messages = history.get("messages") if isinstance(history, dict) else None
-        if not isinstance(messages, list) or any(not isinstance(m, dict) for m in messages):
-            raise RpcError("Pi returned an invalid message snapshot")
-        buffered = self._startup_messages or []
-        # Events may arrive after the get_messages response but before this coroutine
-        # resumes. The last event represented in the snapshot is the merge boundary.
-        boundary = -1
-        for index in range(len(buffered) - 1, -1, -1):
-            if buffered[index] in messages:
-                boundary = index
-                break
-        self.messages = [*messages, *buffered[boundary + 1 :]]
-        self._startup_messages = None
-
-    def _spawn(self, coro):
-        task = asyncio.create_task(coro)
-        self._tasks.add(task)
-        task.add_done_callback(self._tasks.discard)
+        task.add_done_callback(finished)
         return task
 
-    def _publish(self, record: dict):
-        if self._outbox is None:
-            return
+    async def _spawn_worker(self, chat, target, initial, launch):
         try:
-            self._outbox.put_nowait(record)
-        except asyncio.QueueFull:
-            # A slow UI cannot block stdout or allocate an unbounded close-task storm.
-            if self._chat and not self._slow_close_requested:
-                self._slow_close_requested = True
-                self._spawn(self._close_slow_chat(self._chat))
-
-    async def _close_slow_chat(self, socket):
-        with contextlib.suppress(TimeoutError, RuntimeError, OSError):
-            async with asyncio.timeout(1):
-                await socket.close(code=1013)
-        if self._chat is socket and not self._closed:
-            with contextlib.suppress(RpcError, TimeoutError):
-                await self.stop()
-
-    def _status(self, status: str):
-        self.state["status"] = status
-        self._publish({"type": "host_status", **self.state})
-
-    def on_event(self, event: dict):
-        kind = event.get("type")
-        if (
-            self._switching
-            and self.state["status"] in {"switching", "error"}
-            and kind not in {"extension_ui_request", "host_rpc_exit"}
-        ):
-            if kind == "message_end" and self._startup_messages is not None:
-                self._startup_messages.append(event["message"])
-            return
-        if kind == "message_end":
-            target = self.messages if self._startup_messages is None else self._startup_messages
-            target.append(event["message"])
-        elif kind == "session_info_changed":
-            self.state["sessionName"] = event.get("name")
-        elif kind == "agent_start":
-            if self.state["status"] not in {"stopping", "error"}:
-                self._status("running")
-        elif kind == "agent_settled":
-            if self.state["status"] not in {"stopping", "error"}:
-                self._status("idle")
-        elif kind == "host_rpc_exit":
-            self._status("error")
-            self.connector.cancel_all("rpc_unavailable", "Pi RPC exited")
-        elif kind == "extension_ui_request" and event.get("method") in DIALOGS:
-            key = event.get("id")
-            if isinstance(key, str):
-                self.dialogs[key] = event
-                timeout = event.get("timeout", 120000)
-                if type(timeout) not in (int, float) or not 0 < timeout <= 120000:
-                    timeout = 120000
-                self._dialog_timers[key] = asyncio.get_running_loop().call_later(
-                    timeout / 1000, lambda: self._spawn(self._cancel_dialog(key))
-                )
-                if (
-                    self._chat is None
-                    or self._outbox is None
-                    or self._closed
-                    or self.state["status"] in {"stopping", "error"}
-                ):
-                    # A cancelled extension command may sequentially request more
-                    # native dialogs while its prompt still holds _control. Fail
-                    # every later request closed so Stop can acquire that lock.
-                    self._spawn(self._cancel_dialog(key))
-                    return
-        self._publish({"type": "rpc_event", "event": event})
-
-    async def _monitor_browser(self):
-        while not self._closed:
-            try:
-                session = await self.runtime.wait_for_browser(timeout=1)
-            except TimeoutError:
-                continue
-            self.connector.bind(session)
-            while session.is_connected and not self._closed:
-                await asyncio.sleep(0.1)
-            self.connector.bind(None)
-
-    async def _cancel_dialog(self, key: str):
-        if key not in self.dialogs:
-            return
-        self.dialogs.pop(key)
-        timer = self._dialog_timers.pop(key, None)
-        if timer:
-            timer.cancel()
-        with contextlib.suppress(RpcError):
-            await self.rpc.send({"type": "extension_ui_response", "id": key, "cancelled": True})
-        self._publish({"type": "dialog_closed", "id": key})
-
-    async def _dialog_response(self, record: dict):
-        key = record.get("id")
-        dialog = self.dialogs.get(key)
-        if dialog is None:
-            raise ValueError("Dialog is expired or already answered")
-        response = {"type": "extension_ui_response", "id": key}
-        if record.get("cancelled") is True:
-            response["cancelled"] = True
-        elif dialog["method"] == "confirm" and type(record.get("confirmed")) is bool:
-            response["confirmed"] = record["confirmed"]
-        elif dialog["method"] in {"input", "editor", "select"}:
-            value = record.get("value")
-            if not isinstance(value, str) or len(value) > 65536:
-                raise ValueError("Dialog requires a bounded string")
-            if dialog["method"] == "select" and value not in dialog.get("options", []):
-                raise ValueError("Invalid selection")
-            response["value"] = value
-        else:
-            raise ValueError("Invalid dialog response")
-        # Consume before await: duplicate response can never reach Pi twice.
-        self.dialogs.pop(key)
-        timer = self._dialog_timers.pop(key, None)
-        if timer:
-            timer.cancel()
-        await self.rpc.send(response)
-        return {"answered": True}
-
-    async def stop(self, *, timeout: float = 10):
-        if self._switching:
-            # A transport disconnect must not race an accepted switch's rebind.
-            for key in list(self.dialogs):
-                await self._cancel_dialog(key)
-            async with self._control:
-                pass
-        if self._switch_failed:
-            raise RpcError("Session switch outcome unconfirmed; restart Web Chat")
-        self._status("stopping")
-        self.connector.cancel_all()
-        try:
-            # Includes control-lock acquisition, dialog writes, clear response and
-            # abort settlement. A stuck prompt/pipe must not postpone Stop forever.
-            async with asyncio.timeout(timeout):
-                for key in list(self.dialogs):
-                    await self._cancel_dialog(key)
-                async with self._control:
-                    # abort alone allows queued work to continue. Clear first.
-                    cleared = await self.rpc.command("clear_queue")
-                    await self.rpc.command("abort", timeout=timeout)
-                    self._status("idle")
-                    return cleared
-        except (RpcError, TimeoutError) as error:
-            # Cannot prove queue clearance/abort. Retire the owned process rather
-            # than leave queued work alive or pretend the app is idle. No resend.
-            self._status("error")
-            await self.rpc.close()
-            raise RpcError(
-                "Stop could not be confirmed; owned Pi was shut down. Restart browser mode."
-            ) from error
-
-    async def handle_command(self, record: dict):
-        key = record.get("id")
-        try:
-            if not isinstance(key, str) or not 1 <= len(key) <= 256:
-                raise ValueError("Unique bounded command id required")
-            if key in self._seen:
-                raise ValueError("Duplicate command id; not replayed")
-            if len(self._seen) >= 10000:
-                raise ValueError("Command limit reached; start a new application")
-            self._seen.add(key)
-            kind = record.get("type")
-            if self._switching and kind != "extension_ui_response":
-                raise ValueError("A session switch is in progress")
-            if (
-                kind in {"prompt", "rename"}
-                and "sessionId" in record
-                and record["sessionId"] != self.state.get("sessionId")
-            ):
-                raise ValueError("Session changed; request was not sent")
-            if kind == "list_sessions":
-                data = await self._list_sessions(record.get("offset", 0))
-            elif kind == "preview_session":
-                data = await self._preview_session(record)
-            elif kind == "switch_session":
-                data = await self._switch_session(record)
-            elif kind == "prompt":
-                message = record.get("message")
-                if not isinstance(message, str) or not message.strip() or len(message) > 65536:
-                    raise ValueError("Nonempty bounded message required")
-                async with self._control:
-                    if self.state["status"] != "idle":
-                        raise ValueError("Agent is busy; wait or Stop first")
-                    self._status("running")
-                    try:
-                        data = await self.rpc.command("prompt", message=message)
-                    except BaseException:
-                        self._status("error")
-                        raise
-                    if (
-                        data
-                        and data.get("disposition") == "handled"
-                        and self.state["status"] not in {"stopping", "error"}
+            if self._closed:
+                raise _Refusal(410, "host_closed", "Web Chat is shutting down")
+            async with asyncio.timeout(45):
+                if target is not None:
+                    rows, counts = await asyncio.to_thread(
+                        list_rows, target.path.parent, self._project
+                    )
+                    if counts[target.id] != 1 or not any(
+                        row.id == target.id
+                        and row.path == target.path
+                        and row.revision == target.revision
+                        for row in rows
                     ):
-                        self._status("idle")
-            elif kind == "rename":
-                name = record.get("name")
-                if not isinstance(name, str) or not name.strip():
-                    raise ValueError("Session name cannot be empty")
-                async with self._control:
-                    if self._switch_failed:
-                        raise ValueError("Session switch outcome unconfirmed; restart Web Chat")
-                    await self.rpc.command("set_session_name", name=name.strip())
-                    native = await self.rpc.command("get_state")
-                    self.state["sessionName"] = native.get("sessionName")
-                    data = {"sessionName": self.state["sessionName"]}
-            elif kind == "stop":
-                data = await self.stop()
-            elif kind == "extension_ui_response":
-                data = await self._dialog_response(record)
-            else:
-                raise ValueError("Unsupported browser command")
-            self._publish({"type": "ack", "id": key, "success": True, "data": data})
-        except (ValueError, RpcError, TimeoutError) as error:
-            # Redact both secrets even if Pi errors happen to echo a URL.
-            message = str(error) or (
-                "RPC deadline exceeded; delivery outcome uncertain. Do not replay blindly."
-                if isinstance(error, TimeoutError)
-                else type(error).__name__
-            )
-            message = message.replace(self.runtime.token, "[redacted]")
-            message = message.replace(self.connector_token, "[redacted]")
-            self._publish({"type": "ack", "id": key, "success": False, "error": message})
-
-    async def _chat_socket(self, socket):
-        from fastapi import WebSocketDisconnect
-
-        if (
-            self._closed
-            or self._startup_messages is not None
-            or self._chat is not None
-            or not self.runtime._local_request(socket)
-            or socket.headers.get("origin") != self.runtime.origin
-            or not secrets.compare_digest(socket.query_params.get("token", ""), self.runtime.token)
-        ):
-            await socket.close(code=1008)
-            return
-        self._chat = socket
-        self._slow_close_requested = False
-        self._outbox = asyncio.Queue(maxsize=256)
-        command_tasks = set()
-        writer = None
-        try:
-            await socket.accept()
-            await socket.send_json(self._snapshot())
-
-            async def write():
-                while True:
-                    await socket.send_json(await self._outbox.get())
-
-            writer = asyncio.create_task(write())
-            while True:
-                text = await socket.receive_text()
-                if len(text) > 100000 or len(command_tasks) >= 32:
-                    await socket.close(code=1008)
-                    break
-                record = json.loads(text)
-                if not isinstance(record, dict):
-                    raise ValueError("Expected command object")
-                task = asyncio.create_task(self.handle_command(record))
-                command_tasks.add(task)
-                task.add_done_callback(command_tasks.discard)
-        except (WebSocketDisconnect, ValueError, RuntimeError):
-            pass
+                        raise ValueError("Session changed or its native ID is no longer unique")
+                if launch is None:
+                    launch = prepare_launch(
+                        **self._launch_options,
+                        session=target.path if target else None,
+                        session_inactive=target is not None,
+                    )
+                await chat.start(
+                    launch,
+                    origin=self.runtime.origin,
+                    project=self._project,
+                    caller=self._caller_session,
+                    route_id=_safe_id,
+                    target=target,
+                )
+            if (
+                self._closed
+                or chat.id in self._entries
+                or (target is None and chat.id in self._starting_ids)
+            ):
+                raise RpcError("Native session could not be published uniquely")
+            entry = _Entry(chat, initial=initial)
+            self._entries[chat.id] = entry
+            self._connectors[chat.connector_token] = entry
+            self._arm_idle(entry)
+            return entry
+        except BaseException:
+            try:
+                await chat.close()
+                self._owned.discard(chat)
+            except (RpcError, TimeoutError, OSError):
+                self._cleanup_failed = True
+            raise
         finally:
-            if writer:
-                writer.cancel()
-                await asyncio.gather(writer, return_exceptions=True)
-            self._outbox = None
-            # Reserve admission through cleanup so old acknowledgements/status cannot
-            # leak into a newly admitted chat. Do not cancel accepted commands; stop
-            # behind them so anything accepted before disconnect is then aborted.
-            if not self._closed:
-                with contextlib.suppress(RpcError, TimeoutError):
-                    await self.stop()
-            if command_tasks:
-                await asyncio.gather(*command_tasks, return_exceptions=True)
-            self._listing = None
-            self._chat = None
+            if target is not None:
+                self._starting_ids.discard(target.id)
+
+    async def _await_start(self, task):
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            if self._closed and task.cancelled():
+                raise _Refusal(410, "host_closed", "Web Chat is shutting down") from None
+            raise
+        except ValueError:
+            raise _Refusal(
+                409,
+                "target_unavailable",
+                "Session changed or could not be claimed; reload Sessions",
+            ) from None
+        except (RpcError, TimeoutError, OSError):
+            raise _Refusal(
+                503,
+                "native_unavailable",
+                "Pi could not start the requested session. The source chat was not changed.",
+            ) from None
+
+    def _row_unavailable(self, row: SessionRow):
+        if not _safe_id(row.id):
+            return "Native session ID is not routable in Web Chat"
+        entry = self._entries.get(row.id)
+        if row.id in self._starting_ids or (
+            entry
+            and (
+                entry.pair
+                or entry.retiring
+                or entry.chat._dead
+                or entry.chat._session_path != row.path
+            )
+        ):
+            return "Session is owned by another Web Chat connection"
+        return None
+
+    async def _open_saved(self, entry, pair, body):
+        source = entry.chat
+        if source._control.locked() or source.state["status"] != "idle" or source.dialogs:
+            raise _Refusal(
+                409, "source_busy", "Wait for the reply or use Stop before opening a session"
+            )
+        task = None
+        async with source._control:
+            listing = source._listing
+            row = source.listed_row(body, listing)
+            if row is None or row.id == source.id:
+                raise _Refusal(
+                    409,
+                    "stale_receipt",
+                    "Session is not selectable in this listing; reload Sessions",
+                )
+            try:
+                native = await source.read_native(timeout=5)
+            except (RpcError, TimeoutError):
+                raise _Refusal(
+                    503, "native_unavailable", "The source native session could not be verified"
+                ) from None
+            if not source.matches_native(native):
+                source.invalidate()
+                raise _Refusal(
+                    503, "native_unavailable", "The source native session changed and was retired"
+                )
+            if (
+                entry.pair is not pair
+                or pair.cleanup
+                or source._dead
+                or source.state["status"] != "idle"
+                or source.dialogs
+                or native.get("isStreaming") is not False
+                or native.get("isCompacting") is not False
+                or native.get("pendingMessageCount") != 0
+            ):
+                raise _Refusal(409, "source_busy", "Source no longer idle; reopen Sessions")
+            if listing is not source._listing or not row.unchanged() or source._is_caller(row.path):
+                raise _Refusal(409, "stale_receipt", "Saved session changed; reload Sessions")
+            if self._row_unavailable(row):
+                raise _Refusal(
+                    409, "target_unavailable", "Session is owned by another Web Chat connection"
+                )
+            target = self._entries.get(row.id)
+            if target is not None:
+                # Detached target: revalidate uniqueness before replacing admission.
+                try:
+                    async with asyncio.timeout(5):
+                        _, counts = await asyncio.to_thread(
+                            list_rows, row.path.parent, self._project
+                        )
+                except (OSError, TimeoutError):
+                    raise _Refusal(
+                        409, "target_unavailable", "Could not verify the saved target"
+                    ) from None
+                if (
+                    counts[row.id] != 1
+                    or not row.unchanged()
+                    or self._entries.get(row.id) is not target
+                    or self._row_unavailable(row)
+                    or entry.pair is not pair
+                    or pair.cleanup
+                    or source._listing is not listing
+                    or self._closed
+                ):
+                    raise _Refusal(
+                        409, "target_unavailable", "Saved target changed; reopen Sessions"
+                    )
+                source._listing = None
+                target.chat.admission = secrets.token_urlsafe(32)
+                self._arm_idle(target)
+                return target
+            task = self._start_worker(row)
+            source._listing = None
+        return await self._await_start(task)
+
+    @staticmethod
+    def _cancel_idle(entry):
+        if entry.idle_timer:
+            entry.idle_timer.cancel()
+            entry.idle_timer = None
+
+    def _arm_idle(self, entry):
+        if self._closed or entry.retiring or (entry.initial and not entry.joined):
+            return
+        self._cancel_idle(entry)
+        entry.idle_timer = asyncio.get_running_loop().call_later(
+            self._idle_seconds, self._retire, entry
+        )
+
+    def _rpc_exited(self, chat):
+        if self._closed or chat.id is None:
+            return  # Startup sees the failure; shutdown already owns cleanup.
+        entry = self._entries.get(chat.id)
+        if entry and entry.chat is chat:
+            self._retire(entry)
+
+    def _drop_pair(self, entry, pair):
+        if entry.pair is not pair or pair.cleanup:
+            return
+        self._tickets.pop(pair.ticket, None)
+        if pair.expiry:
+            pair.expiry.cancel()
+        entry.chat.detach()
+        pair.cleanup = asyncio.create_task(self._finish_pair(entry, pair))
+
+    async def _finish_pair(self, entry, pair):
+        from starlette.websockets import WebSocketDisconnect
+
+        chat = entry.chat
+
+        async def close_chat_socket():
+            if pair.chat_socket is not None:
+                with contextlib.suppress(WebSocketDisconnect, RuntimeError, OSError, TimeoutError):
+                    async with asyncio.timeout(1):
+                        await pair.chat_socket.close(code=1001)
+
+        try:
+            await asyncio.gather(close_chat_socket(), pair.bridge.close(timeout=2))
+            handlers = {
+                task
+                for task in (pair.chat_task, pair.bridge_task)
+                if task is not None and not task.done()
+            }
+            if handlers:
+                _, pending = await asyncio.wait(handlers, timeout=1)
+                for task in pending:
+                    task.cancel()
+                if pending:
+                    _, pending = await asyncio.wait(pending, timeout=1)
+                    if pending:
+                        raise RpcError("Browser socket cleanup unconfirmed")
+            if pair.ready and not (self._closed or chat._dead or entry.retiring):
+                await chat.stop()
+            await chat.settle_commands()
+        except Exception:
+            # Failed cleanup retires this Pi rather than admitting another writer.
+            self._retire(entry)
+        finally:
+            if entry.pair is pair:
+                entry.pair = None
+                if pair.ready:
+                    self._arm_idle(entry)
+
+    def _retire(self, entry):
+        if entry.retiring is None:
+            self._cancel_idle(entry)
+            self._connectors.pop(entry.chat.connector_token, None)
+            entry.retiring = asyncio.create_task(self._finish_retire(entry))
+        return entry.retiring
+
+    async def _finish_retire(self, entry):
+        chat = entry.chat
+        try:
+            if entry.pair:
+                pair = entry.pair
+                self._drop_pair(entry, pair)
+                await pair.cleanup
+            await chat.close()
+        except Exception:
+            self._cleanup_failed = True
+        else:
+            if self._entries.get(chat.id) is entry:
+                self._entries.pop(chat.id)
+            self._owned.discard(chat)
 
     async def close(self):
         if self._close_task is None:
             self._closed = True
             self._close_task = asyncio.create_task(self._close())
-        # Shared shielded cleanup, not a boolean early-return: cancellation of any
-        # caller cannot poison later close calls or abandon the owned Pi process.
         await asyncio.shield(self._close_task)
 
     async def _close(self):
-        self.connector.cancel_all("closed", "Application closed")
-        if self._monitor:
-            self._monitor.cancel()
-        for timer in self._dialog_timers.values():
-            timer.cancel()
         try:
-            if self._chat:
-                with contextlib.suppress(Exception):
-                    async with asyncio.timeout(1):
-                        await self._chat.close(code=1001)
+            # Stop exposing resources immediately; cleanup of all children is concurrent.
+            retiring = [self._retire(entry) for entry in tuple(self._entries.values())]
+            # A reservation created just before shutdown must enter the worker's
+            # finally block before cancellation, even if its RPC has not started.
+            await asyncio.sleep(0)
+            starting = [task for task in self._starts if not task.done()]
+            for task in starting:
+                task.cancel()
+            if retiring or starting:
+                done, pending = await asyncio.wait([*retiring, *starting], timeout=22)
+                self._cleanup_failed |= bool(
+                    pending
+                    or any(
+                        task in retiring and not task.cancelled() and task.exception()
+                        for task in done
+                    )
+                )
         finally:
-            try:
-                await self.rpc.close()
-            finally:
-                try:
-                    if self._claim is not None:
-                        self._claim.close()
-                        self._claim = None
-                    await self.runtime.close()
-                finally:
-                    owned = set(self._tasks)
-                    if self._monitor:
-                        owned.add(self._monitor)
-                    for task in owned:
-                        task.cancel()
-                    if owned:
-                        _, unfinished = await asyncio.wait(owned, timeout=1)
-                        if unfinished:
-                            raise RpcError("Owned host tasks did not stop; cleanup unconfirmed")
+            await self.runtime.close()
+        if self._cleanup_failed or self._owned:
+            raise RpcError("One or more owned Web Chat resources did not confirm shutdown")
 
 
 async def serve(
     *,
-    cwd: Path | None = None,
-    pi: str = "pi",
-    port: int = 0,
-    provider: str | None = None,
-    model: str | None = None,
-    thinking: str | None = None,
-    session: Path | None = None,
-    session_inactive: bool = False,
-    open_browser: bool = True,
+    cwd=None,
+    pi="pi",
+    port=0,
+    provider=None,
+    model=None,
+    thinking=None,
+    session=None,
+    session_inactive=False,
+    open_browser=True,
 ):
     host = BrowserHost(port=port)
     opener = None
@@ -868,7 +922,7 @@ async def serve(
             session_inactive=session_inactive,
         )
         if open_browser:
-            opener = asyncio.create_task(_open_browser(host.runtime.url))
+            opener = asyncio.create_task(_open_browser(host.admission_url))
         print(f"Automata browser mode running at {host.runtime.origin} (admission URL private).")
         await stopped.wait()
     finally:
@@ -885,5 +939,4 @@ async def serve(
 
 
 def run(**kwargs):
-    """Synchronous root-CLI entry; no independent CLI module or second server."""
     asyncio.run(serve(**kwargs))

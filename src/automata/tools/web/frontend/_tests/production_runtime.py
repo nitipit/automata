@@ -10,6 +10,7 @@ import asyncio
 import subprocess
 from importlib.resources import files
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import httpx
 from playwright.async_api import async_playwright
@@ -18,8 +19,9 @@ from automata.tools.web.host import BrowserHost
 
 
 class InertRpc:
-    def __init__(self):
+    def __init__(self, project):
         self.prompts = 0
+        self.session = project / "fixture.jsonl"
 
     async def start(self, *_args, **_kwargs):
         pass
@@ -28,6 +30,8 @@ class InertRpc:
         if kind == "prompt":
             self.prompts += 1
             raise AssertionError("No prompt is authorized in this fixture")
+        if kind == "get_state":
+            return {"sessionId": "owned-fixture-session", "sessionFile": str(self.session)}
         if kind == "get_messages":
             return {
                 "messages": [
@@ -56,10 +60,12 @@ async def main(no_build=False):
         subprocess.run(
             ["npm", "run", "build:web"], cwd=Path(__file__).resolve().parents[6], check=True
         )
-    rpc = InertRpc()
-    host = BrowserHost(rpc=rpc)
-    await host.start()
+    temporary = TemporaryDirectory(prefix="automata-production-browser-")
+    project = Path(temporary.name)
+    rpc = InertRpc(project)
+    host = BrowserHost(rpc_factory=lambda _handler: rpc)
     try:
+        await host.start(cwd=project)
         async with async_playwright() as playwright:
             browser = await playwright.chromium.launch(
                 executable_path="/usr/bin/google-chrome", headless=True
@@ -71,7 +77,7 @@ async def main(no_build=False):
                 page = await context.new_page()
                 errors = []
                 page.on("pageerror", lambda error: errors.append(str(error)))
-                await page.goto(host.runtime.url)
+                await page.goto(host.admission_url)
                 await page.wait_for_function(
                     "window.awr?.status === 'connected' && document.querySelector('#sessions')?.disabled === false"
                 )
@@ -127,7 +133,8 @@ async def main(no_build=False):
                   let rejected=false; try {ui.setTheme(other,{roles:{surface:'var(--not-allowed)'}});}catch{rejected=true;}
                   checks.noCSSVars=rejected && !probe.css.includes('var(');
                   const allSheets=[...document.adoptedStyleSheets,...shadow.adoptedStyleSheets];
-                  checks.resolvedLiteralCSS=allSheets.every(s=>[...s.cssRules].every(r=>!r.cssText.includes('var(')));
+                  // The picker fixture uses one layout-only variable; theme colors must remain literal.
+                  checks.resolvedLiteralCSS=allSheets.every(s=>[...s.cssRules].every(r=>!r.cssText.replaceAll('var(--preview-pad)', '').includes('var(')));
                   const slotHost=document.createElement('div'); app.append(slotHost);
                   const slotRoot=slotHost.attachShadow({mode:'open'});
                   const slotA=document.createElement('section'),slotB=document.createElement('section');
@@ -188,7 +195,10 @@ async def main(no_build=False):
             finally:
                 await browser.close()
     finally:
-        await host.close()
+        try:
+            await host.close()
+        finally:
+            temporary.cleanup()
 
 
 if __name__ == "__main__":

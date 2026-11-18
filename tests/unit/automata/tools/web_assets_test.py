@@ -9,11 +9,6 @@ httpx = pytest.importorskip("httpx")
 from automata.tools.web import host as host_module  # noqa: E402
 
 
-class InertRpc:
-    async def close(self):
-        pass
-
-
 def test_flat_esm_allowlist_retains_local_boundary(tmp_path, monkeypatch):
     async def check():
         public = tmp_path / "public"
@@ -40,7 +35,7 @@ def test_flat_esm_allowlist_retains_local_boundary(tmp_path, monkeypatch):
         outside.write_text("private")
         (public / "chunk-ZZZZZZZZ.js").symlink_to(outside)
         monkeypatch.setattr(host_module, "PACKAGE", tmp_path)
-        host = host_module.BrowserHost(rpc=InertRpc())
+        host = host_module.BrowserHost()
         host.runtime._origin = "http://127.0.0.1:12345"
         try:
             transport = httpx.ASGITransport(app=host.runtime.app, client=("127.0.0.1", 1234))

@@ -1,10 +1,11 @@
 """Native session naming behavior through the browser host control interface."""
+
 import asyncio
 
 import pytest
 
 pytest.importorskip("automata_web_runtime")
-from automata.tools.web.host import BrowserHost
+from automata.tools.web.chat import ChatSession
 from automata.tools.web.rpc import RpcError
 
 
@@ -29,11 +30,14 @@ class NamingRpc:
 def test_rename_uses_native_control_and_confirmed_state_without_messages():
     async def check():
         rpc = NamingRpc()
-        host = BrowserHost(rpc=rpc)
+        host = ChatSession(rpc=rpc)
         host._outbox = asyncio.Queue()
         try:
             await host.handle_command({"type": "rename", "id": "rename", "name": "  New name  "})
-            assert rpc.commands == [("set_session_name", {"name": "New name"}), ("get_state", {})]
+            assert rpc.commands == [
+                ("set_session_name", {"name": "New name"}),
+                ("get_state", {"timeout": 15}),
+            ]
             ack = host._outbox.get_nowait()
             assert ack == {
                 "type": "ack",
@@ -49,6 +53,7 @@ def test_rename_uses_native_control_and_confirmed_state_without_messages():
             assert host.state["sessionName"] is None
         finally:
             await host.close()
+
     asyncio.run(check())
 
 
@@ -56,7 +61,7 @@ def test_rename_uses_native_control_and_confirmed_state_without_messages():
 def test_blank_or_invalid_rename_never_reaches_pi(name):
     async def check():
         rpc = NamingRpc()
-        host = BrowserHost(rpc=rpc)
+        host = ChatSession(rpc=rpc)
         host._outbox = asyncio.Queue()
         try:
             await host.handle_command({"type": "rename", "id": "invalid", "name": name})
@@ -64,6 +69,7 @@ def test_blank_or_invalid_rename_never_reaches_pi(name):
             assert rpc.commands == [] and host.messages == []
         finally:
             await host.close()
+
     asyncio.run(check())
 
 
@@ -71,7 +77,7 @@ def test_failed_native_rename_preserves_confirmed_identity_and_activity():
     async def check():
         rpc = NamingRpc()
         rpc.fail = True
-        host = BrowserHost(rpc=rpc)
+        host = ChatSession(rpc=rpc)
         host.state.update(sessionName="Saved name", status="running")
         host._outbox = asyncio.Queue()
         try:
@@ -82,4 +88,5 @@ def test_failed_native_rename_preserves_confirmed_identity_and_activity():
             assert host.state["status"] == "running" and host.messages == []
         finally:
             await host.close()
+
     asyncio.run(check())

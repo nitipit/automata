@@ -7,7 +7,9 @@ class FakeSocket extends EventTarget {
   sent = [];
   constructor(url) {
     super();
-    const chat = new URL(url).pathname === "/chat";
+    const target = new URL(url);
+    this.ticket = target.searchParams.get("token");
+    const chat = target.pathname === "/sessions/browser-fixture/chat";
     if (chat) window.sock = this; else window.bridgeSock = this;
     setTimeout(() => {
       this.dispatchEvent(new Event("open"));
@@ -16,10 +18,16 @@ class FakeSocket extends EventTarget {
   }
   close() { this.readyState = 3; this.dispatchEvent(new Event("close")); }
   send(value) { this.sent.push(JSON.parse(value)); }
-  emit(value) { this.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(value) })); }
+  emit(value) {
+    if (value.type === "snapshot") value.state = { sessionId: "browser-fixture", ...value.state };
+    this.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(value) }));
+  }
 }
 window.WebSocket = FakeSocket;
 const originalFetch = window.fetch.bind(window);
-window.fetch = (url, options) => String(url) === '/chat/connection'
-  ? Promise.resolve(new Response('{"ready":true}', {status:200}))
-  : originalFetch(url, options);
+window.fetch = (url, options) => {
+  if (String(url) !== '/sessions/browser-fixture/chat/connection') return originalFetch(url, options);
+  window.fixtureAdmissionProbe = options.headers.Authorization === 'Bearer synthetic' &&
+    !window.awr && !location.hash;
+  return Promise.resolve(new Response('{"ticket":"fixture-ticket"}', {status:200}));
+};

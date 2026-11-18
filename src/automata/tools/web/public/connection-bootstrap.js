@@ -1,1 +1,1 @@
-(()=>{let t=new URLSearchParams(location.hash.slice(1)),e=t.get("token");try{if(e)sessionStorage.setItem("automata.chat.token",e);else{let a=sessionStorage.getItem("automata.chat.token");a&&(t.set("token",a),history.replaceState(null,"",`${location.pathname}${location.search}#${t}`))}}catch{}})();
+(()=>{let a=new URLSearchParams(location.hash.slice(1));if(!a.has("admission")&&!a.has("token"))return;let t=a.getAll("admission");t.length===1&&t[0]&&(window.__automataChatAdmission=t[0]),history.replaceState(history.state,"",location.pathname+location.search)})();

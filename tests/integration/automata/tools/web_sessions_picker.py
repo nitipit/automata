@@ -40,14 +40,15 @@ async def start_host(directory, store):
 
 
 async def seed(host, label, message):
-    await host.handle_command({"type": "rename", "id": "name", "name": label})
-    assert host.state["sessionName"] == label
-    await host.handle_command({"type": "prompt", "id": "seed", "message": message})
+    chat = host.initial_session
+    await chat.handle_command({"type": "rename", "id": "name", "name": label})
+    assert chat.state["sessionName"] == label
+    await chat.handle_command({"type": "prompt", "id": "seed", "message": message})
     async with asyncio.timeout(10):
-        while host.state["status"] == "running":
+        while chat.state["status"] == "running":
             await asyncio.sleep(0.01)
-    assert host.state["status"] == "idle", host.state["status"]
-    assert host.messages[-1]["content"][0]["text"] == f"Offline history: {message}"
+    assert chat.state["status"] == "idle", chat.state["status"]
+    assert chat.messages[-1]["content"][0]["text"] == f"Offline history: {message}"
 
 
 async def choose(page, label):
@@ -73,8 +74,13 @@ async def check_page(host_a, host_b, browser):
     page = await browser.new_page(viewport={"width": 390, "height": 844})
     errors = []
     page.on("pageerror", lambda _error: errors.append(True))
-    a_id, b_id = host_a.state["sessionId"], host_b.state["sessionId"]
-    await page.goto(host_a.runtime.url)
+    a, b = host_a.initial_session, host_b.initial_session
+    a_id, b_id = a.id, b.id
+    await page.goto(host_a.admission_url)
+
+    async def current_is(expected):
+        assert await page.evaluate("location.pathname") == f"/sessions/{expected}/"
+        assert len(page.context.pages) == 1 and a.id == a_id and b.id == b_id
     sessions = page.get_by_role("button", name="Sessions", exact=True)
     title = page.locator("#session-name")
     transcript = page.locator("#transcript")
@@ -98,7 +104,7 @@ async def check_page(host_a, host_b, browser):
     await expect(picker.locator("#sessions-model")).to_have_text("picker-fixture/fixture")
     await expect(picker.locator("#sessions-tokens")).to_have_text("2")
     await expect(picker.get_by_text("Saved context window", exact=True)).to_have_count(0)
-    assert host_a.state["sessionId"] == a_id
+    await current_is(a_id)
     await picker.get_by_role("button", name="Back to sessions", exact=False).click()
     await expect(picker.get_by_role("button", name="Conversation B", exact=False)).to_be_focused()
     current = picker.get_by_role("button", name="Conversation A", exact=False)
@@ -115,16 +121,17 @@ async def check_page(host_a, host_b, browser):
     picker = await choose(page, "Conversation B")
     await open_selected(picker)
     await expect(picker.locator("#sessions-status")).to_contain_text(
-        "open in another Web Chat host"
+        "could not be claimed"
     )
-    assert host_a.state["sessionId"] == a_id and host_b.state["sessionId"] == b_id
+    await current_is(a_id)
+    await expect(prompt).to_have_value("Unsent draft for A")
     await host_b.close()
     await picker.get_by_role("button", name="Reload list").click()
     await picker.get_by_role("button", name="Conversation B", exact=False).click()
     await open_selected(picker)
     await expect(picker).not_to_be_visible()
     await expect(title).to_have_text("Conversation B")
-    assert host_a.state["sessionId"] == b_id
+    await current_is(b_id)
     await expect(transcript).to_contain_text("Offline history: B first")
     await expect(transcript).not_to_contain_text("A first")
     await expect(prompt).to_have_value("")
@@ -140,16 +147,16 @@ async def check_page(host_a, host_b, browser):
     await expect(transcript).to_contain_text("Offline history: A first | A continues")
     await expect(transcript).not_to_contain_text("B continues")
     await expect(prompt).to_have_value("Unsent draft for A")
-    assert host_a.state["sessionId"] == a_id
+    await current_is(a_id)
 
-    # Switch back and check that B's new turn is native persisted history.
+    # Open B again and check its native persisted history.
     picker = await choose(page, "Conversation B")
     await open_selected(picker)
     await expect(title).to_have_text("Conversation B")
     await expect(transcript).to_contain_text("Offline history: B first | B continues")
     await expect(transcript).not_to_contain_text("A continues")
     await expect(prompt).to_have_value("")
-    assert host_a.state["sessionId"] == b_id
+    await current_is(b_id)
     await page.reload()
     await expect(sessions).to_be_enabled()
     await expect(title).to_have_text("Conversation B")

@@ -4,7 +4,13 @@
 <a class="skip-link" href="#conversation">Skip to conversation</a>
   <header class="app-header">
     <div class="session-identity"><span class="eyebrow">AUTOMATA</span><div class="session-title"><h1 id="session-name">Untitled session</h1><button id="rename" type="button" aria-label="Rename session" title="Rename session" disabled></button></div></div>
-    <div class="connection-controls"><button id="sessions" type="button" aria-haspopup="dialog" disabled>Sessions</button><span id="connection-status" role="status">Connecting…</span><button id="connect" type="button" disabled>Connect</button></div>
+    <div class="connection-controls">
+      <button id="sessions" type="button" aria-haspopup="dialog" disabled>Sessions</button>
+      <form id="new-chat-form" method="post" action="/sessions" target="_blank" rel="noopener">
+        <button id="new-chat" type="submit" title="Open a new chat in a new tab" disabled>New chat</button>
+      </form>
+      <span id="connection-status" role="status">Connecting…</span><button id="connect" type="button" disabled>Connect</button>
+    </div>
     <form id="rename-form" hidden>
       <label for="session-name-input">Session name</label>
       <input id="session-name-input" autocomplete="off" required aria-describedby="rename-error">
@@ -77,4 +83,4 @@
 </automata-app>
 <native-rpc-dialog></native-rpc-dialog>
 {% endblock %}
-{% block scripts %}<script src="/assets/connection-bootstrap.js"></script><script src="/bridge.js"></script><script type="module" src="/assets/index.js"></script>{% endblock %}
+{% block scripts %}<script src="/assets/connection-bootstrap.js"></script><script type="module" src="/assets/index.js"></script>{% endblock %}

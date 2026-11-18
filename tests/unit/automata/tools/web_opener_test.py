@@ -24,12 +24,14 @@ original_start = host.BrowserHost.start
 async def start(self, **kwargs):
     await original_start(self, **kwargs)
     Path(os.environ['HOST_READY']).write_text(json.dumps({
-        'origin': self.runtime.origin, 'token': self.runtime.token,
-        'connector_token': self.connector_token}))
+        'origin': self.runtime.origin, 'token': self.initial_session.admission,
+        'session': self.initial_session.id,
+        'connector_token': self.initial_session.connector_token}))
 host.BrowserHost.start = start
 async def main():
     serving = asyncio.create_task(host.serve(
-        pi=os.environ['FAKE_PI'], open_browser=os.environ['OPEN_BROWSER'] == '1'))
+        pi=os.environ['FAKE_PI'], cwd=Path(os.environ['FAKE_WORKSPACE']),
+        open_browser=os.environ['OPEN_BROWSER'] == '1'))
     if os.environ['STOP_MODE'] == 'cancel':
         while not Path(os.environ['CANCEL_TRIGGER']).exists() and not serving.done():
             await asyncio.sleep(.01)
@@ -44,7 +46,12 @@ for line in sys.stdin:
     command = json.loads(line)
     with open(os.environ['RPC_COMMANDS'], 'a') as stream:
         stream.write(command['type'] + '\\n')
-    data = {'messages': []} if command['type'] == 'get_messages' else {}
+    if command['type'] == 'get_state':
+        data = {'sessionId':'opener-fixture', 'sessionFile':os.path.abspath('opener-fixture.jsonl')}
+    elif command['type'] == 'get_messages':
+        data = {'messages': []}
+    else:
+        data = {}
     print(json.dumps({'type': 'response', 'id': command['id'],
                      'success': True, 'data': data}), flush=True)
 """
@@ -105,13 +112,22 @@ class IsolatedHost:
             env.pop(name, None)
         env.update(
             PATH=str(tmp_path),
-            PYTHONPATH=str(Path(host_module.__file__).resolve().parents[3]),
+            PYTHONPATH=os.pathsep.join(
+                filter(
+                    None,
+                    (
+                        str(Path(host_module.__file__).resolve().parents[3]),
+                        env.get("PYTHONPATH"),
+                    ),
+                )
+            ),
             BROWSER=str(browser) + " %s",
             HOST_READY=str(self.ready),
             OPENER_READY=str(self.opener_ready),
             RPC_COMMANDS=str(self.commands),
             CANCEL_TRIGGER=str(self.cancel_trigger),
             FAKE_PI=str(pi),
+            FAKE_WORKSPACE=str(tmp_path),
             OPEN_BROWSER="1" if open_browser else "0",
             STOP_MODE=stop_mode,
             BROWSER_RESULT=result,
@@ -190,19 +206,40 @@ def test_blocking_configured_opener_keeps_http_native_stop_and_shutdown_live(tmp
         async def native_stop():
             import websockets
 
-            uri = metadata["origin"].replace("http:", "ws:") + "/chat?token=" + metadata["token"]
-            async with websockets.connect(uri, origin=metadata["origin"]) as chat:
-                assert json.loads(await chat.recv())["type"] == "snapshot"
-                await chat.send(json.dumps({"id": "stop", "type": "stop"}))
-                while True:
-                    frame = json.loads(await chat.recv())
-                    if frame.get("type") == "ack":
-                        assert frame["success"]
-                        return
+            origin = metadata["origin"]
+            path = f"/sessions/{metadata['session']}/chat"
+            async with httpx.AsyncClient(
+                base_url=origin, headers={"User-Agent": "Automata/1.0"}
+            ) as client:
+                response = await client.post(
+                    path + "/connection",
+                    headers={
+                        "Origin": origin,
+                        "Authorization": f"Bearer {metadata['token']}",
+                    },
+                )
+                ticket = response.json()["ticket"]
+            ws_origin = origin.replace("http:", "ws:")
+            async with websockets.connect(ws_origin + "/ws?token=" + ticket, origin=origin):
+                async with websockets.connect(
+                    ws_origin + path + "?token=" + ticket, origin=origin
+                ) as chat:
+                    assert json.loads(await chat.recv())["type"] == "snapshot"
+                    await chat.send(json.dumps({"id": "stop", "type": "stop"}))
+                    while True:
+                        frame = json.loads(await chat.recv())
+                        if frame.get("type") == "ack":
+                            assert frame["success"]
+                            return
 
         asyncio.run(asyncio.wait_for(native_stop(), 2))
-        assert app.commands.read_text().splitlines()[:4] == [
-            "get_state", "get_messages", "clear_queue", "abort"
+        assert app.commands.read_text().splitlines()[:6] == [
+            "get_state",
+            "get_messages",
+            "get_state",
+            "get_state",
+            "clear_queue",
+            "abort",
         ]
         before = time.monotonic()
         app.stop()

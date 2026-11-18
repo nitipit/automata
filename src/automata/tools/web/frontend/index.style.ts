@@ -15,7 +15,7 @@ export const appStyle = `
   & .session-title h1 { min-width: 0; }
   & #rename { flex: 0 0 44px; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; }
   & #rename svg { width: 20px; height: 20px; }
-  & .connection-controls { display: flex; align-items: center; gap: .5rem; font-size: .85rem; }
+  & .connection-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; font-size: .85rem; }
   & #connect[hidden] { display: none; }
   & .app-header button:disabled { opacity: .5; cursor: not-allowed; }
   & #rename-form { flex: 1 1 100%; min-width: 0; }

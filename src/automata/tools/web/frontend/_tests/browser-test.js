@@ -1,4 +1,6 @@
-await new Promise(resolve => setTimeout(resolve, 100));
+for (let attempt = 0; attempt < 40 && document.querySelector('#connection-status').textContent !== 'Connected'; attempt++) {
+  await new Promise(resolve => setTimeout(resolve, 10));
+}
 const check = (value, label) => { if (!value) failures.push(label); };
 const { checkTextComponents } = await import('/text-test.js');
 await checkTextComponents(check);
@@ -17,9 +19,17 @@ check(chatRect.width >= document.querySelector(".workspace").getBoundingClientRe
 check(!transcript.querySelector(".generated-content"), "no empty UI card");
 check(send.disabled && send.dataset.action === 'send', "empty draft disables Send");
 check(transcript.querySelector(".empty-state")?.textContent.includes("Start a conversation"), "empty snapshot shows guidance");
-check(location.hash === "", "fragment token erased");
-check(window.awr?.status === "connected", "upstream bridge connected");
+check(location.hash === "", "admission and transient bridge fragments erased");
+check(window.fixtureAdmissionProbe && window.awr?.status === "connected", "authorized probe precedes upstream bridge");
+check(sessionStorage.getItem('automata.chat.admission.browser-fixture') === 'synthetic', 'only scoped reconnect proof is saved');
+const fresh = document.querySelector('#new-chat-form');
+const formData = new FormData(fresh);
+check(fresh.target === '_blank' && fresh.relList.contains('noopener') && formData.get('sourceSessionId') === 'browser-fixture' &&
+  formData.get('admission') === 'synthetic' && formData.get('ticket') === 'fixture-ticket' &&
+  /^[a-f0-9-]{36}$/.test(formData.get('nonce')) && !fresh.querySelector('input'),
+  'fresh form posts scoped live proof from its own tab without credential inputs');
 if (window.bridgeSock) {
+  check(bridgeSock.ticket === 'fixture-ticket' && sock.ticket === bridgeSock.ticket, 'bridge and chat use same transient ticket');
   bridgeSock.emit({type:"execute", id:"execute-1", code:"return 42"});
   await new Promise(resolve => setTimeout(resolve, 0));
   check(bridgeSock.sent.some(x => x.id === "execute-1" && x.ok && x.value === 42), "upstream bridge executes mock command");
@@ -203,14 +213,17 @@ sock.emit({type:"host_status", status:"error"});
 sock.emit({type:"ack", id:sock.sent.find(x => x.type === "stop").id, success:false, error:"Restart required"});
 sock.emit({type:"rpc_event", event:{type:"agent_settled"}});
 check(send.disabled && state.textContent.includes("Restart required"), "failed stop remains error");
-if (window.bridgeSock) {
-  bridgeSock.emit({type:"execute",id:"disconnect-owner",code:window.settlementFixtures.disconnectedowner});
+const departingBridge = window.bridgeSock;
+if (departingBridge) {
+  departingBridge.emit({type:"execute",id:"disconnect-owner",code:window.settlementFixtures.disconnectedowner});
   await new Promise(resolve => setTimeout(resolve, 5));
 }
-sock.dispatchEvent(new Event("close"));
-if (window.bridgeSock) {
+sock.emit({type:'snapshot', messages:[{role:'assistant',content:'Unexpected foreign snapshot'}], state:{sessionId:'wrong-native-id',status:'idle'}});
+check(!transcript.textContent.includes('Unexpected foreign snapshot') && document.querySelector('#new-chat').disabled &&
+  sessionStorage.getItem('automata.chat.admission.browser-fixture') === 'synthetic', 'wrong route snapshot is neither rendered nor mistaken for bearer rejection');
+if (departingBridge) {
   await new Promise(resolve => setTimeout(resolve, 5));
-  const disconnected = bridgeSock.sent.find(x => x.id === "disconnect-owner")?.value;
+  const disconnected = departingBridge.sent.find(x => x.id === "disconnect-owner")?.value;
   check(disconnected?.ok === false && disconnected?.phase === "readiness" && !window.disconnectedBodyRan, "disconnect rejects readiness before body");
 }
 check(send.disabled && document.querySelector('#connection-status').textContent !== 'Connected', "disconnect disables");

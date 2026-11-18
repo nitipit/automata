@@ -4,11 +4,11 @@ Run from the repository root after npm ci: python src/automata/tools/web/fronten
 Requires Google Chrome. No model, host server, external network, or human interaction.
 """
 
+# ruff: noqa: E501 -- embedded HTML and JavaScript fixtures are kept together.
 import functools
 import http.server
 import json
 import os
-from pathlib import Path
 import re
 import shutil
 import socketserver
@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+from pathlib import Path
 
 sys.path.insert(0, str(Path("src").resolve()))
 from automata.tools.web.connector import inline_execution
@@ -26,6 +27,11 @@ TEST = "<script type='module'>" + (TESTS / "browser-test.js").read_text() + "</s
 
 
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/sessions/browser-fixture/":
+            self.path = "/index.html"
+        super().do_GET()
+
     def log_message(self, *args):
         pass
 
@@ -64,7 +70,7 @@ def main():
             + "</script>"
             + content
             + "<script src='/connection-bootstrap.js'></script>"
-            + "<script src='/bridge.js'></script><script type='module' src='/index.js'></script>"
+            + "<script type='module' src='/index.js'></script>"
             + TEST
             + "</body></html>"
         )
@@ -74,7 +80,9 @@ def main():
         else:
             (root / "bridge.js").write_text(
                 "class FixtureBridge {status='idle'; async connect(){this.status='connected';}"
-                "close(){this.status='closed';}}; window.awr=new FixtureBridge();"
+                "close(){this.status='closed';}}; "
+                "if (new URLSearchParams(location.hash.slice(1)).get('token') === 'fixture-ticket') "
+                "Object.defineProperty(window,'awr',{value:new FixtureBridge(),configurable:true});"
             )
         with socketserver.TCPServer(
             ("127.0.0.1", 0), functools.partial(QuietHandler, directory=directory)
@@ -82,7 +90,7 @@ def main():
             threading.Thread(target=server.serve_forever, daemon=True).start()
             try:
                 for size in ("1280,900", "390,844"):
-                    url = f"http://127.0.0.1:{server.server_address[1]}/#token=synthetic"
+                    url = f"http://127.0.0.1:{server.server_address[1]}/sessions/browser-fixture/#admission=synthetic"
                     result = subprocess.run(
                         [
                             chrome,
