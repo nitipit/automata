@@ -6,7 +6,7 @@ import { applyBaseStyles } from "./_base.css";
 import { createBrowserTrustRenewal } from "./browser-trust-renewal";
 import { appStyle, appThemeStyle } from "./index.style";
 import { bindTheme } from "./_theme/index";
-import { Markdown } from "./_components/markdown";
+import { ChatMessage, type ChatMessageData } from "./chat-message";
 import "./_components/native-dialog";
 import type { NativeDialog, DialogRequest } from "./_components/native-dialog";
 import { bridgeNeedsReload, bridgeWindow, closeBridge, prepareBridge, wsOrigin } from "./paired-bridge";
@@ -25,7 +25,7 @@ const element = <T extends Element>(selector: string): T => {
 const appHost = element<AutomataApp>("automata-app");
 const unbindAppTheme = bindTheme(appHost, theme => { appHost.css = appThemeStyle(theme); });
 window.addEventListener("pagehide", unbindAppTheme, { once: true });
-const transcript = element<HTMLElement>("#transcript");
+const messageList = element<HTMLElement>("#messages");
 const form = element<HTMLFormElement>("#composer");
 const prompt = element<HTMLTextAreaElement>("#prompt");
 const send = element<HTMLButtonElement>("#send");
@@ -96,7 +96,7 @@ let previewReady = false;
 let directoryScroll = 0;
 let connected = false;
 let promptPending = false;
-type MessageView = { node: HTMLElement; body: HTMLElement; ui: HTMLElement; anchor: Comment };
+type MessageView = { node: ChatMessage; anchor: Comment };
 let stream: { view: MessageView; blocks: Map<number, string>; message: RecordValue } | undefined;
 const owners = new Map<string, MessageView | null>();
 const liveOwners = new Set<string>();
@@ -122,7 +122,7 @@ let controlsNotice = "";
 let controlsPending = false;
 const pending = new Map<string, Command>();
 let runView: MessageView | undefined;
-let activity: HTMLElement | undefined;
+let activityView: MessageView | undefined;
 let placeholder: MessageView | undefined;
 // The native user echo reconciles this turn in place, before its reply.
 let submittedUser: MessageView | undefined;
@@ -147,14 +147,12 @@ function observeUser(message: RecordValue) {
   updateName(sessionName);
 }
 function clearActivity() {
-  activity?.remove(); activity = undefined;
+  activityView?.node.setActivity(); activityView = undefined;
   if (placeholder) { placeholder.node.remove(); placeholder.anchor.remove(); placeholder = undefined; }
-  if (runView && !runView.body.textContent && !runView.ui.childNodes.length && !runView.node.querySelector(".reply-outcome")) runView.node.remove();
+  if (runView && !runView.node.hasContent && !runView.node.hasOutcome) runView.node.remove();
 }
 function replyOutcome(view: MessageView, text: string) {
-  let note = view.node.querySelector<HTMLElement>(".reply-outcome");
-  if (!note) { note = document.createElement("p"); note.className = "reply-outcome"; note.setAttribute("role", "status"); view.node.append(note); }
-  note.textContent = text; reveal(view);
+  view.node.setOutcome(text); reveal(view);
 }
 function messageOutcome(message: RecordValue, view: MessageView) {
   if (message.stopReason === "aborted" || message.stopReason === "error") {
@@ -167,10 +165,10 @@ function renderActivity() {
   if (!runActive || (state !== "running" && state !== "stopping")) return;
   if (!runView) placeholder ??= createMessage("assistant", "");
   const view = runView || placeholder!;
-  activity ??= document.createElement("p");
-  activity.className = "reply-activity"; activity.setAttribute("role", "status");
-  activity.textContent = state === "stopping" ? "Stopping…" : "Responding…";
-  view.node.append(activity); reveal(view);
+  if (activityView !== view) activityView?.node.setActivity();
+  activityView = view;
+  view.node.setActivity(state === "stopping" ? "Stopping…" : "Responding…");
+  reveal(view);
 }
 function finishRun(detail?: string) {
   if (runActive && detail && !runFailure) {
@@ -282,30 +280,19 @@ function setStatus(next: typeof state, detail?: string) {
   if (detail && next === "error" && !hadReply) status.textContent = detail;
   refresh();
 }
-function createMessage(role: string, text: string): MessageView {
-  const node = document.createElement("article");
-  node.className = `message ${role === "user" ? "user" : "assistant"}`;
-  const label = document.createElement("span");
-  label.className = "message-label";
-  label.textContent = role === "user" ? "You" : "Automata";
-  const body = role === "assistant" ? new Markdown() : document.createElement("div");
-  body.className = "message-body";
-  if (body instanceof Markdown) body.source = text;
-  else body.textContent = text;
-  const ui = document.createElement("div");
-  ui.className = "message-ui";
-  node.append(label, body, ui);
+function createMessage(role: ChatMessageData["role"], text: string): MessageView {
+  const node = ChatMessage.create({ _data: { role, text } });
   const anchor = document.createComment("message");
-  transcript.append(anchor);
-  return { node, body, ui, anchor };
+  messageList.append(anchor);
+  return { node, anchor };
 }
 function reveal(view: MessageView) {
   if (!view.node.isConnected) {
-    transcript.querySelector(".empty-state")?.remove();
+    messageList.querySelector(".empty-state")?.remove();
     if (view.anchor.isConnected) view.anchor.replaceWith(view.node);
-    else transcript.append(view.node);
+    else messageList.append(view.node);
   }
-  transcript.scrollTop = transcript.scrollHeight;
+  messageList.scrollTop = messageList.scrollHeight;
 }
 function notifyOwnerWaiters(id?: string) {
   if (id !== undefined) ownerWaiters.get(id)?.forEach(check => check());
@@ -385,10 +372,8 @@ function context(toolCallId: string) {
         block.inert = !connected || (window as Window & { awr?: { status: string } }).awr?.status !== "connected";
         liveBlocks.set(toolCallId, block);
       }
-      owner.ui.querySelectorAll<HTMLElement>(".inactive-ui").forEach(node => {
-        if (node.dataset.blockId === toolCallId) node.remove();
-      });
-      if (block.parentElement !== owner.ui) owner.ui.append(block);
+      owner.node.clearInactiveInteractive(toolCallId);
+      owner.node.mountInteractive(block);
       reveal(owner);
       return block;
     },
@@ -402,20 +387,12 @@ function inactiveBlock(toolCallId: string, blockId: string) {
     const notice = document.createElement("p");
     notice.className = "inactive-ui";
     notice.textContent = "Inactive interactive content has no available assistant owner in this history.";
-    transcript.append(notice);
+    messageList.append(notice);
     return;
   }
   const live = liveBlocks.get(toolCallId);
-  if (owner.ui.querySelectorAll<HTMLElement>(".inactive-ui").length &&
-      [...owner.ui.querySelectorAll<HTMLElement>(".inactive-ui")].some(node => node.dataset.blockId === blockId)) return;
-  if (live) owner.ui.append(live);
-  else {
-    const placeholder = document.createElement("div");
-    placeholder.className = "inactive-ui";
-    placeholder.dataset.blockId = blockId;
-    placeholder.textContent = "Interactive content from this reply is inactive after reload or a session switch.";
-    owner.ui.append(placeholder);
-  }
+  if (live) owner.node.mountInteractive(live);
+  else owner.node.showInactiveInteractive(blockId);
   reveal(owner);
 }
 function textOf(message: RecordValue): string {
@@ -602,7 +579,7 @@ function handleEvent(event: RecordValue) {
       }
       else if (event.message?.role === "user" && submittedUser) {
         observeUser(event.message);
-        submittedUser.body.textContent = textOf(event.message);
+        submittedUser.node.setText(textOf(event.message));
         submittedUser = undefined;
       } else showMessage(event.message);
       break;
@@ -617,7 +594,7 @@ function handleEvent(event: RecordValue) {
       if (update.type === "text_delta") stream.blocks.set(index, (stream.blocks.get(index) ?? "") + String(update.delta ?? ""));
       if (update.type === "text_end") stream.blocks.set(index, String(update.content ?? ""));
       const text = [...stream.blocks.entries()].sort((a, b) => a[0] - b[0]).map(([, value]) => value).join("");
-      (stream.view.body as Markdown).source = text;
+      stream.view.node.setText(text);
       if (text) reveal(stream.view);
       break;
     }
@@ -626,8 +603,8 @@ function handleEvent(event: RecordValue) {
         const text = textOf(event.message);
         if (stream) {
           registerOwners(event.message, stream.view, true);
-          (stream.view.body as Markdown).source = text;
-          if (text || stream.view.ui.childNodes.length) reveal(stream.view);
+          stream.view.node.setText(text);
+          if (text || stream.view.node.hasContent) reveal(stream.view);
           runFailure = messageOutcome(event.message, stream.view) || runFailure;
         } else {
           const view = showMessage(event.message);
@@ -649,14 +626,14 @@ function handleFrame(frame: RecordValue) {
       // and ownership, retaining page-local blocks from this same connection.
       const focused = document.activeElement instanceof HTMLElement &&
         ([...liveBlocks.values()].some(block => block.contains(document.activeElement)) ||
-          !!stream?.view.body.contains(document.activeElement))
+          !!stream?.view.node.contains(document.activeElement))
         ? document.activeElement : null;
       clearActivity();
       firstUserPreview = ""; firstUserSeen = false;
       updateName(frame.state?.sessionName);
       if (!["running", "stopping"].includes(frame.state?.status)) stream = undefined;
       runView = undefined; runActive = false; runFailure = false;
-      transcript.replaceChildren();
+      messageList.replaceChildren();
       owners.clear();
       const messages = Array.isArray(frame.messages) ? frame.messages : [];
       for (const message of messages) {
@@ -667,9 +644,9 @@ function handleFrame(frame: RecordValue) {
       const snapshotView = stream?.view || runView;
       if (stream) {
         // Keep an unfinished live reply; snapshot history contains completed messages.
-        transcript.append(stream.view.anchor);
+        messageList.append(stream.view.anchor);
         registerOwners(stream.message, stream.view, true);
-        if (stream.view.body.textContent || stream.view.ui.childNodes.length) reveal(stream.view);
+        if (stream.view.node.hasContent) reveal(stream.view);
       }
       for (const message of messages) {
         const ui = message?.details?.ui;
@@ -681,18 +658,18 @@ function handleFrame(frame: RecordValue) {
       // Live nodes may precede their tool result in a snapshot.
       for (const [id, block] of liveBlocks) {
         const owner = owners.get(id);
-        if (owner) { owner.ui.append(block); reveal(owner); }
+        if (owner) { owner.node.mountInteractive(block); reveal(owner); }
       }
       if (focused?.isConnected) focused.focus({ preventScroll: true });
-      if (!transcript.children.length) {
+      if (!messageList.children.length) {
         const empty = document.createElement("p");
         empty.className = "empty-state";
         empty.textContent = "Start a conversation. Replies will appear here as they arrive.";
-        transcript.append(empty);
+        messageList.append(empty);
       }
       runActive = ["running", "stopping"].includes(frame.state?.status);
       runView = runActive ? snapshotView : undefined;
-      runFailure = !!runView?.node.querySelector(".reply-outcome");
+      runFailure = !!runView?.node.hasOutcome;
       setStatus(statuses.includes(frame.state?.status) ? frame.state.status : "error");
       for (const request of Array.isArray(frame.dialogs) ? frame.dialogs : []) addDialog(request);
       break;

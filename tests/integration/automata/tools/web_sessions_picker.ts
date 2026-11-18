@@ -1,4 +1,5 @@
 // Offline Pi provider for native browser/persistence tests. No network calls.
+import { existsSync } from "node:fs";
 import { createAssistantMessageEventStream, type AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
@@ -40,6 +41,31 @@ export default function (pi: ExtensionAPI) {
         finish(makeReply([text(`Native next message: ${model.id} / ${options?.reasoning ?? "off"}`)]));
         return stream;
       }
+      // A provisional tool-call owner and a test-controlled second text delta.
+      // Do not execute a real tool in this turn; actual tool delivery is tested below.
+      if (latest === "Stream descriptor child") {
+        const first = "Descriptor stream started";
+        const next = " and updated";
+        const owner = { type: "toolCall" as const, id: "descriptor-stream-owner", name: "web_ui_execute", arguments: {} };
+        const partial = makeReply([text(first), owner]);
+        stream.push({ type: "start", partial: makeReply([text(""), owner]) });
+        stream.push({ type: "text_delta", contentIndex: 0, delta: first, partial });
+        const deadline = Date.now() + 12000;
+        let updated = false;
+        const gate = setInterval(() => {
+          if (options?.signal?.aborted || Date.now() >= deadline) {
+            clearInterval(gate);
+            finish(makeReply([text("Descriptor fixture release was not observed")]));
+          } else if (!updated && existsSync(".fixture-stream-update")) {
+            updated = true;
+            stream.push({ type: "text_delta", contentIndex: 0, delta: next, partial: makeReply([text(first + next), owner]) });
+          } else if (updated && existsSync(".fixture-stream-finish")) {
+            clearInterval(gate);
+            finish(makeReply([text(first + next)]));
+          }
+        }, 25);
+        return stream;
+      }
       // Actual native web UI tools with intentionally identical tool/event IDs
       // across two native sessions. The response displays the RECEIVED value.
       if (/^UI [AB]$/.test(latest)) {
@@ -59,11 +85,15 @@ export default function (pi: ExtensionAPI) {
           finish(makeReply([text(`Offline UI ${label} failed: ${JSON.stringify({sub, execute, input, release})}`)]));
         } else if (!sub) tool("web_ui_subscribe", { name: "shared-fixture-choice", correlationId: "same" });
         else if (!execute) tool("web_ui_execute", { code: `
-          const button = document.createElement('button');
-          button.id = 'fixture-choice'; button.textContent = 'Choose ${label}';
+          const { createComponent } = await import('/assets/ui.js');
+          const control = createComponent({ _class: 'ui-card', _children: [
+            { _class: 'ui-button', _data: { text: 'Choose ${label}' } },
+          ] });
+          ui.root.append(control);
+          const button = control.querySelector('button');
+          button.id = 'fixture-choice';
           button.addEventListener('click', () => bridge.emit('shared-fixture-choice',
             {blockId: ui.blockId, correlationId: 'same', value: '${label}'}), {once:true});
-          ui.root.append(button);
           return ui.blockId;
         ` });
         else if (!input) tool("web_ui_wait_event", { subscriptionId: sub.subscriptionId, timeoutMs: 20000 });

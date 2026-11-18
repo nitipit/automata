@@ -83,7 +83,7 @@ async def check_page(host_a, host_b, browser):
         assert len(page.context.pages) == 1 and a.id == a_id and b.id == b_id
     sessions = page.get_by_role("button", name="Sessions", exact=True)
     title = page.locator("#session-name")
-    transcript = page.locator("#transcript")
+    transcript = page.locator("#messages")
     prompt = page.locator("#prompt")
     send = page.get_by_role("button", name="Send message", exact=True)
     await expect(title).to_have_text("Conversation A")

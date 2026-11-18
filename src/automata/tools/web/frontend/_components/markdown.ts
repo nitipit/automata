@@ -4,6 +4,10 @@ import { Base } from "./base";
 import { CodeBlock } from "./codeblock";
 import type { ResolvedTheme, ThemeRef } from "../_theme/index";
 import { markdownStyle, markdownThemeStyle } from "./markdown.style";
+import { registerSharedComponent } from "./create";
+import { rejectChildren, stringData } from "./descriptor-data";
+
+type MarkdownData = { source?: string };
 
 type Fence = { key: string; source: string; language: string };
 type RenderEnv = Env & { codeBlocks: Fence[] };
@@ -39,6 +43,7 @@ function sameShape(existing: Node | null, desired: Node): boolean {
 
 /** Shared safe Markdown for assistant text and generated UI. No raw HTML/plugins. */
 export class Markdown extends Base {
+  static get create() { return createMarkdown; }
   private originalSource = "";
   private blocks = new Map<string, CodeBlock>();
   private codeTheme?: ThemeRef;
@@ -111,3 +116,8 @@ export class Markdown extends Base {
 
 Markdown.css = markdownStyle;
 Markdown.define("ui-markdown");
+const createMarkdown = registerSharedComponent("ui-markdown", Markdown,
+  (element, data: MarkdownData | undefined, children) => {
+    rejectChildren("ui-markdown", children);
+    element.source = stringData(data, "source") ?? "";
+  });

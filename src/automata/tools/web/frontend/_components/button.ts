@@ -1,9 +1,14 @@
 import { Base } from "./base";
 import type { ResolvedTheme } from "../_theme/index";
 import { buttonStyle, buttonTheme } from "./button.style";
+import { registerSharedComponent } from "./create";
+import { booleanData, stringData } from "./descriptor-data";
+
+type ButtonData = { text?: string; disabled?: boolean; type?: "button" | "submit" | "reset" };
 
 /** Native button in light DOM. Set text/children before connection or use control. */
 export class Button extends Base {
+  static get create() { return createButton; }
   static get observedAttributes(): string[] { return ["disabled", "type"]; }
   readonly control = document.createElement("button");
 
@@ -32,3 +37,10 @@ export class Button extends Base {
 }
 Button.css = buttonStyle;
 Button.define("ui-button");
+const createButton = registerSharedComponent("ui-button", Button,
+  (element, data: ButtonData | undefined, children) => {
+    const type = stringData(data, "type");
+    if (type === "button" || type === "submit" || type === "reset") element.type = type;
+    element.disabled = booleanData(data, "disabled") ?? false;
+    element.append(stringData(data, "text") ?? "", ...children);
+  });

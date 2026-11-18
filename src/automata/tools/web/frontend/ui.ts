@@ -5,6 +5,8 @@ export * as culori from "culori";
 export { palette, shades, color, colorAnchors } from "./_tokens/color";
 export type { PaletteFamily, Shade } from "./_tokens/color";
 export * from "./_theme/index";
+export { createComponent } from "./_components/create";
+export type { ComponentDescriptor, NamedComponentDescriptor } from "./_components/create";
 export { Base } from "./_components/base";
 export { Button } from "./_components/button";
 export { Card } from "./_components/card";

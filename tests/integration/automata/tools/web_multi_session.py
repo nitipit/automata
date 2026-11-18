@@ -63,7 +63,9 @@ class Browser:
         reply = await self.call(
             "script.evaluate", target={"context": tab}, expression=expression, awaitPromise=True
         )
-        assert reply["type"] == "success", "Firefox page evaluation failed"
+        assert reply["type"] == "success", (
+            f"Firefox page evaluation failed: {reply.get('exceptionDetails', {}).get('text')}"
+        )
         return reply["result"].get("value")
 
     async def wait(self, tab, condition, label, timeout=12):
@@ -82,7 +84,7 @@ class Browser:
             controls: document.querySelector('#runtime-controls-status')?.textContent,
             model: document.querySelector('#model')?.value,
             thinking: document.querySelector('#thinking-level')?.value,
-            transcript: document.querySelector('#transcript')?.textContent?.slice(-450),
+            messages: document.querySelector('#messages')?.textContent?.slice(-450),
         })""",
         )
         raise AssertionError(f"Did not observe {label}; disposable fixture state: {state}")
@@ -237,7 +239,7 @@ STOP = "document.querySelector('#send')?.dataset.action === 'stop'"
 
 
 def transcript(text):
-    return f"document.querySelector('#transcript')?.textContent.includes({json.dumps(text)})"
+    return f"document.querySelector('#messages')?.textContent.includes({json.dumps(text)})"
 
 
 async def prompt(browser, tab, value):
@@ -353,7 +355,7 @@ async def runtime_controls(browser, a, b, a_chat, b_chat):
     assert await browser.evaluate(b, "document.querySelector('#thinking-level').value === 'low'")
     # Observe the DOM synchronously at the end of the submit event, before any WS echo.
     await browser.evaluate(a, """document.addEventListener('submit', () => {
-        const rows = [...document.querySelectorAll('#transcript article')].slice(-2);
+        const rows = [...document.querySelectorAll('#messages > chat-message > article')].slice(-2);
         window.firstTurnOrdered = rows.length === 2 && rows[0].matches('.user') &&
           rows[0].querySelector('.message-body').textContent === 'Fixture runtime settings' &&
           !!rows[1].querySelector('.reply-activity');
@@ -372,7 +374,56 @@ async def runtime_controls(browser, a, b, a_chat, b_chat):
     )
 
 
-async def exercise(host, browser):
+async def streaming_descriptor(browser, tab, project):
+    await browser.call("browsingContext.activate", context=tab)
+    await prompt(browser, tab, "Stream descriptor child")
+    await browser.wait(tab, STOP + " && " + transcript("Descriptor stream started"), "native first text delta")
+    assert await browser.evaluate(tab, """(async () => {
+        const { createComponent } = await import('/assets/ui.js');
+        const root = window.automataUI.context('descriptor-stream-owner').root;
+        const article = root.closest('article');
+        const descriptor = { _class: 'ui-card', _children: [
+          { _class: 'ui-button', _data: { text: 'Activate first' } },
+          { _class: 'ui-button', _data: { text: 'Activate second' } },
+        ] };
+        // Exercise the private named factory without adding an application test export.
+        const detached = article.parentElement.constructor.create({
+          _data: { role: 'assistant', text: '**Owned body**' }, _children: [descriptor],
+        });
+        const descriptorMounted = detached.querySelector('article > .message-body strong')?.textContent === 'Owned body' &&
+          detached.querySelector('article > .message-ui > ui-card > ui-button + ui-button')?.textContent === 'Activate second';
+        const child = createComponent(descriptor);
+        root.append(child);
+        const [first, second] = child.querySelectorAll('button');
+        let clicks = 0;
+        first.addEventListener('click', () => clicks++);
+        first.focus();
+        window.checkStreamingChild = (expectedClicks) =>
+          root.closest('article') === article && article.parentElement.matches('chat-message') &&
+          article.querySelector('.message-body').textContent.includes('Descriptor stream started') &&
+          article.querySelector('.message-ui > .generated-content') === root && root.firstElementChild === child &&
+          [...child.querySelectorAll('button')].every((node, i) => node === [first, second][i]) &&
+          first.textContent === 'Activate first' && second.textContent === 'Activate second' &&
+          document.activeElement === first && clicks === expectedClicks;
+        let privateRejected = false;
+        try { createComponent({ _class: 'chat-message' }); }
+        catch (error) { privateRejected = error instanceof TypeError && error.message.includes('unknown component tag'); }
+        return descriptorMounted && privateRejected && window.checkStreamingChild(0);
+    })()""")
+    (project / ".fixture-stream-update").touch()
+    updated = transcript("Descriptor stream started and updated")
+    await browser.wait(tab, STOP + " && " + updated, "native subsequent delta before settlement")
+    assert await browser.evaluate(tab, "window.checkStreamingChild(0)")
+    await browser.key(tab, "\ue007")  # Enter uses the same focused native button and its original listener.
+    assert await browser.evaluate(tab, "window.checkStreamingChild(1)")
+    (project / ".fixture-stream-finish").touch()
+    await browser.wait(tab, SEND + " && " + updated, "native descriptor reply settlement")
+    assert await browser.evaluate(tab, "window.checkStreamingChild(1)")
+    await browser.evaluate(tab, "delete window.checkStreamingChild")
+    print("PASS: private native article with ordered descriptor-built children; identity, focus and handler survive same-message streaming")
+
+
+async def exercise(host, browser, project):
     origin = host.runtime.origin
     a = await browser.open(host.admission_url)
     await browser.wait(a, READY, "initial session admitted")
@@ -402,7 +453,7 @@ async def exercise(host, browser):
     assert b_id != a_id and a_entry.chat.rpc.process.pid != b_entry.chat.rpc.process.pid
     assert await browser.evaluate(
         b,
-        f"window.opener === null && !sessionStorage.getItem('automata.chat.admission.{a_id}') && !document.querySelector('#transcript article')",
+        f"window.opener === null && !sessionStorage.getItem('automata.chat.admission.{a_id}') && !document.querySelector('#messages article')",
     )
     print("PASS: native New chat opens clean independent Firefox tab on the same origin/port")
 
@@ -460,6 +511,8 @@ async def exercise(host, browser):
         b, transcript("Parallel A") + " || " + transcript("Offline history: Parallel B")
     )
     print("PASS: concurrent native offline streams; Stop B did not stop or leak into A")
+
+    await streaming_descriptor(browser, a, project)
 
     await prompt(browser, a, "UI A")
     await prompt(browser, b, "UI B")
@@ -642,7 +695,7 @@ async def main():
                     ),
                 )
                 async with firefox(profile) as browser:
-                    await exercise(host, browser)
+                    await exercise(host, browser, project)
             finally:
                 await host.close()
         assert settings.read_bytes() == settings_before

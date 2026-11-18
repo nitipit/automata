@@ -1,14 +1,18 @@
 import { Base } from "./base";
 import type { ResolvedTheme } from "../_theme/index";
 import { fieldStyle, fieldTheme } from "./field.style";
+import { registerSharedComponent } from "./create";
+import { booleanData, rejectChildren, stringData } from "./descriptor-data";
+
+const textAttributes = ["label", "help", "error", "type", "name", "placeholder", "autocomplete", "value"] as const;
+type FieldData = Partial<Record<typeof textAttributes[number], string>> & { disabled?: boolean; required?: boolean };
 
 let nextFieldId = 0;
 
 /** Labeled native input; input/change events bubble naturally from `control`. */
 export class Field extends Base {
-  static get observedAttributes(): string[] {
-    return ["label", "help", "error", "disabled", "required", "type", "name", "placeholder", "autocomplete", "value"];
-  }
+  static get create() { return createField; }
+  static get observedAttributes(): string[] { return [...textAttributes, "disabled", "required"]; }
   readonly control = document.createElement("input");
   private readonly labelElement = document.createElement("label");
   private readonly helpElement = document.createElement("div");
@@ -64,3 +68,13 @@ export class Field extends Base {
 }
 Field.css = fieldStyle;
 Field.define("ui-field");
+const createField = registerSharedComponent("ui-field", Field,
+  (element, data: FieldData | undefined, children) => {
+    rejectChildren("ui-field", children);
+    for (const name of textAttributes) {
+      const value = stringData(data, name);
+      if (value !== undefined) element.setAttribute(name, value);
+    }
+    element.disabled = booleanData(data, "disabled") ?? false;
+    element.toggleAttribute("required", booleanData(data, "required") ?? false);
+  });

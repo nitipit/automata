@@ -4,7 +4,7 @@ export async function checkSessionStatus(check) {
   const editor = document.querySelector('#rename-form');
   const input = document.querySelector('#session-name-input');
   const error = document.querySelector('#rename-error');
-  const transcript = document.querySelector('#transcript');
+  const transcript = document.querySelector('#messages');
   const frame = value => sock.emit(value);
   const event = value => frame({type:'rpc_event',event:value});
   const snapshot = (messages=[], status='idle', sessionName) => frame({type:'snapshot',messages,state:{status,sessionName}});
