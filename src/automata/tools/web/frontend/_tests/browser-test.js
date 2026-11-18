@@ -15,7 +15,7 @@ const chatRect = document.querySelector(".chat-panel").getBoundingClientRect();
 check(!document.querySelector(".generated-panel, #generated-ui"), "no shared generated workspace");
 check(chatRect.width >= document.querySelector(".workspace").getBoundingClientRect().width - 1, "chat uses full layout width");
 check(!transcript.querySelector(".generated-content"), "no empty UI card");
-check(!send.disabled, "snapshot enables send");
+check(send.disabled && send.dataset.action === 'send', "empty draft disables Send");
 check(transcript.querySelector(".empty-state")?.textContent.includes("Start a conversation"), "empty snapshot shows guidance");
 check(location.hash === "", "fragment token erased");
 check(window.awr?.status === "connected", "upstream bridge connected");
@@ -27,7 +27,10 @@ if (window.bridgeSock) {
 prompt.value = "<img src=x onerror=alert(1)>";
 document.querySelector("#composer").requestSubmit();
 check(sock.sent[0]?.type === "prompt", "prompt sent");
-check(send.disabled, "busy disables send");
+check(!send.disabled && send.dataset.action === 'stop', "busy turns Send into Stop");
+prompt.value = 'next draft';
+prompt.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
+check(sock.sent.length === 1 && prompt.value === 'next draft', 'busy Enter neither sends nor stops');
 sock.emit({type:"rpc_event", event:{type:"message_start", message:{role:"user", content:prompt.value || "<img src=x>"}}});
 sock.emit({type:"rpc_event", event:{type:"message_start", message:{role:"assistant", content:[]}}});
 sock.emit({type:"rpc_event", event:{type:"message_update", assistantMessageEvent:{type:"text_delta", contentIndex:0, delta:"partial"}}});
@@ -166,13 +169,13 @@ if (window.bridgeSock) {
   check(ambiguousResult?.ok === false && ambiguousResult?.phase === "readiness" && !window.ambiguousBodyRan, "ambiguous owner rejects before body");
 }
 sock.emit({type:"rpc_event", event:{type:"agent_end"}});
-check(send.disabled, "agent_end not idle");
+check(send.dataset.action === 'stop', "agent_end not idle");
 sock.emit({type:"rpc_event", event:{type:"agent_settled"}});
-check(!send.disabled, "settled idle");
+check(send.dataset.action === 'send', "settled returns to Send");
 const request = (id, method, extra = {}) => sock.emit({type:"rpc_event",event:{type:"extension_ui_request", id, method, title:"Test", ...extra}});
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 request("d1", "confirm", {message:"Proceed?"});
-let dialog = document.querySelector("dialog");
+let dialog = document.querySelector("dialog[open]");
 check(dialog.open, "confirm open");
 dialog.querySelector("button[type=submit]").click(); await tick();
 check(sock.sent.some(x => x.id === "d1" && x.confirmed === true), "confirm response");

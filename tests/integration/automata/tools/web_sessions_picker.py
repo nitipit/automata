@@ -79,7 +79,7 @@ async def check_page(host_a, host_b, browser):
     title = page.locator("#session-name")
     transcript = page.locator("#transcript")
     prompt = page.locator("#prompt")
-    send = page.get_by_role("button", name="Send", exact=True)
+    send = page.get_by_role("button", name="Send message", exact=True)
     await expect(title).to_have_text("Conversation A")
     await expect(sessions).to_be_enabled()
     await expect(transcript).to_contain_text("Offline history: A first")

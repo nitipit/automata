@@ -82,7 +82,7 @@ async def main():
             # Intentionally not logged: private admission URL.
             await page.goto(host.runtime.url)
             await page.wait_for_function("window.awr?.status === 'connected'")
-            await page.wait_for_function("!document.querySelector('#send').disabled")
+            await page.wait_for_function("!document.querySelector('#sessions').disabled")
             assert await page.evaluate("location.hash") == ""
             await page.locator('.inactive-ui[data-block-id="smoke-history"]').wait_for()
             assert not await page.evaluate("Boolean(window.__historicalJavaScriptReplayed)")
@@ -165,7 +165,7 @@ async def main():
             assert host._chat is None
             await page.goto(host.runtime.url)
             await page.wait_for_function("window.awr?.status === 'connected'")
-            await page.wait_for_function("!document.querySelector('#send').disabled")
+            await page.wait_for_function("!document.querySelector('#sessions').disabled")
             await page.locator('.inactive-ui[data-block-id="smoke-history"]').wait_for()
             assert await page.locator("#probe-control").count() == 0
             assert not await page.evaluate("Boolean(window.__historicalJavaScriptReplayed)")
@@ -182,7 +182,7 @@ async def main():
             await page.get_by_role("button", name="OK", exact=True).click()
             await page.get_by_role("textbox", name="Smoke editor").fill("synthetic edit\nline two")
             await page.get_by_role("button", name="OK", exact=True).click()
-            await page.wait_for_function("!document.querySelector('#send').disabled")
+            await page.wait_for_function("!document.querySelector('#sessions').disabled")
             assert json.loads(notifications[-1]) == {
                 "confirmed": True,
                 "selected": "B",
@@ -200,7 +200,7 @@ async def main():
                 .get_by_role("button", name="Stop", exact=True)
                 .click()
             )
-            await page.wait_for_function("!document.querySelector('#send').disabled")
+            await page.wait_for_function("!document.querySelector('#sessions').disabled")
             assert host.state["status"] == "idle"
             assert host.rpc.process.returncode is None
             assert not host.dialogs

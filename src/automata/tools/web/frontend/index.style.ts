@@ -97,10 +97,10 @@ export const appStyle = `
   & .composer textarea { width: 100%; resize: vertical; min-height: 5rem; padding: .7rem .8rem; border: 1px solid; border-radius: .6rem; }
   & .composer-actions { margin-top: .65rem; }
   & .composer-actions p { font-size: .76rem; }
-  & .composer-actions > div { display: flex; flex-shrink: 0; }
+  & #send svg { width: 1.15rem; height: 1.15rem; }
   & .composer button { cursor: pointer; border: 1px solid; border-radius: .55rem; padding: .55rem .95rem; font-weight: 650; }
   & .composer button:disabled { opacity: .48; cursor: not-allowed; }
-  & #send { margin-left: .4rem; }
+  & #send { display: inline-grid; place-items: center; flex: none; width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 50%; }
   @media (max-width: 760px) {
     & .chat-panel { min-height: 65vh; }
     & .composer-actions { align-items: flex-end; }

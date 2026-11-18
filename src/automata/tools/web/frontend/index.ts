@@ -1,3 +1,5 @@
+import sendIcon from "./_assets/gnomicon/paper-plane.svg";
+import stopIcon from "./_assets/gnomicon/media-playback-stop.svg";
 import editIcon from "./_assets/gnomicon/document-edit-symbolic.svg";
 import { Adapter } from "@devcapsule/adapter";
 import { applyBaseStyles } from "./_base.css";
@@ -24,7 +26,7 @@ const transcript = element<HTMLElement>("#transcript");
 const form = element<HTMLFormElement>("#composer");
 const prompt = element<HTMLTextAreaElement>("#prompt");
 const send = element<HTMLButtonElement>("#send");
-const stop = element<HTMLButtonElement>("#stop");
+
 const connection = element<HTMLElement>("#connection-status");
 const sessionTitle = element<HTMLElement>("#session-name");
 const rename = element<HTMLButtonElement>("#rename");
@@ -151,11 +153,23 @@ function finishRun(detail?: string) {
 function setUIAvailable(available: boolean) {
   for (const block of liveBlocks.values()) block.inert = !available;
 }
+function canSend() { return connected && state === "idle" && !promptPending && !switching; }
+function canStop() { return connected && !switching && state !== "stopping" && (state === "running" || promptPending); }
+function renderComposerAction() {
+  const mode = state === "stopping" ? "stopping" : canStop() ? "stop" : "send";
+  if (send.dataset.action !== mode) {
+    send.dataset.action = mode;
+    send.innerHTML = mode === "send" ? sendIcon : stopIcon;
+    send.firstElementChild?.setAttribute("aria-hidden", "true");
+    send.title = mode === "send" ? "Send message" : mode === "stop" ? "Stop response" : "Stopping…";
+    send.setAttribute("aria-label", send.title);
+  }
+  send.disabled = mode === "stopping" || (mode === "send" && (!canSend() || !prompt.value.trim()));
+}
 function refresh() {
-  send.disabled = !connected || state !== "idle" || promptPending || switching;
+  renderComposerAction();
   prompt.disabled = !connected || switching || state === "switching";
-  stop.disabled = !connected || (state !== "running" && !promptPending);
-  sessions.disabled = send.disabled || renamePending || dialogActive;
+  sessions.disabled = !canSend() || renamePending || dialogActive;
   rename.disabled = !connected || state === "switching" || state === "error" || switching;
   renameSave.disabled = rename.disabled || renamePending;
   renameCancel.disabled = renamePending;
@@ -446,7 +460,7 @@ function addDialog(request: RecordValue) {
   if (!request || typeof request.id !== "string") return;
   if (request.method === "notify") { status.textContent = String(request.message ?? ""); return; }
   if (request.method === "setStatus") { status.textContent = String(request.statusText ?? ""); return; }
-  if (request.method === "set_editor_text") { prompt.value = String(request.text ?? ""); return; }
+  if (request.method === "set_editor_text") { prompt.value = String(request.text ?? ""); renderComposerAction(); return; }
   if (!["confirm", "select", "input", "editor"].includes(request.method)) return;
   if (seenDialogs.has(request.id)) return;
   seenDialogs.add(request.id);
@@ -717,16 +731,17 @@ renameForm.addEventListener("submit", event => {
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   const message = prompt.value.trim();
-  if (!message || send.disabled) return;
+  if (!message || !canSend()) return;
   if (command("prompt", { message })) { prompt.value = ""; promptPending = true; setStatus("running"); }
 });
 prompt.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); form.requestSubmit(); }
 });
 function requestStop() {
-  if (!stop.disabled && command("stop")) setStatus("stopping");
+  if (canStop() && command("stop")) setStatus("stopping");
 }
-stop.addEventListener("click", requestStop);
+prompt.addEventListener("input", renderComposerAction);
+send.addEventListener("click", () => { if (canStop()) requestStop(); else if (canSend()) form.requestSubmit(); });
 dialog.addEventListener("stop-request", requestStop);
 
 updateName(sessionName);

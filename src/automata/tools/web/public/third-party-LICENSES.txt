@@ -303,6 +303,11 @@ https://creativecommons.org/licenses/by-sa/4.0/
 Local change: path fill changed from #2e3436 to currentColor for theme inheritance.
 See COPYING, COPYING_CCBYSA3 and LICENSE.md for original notices and terms.
 
+paper-plane.svg and media-playback-stop.svg: unmodified dist/svg assets from
+Gnomicon 51.0.0 (https://github.com/keenlycode/gnomicon). GNOME Project artwork;
+Gnomicon contributions by Nitipit Nontasuwan. See LICENSE.md for upstream
+collection terms and the CC BY-SA 4.0 contribution license.
+
 
 ===== Gnomicon edit icon: COPYING =====
 This work is licenced under the terms of either the GNU LGPL v3 or

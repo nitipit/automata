@@ -73,7 +73,7 @@ async def main(no_build=False):
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 await page.goto(host.runtime.url)
                 await page.wait_for_function(
-                    "window.awr?.status === 'connected' && document.querySelector('#send')?.disabled === false"
+                    "window.awr?.status === 'connected' && document.querySelector('#sessions')?.disabled === false"
                 )
                 result = await page.evaluate("""async () => {
                   const ui = await import('/assets/ui.js');

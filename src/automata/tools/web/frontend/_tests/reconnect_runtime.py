@@ -62,7 +62,7 @@ SOCKET_OBSERVER = """(() => {
 
 async def ready(page):
     try:
-        await page.wait_for_function("document.querySelector('#connection-status')?.textContent==='Connected' && !document.querySelector('#send').disabled")
+        await page.wait_for_function("document.querySelector('#connection-status')?.textContent==='Connected' && !document.querySelector('#sessions').disabled")
     except Exception:
         print(await page.evaluate("({connection:document.querySelector('#connection-status')?.textContent,detail:document.querySelector('#connection-detail')?.textContent,status:document.querySelector('#run-status')?.textContent,bridge:window.awr?.status,sockets:window.fixtureSockets?.map(s=>({path:new URL(s.url).pathname,state:s.readyState}))})"))
         raise
