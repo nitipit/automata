@@ -11,16 +11,18 @@ export const appStyle = `
   & .app-header, & .composer-actions { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
   & .app-header { margin-bottom: 1.5rem; flex-wrap: wrap; }
   & .session-identity { min-width: 0; flex: 1 1 16rem; overflow-wrap: anywhere; }
-  & .session-title { display: flex; align-items: center; gap: .35rem; }
-  & .session-title h1 { min-width: 0; }
-  & #rename { flex: 0 0 44px; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; }
-  & #rename svg { width: 20px; height: 20px; }
+  & .session-title { position: relative; display: flex; align-items: center; gap: .35rem; }
+  & .session-title h1 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  & .session-title:has(#rename:not(:disabled)) h1 { cursor: text; }
+  & .session-title[data-editing] > :is(h1, button) { visibility: hidden; }
+  & .app-header #rename { flex: 0 0 44px; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border-color: transparent; background: transparent; }
+  & #rename svg { width: 16px; height: 16px; }
   & .connection-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; font-size: .85rem; }
   & #connect[hidden] { display: none; }
   & .app-header button:disabled { opacity: .5; cursor: not-allowed; }
-  & #rename-form { flex: 1 1 100%; min-width: 0; }
-  & #rename-form[hidden], & #rename[hidden] { display: none; }
-  & #rename-form input { display: block; width: 100%; margin: .4rem 0; padding: .6rem; border: 1px solid; border-radius: .55rem; }
+  & #rename-form { position: absolute; inset: 0; }
+  & #rename-form input { display: block; width: 100%; height: 100%; padding: 0 .35rem; border: 1px solid; border-radius: .55rem; }
+  & #rename-error { margin: .25rem 0 0; font-size: .85rem; }
   & .app-header button, & #sessions-picker button { cursor: pointer; padding: .55rem .85rem; border: 1px solid; border-radius: .55rem; }
   & #sessions-picker { width: min(62rem, calc(100% - 2rem)); height: min(42rem, 91dvh); max-height: 91dvh; padding: 0; border: 1px solid; border-radius: 1.05rem; overflow: hidden; box-shadow: 0 24px 80px #0004; }
   & #sessions-picker[open] { display: flex; flex-direction: column; }
@@ -74,11 +76,10 @@ export const appStyle = `
     & #sessions-detail:not([hidden]) { display: block; }
     & #sessions-preview-scroll { overflow-y: visible; }
   }
-  & #rename-form button + button { margin-left: .4rem; }
   & #rename-error:empty, & #run-status:empty, & #connection-detail:empty { display: none; }
   & .reply-activity, & .reply-outcome { font-size: .85rem; margin: .5rem 0 0; }
   & .app-header h1, & .composer p { margin: 0; }
-  & .app-header h1 { font-size: clamp(1.6rem, 3vw, 2.25rem); letter-spacing: -.04em; line-height: 1.15; }
+  & .app-header h1, & #rename-form input { font-size: clamp(1.6rem, 3vw, 2.25rem); font-weight: 700; letter-spacing: -.04em; line-height: 1.15; }
   & .eyebrow { font-size: .68rem; font-weight: 750; letter-spacing: .13em; }
   & .workspace { display: grid; grid-template-columns: minmax(0, 1fr); }
   & .chat-panel { min-width: 0; border: 1px solid; border-radius: 1.1rem; overflow: hidden; box-shadow: 0 12px 40px #183c2910; display: flex; flex-direction: column; min-height: min(72vh, 800px); }
@@ -95,27 +96,31 @@ export const appStyle = `
   & .composer { padding: 1rem 1.35rem 1.2rem; border-top: 1px solid; }
   & .composer label { display: block; font-size: .8rem; font-weight: 700; margin-bottom: .4rem; }
   & .composer textarea { width: 100%; resize: vertical; min-height: 5rem; padding: .7rem .8rem; border: 1px solid; border-radius: .6rem; }
-  & .composer-actions { margin-top: .65rem; }
-  & .composer-actions p { font-size: .76rem; }
+  & .composer-actions { margin-top: .65rem; align-items: flex-end; gap: .65rem; }
+  & .runtime-controls { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: end; gap: .6rem; flex: 1 1 auto; min-width: 0; max-width: 22rem; }
+  & .runtime-controls label { min-width: 0; margin: 0; }
+  & .runtime-controls select { display: block; width: 100%; min-height: 2.75rem; margin-top: .2rem; padding: .3rem; border: 1px solid; border-radius: .55rem; text-overflow: ellipsis; font-size: .85rem; }
+  & .runtime-controls select:disabled { opacity: .65; }
+  & .composer .composer-hint, & #runtime-controls-status { margin-top: .45rem; font-size: .76rem; overflow-wrap: anywhere; }
+  & #runtime-controls-status:empty { display: none; }
   & #send svg { width: 1.15rem; height: 1.15rem; }
   & .composer button { cursor: pointer; border: 1px solid; border-radius: .55rem; padding: .55rem .95rem; font-weight: 650; }
   & .composer button:disabled { opacity: .48; cursor: not-allowed; }
   & #send { display: inline-grid; place-items: center; flex: none; width: 2.75rem; height: 2.75rem; padding: 0; border-radius: 50%; }
   @media (max-width: 760px) {
     & .chat-panel { min-height: 65vh; }
-    & .composer-actions { align-items: flex-end; }
-    & .composer-actions p { max-width: 10rem; }
   }
 `;
 export function appThemeStyle({ mode, roles: r }: ResolvedTheme): string {
   return `
     color: ${r.text}; color-scheme: ${mode};
-    & .skip-link:focus, & .chat-panel, & .composer textarea, & .composer button, & .app-header button, & #rename-form input { background: ${r.surface}; color: ${r.text}; }
-    & .eyebrow, & #run-status, & #connection-status, & #connection-detail, & .reply-activity, & .empty-state, & .message-label, & .inactive-ui, & .composer-actions p { color: ${r.mutedText}; }
-    & .chat-panel, & .generated-content, & .composer, & .composer textarea, & .composer button, & .app-header button, & #rename-form input { border-color: ${r.border}; }
+    & .skip-link:focus, & .chat-panel, & .composer textarea, & .composer button, & .runtime-controls select, & .app-header button, & #rename-form input { background: ${r.surface}; color: ${r.text}; }
+    & .eyebrow, & #run-status, & #connection-status, & #connection-detail, & .reply-activity, & .empty-state, & .message-label, & .inactive-ui, & .composer-hint, & #runtime-controls-status { color: ${r.mutedText}; }
+    & .chat-panel, & .generated-content, & .composer, & .composer textarea, & .composer button, & .runtime-controls select, & .app-header button, & #rename-form input { border-color: ${r.border}; }
     & .message { background: ${r.surfaceRaised}; }
     & .message.user { background: ${r.accentSoft}; }
     & #send { color: ${r.accentText}; background: ${r.accent}; border-color: ${r.accent}; }
+    & .app-header #rename:not(:disabled):hover { background: ${r.surfaceRaised}; }
     & #rename-error, & .reply-outcome { color: ${r.mutedText}; }
     & #sessions-picker, & #sessions-picker button { background: ${r.surface}; color: ${r.text}; border-color: ${r.border}; }
     & .sessions-directory, & .sessions-facts, & .sessions-turn { background: ${r.surfaceRaised}; }

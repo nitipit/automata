@@ -16,6 +16,7 @@ def test_flat_esm_allowlist_retains_local_boundary(tmp_path, monkeypatch):
         allowed = [
             "index.js",
             "connection-bootstrap.js",
+            "browser-trust-landing.js",
             "ui.js",
             "chunk-ABCDEFGH.js",
             "adapter-LICENSE.txt",

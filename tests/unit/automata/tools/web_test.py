@@ -15,6 +15,7 @@ from automata.tools.web.chat import ChatSession  # noqa: E402
 from automata.tools.web.connector import BrowserConnector, ConnectorError  # noqa: E402
 from automata.tools.web.host import BrowserHost  # noqa: E402
 from automata.tools.web.launch import prepare_launch  # noqa: E402
+from automata.tools.web.model_controls import SCOPE_KEY_ENV  # noqa: E402
 from automata.tools.web.rpc import PiRpc, RpcError  # noqa: E402
 
 
@@ -157,6 +158,7 @@ def test_host_start_hydrates_native_identity_and_retains_startup_event_tail(tmp_
             assert chat.state["sessionName"] == "Normal Pi"
             assert [name for name, _ in rpc.commands] == ["get_state", "get_messages", "get_state"]
             assert set(rpc.launch_kwargs["env"]) == {
+                SCOPE_KEY_ENV,
                 "AUTOMATA_WEB_CONNECTOR_URL",
                 "AUTOMATA_WEB_CONNECTOR_TOKEN",
             }

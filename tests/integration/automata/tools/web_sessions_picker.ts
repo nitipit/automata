@@ -7,11 +7,14 @@ export default function (pi: ExtensionAPI) {
     api: "openai-responses",
     baseUrl: "http://unused.invalid",
     apiKey: "offline-fixture-only",
-    models: [{
-      id: "fixture", name: "Sessions fixture", reasoning: false, input: ["text"],
-      contextWindow: 16000, maxTokens: 256,
+    models: [
+      { id: "fixture", name: "Sessions fixture", reasoning: true },
+      { id: "plain", name: "Plain fixture", reasoning: false },
+      { id: "unpinned", name: "Unpinned fixture", reasoning: true },
+    ].map(item => ({
+      ...item, input: ["text" as const], contextWindow: 16000, maxTokens: 256,
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    }],
+    })),
     streamSimple(model, context, options) {
       const messages = context.messages.flatMap(message => message.role === "user"
         ? [typeof message.content === "string" ? message.content
@@ -33,6 +36,10 @@ export default function (pi: ExtensionAPI) {
       const tool = (name: string, args: Record<string, unknown>) => finish(makeReply([
         {type: "toolCall", id: `shared-fixture-${name}`, name, arguments: args},
       ], "toolUse"));
+      if (latest === "Fixture runtime settings") {
+        finish(makeReply([text(`Native next message: ${model.id} / ${options?.reasoning ?? "off"}`)]));
+        return stream;
+      }
       // Actual native web UI tools with intentionally identical tool/event IDs
       // across two native sessions. The response displays the RECEIVED value.
       if (/^UI [AB]$/.test(latest)) {

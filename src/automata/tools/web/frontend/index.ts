@@ -3,6 +3,7 @@ import stopIcon from "./_assets/gnomicon/media-playback-stop.svg";
 import editIcon from "./_assets/gnomicon/document-edit-symbolic.svg";
 import { Adapter } from "@devcapsule/adapter";
 import { applyBaseStyles } from "./_base.css";
+import { createBrowserTrustRenewal } from "./browser-trust-renewal";
 import { appStyle, appThemeStyle } from "./index.style";
 import { bindTheme } from "./_theme/index";
 import { Markdown } from "./_components/markdown";
@@ -28,14 +29,16 @@ const transcript = element<HTMLElement>("#transcript");
 const form = element<HTMLFormElement>("#composer");
 const prompt = element<HTMLTextAreaElement>("#prompt");
 const send = element<HTMLButtonElement>("#send");
+const modelSelect = element<HTMLSelectElement>("#model");
+const thinkingSelect = element<HTMLSelectElement>("#thinking-level");
+const controlsStatus = element<HTMLElement>("#runtime-controls-status");
 
 const connection = element<HTMLElement>("#connection-status");
 const sessionTitle = element<HTMLElement>("#session-name");
+const titleRow = element<HTMLElement>(".session-title");
 const rename = element<HTMLButtonElement>("#rename");
 const renameForm = element<HTMLFormElement>("#rename-form");
 const nameInput = element<HTMLInputElement>("#session-name-input");
-const renameSave = element<HTMLButtonElement>("#rename-save");
-const renameCancel = element<HTMLButtonElement>("#rename-cancel");
 const renameError = element<HTMLElement>("#rename-error");
 const sessions = element<HTMLButtonElement>("#sessions");
 const newChat = element<HTMLButtonElement>("#new-chat");
@@ -69,6 +72,8 @@ let sessionName = "";
 let firstUserPreview = "";
 let firstUserSeen = false;
 let renamePending = false;
+let renameInitial = "";
+let renameAttempt: string | undefined;
 const connectButton = element<HTMLButtonElement>("#connect");
 const connectionDetail = element<HTMLElement>("#connection-detail");
 // Bundled, reviewed Gnomicon SVG only; never server/user markup.
@@ -104,11 +109,26 @@ const seenDialogs = new Set<string>();
 let dialogActive = false;
 let generation = 0;
 let socket: WebSocket | undefined;
-type Command = "prompt" | "stop" | "rename" | "list_sessions" | "preview_session";
+type ControlsCommand = "set_model" | "set_thinking_level";
+type Command = "prompt" | "stop" | "rename" | "list_sessions" | "preview_session" | ControlsCommand;
+type ModelChoice = { provider: string; id: string; name: string };
+let models: ModelChoice[] = [];
+let selectedModel: ModelChoice | undefined;
+let levels: string[] = [];
+let selectedLevel: string | undefined;
+let controlsSignature: string | undefined;
+let controlsError = "";
+let controlsNotice = "";
+let controlsPending = false;
 const pending = new Map<string, Command>();
 let runView: MessageView | undefined;
 let activity: HTMLElement | undefined;
 let placeholder: MessageView | undefined;
+// The native user echo reconciles this turn in place, before its reply.
+let submittedUser: MessageView | undefined;
+function discardSubmittedUser() {
+  submittedUser?.node.remove(); submittedUser = undefined;
+}
 let runActive = false;
 let runFailure = false;
 
@@ -116,6 +136,7 @@ function updateName(name: unknown) {
   sessionName = typeof name === "string" ? name : "";
   const title = sessionName.trim() ? sessionName : firstUserPreview || "Untitled session";
   sessionTitle.textContent = title;
+  sessionTitle.title = title;
   document.title = title;
 }
 function observeUser(message: RecordValue) {
@@ -156,13 +177,74 @@ function finishRun(detail?: string) {
     if (runView) replyOutcome(runView, detail);
     else status.textContent = detail;
   }
+  discardSubmittedUser();
   clearActivity(); runActive = false; runView = undefined;
 }
 
 function setUIAvailable(available: boolean) {
   for (const block of liveBlocks.values()) block.inert = !available;
 }
-function canSend() { return connected && state === "idle" && !promptPending && !switching; }
+function canSend() { return connected && state === "idle" && !promptPending && !controlsPending && !switching; }
+function readModel(value: unknown): value is ModelChoice {
+  if (!value || typeof value !== "object") return false;
+  const model = value as Partial<ModelChoice>;
+  return typeof model.provider === "string" && !!model.provider && typeof model.id === "string" && !!model.id && typeof model.name === "string";
+}
+const modelKey = (model: ModelChoice) => JSON.stringify([model.provider, model.id]);
+const modelLabel = (model: ModelChoice) => `${model.name || model.id} · ${model.provider}`;
+const levelLabel = (level: string) => level === "xhigh" ? "Extra high" : level.charAt(0).toUpperCase() + level.slice(1);
+function controlOptions(select: HTMLSelectElement, choices: [string, string][], selected: string | undefined, label: string) {
+  const options = choices.map(([value, text]) => new Option(text, value));
+  if (!selected || !choices.some(([value]) => value === selected)) {
+    const current = new Option(label, selected ?? "");
+    current.disabled = true;
+    options.unshift(current);
+  }
+  select.replaceChildren(...options);
+  select.value = selected ?? "";
+}
+function applyControls(value: RecordValue | null = {}) {
+  value ??= {};
+  const found = Array.isArray(value.modelChoices) && Array.isArray(value.thinkingLevels);
+  const choices: ModelChoice[] = found ? value.modelChoices.filter(readModel) : [];
+  const current = found && readModel(value.model) ? value.model : undefined;
+  const allowed = found ? value.thinkingLevels.filter((item: unknown): item is string => typeof item === "string" && !!item) : [];
+  const level = found && typeof value.thinkingLevel === "string" ? value.thinkingLevel : undefined;
+  const error = !found ? "Message settings unavailable." : typeof value.controlsError === "string" ? value.controlsError : "";
+  const signature = JSON.stringify([choices, current, allowed, level, error]);
+  if (signature === controlsSignature) return;
+  controlsSignature = signature;
+  models = choices; selectedModel = current; levels = allowed; selectedLevel = level; controlsError = error;
+  controlOptions(modelSelect, models.map(model => [modelKey(model), modelLabel(model)]),
+    current && modelKey(current), current ? `Current: ${modelLabel(current)}` : "Unavailable");
+  controlOptions(thinkingSelect, levels.map(item => [item, levelLabel(item)]),
+    level, level ? `Current: ${levelLabel(level)}` : "Unavailable");
+}
+function refreshControls() {
+  const inactive = !canSend() || dialogActive;
+  modelSelect.disabled = inactive || !!controlsError || !models.length;
+  thinkingSelect.disabled = inactive || !!controlsError || !levels.length;
+  const note = !connected ? "" : controlsNotice || controlsError || (!models.length ? "No pinned models configured." : !levels.length ? "Thinking levels unavailable." : "");
+  if (controlsStatus.textContent !== note) controlsStatus.textContent = note;
+}
+function changeControls(type: ControlsCommand, data: RecordValue) {
+  if (!canSend() || dialogActive || controlsError) return;
+  controlsPending = !!command(type, data);
+  controlsNotice = controlsPending ? "Applying message settings…" : "Connection unavailable. No change was confirmed.";
+  refresh();
+}
+modelSelect.addEventListener("change", () => {
+  const candidate = models.find(model => modelKey(model) === modelSelect.value);
+  modelSelect.value = selectedModel ? modelKey(selectedModel) : "";
+  if (candidate && modelKey(candidate) !== modelSelect.value) {
+    changeControls("set_model", { provider: candidate.provider, modelId: candidate.id });
+  }
+});
+thinkingSelect.addEventListener("change", () => {
+  const level = thinkingSelect.value;
+  thinkingSelect.value = selectedLevel ?? "";
+  if (level !== selectedLevel && levels.includes(level)) changeControls("set_thinking_level", { level });
+});
 function canStop() { return connected && !switching && state !== "stopping" && (state === "running" || promptPending); }
 function renderComposerAction() {
   const mode = state === "stopping" ? "stopping" : canStop() ? "stop" : "send";
@@ -177,13 +259,12 @@ function renderComposerAction() {
 }
 function refresh() {
   renderComposerAction();
+  refreshControls();
   prompt.disabled = !connected || switching || state === "switching";
   sessions.disabled = !canSend() || renamePending || dialogActive;
   newChat.disabled = !connected || !pairTicket || switching || state === "error";
   rename.disabled = !connected || state === "switching" || state === "error" || switching;
-  renameSave.disabled = rename.disabled || renamePending;
-  renameCancel.disabled = renamePending;
-  nameInput.disabled = renamePending;
+  nameInput.readOnly = renamePending;
   pickerClose.disabled = pickerBack.disabled = switching;
   pickerOpen.disabled = sessions.disabled || pickerBusy || !pickerReceipt || !previewReady || !selectedSession || !!selectedSession.row.current;
   pickerPrev.disabled = pickerNext.disabled = pickerReload.disabled = pickerBusy || switching;
@@ -519,7 +600,11 @@ function handleEvent(event: RecordValue) {
         stream = { view, blocks: new Map(), message: event.message };
         renderActivity();
       }
-      else showMessage(event.message);
+      else if (event.message?.role === "user" && submittedUser) {
+        observeUser(event.message);
+        submittedUser.body.textContent = textOf(event.message);
+        submittedUser = undefined;
+      } else showMessage(event.message);
       break;
     case "message_update": {
       const update = event.assistantMessageEvent;
@@ -558,6 +643,8 @@ function handleEvent(event: RecordValue) {
 function handleFrame(frame: RecordValue) {
   switch (frame.type) {
     case "snapshot": {
+      discardSubmittedUser();
+      applyControls(frame.state);
       // Only the route's own snapshot can reach this point. Rebuild native text
       // and ownership, retaining page-local blocks from this same connection.
       const focused = document.activeElement instanceof HTMLElement &&
@@ -620,12 +707,20 @@ function handleFrame(frame: RecordValue) {
       break;
     }
     case "host_status":
+      if (Array.isArray(frame.modelChoices) && Array.isArray(frame.thinkingLevels)) applyControls(frame);
       if (statuses.includes(frame.status)) setStatus(frame.status, typeof frame.message === "string" ? frame.message : undefined);
+      else refreshControls();
       break;
     case "ack": {
       const kind = pending.get(frame.id);
       pending.delete(frame.id);
       if (!kind) break;
+      if (kind === "set_model" || kind === "set_thinking_level") {
+        controlsPending = false;
+        controlsNotice = frame.success ? "" : `Could not apply message settings: ${frame.error || "Try again."}`;
+        refresh();
+        break;
+      }
       if (kind === "preview_session") {
         if (!picker.open || previewRequest !== frame.id) break;
         previewRequest = undefined;
@@ -648,8 +743,10 @@ function handleFrame(frame: RecordValue) {
       }
       if (kind === "rename") {
         renamePending = false;
-        if (frame.success) { updateName(frame.data?.sessionName); closeRename(); }
-        else { renameError.textContent = `Could not rename: ${frame.error || "Try again."}`; nameInput.disabled = false; nameInput.focus(); }
+        if (frame.success) {
+          updateName(frame.data?.sessionName);
+          closeRename(document.activeElement === nameInput);
+        } else renameError.textContent = `Could not rename: ${frame.error || "Try again."}`;
         refresh(); break;
       }
       if (!frame.success) {
@@ -751,25 +848,65 @@ newChatForm.addEventListener("formdata", event => {
   event.formData.set("ticket", pairTicket);
   event.formData.set("nonce", crypto.randomUUID());
 });
-function closeRename() { renameForm.hidden = true; rename.hidden = false; renameError.textContent = ""; rename.focus(); }
-rename.addEventListener("click", () => {
-  nameInput.value = sessionName; renameForm.hidden = false; rename.hidden = true; renameError.textContent = ""; nameInput.focus(); nameInput.select();
-});
-renameCancel.addEventListener("click", closeRename);
-renameForm.addEventListener("keydown", event => { if (event.key === "Escape" && !renamePending) { event.preventDefault(); closeRename(); } });
-renameForm.addEventListener("submit", event => {
-  event.preventDefault();
+function clearRenameError() {
+  renameError.textContent = "";
+  nameInput.removeAttribute("aria-invalid");
+}
+function closeRename(restoreFocus: boolean) {
+  renameForm.hidden = true;
+  delete titleRow.dataset.editing;
+  clearRenameError();
+  if (restoreFocus && !rename.disabled) rename.focus({ preventScroll: true });
+}
+function editName() {
+  if (rename.disabled || !renameForm.hidden) return;
+  renameInitial = sessionTitle.textContent?.trim() ?? "";
+  renameAttempt = undefined;
+  nameInput.value = renameInitial;
+  renameForm.hidden = false;
+  titleRow.dataset.editing = "";
+  clearRenameError();
+  nameInput.focus({ preventScroll: true });
+  nameInput.select();
+}
+function saveName(fromBlur: boolean) {
+  if (renameForm.hidden || renamePending) return;
   const name = nameInput.value.trim();
-  if (!name) { renameError.textContent = "Enter a session name."; nameInput.focus(); return; }
-  if (renamePending) return;
-  if (command("rename", { name })) { renamePending = true; renameError.textContent = ""; refresh(); }
-  else renameError.textContent = "Connection unavailable. Reconnect before saving.";
+  if (fromBlur && name === renameAttempt) return;
+  if (name === renameInitial) { closeRename(!fromBlur); return; }
+  if (!name) {
+    renameError.textContent = "Enter a session name.";
+    nameInput.setAttribute("aria-invalid", "true");
+    return;
+  }
+  renameAttempt = name;
+  if (!rename.disabled && command("rename", { name })) {
+    renamePending = true;
+    clearRenameError();
+    refresh();
+  } else renameError.textContent = "Connection unavailable. Reconnect before saving.";
+}
+rename.addEventListener("click", editName);
+sessionTitle.addEventListener("click", editName);
+nameInput.addEventListener("input", () => { renameAttempt = undefined; clearRenameError(); });
+nameInput.addEventListener("blur", () => saveName(true));
+nameInput.addEventListener("keydown", event => {
+  if (event.isComposing) return;
+  if (event.key === "Escape" && !renamePending) {
+    event.preventDefault();
+    closeRename(true);
+  }
 });
+renameForm.addEventListener("submit", event => { event.preventDefault(); saveName(false); });
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   const message = prompt.value.trim();
   if (!message || !canSend()) return;
-  if (command("prompt", { message })) { prompt.value = ""; promptPending = true; setStatus("running"); }
+  if (command("prompt", { message })) {
+    submittedUser = createMessage("user", message);
+    reveal(submittedUser);
+    prompt.value = ""; promptPending = true; setStatus("running");
+  }
 });
 prompt.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); form.requestSubmit(); }
@@ -788,6 +925,10 @@ window.addEventListener("hashchange", () => {
 });
 
 const lifecycle = new AbortController();
+const browserTrust = sessionPath && createBrowserTrustRenewal({
+  sessionPath,
+  getWriter: () => connected && admission && pairTicket ? { admission, ticket: pairTicket } : undefined,
+});
 let connecting = false;
 let terminal = !admission || !sessionPath;
 let disposed = false;
@@ -806,7 +947,11 @@ function disconnectView() {
   const hadReply = !!runView;
   const previousNotice = status.textContent;
   connected = false; snapshotReceived = false; pairTicket = undefined; generation++;
+  browserTrust?.stop();
   dialogQueue = []; seenDialogs.clear(); dialog.cancel(); pending.clear(); promptPending = false;
+  controlsNotice = controlsPending ? "Connection lost. Confirm settings after reconnecting before trying again." : "";
+  controlsPending = false;
+  applyControls();
   const wasSwitching = switching;
   switching = pickerBusy = false;
   if (picker.open) picker.close();
@@ -905,6 +1050,7 @@ async function reconnect() {
       if (disposed || epoch !== connectionEpoch) break;
       pairTicket = ticket;
       connected = true; connecting = false;
+      browserTrust?.start();
       setUIAvailable(true); refresh(); showConnection("Connected"); return;
     } catch {
       if (bridgeNeedsReload()) {
@@ -928,6 +1074,7 @@ const bridgeWatch = window.setInterval(() => {
   }
 }, 250);
 window.addEventListener("pagehide", () => {
+  browserTrust?.dispose();
   disposed = true; connectionEpoch++; lifecycle.abort(); window.clearInterval(bridgeWatch); closeConnections();
 }, { once: true });
 window.addEventListener("pageshow", event => {

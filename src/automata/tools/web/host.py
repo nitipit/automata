@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
+import hmac
 import json
 import os
 import re
 import secrets
 import signal
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import parse_qsl
@@ -24,6 +27,17 @@ from automata.tools.web.sessions import SessionRow, list_rows, read_row, recorde
 PACKAGE = Path(__file__).resolve().parent
 _ROUTE_ID = re.compile(r"[A-Za-z0-9_-]{1,256}")
 _PRIVATE = {"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"}
+_TRUST_COOKIE = "__Secure-automata-web-chat-create"
+_TRUST_PATH = "/sessions/trust/"
+_PROOF = re.compile(r"[a-f0-9]{64}")
+_LANDING_HEADERS = {
+    **_PRIVATE,
+    "Content-Security-Policy": (
+        "default-src 'none'; script-src 'self'; connect-src 'self'; "
+        "base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+    ),
+    "X-Content-Type-Options": "nosniff",
+}
 _BROWSER_OPEN = """import sys, webbrowser
 try:
     opened = webbrowser.open(sys.stdin.read())
@@ -82,6 +96,82 @@ class _Refusal(Exception):
         self.status, self.code = status, code
 
 
+@dataclass
+class _BrowserGrant:
+    token: str
+    monotonic_deadline: float
+    wall_deadline: float
+
+    def expired(self, monotonic, wall):
+        return monotonic >= self.monotonic_deadline or wall >= self.wall_deadline
+
+
+class _BrowserTrust:
+    """Bounded, per-host grant and create replay state, independent of tab admission."""
+
+    duration = 30 * 60
+    landing_seconds = 10 * 60
+    max_grants = 64
+    max_landings = 4096
+
+    def __init__(self, *, clock=None):
+        self.clock = clock or (lambda: (time.monotonic(), time.time()))
+        self.grants: dict[str, _BrowserGrant] = {}
+        self.used: dict[str, tuple[int, int]] = {}
+        self.signer = secrets.token_bytes(32)
+
+    @staticmethod
+    def _digest(proof):
+        if not isinstance(proof, str) or _PROOF.fullmatch(proof) is None:
+            raise _Refusal(400, "invalid_proof", "Invalid browser proof")
+        return hashlib.sha256(bytes.fromhex(proof)).hexdigest()
+
+    def renew(self, proof):
+        key = self._digest(proof)
+        monotonic, wall = self.clock()
+        for stale in [key for key, grant in self.grants.items() if grant.expired(monotonic, wall)]:
+            del self.grants[stale]
+        grant = self.grants.get(key)
+        if grant is None and len(self.grants) >= self.max_grants:
+            raise _Refusal(409, "capacity", "Browser trust capacity reached")
+        token = grant.token if grant else secrets.token_urlsafe(32)
+        self.grants[key] = _BrowserGrant(token, monotonic + self.duration, wall + self.duration)
+        return token
+
+    def authorize(self, proof, cookie):
+        key = self._digest(proof)
+        grant = self.grants.get(key)
+        if grant is None or grant.expired(*self.clock()) or not _match(cookie, grant.token):
+            raise _Refusal(403, "browser_untrusted", "Browser trust is missing or expired")
+
+    def landing(self):
+        monotonic, wall = self.clock()
+        data = f"{int(monotonic) + self.landing_seconds}.{int(wall) + self.landing_seconds}"
+        data += "." + secrets.token_hex(16)
+        signature = hmac.digest(self.signer, data.encode(), "sha256").hex()
+        return f"{data}.{signature}"
+
+    def claim(self, intent):
+        if not isinstance(intent, str) or not re.fullmatch(
+            r"[0-9]{1,16}\.[0-9]{1,16}\.[a-f0-9]{32}\.[a-f0-9]{64}", intent
+        ):
+            raise _Refusal(400, "invalid_intent", "Invalid landing request")
+        data, signature = intent.rsplit(".", 1)
+        expected = hmac.digest(self.signer, data.encode(), "sha256").hex()
+        mono_deadline, wall_deadline, _ = data.split(".")
+        deadline = (int(mono_deadline), int(wall_deadline))
+        monotonic, wall = self.clock()
+        if not _match(signature, expected) or monotonic >= deadline[0] or wall >= deadline[1]:
+            raise _Refusal(403, "invalid_intent", "This landing request is no longer available")
+        for stale in [key for key, (m, w) in self.used.items() if monotonic >= m or wall >= w]:
+            del self.used[stale]
+        if intent in self.used:
+            raise _Refusal(409, "replayed_request", "This landing request was already submitted")
+        if len(self.used) >= self.max_landings:
+            raise _Refusal(409, "capacity", "Landing request capacity reached")
+        self.used[intent] = deadline
+
+
 async def _open_browser(url: str):
     """Pass the private URL over stdin; own/reap only the launcher helper."""
     process = None
@@ -136,6 +226,7 @@ class BrowserHost:
         self._owned: set[ChatSession] = set()
         self._starts: set[asyncio.Task] = set()
         self._starting_ids: set[str] = set()
+        self._browser_trust = _BrowserTrust()
         self._initial: _Entry | None = None
         self._project: Path | None = None
         self._launch_options: dict = {}
@@ -298,6 +389,101 @@ class BrowserHost:
                 headers={**_PRIVATE, "Referrer-Policy": "same-origin"},
             )
 
+        def exact_path(request, path):
+            return request.scope.get("raw_path", path.encode()) == path.encode()
+
+        async def trust_json(request, fields):
+            if (
+                request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+                != "application/json"
+            ):
+                raise ValueError("Expected JSON")
+            body = json.loads(await self._read_body(request, 4096))
+            if not isinstance(body, dict) or set(body) != fields:
+                raise ValueError("Invalid browser trust request")
+            return body
+
+        async def landing(request: Request):
+            if not self._runtime.local_request(request) or not exact_path(request, "/sessions/"):
+                return Response(status_code=403, headers=_PRIVATE)
+            if self._closed:
+                return Response(status_code=410, headers=_PRIVATE)
+            auto = (
+                not request.url.query
+                and all(
+                    request.headers.getlist(key) == [value]
+                    for key, value in (
+                        ("sec-fetch-mode", "navigate"),
+                        ("sec-fetch-dest", "document"),
+                        ("sec-fetch-site", "none"),
+                        ("sec-fetch-user", "?1"),
+                    )
+                )
+                and not any(name in request.headers for name in ("sec-purpose", "purpose"))
+            )
+            return HTMLResponse(
+                '<!doctype html><html lang="en"><meta charset="utf-8">'
+                '<meta name="viewport" content="width=device-width, initial-scale=1">'
+                "<title>Automata — New chat</title><main><h1>New chat</h1>"
+                f'<p id="trust-status" role="status" data-intent="{self._browser_trust.landing()}" '
+                f'data-auto="{int(auto)}">Start a new Pi session in this tab.</p>'
+                '<button id="trust-create" type="button" disabled>Create a new chat</button>'
+                "<noscript><p>JavaScript is needed to verify browser trust.</p></noscript></main>"
+                '<script type="module" src="/assets/browser-trust-landing.js"></script></html>',
+                headers=_LANDING_HEADERS,
+            )
+
+        async def renew_trust(id: str, request: Request):
+            try:
+                entry = self._authenticate(request, id, "/browser-trust", self._bearer(request))
+                body = await trust_json(request, {"proof", "ticket"})
+                if not _match(self._bearer(request), entry.chat.admission):
+                    raise _Refusal(403, "forbidden", "Web Chat admission was rejected")
+                pair = entry.pair
+                if (
+                    self._closed
+                    or entry.retiring
+                    or entry.chat._dead
+                    or pair is None
+                    or not pair.ready
+                    or pair.cleanup is not None
+                    or not _match(body["ticket"], pair.ticket)
+                ):
+                    raise _Refusal(403, "forbidden", "This request is not from the current writer")
+                token = self._browser_trust.renew(body["proof"])
+                response = Response(status_code=204, headers=_PRIVATE)
+                response.set_cookie(
+                    _TRUST_COOKIE,
+                    token,
+                    max_age=self._browser_trust.duration,
+                    path=_TRUST_PATH,
+                    secure=True,
+                    httponly=True,
+                    samesite="strict",
+                )
+                return response
+            except _Refusal as error:
+                return refusal(error)
+            except (ValueError, UnicodeError, ClientDisconnect, RecursionError):
+                return refusal(_Refusal(400, "invalid_request", "Invalid browser trust renewal"))
+
+        async def create_trusted(request: Request):
+            try:
+                if not self._origin_ok(request) or not exact_path(request, _TRUST_PATH + "create"):
+                    raise _Refusal(403, "forbidden", "Browser trust origin was rejected")
+                if self._closed:
+                    raise _Refusal(410, "host_closed", "Web Chat is shutting down")
+                body = await trust_json(request, {"proof", "intent"})
+                self._browser_trust.authorize(body["proof"], request.cookies.get(_TRUST_COOKIE))
+                # No await between replay claim and the owned slot reservation.
+                self._browser_trust.claim(body["intent"])
+                child = await self._await_start(self._start_worker())
+                return JSONResponse({"url": child.url}, headers=_PRIVATE)
+            except _Refusal as error:
+                return refusal(error)
+            except (ValueError, UnicodeError, ClientDisconnect, RecursionError):
+                return refusal(_Refusal(400, "invalid_request", "Invalid new chat request"))
+
         async def asset(name: str, request: Request):
             if not self._runtime.local_request(request):
                 return Response(status_code=403)
@@ -305,6 +491,7 @@ class BrowserHost:
                 "index.js",
                 "ui.js",
                 "connection-bootstrap.js",
+                "browser-trust-landing.js",
                 "adaptive.css",
                 "adapter-LICENSE.txt",
                 "third-party-LICENSES.txt",
@@ -512,13 +699,26 @@ class BrowserHost:
                 )
 
         # Annotations in these local route closures are postponed at import time.
-        for endpoint in (index, asset, connection, connector, opened, new_session):
+        for endpoint in (
+            index,
+            asset,
+            connection,
+            connector,
+            opened,
+            new_session,
+            landing,
+            renew_trust,
+            create_trusted,
+        ):
             endpoint.__annotations__["request"] = Request
         for endpoint in (bridge, chat):
             endpoint.__annotations__["socket"] = WebSocket
         app.add_api_route("/", index, methods=["GET"])
+        app.add_api_route("/sessions/", landing, methods=["GET"])
         app.add_api_route("/sessions/{id}/", index, methods=["GET"])
         app.add_api_route("/assets/{name}", asset, methods=["GET"])
+        app.add_api_route("/sessions/{id}/browser-trust", renew_trust, methods=["POST"])
+        app.add_api_route(_TRUST_PATH + "create", create_trusted, methods=["POST"])
         app.add_api_route("/sessions/{id}/chat/connection", connection, methods=["POST"])
         app.add_api_route("/sessions/{id}/open", opened, methods=["POST"])
         app.add_api_route("/sessions", new_session, methods=["POST"])

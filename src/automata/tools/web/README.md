@@ -38,9 +38,24 @@ port. Each chat has its own native Pi process and URL at `/sessions/{native-id}/
 it does not interrupt or move the original chat. Both can answer at once, and
 **Stop** affects only the current session.
 
+You can also enter `http://127.0.0.1:<host-port>/sessions/` in a fresh tab of the
+same browser profile after a chat has connected. A supported direct address-bar
+navigation starts one new chat without an extra click; if the browser cannot
+identify that navigation, choose **Create a new chat** on the landing page.
+Loading or prefetching the page does not itself start Pi. Reloading a chat
+reattaches that same session rather than starting another. The address-bar flow
+has been verified in Firefox.
+
+An active chat renews this create-only browser trust every ten minutes and checks
+for missed renewal on return to its tab. The host rejects grants after thirty
+minutes without renewal and on host restart. If trust has expired, connect an
+existing authenticated chat tab before opening the landing page again. This
+requires browser cookies and origin-local storage. A grant cannot open saved
+sessions, access a transcript, authenticate a writer, or renew itself.
+
 The private admission URL is not printed. Its scoped credential is stored by
 native session ID in that tab's `sessionStorage` and removed from the address.
-A clean URL alone is not admission. A second writer for an attached session is
+A clean existing-session URL alone is not admission. A second writer is
 refused; it does not evict the original tab. Refresh reconnects to the same host
 and Pi while that session is retained. Retry connection is available after
 transport failures. Missing or rejected credentials require a valid admission URL
@@ -86,6 +101,12 @@ Browser auto-open uses the configured system browser; `--no-open-browser` disabl
 it. Ctrl+C/SIGTERM closes all owned Pi processes and the shared listener. Do not
 expose the loopback server remotely or share admission/connector credentials.
 Same-origin generated JavaScript is trusted, not isolated by a security sandbox.
+Browser trust requires both an HttpOnly cookie and independent browser proof tied
+to the exact loopback origin. Cookies themselves are **not** isolated by port;
+another service at the same IP may receive or overwrite the cookie, but cannot
+read the browser's origin-local proof. This design does not protect against
+same-origin JavaScript, a compromised browser or OS, or interception of the
+local plaintext HTTP connection.
 
 Maintainers: the pinned Web Runtime is single-browser. The shared-listener
 adapter embeds one unstarted child ASGI app per admitted pair by attaching it to

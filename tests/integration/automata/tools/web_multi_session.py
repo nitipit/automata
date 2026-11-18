@@ -28,6 +28,7 @@ class Browser:
         self.socket = socket
         self.sequence = 0
         self.errors = 0
+        self.renewals = {}
 
     def exchange(self, method, params):
         self.sequence += 1
@@ -39,6 +40,15 @@ class Browser:
                 entry = reply["params"]
                 if entry["type"] == "javascript" and entry["level"] == "error":
                     self.errors += 1
+            if reply.get("method") == "network.responseCompleted":
+                event = reply["params"]
+                if (
+                    event["response"]["status"] == 204
+                    and event["request"]["method"] == "POST"
+                    and urlsplit(event["response"]["url"]).path.endswith("/browser-trust")
+                ):
+                    tab = event["context"]
+                    self.renewals[tab] = self.renewals.get(tab, 0) + 1
             if reply.get("id") != self.sequence:
                 continue
             if reply.get("type") != "success":
@@ -69,10 +79,21 @@ class Browser:
             status: document.querySelector('#run-status')?.textContent,
             picker: document.querySelector('#sessions-status')?.textContent,
             action: document.querySelector('#send')?.dataset.action,
+            controls: document.querySelector('#runtime-controls-status')?.textContent,
+            model: document.querySelector('#model')?.value,
+            thinking: document.querySelector('#thinking-level')?.value,
             transcript: document.querySelector('#transcript')?.textContent?.slice(-450),
         })""",
         )
         raise AssertionError(f"Did not observe {label}; disposable fixture state: {state}")
+
+    async def wait_for_renewals(self, tab, expected):
+        async with asyncio.timeout(8):
+            while self.renewals.get(tab, 0) < expected:
+                # BiDi wire events are drained by exchange(), not a background reader.
+                await self.evaluate(tab, "document.readyState")
+                await asyncio.sleep(0.05)
+        assert self.renewals[tab] == expected
 
     async def tabs(self):
         result = await self.call("browsingContext.getTree", maxDepth=0)
@@ -94,6 +115,19 @@ class Browser:
 
     async def close(self, tab):
         await self.call("browsingContext.close", context=tab)
+
+    async def key(self, tab, value):
+        await self.call(
+            "input.performActions",
+            context=tab,
+            actions=[
+                {
+                    "type": "key",
+                    "id": "fixture-keyboard",
+                    "actions": [{"type": kind, "value": value} for kind in ("keyDown", "keyUp")],
+                }
+            ],
+        )
 
     async def click(self, tab, selector):
         # Real WebDriver pointer activation (including when Firefox decides
@@ -172,7 +206,9 @@ async def firefox(profile):
         browser = Browser(sock)
         details = (await browser.call("session.new", capabilities={}))["capabilities"]
         assert details["browserName"] == "firefox"
-        await browser.call("session.subscribe", events=["log.entryAdded"])
+        await browser.call(
+            "session.subscribe", events=["log.entryAdded", "network.responseCompleted"]
+        )
         print(
             f"Firefox {details['browserVersion']}: visible, disposable profile, BiDi loopback owned"
         )
@@ -249,6 +285,93 @@ async def picker_open(browser, tab, native_id):
     )
 
 
+async def runtime_controls(browser, a, b, a_chat, b_chat):
+    def model_key(model):
+        return json.dumps(json.dumps(["picker-fixture", model], separators=(",", ":")))
+
+    async def select(selector, literal):
+        await browser.evaluate(
+            a,
+            f"""(() => {{
+            const field = document.querySelector({json.dumps(selector)});
+            field.value = {literal};
+            field.dispatchEvent(new Event('change', {{bubbles:true}}));
+        }})()""",
+        )
+
+    async def selected(model, level):
+        await browser.wait(
+            a,
+            f"""
+            !document.querySelector('#model').disabled &&
+            document.querySelector('#model').value === {model_key(model)} &&
+            document.querySelector('#thinking-level').value === {json.dumps(level)}
+        """,
+            f"confirmed native settings {model} / {level}",
+        )
+
+    await selected("fixture", "low")
+    assert await browser.evaluate(
+        a,
+        """
+        JSON.stringify([...document.querySelectorAll('#model option:not(:disabled)')]
+            .map(option => JSON.parse(option.value)[1]).sort()) === '["fixture","plain"]'
+    """,
+    )
+    await browser.call("browsingContext.activate", context=a)
+    assert await browser.evaluate(
+        a,
+        """(() => {
+        // Constrain the actual Firefox composer, rather than resizing the desktop window.
+        const composer = document.querySelector('#composer');
+        composer.style.maxWidth = '390px';
+        try {
+            const model = document.querySelector('#model').getBoundingClientRect();
+            const thinking = document.querySelector('#thinking-level').getBoundingClientRect();
+            const send = document.querySelector('#send').getBoundingClientRect();
+            return composer.clientWidth <= 390 && composer.scrollWidth <= composer.clientWidth &&
+                model.width > 0 && model.right < thinking.left && thinking.right < send.left;
+        } finally { composer.style.removeProperty('max-width'); }
+    })()""",
+    )
+    await browser.evaluate(a, "document.querySelector('#prompt').focus()")
+    await browser.key(a, "\ue004")  # WebDriver Tab
+    assert await browser.evaluate(a, "document.activeElement.id === 'model'")
+    await browser.key(a, "\ue004")
+    assert await browser.evaluate(a, "document.activeElement.id === 'thinking-level'")
+    await select("#model", model_key("plain"))
+    await selected("plain", "off")
+    assert await browser.evaluate(
+        a, "document.querySelector('#thinking-level').options.length === 1"
+    )
+    await select("#model", model_key("fixture"))
+    await selected("fixture", "off")  # The prior level remains supported on this model.
+    await select("#thinking-level", json.dumps("high"))
+    await selected("fixture", "high")
+    assert (await a_chat.rpc.command("get_state"))["thinkingLevel"] == "high"
+    assert (await b_chat.rpc.command("get_state"))["thinkingLevel"] == "low"
+    assert await browser.evaluate(b, "document.querySelector('#thinking-level').value === 'low'")
+    # Observe the DOM synchronously at the end of the submit event, before any WS echo.
+    await browser.evaluate(a, """document.addEventListener('submit', () => {
+        const rows = [...document.querySelectorAll('#transcript article')].slice(-2);
+        window.firstTurnOrdered = rows.length === 2 && rows[0].matches('.user') &&
+          rows[0].querySelector('.message-body').textContent === 'Fixture runtime settings' &&
+          !!rows[1].querySelector('.reply-activity');
+    }, {once:true})""")
+    await prompt(browser, a, "Fixture runtime settings")
+    assert await browser.evaluate(a, "window.firstTurnOrdered === true"), "first render order"
+    await browser.wait(
+        a,
+        SEND + " && " + transcript("Native next message: fixture / high"),
+        "next native message uses confirmed settings",
+    )
+    assert await browser.evaluate(a, """[...document.querySelectorAll('.user .message-body')]
+        .filter(node => node.textContent === 'Fixture runtime settings').length === 1""")
+    print(
+        "PASS: exact pins and native thinking, responsive keyboard controls, per-chat isolation and next-prompt observation"
+    )
+
+
 async def exercise(host, browser):
     origin = host.runtime.origin
     a = await browser.open(host.admission_url)
@@ -256,6 +379,20 @@ async def exercise(host, browser):
     a_id = await route(browser, a, host.runtime.origin)
     a_entry = host._entries[a_id]
     assert a_entry.chat is host.initial_session
+    await browser.wait_for_renewals(a, 1)
+    # Exercise focus catch-up under a browser-only accelerated clock. The host
+    # clock and HTTP request/authentication remain real; no address-bar claim.
+    await browser.evaluate(
+        a,
+        """(() => {
+        const realNow = Date.now;
+        Date.now = () => realNow() + 10 * 60_000 + 1000;
+        try { window.dispatchEvent(new Event('focus')); }
+        finally { Date.now = realNow; }
+    })()""",
+    )
+    await browser.wait_for_renewals(a, 2)
+    print("PASS: paired writer minted trust over HTTP; accelerated focus catch-up renewed it")
     before = await browser.tabs()
     await browser.click(a, "#new-chat")
     b = await browser.child(before)
@@ -297,6 +434,7 @@ async def exercise(host, browser):
     assert b_entry.chat.rpc.process.returncode is None and await browser.evaluate(b, READY)
     print("PASS: cloned storage refused as competing writer without clearing proof or evicting B")
 
+    await runtime_controls(browser, a, b, a_entry.chat, b_entry.chat)
     await prompt(browser, a, "Parallel A")
     await prompt(browser, b, "Parallel B")
     await browser.wait(
@@ -305,10 +443,17 @@ async def exercise(host, browser):
     await browser.wait(
         b, STOP + " && " + transcript("Partial Parallel B"), "B live offline partial"
     )
+    for tab in (a, b):
+        assert await browser.evaluate(
+            tab,
+            "document.querySelector('#model').disabled && document.querySelector('#thinking-level').disabled && !document.querySelector('#send').disabled",
+        )
     await browser.click(b, "#send")
     await browser.wait(b, SEND + " && " + transcript("Reply interrupted"), "B native Stop settled")
     await browser.wait(
-        a, SEND + " && " + transcript("Offline history: Parallel A"), "A completed independently"
+        a,
+        SEND + " && " + transcript("Offline history: Fixture runtime settings | Parallel A"),
+        "A completed independently",
     )
     assert not await browser.evaluate(a, transcript("Parallel B"))
     assert not await browser.evaluate(
@@ -343,6 +488,8 @@ async def exercise(host, browser):
     )
 
     before_pid = b_entry.chat.rpc.process.pid
+    await browser.wait_for_renewals(b, 1)
+    await browser.call("browsingContext.activate", context=b)
     await browser.call("browsingContext.reload", context=b, wait="complete")
     await browser.wait(
         b,
@@ -351,6 +498,7 @@ async def exercise(host, browser):
     )
     assert await route(browser, b, host.runtime.origin) == b_id
     assert b_entry.chat.rpc.process.pid == before_pid
+    await browser.wait_for_renewals(b, 2)
     assert await browser.evaluate(
         b, "!!document.querySelector('.inactive-ui') && !document.querySelector('#fixture-choice')"
     )
@@ -364,6 +512,44 @@ async def exercise(host, browser):
         while b_entry.pair:
             await asyncio.sleep(0.05)
     print("PASS: refresh restored B without replaying UI; closing B left A usable")
+
+    heading = await browser.evaluate(a, "document.title")
+    title_rect = """(() => {
+      const row = document.querySelector('.session-title');
+      return JSON.stringify([row.offsetLeft, row.offsetTop, row.offsetWidth, row.offsetHeight]);
+    })()"""
+    before_rename = await browser.evaluate(a, title_rect)
+    await browser.click(a, "#session-name")
+    assert await browser.evaluate(a, title_rect) == before_rename
+    assert await browser.evaluate(a, "document.activeElement.id === 'session-name-input'")
+    await browser.evaluate(a, "document.activeElement.value = 'Canceled title'")
+    await browser.key(a, "\ue00c")  # WebDriver Escape
+    assert await browser.evaluate(
+        a, "document.querySelector('#rename-form').hidden && document.activeElement.id === 'rename'"
+    )
+    assert await browser.evaluate(a, "document.title") == heading
+    await browser.key(a, "\ue007")  # WebDriver Enter activates the focused pencil.
+    assert await browser.evaluate(a, "document.activeElement.id === 'session-name-input'")
+    await browser.evaluate(a, "document.activeElement.value = 'Enter title'")
+    await browser.key(a, "\ue007")
+    await browser.wait(
+        a,
+        "document.title === 'Enter title' && document.querySelector('#rename-form').hidden",
+        "native Enter rename confirmed",
+    )
+    await browser.click(a, "#rename")
+    await browser.evaluate(a, "document.activeElement.value = 'Blur title'")
+    await browser.click(a, "#prompt")
+    await browser.wait(
+        a,
+        "document.title === 'Blur title' && document.querySelector('#rename-form').hidden",
+        "native blur rename confirmed",
+    )
+    assert await browser.evaluate(a, "document.activeElement.id === 'prompt'")
+    assert (await a_entry.chat.rpc.command("get_state"))["sessionName"] == "Blur title"
+    print(
+        "PASS: inline title/pencil activation, no row shift, Escape, native Enter/blur confirmation and focus"
+    )
 
     await browser.evaluate(a, "document.querySelector('#prompt').value = 'Draft belongs to A'")
     before = await browser.tabs()
@@ -380,7 +566,9 @@ async def exercise(host, browser):
     )
     await browser.call("browsingContext.reload", context=a, wait="complete")
     await browser.wait(a, READY, "A ordinary reload")
-    assert await browser.evaluate(a, "document.querySelector('#prompt').value === ''")
+    assert await browser.evaluate(
+        a, "document.querySelector('#prompt').value === '' && document.title === 'Blur title'"
+    )
     print(
         "PASS: saved picker navigates same tab and carries separate draft only on intentional navigation"
     )
@@ -423,6 +611,16 @@ async def main():
         )
         for directory in (home, agent, project, store, profile):
             directory.mkdir()
+        settings = agent / "settings.json"
+        settings.write_text(
+            json.dumps(
+                {
+                    "defaultThinkingLevel": "low",
+                    "enabledModels": ["picker-fixture/fixture", "picker-fixture/plain"],
+                }
+            )
+        )
+        settings_before = settings.read_bytes()
         with patch.dict(os.environ, {"HOME": str(home), "PI_CODING_AGENT_DIR": str(agent)}):
             os.environ.pop("PI_SESSION_FILE", None)
             host = BrowserHost()
@@ -447,6 +645,7 @@ async def main():
                     await exercise(host, browser)
             finally:
                 await host.close()
+        assert settings.read_bytes() == settings_before
 
 
 if __name__ == "__main__":

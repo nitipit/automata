@@ -15,6 +15,10 @@ class RpcError(RuntimeError):
     """Pi rejected a command or its owned transport failed."""
 
 
+class RpcRejected(RpcError):
+    """Pi returned a correlated, negative command response."""
+
+
 class PiRpc:
     def __init__(self, on_event: Callable[[dict], None]):
         self.on_event = on_event
@@ -110,7 +114,7 @@ class PiRpc:
                 await self.send({"type": kind, "id": request_id, **data})
                 result = await future
             if not result.get("success"):
-                raise RpcError(result.get("error", "Pi rejected command"))
+                raise RpcRejected(result.get("error", "Pi rejected command"))
             return result.get("data")
         finally:
             self.pending.pop(request_id, None)

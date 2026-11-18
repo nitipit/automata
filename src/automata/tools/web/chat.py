@@ -9,7 +9,17 @@ import secrets
 from pathlib import Path
 
 from automata.tools.web.connector import BrowserConnector
-from automata.tools.web.rpc import PiRpc, RpcError
+from automata.tools.web.model_controls import (
+    CONTROLS_UNAVAILABLE,
+    SCOPE_EXTENSION,
+    SCOPE_KEY_ENV,
+    available_thinking,
+    effective_thinking,
+    model_key,
+    model_summary,
+    scope_from_status,
+)
+from automata.tools.web.rpc import PiRpc, RpcError, RpcRejected
 from automata.tools.web.sessions import (
     PAGE_SIZE,
     SessionClaim,
@@ -31,6 +41,8 @@ class ChatSession:
         self.messages: list[dict] = []
         self._startup_messages: list[dict] | None = None
         self.state: dict = {"status": "idle"}
+        self._scope_key = "automata.web.scope." + secrets.token_urlsafe(24)
+        self._model_scope: dict | None = None
         self.dialogs: dict[str, dict] = {}
         self._dialog_timers: dict[str, asyncio.TimerHandle] = {}
         self._chat = None
@@ -64,9 +76,10 @@ class ChatSession:
                 raise ValueError("Session changed or is unavailable; reopen Sessions")
         self._startup_messages = []
         await self.rpc.start(
-            launch.argv,
+            (*launch.argv, "-e", str(SCOPE_EXTENSION)),
             cwd=launch.cwd,
             env={
+                SCOPE_KEY_ENV: self._scope_key,
                 "AUTOMATA_WEB_CONNECTOR_URL": origin + "/connector",
                 "AUTOMATA_WEB_CONNECTOR_TOKEN": self.connector_token,
             },
@@ -92,12 +105,7 @@ class ChatSession:
         ):
             raise RpcError("Native session changed or exited during startup")
         self._session_path = path
-        self.state.update(
-            {
-                key: confirmed.get(key)
-                for key in ("sessionId", "sessionName", "model", "thinkingLevel")
-            }
-        )
+        self.state.update({key: confirmed.get(key) for key in ("sessionId", "sessionName")})
         self.state["status"] = (
             "running"
             if any(
@@ -105,6 +113,7 @@ class ChatSession:
             )
             else "idle"
         )
+        await self._refresh_controls(confirmed)
         self._hydrate_messages(history)
         return self
 
@@ -131,6 +140,121 @@ class ChatSession:
         if self._session_path is not None and not self.matches_native(await self.read_native()):
             self.invalidate()
             raise RpcError("Native session identity changed; chat retired")
+
+    async def _control_native(self):
+        native = await self.read_native()
+        if not self.matches_native(native):
+            self.invalidate()
+            raise RpcError("Native session identity changed; chat retired")
+        return native
+
+    async def _native_controls(self, native):
+        model = model_summary(native.get("model"))
+        level = effective_thinking(native.get("thinkingLevel"))
+        levels = []
+        if self._model_scope is not None and model is not None and level is not None:
+            data = await self.rpc.command("get_available_thinking_levels", timeout=5)
+            levels = available_thinking(data, level)
+        return {"model": model, "thinkingLevel": level, "thinkingLevels": levels}
+
+    def _store_controls(self, controls):
+        self.state.update(controls)
+        self.state["modelChoices"] = [model for model, _ in (self._model_scope or {}).values()]
+        if self._model_scope is None:
+            self.state["controlsError"] = CONTROLS_UNAVAILABLE
+        else:
+            # Thinking availability is independent of a valid pinned-model catalog.
+            self.state.pop("controlsError", None)
+
+    async def _refresh_controls(self, native):
+        try:
+            controls = await self._native_controls(native)
+        except (RpcError, TimeoutError):
+            controls = {
+                "model": model_summary(native.get("model")),
+                "thinkingLevel": effective_thinking(native.get("thinkingLevel")),
+                "thinkingLevels": [],
+            }
+        self._store_controls(controls)
+        return controls
+
+    def _require_idle_control(self, native=None):
+        if (
+            self._closed
+            or self._dead
+            or self.state["status"] != "idle"
+            or (
+                native is not None
+                and any(
+                    native.get(key)
+                    for key in ("isStreaming", "isCompacting", "pendingMessageCount")
+                )
+            )
+        ):
+            raise ValueError("Agent is busy; wait before changing model or thinking")
+
+    async def _change_control(self, kind, record):
+        async with self._control:
+            self._require_idle_control()
+            if self._model_scope is None:
+                raise ValueError(CONTROLS_UNAVAILABLE)
+            native = await self._control_native()
+            current = await self._refresh_controls(native)
+            self._require_idle_control(native)
+            if kind == "set_model":
+                provider, model_id = record.get("provider"), record.get("modelId")
+                if not isinstance(provider, str) or not isinstance(model_id, str):
+                    raise ValueError("Select a pinned model")
+                target = self._model_scope.get((provider, model_id))
+                if target is None:
+                    raise ValueError("Model is not in this chat's pinned selection")
+                if current["model"] and (provider, model_id) == model_key(current["model"]):
+                    self._status(self.state["status"])
+                    return current
+                payload = {"provider": provider, "modelId": model_id}
+            else:
+                level = effective_thinking(record.get("level"))
+                if level not in current["thinkingLevels"]:
+                    raise ValueError("Thinking level is not supported by the current model")
+                payload = {"level": level}
+            try:
+                await self.rpc.command(kind, timeout=5, **payload)
+                updated = await self._refresh_controls(await self._control_native())
+                actual = updated["model"]
+                if kind == "set_model" and actual and model_key(actual) == (provider, model_id):
+                    # Native set_model selects its effective configured default. Preserve the
+                    # previous level when supported, else honor an explicit scoped level if valid.
+                    levels = updated["thinkingLevels"]
+                    previous, hint = current["thinkingLevel"], target[1]
+                    desired = previous if previous in levels else hint if hint in levels else None
+                    if desired is not None and desired != updated["thinkingLevel"]:
+                        readback = await self._control_native()
+                        self._require_idle_control(readback)
+                        actual = model_summary(readback.get("model"))
+                        if actual is None or model_key(actual) != (provider, model_id):
+                            raise ValueError("Native model changed during the request")
+                        await self.rpc.command("set_thinking_level", timeout=5, level=desired)
+                        updated = await self._refresh_controls(await self._control_native())
+            except (RpcRejected, ValueError):
+                # Native refusal or Stop racing a follow-up: report read-back, not the request.
+                await self._refresh_controls(await self._control_native())
+                self._status(self.state["status"])
+                raise ValueError("Pi did not complete the model or thinking change") from None
+            except (RpcError, TimeoutError, asyncio.CancelledError):
+                # A late mutation could otherwise land during a subsequent prompt.
+                self.invalidate()
+                await self.rpc.close()
+                raise
+            self._status(self.state["status"])
+            if kind == "set_model" and (
+                not updated["model"] or model_key(updated["model"]) != (provider, model_id)
+            ):
+                raise ValueError("Pi did not select the requested model")
+            if kind == "set_thinking_level" and (
+                level not in updated["thinkingLevels"] or updated["thinkingLevel"] != level
+            ):
+                raise ValueError("Pi did not select the requested thinking level")
+            return updated
 
     def _hydrate_messages(self, history):
         messages = history.get("messages") if isinstance(history, dict) else None
@@ -263,6 +387,14 @@ class ChatSession:
         if self._closed or self._dead:
             return
         kind = event.get("type")
+        if (
+            kind == "extension_ui_request"
+            and event.get("method") == "setStatus"
+            and event.get("statusKey") == self._scope_key
+        ):
+            if self._startup_messages is not None:
+                self._model_scope = scope_from_status(event.get("statusText"))
+            return
         if kind == "message_end":
             target = self.messages if self._startup_messages is None else self._startup_messages
             target.append(event["message"])
@@ -373,7 +505,11 @@ class ChatSession:
                 and record["sessionId"] != self.id
             ):
                 raise ValueError("Session changed; request was not sent")
-            if kind == "list_sessions":
+            if kind in {"set_model", "set_thinking_level"}:
+                if not self.id or record.get("sessionId") != self.id:
+                    raise ValueError("Session changed; request was not sent")
+                data = await self._change_control(kind, record)
+            elif kind == "list_sessions":
                 data = await self._list_sessions(record.get("offset", 0))
             elif kind == "preview_session":
                 data = await self._preview_session(record)

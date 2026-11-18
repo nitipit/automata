@@ -54,8 +54,14 @@ to return to the nearest scope. `appTheme.set({mode:'dark'})` changes the shared
 app; prefer a local scope for local content unless an app-wide change is intended.
 Theme roles accept opaque literal colors serialized to sRGB, not CSS variables.
 
-Use `Component.css` for shared structure and `themedStyle(theme)` for resolved
-instance colors. Call the inherited Base lifecycle callbacks when overriding
+Prefer reusing or composing the host’s shared components over recreating them
+with custom CSS. When a new component is needed in Web Chat, import `Base` from
+`/assets/ui.js` and extend it to inherit Adapter behavior and the host theme.
+Keep CSS-in-JS with the component: use `Component.css` for structural styles
+and `themedStyle(theme)` for theme-dependent styles. Keep native controls and
+their event handlers inside it; a simple layout wrapper can stay plain HTML.
+
+Call the inherited Base lifecycle callbacks when overriding
 them; Base manages theme subscription and stylesheet cleanup without replacing
 child DOM. Manual `bindTheme` callers own its returned cleanup. ArrowJS 1.0.6
 standalone `watch` has a queued-stop edge case: a stopped, already queued effect
