@@ -33,6 +33,27 @@ const nameInput = element<HTMLInputElement>("#session-name-input");
 const renameSave = element<HTMLButtonElement>("#rename-save");
 const renameCancel = element<HTMLButtonElement>("#rename-cancel");
 const renameError = element<HTMLElement>("#rename-error");
+const sessions = element<HTMLButtonElement>("#sessions");
+const picker = element<HTMLDialogElement>("#sessions-picker");
+const pickerStatus = element<HTMLElement>("#sessions-status");
+const pickerList = element<HTMLUListElement>("#sessions-list");
+const pickerDirectory = element<HTMLElement>(".sessions-directory");
+const pickerPlaceholder = element<HTMLElement>("#sessions-placeholder");
+const pickerDetail = element<HTMLElement>("#sessions-detail");
+const pickerTarget = element<HTMLElement>("#sessions-target");
+const pickerPreviewLabel = element<HTMLElement>("#sessions-preview-label");
+const pickerPreviewStatus = element<HTMLElement>("#sessions-preview-status");
+const pickerContent = element<HTMLElement>("#sessions-content");
+const pickerOpening = element<HTMLElement>("#sessions-opening");
+const pickerBack = element<HTMLButtonElement>("#sessions-back");
+const pickerCompact = matchMedia("(max-width: 680px)");
+const pickerReload = element<HTMLButtonElement>("#sessions-reload");
+const pickerPrev = element<HTMLButtonElement>("#sessions-prev");
+const pickerNext = element<HTMLButtonElement>("#sessions-next");
+const pickerClose = element<HTMLButtonElement>("#sessions-close");
+const pickerOpen = element<HTMLButtonElement>("#sessions-open");
+let sessionId: string | undefined;
+const drafts = new Map<string, string>();
 let sessionName = "";
 let firstUserPreview = "";
 let firstUserSeen = false;
@@ -46,7 +67,17 @@ const status = element<HTMLElement>("#run-status");
 const dialog = element<NativeDialog>("native-rpc-dialog");
 
 type RecordValue = Record<string, any>;
-let state: "idle" | "running" | "stopping" | "error" = "error";
+const statuses = ["idle", "running", "stopping", "switching", "error"] as const;
+let state: typeof statuses[number] = "error";
+let pickerBusy = false;
+let switching = false;
+let previousOffset: number | undefined;
+let nextOffset: number | undefined;
+let pickerReceipt: string | undefined;
+let selectedSession: { row: RecordValue; button: HTMLButtonElement } | undefined;
+let previewRequest: string | undefined;
+let previewReady = false;
+let directoryScroll = 0;
 let connected = false;
 let promptPending = false;
 type MessageView = { node: HTMLElement; body: HTMLElement; ui: HTMLElement; anchor: Comment };
@@ -62,7 +93,8 @@ const seenDialogs = new Set<string>();
 let dialogActive = false;
 let generation = 0;
 let socket: WebSocket | undefined;
-const pending = new Map<string, "prompt" | "stop" | "rename">();
+type Command = "prompt" | "stop" | "rename" | "list_sessions" | "preview_session" | "switch_session";
+const pending = new Map<string, Command>();
 let runView: MessageView | undefined;
 let activity: HTMLElement | undefined;
 let placeholder: MessageView | undefined;
@@ -120,19 +152,23 @@ function setUIAvailable(available: boolean) {
   for (const block of liveBlocks.values()) block.inert = !available;
 }
 function refresh() {
-  send.disabled = !connected || state !== "idle" || promptPending;
-  prompt.disabled = !connected;
+  send.disabled = !connected || state !== "idle" || promptPending || switching;
+  prompt.disabled = !connected || switching || state === "switching";
   stop.disabled = !connected || (state !== "running" && !promptPending);
-  rename.disabled = !connected;
-  renameSave.disabled = !connected || renamePending;
+  sessions.disabled = send.disabled || renamePending || dialogActive;
+  rename.disabled = !connected || state === "switching" || state === "error" || switching;
+  renameSave.disabled = rename.disabled || renamePending;
   renameCancel.disabled = renamePending;
   nameInput.disabled = renamePending;
+  pickerClose.disabled = pickerBack.disabled = switching;
+  pickerOpen.disabled = sessions.disabled || pickerBusy || !pickerReceipt || !previewReady || !selectedSession || !!selectedSession.row.current;
+  pickerPrev.disabled = pickerNext.disabled = pickerReload.disabled = pickerBusy || switching;
 }
 function setStatus(next: typeof state, detail?: string) {
   const previous = state;
   const hadReply = runActive && !!runView;
   state = next;
-  if (next === "stopping" || next === "error") notifyOwnerWaiters();
+  if (next === "stopping" || next === "switching" || next === "error") notifyOwnerWaiters();
   if (next === "running" && !runActive) {
     runActive = true; runView = undefined; runFailure = false; status.textContent = "";
   }
@@ -203,7 +239,7 @@ function waitForOwner(toolCallId: string, timeoutMs: number): Promise<void> {
       ownerWaiterCount--;
     };
     const check = () => {
-      if (!connected || state === "stopping" || state === "error" ||
+      if (!connected || state === "stopping" || state === "switching" || state === "error" ||
           (window as Window & { awr?: { status: string } }).awr?.status !== "connected") {
         cleanup(); reject(new Error("Browser connection unavailable"));
       } else if (owners.get(toolCallId) === null) {
@@ -220,13 +256,17 @@ function waitForOwner(toolCallId: string, timeoutMs: number): Promise<void> {
 }
 function context(toolCallId: string) {
   if (typeof toolCallId !== "string" || !toolCallId) throw new Error("A tool call ID is required");
+  const epoch = generation;
   return {
     blockId: toolCallId,
     toolCallId,
-    get materialized() { return liveBlocks.has(toolCallId); },
-    ready(timeoutMs: number) { return waitForOwner(toolCallId, timeoutMs); },
-    finish() { finishedContexts.add(toolCallId); },
+    get materialized() { return epoch === generation && liveBlocks.has(toolCallId); },
+    ready(timeoutMs: number) {
+      return epoch === generation ? waitForOwner(toolCallId, timeoutMs) : Promise.reject(new Error("Session changed"));
+    },
+    finish() { if (epoch === generation) finishedContexts.add(toolCallId); },
     get root() {
+      if (epoch !== generation) throw new Error("Session changed");
       const owner = owners.get(toolCallId);
       if (!owner) throw new Error("Assistant tool-call owner is unavailable or ambiguous");
       let block = liveBlocks.get(toolCallId);
@@ -268,7 +308,7 @@ function inactiveBlock(toolCallId: string, blockId: string) {
     const placeholder = document.createElement("div");
     placeholder.className = "inactive-ui";
     placeholder.dataset.blockId = blockId;
-    placeholder.textContent = "Interactive content from this reply is inactive after reload.";
+    placeholder.textContent = "Interactive content from this reply is inactive after reload or a session switch.";
     owner.ui.append(placeholder);
   }
   reveal(owner);
@@ -293,11 +333,114 @@ function transmit(message: RecordValue): boolean {
   socket.send(JSON.stringify(message));
   return true;
 }
-function command(type: "prompt" | "stop" | "rename", extra: RecordValue = {}) {
+function command(type: Command, extra: RecordValue = {}) {
   const id = crypto.randomUUID();
-  if (!transmit({ type, id, ...extra })) return false;
+  if (!transmit({ type, id, sessionId, ...extra })) return undefined;
   pending.set(id, type);
-  return true;
+  return id;
+}
+function resetPickerChoice() {
+  selectedSession?.button.setAttribute("aria-pressed", "false");
+  selectedSession = previewRequest = undefined;
+  previewReady = false;
+  delete picker.dataset.detail;
+  pickerDetail.hidden = pickerContent.hidden = pickerOpening.hidden = true;
+  pickerPlaceholder.hidden = false;
+  pickerTarget.textContent = pickerPreviewStatus.textContent = "";
+  delete pickerPreviewStatus.dataset.ready;
+  for (const field of ["modified", "model", "tokens", "user", "assistant"]) {
+    element(`#sessions-${field}`).textContent = "";
+  }
+}
+function loadSessions(offset = 0, moveFocus = false) {
+  pickerReceipt = undefined;
+  resetPickerChoice();
+  pickerList.replaceChildren();
+  directoryScroll = 0;
+  pickerPrev.hidden = pickerNext.hidden = pickerReload.hidden = true;
+  if (moveFocus) pickerClose.focus();
+  pickerStatus.textContent = "Loading project sessions…";
+  pickerBusy = !!command("list_sessions", { offset });
+  if (!pickerBusy) pickerStatus.textContent = "Connection unavailable.";
+  refresh();
+}
+function formatModified(value: unknown, detail = false): string {
+  const date = typeof value === "string" ? new Date(value) : null;
+  if (!date || Number.isNaN(+date)) return "";
+  const today = new Date();
+  return date.toLocaleString(undefined, detail
+    ? { dateStyle: "medium", timeStyle: "short" }
+    : date.toDateString() === today.toDateString() ? { timeStyle: "short" }
+    : { month: "short", day: "numeric", ...(date.getFullYear() === today.getFullYear() ? {} : { year: "numeric" }) });
+}
+function selectSession(row: RecordValue, button: HTMLButtonElement) {
+  if (switching || pickerBusy) return;
+  if (selectedSession?.button === button && picker.dataset.detail) return;
+  const scroll = pickerDirectory.scrollTop;
+  resetPickerChoice();
+  directoryScroll = scroll;
+  selectedSession = { row, button };
+  button.setAttribute("aria-pressed", "true");
+  pickerTarget.textContent = row.label;
+  pickerPreviewLabel.textContent = row.current ? "CURRENT SESSION" : "SESSION PREVIEW";
+  pickerPlaceholder.hidden = true;
+  pickerDetail.hidden = false;
+  pickerOpening.hidden = !!row.current;
+  picker.dataset.detail = "true";
+  if (pickerCompact.matches) pickerTarget.focus({ preventScroll: true });
+  element("#sessions-preview-scroll").scrollTop = 0;
+  element(".sessions-preview").scrollTop = 0;
+  previewRequest = pickerReceipt && row.modified ? command("preview_session", {
+    sessionId: row.id, fromSessionId: sessionId, receipt: pickerReceipt,
+  }) : undefined;
+  pickerPreviewStatus.textContent = previewRequest ? "Loading preview…" : row.current
+    ? "No saved preview is available for the current session." : "Preview unavailable.";
+  refresh();
+}
+function renderPreview(data: RecordValue) {
+  if (!selectedSession) return;
+  element("#sessions-modified").textContent = formatModified(selectedSession.row.modified, true) || "Unavailable";
+  element("#sessions-model").textContent = data.model || "Unavailable";
+  element("#sessions-tokens").textContent = Number.isSafeInteger(data.tokens) ? data.tokens.toLocaleString() : "Unavailable";
+  element("#sessions-user").textContent = data.user || "No saved user text.";
+  element("#sessions-assistant").textContent = data.assistant || "No saved assistant text for this turn.";
+  pickerContent.hidden = false;
+  pickerPreviewStatus.dataset.ready = "true";
+  pickerPreviewStatus.textContent = "Preview ready.";
+}
+function renderSessions(data: RecordValue) {
+  pickerReceipt = data.receipt;
+  nextOffset = typeof data.nextOffset === "number" ? data.nextOffset : undefined;
+  previousOffset = typeof data.previousOffset === "number" ? data.previousOffset : undefined;
+  pickerNext.hidden = nextOffset === undefined;
+  pickerPrev.hidden = previousOffset === undefined;
+  const rows = Array.isArray(data.sessions) ? [...data.sessions] : [];
+  if (data.current) rows.unshift({ label: sessionTitle.textContent, ...data.current });
+  pickerStatus.textContent = !data.persistent ? "This chat has no persistent session store."
+    : data.sessions?.length ? "" : "No other saved sessions on this page.";
+  for (const row of rows) {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    const headline = document.createElement("span");
+    const title = document.createElement("strong");
+    const stamp = document.createElement("time");
+    const snippet = document.createElement("small");
+    button.type = "button";
+    button.setAttribute("aria-pressed", "false");
+    if (row.current) button.setAttribute("aria-current", "true");
+    title.textContent = row.label;
+    headline.className = "sessions-row-title";
+    stamp.textContent = formatModified(row.modified);
+    if (row.modified) stamp.dateTime = row.modified;
+    headline.append(title, stamp);
+    snippet.textContent = row.current ? ["Current session", row.snippet].filter(Boolean).join(" · ")
+      : row.unavailable || row.snippet || "No saved user text";
+    button.append(headline, snippet);
+    button.disabled = !!row.unavailable;
+    button.addEventListener("click", () => selectSession(row, button));
+    item.append(button);
+    pickerList.append(item);
+  }
 }
 function addDialog(request: RecordValue) {
   if (!request || typeof request.id !== "string") return;
@@ -313,6 +456,7 @@ function addDialog(request: RecordValue) {
 async function nextDialog() {
   if (dialogActive || !connected || !dialogQueue.length) return;
   dialogActive = true;
+  refresh();
   const request = dialogQueue[0];
   const epoch = generation;
   const spec: DialogRequest = request.method === "select"
@@ -330,6 +474,7 @@ async function nextDialog() {
     dialogQueue.shift();
   }
   dialogActive = false;
+  refresh();
   void nextDialog();
 }
 function handleEvent(event: RecordValue) {
@@ -388,8 +533,23 @@ function handleEvent(event: RecordValue) {
 }
 function handleFrame(frame: RecordValue) {
   switch (frame.type) {
-    case "snapshot":
-      // Rebuild native text/ownership, retaining page-local block nodes by ID.
+    case "snapshot": {
+      const nextId = typeof frame.state?.sessionId === "string" ? frame.state.sessionId : undefined;
+      if (sessionId !== undefined && sessionId !== nextId) {
+        if (prompt.value) drafts.set(sessionId, prompt.value);
+        else drafts.delete(sessionId);
+        prompt.value = nextId ? drafts.get(nextId) ?? "" : "";
+        generation++;
+        stream = undefined;
+        notifyOwnerWaiters();
+        setUIAvailable(false);
+        liveBlocks.clear(); liveOwners.clear(); finishedContexts.clear();
+        dialogQueue = []; seenDialogs.clear(); dialog.cancel();
+        status.textContent = "";
+        renameForm.hidden = true; rename.hidden = false; renameError.textContent = "";
+      }
+      sessionId = nextId;
+      // Rebuild native text/ownership, retaining page-local blocks only for the same session.
       const focused = document.activeElement instanceof HTMLElement &&
         ([...liveBlocks.values()].some(block => block.contains(document.activeElement)) ||
           !!stream?.view.body.contains(document.activeElement))
@@ -436,9 +596,10 @@ function handleFrame(frame: RecordValue) {
       runActive = ["running", "stopping"].includes(frame.state?.status);
       runView = runActive ? snapshotView : undefined;
       runFailure = !!runView?.node.querySelector(".reply-outcome");
-      setStatus(["idle", "running", "stopping", "error"].includes(frame.state?.status) ? frame.state.status : "error");
+      setStatus(statuses.includes(frame.state?.status) ? frame.state.status : "error");
       for (const request of Array.isArray(frame.dialogs) ? frame.dialogs : []) addDialog(request);
       break;
+    }
     case "rpc_event": handleEvent(frame.event); break;
     case "dialog_closed": {
       const index = dialogQueue.findIndex((request) => request.id === frame.id);
@@ -449,11 +610,40 @@ function handleFrame(frame: RecordValue) {
       break;
     }
     case "host_status":
-      if (["idle", "running", "stopping", "error"].includes(frame.status)) setStatus(frame.status, typeof frame.message === "string" ? frame.message : undefined);
+      if (statuses.includes(frame.status)) setStatus(frame.status, typeof frame.message === "string" ? frame.message : undefined);
       break;
     case "ack": {
       const kind = pending.get(frame.id);
       pending.delete(frame.id);
+      if (!kind) break;
+      if (kind === "preview_session") {
+        if (!picker.open || previewRequest !== frame.id) break;
+        previewRequest = undefined;
+        previewReady = true;
+        if (frame.success) renderPreview(frame.data ?? {});
+        else pickerPreviewStatus.textContent = String(frame.error ?? "Preview unavailable.");
+        refresh();
+        break;
+      }
+      if (kind === "list_sessions" || kind === "switch_session") {
+        pickerBusy = switching = false;
+        if (kind === "switch_session" && frame.success) {
+          picker.close();
+          status.textContent = `Opened ${sessionTitle.textContent}.`;
+        } else if (picker.open && frame.success) renderSessions(frame.data ?? {});
+        else if (picker.open) {
+          pickerStatus.textContent = String(frame.error ?? "Sessions request failed.");
+          if (state === "error") status.textContent = pickerStatus.textContent;
+          pickerReceipt = undefined;
+          pickerPrev.hidden = pickerNext.hidden = true;
+          pickerReload.hidden = state === "error";
+          refresh();
+          (pickerReload.hidden ? pickerClose : pickerReload).focus();
+        }
+        refresh();
+        if (kind === "switch_session" && frame.success) sessions.focus();
+        break;
+      }
       if (kind === "prompt") {
         promptPending = false;
         if (frame.success && frame.data?.disposition === "handled") setStatus("idle");
@@ -474,6 +664,42 @@ function handleFrame(frame: RecordValue) {
     }
   }
 }
+sessions.addEventListener("click", () => {
+  if (sessions.disabled || picker.open || pickerBusy) return;
+  picker.showModal();
+  loadSessions();
+});
+pickerClose.addEventListener("click", () => picker.close());
+picker.addEventListener("cancel", event => { if (switching) event.preventDefault(); });
+picker.addEventListener("close", () => {
+  if (picker.open) return;
+  resetPickerChoice();
+  pickerList.replaceChildren();
+  pickerReceipt = undefined;
+  if (!sessions.disabled) sessions.focus();
+});
+pickerBack.addEventListener("click", () => {
+  const selectedButton = selectedSession?.button;
+  resetPickerChoice();
+  pickerDirectory.scrollTop = directoryScroll;
+  selectedButton?.focus({ preventScroll: true });
+  refresh();
+});
+pickerCompact.addEventListener("change", () => {
+  if (!picker.open || !selectedSession) return;
+  if (pickerCompact.matches && pickerDirectory.contains(document.activeElement)) pickerTarget.focus({ preventScroll: true });
+  if (!pickerCompact.matches && document.activeElement === pickerBack) pickerTarget.focus({ preventScroll: true });
+});
+pickerPrev.addEventListener("click", () => { if (previousOffset !== undefined) loadSessions(previousOffset, true); });
+pickerNext.addEventListener("click", () => { if (nextOffset !== undefined) loadSessions(nextOffset, true); });
+pickerReload.addEventListener("click", () => loadSessions(0, true));
+pickerOpen.addEventListener("click", () => {
+  if (pickerOpen.disabled || !pickerReceipt || !selectedSession) return;
+  switching = !!command("switch_session", { sessionId: selectedSession.row.id, fromSessionId: sessionId, receipt: pickerReceipt });
+  pickerStatus.textContent = switching ? "Opening session…" : "Connection unavailable.";
+  if (switching) pickerTarget.focus({ preventScroll: true });
+  refresh();
+});
 function closeRename() { renameForm.hidden = true; rename.hidden = false; renameError.textContent = ""; rename.focus(); }
 rename.addEventListener("click", () => {
   nameInput.value = sessionName; renameForm.hidden = false; rename.hidden = true; renameError.textContent = ""; nameInput.focus(); nameInput.select();
@@ -539,13 +765,17 @@ function disconnectView() {
   const previousNotice = status.textContent;
   connected = false; snapshotReceived = false; generation++;
   dialogQueue = []; dialog.cancel(); pending.clear(); promptPending = false;
+  const wasSwitching = switching;
+  switching = pickerBusy = false;
+  if (picker.open) picker.close();
   notifyOwnerWaiters(); setUIAvailable(false);
   liveBlocks.clear(); liveOwners.clear(); finishedContexts.clear();
   renamePending = false;
   if (!renameForm.hidden) renameError.textContent = "Connection lost. Confirm the saved name after reconnecting before retrying.";
   setStatus("error", "Connection lost; reply interrupted.");
   // Connection notices belong to the header/detail, not stale input errors.
-  if (!wasActive) status.textContent = previousNotice;
+  if (wasSwitching) status.textContent = "Connection lost while opening a session. Check the current session after reconnecting.";
+  else if (!wasActive) status.textContent = previousNotice;
   else if (!hadReply) status.textContent = "Reply interrupted before a response arrived.";
 }
 function closeConnections() {

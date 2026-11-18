@@ -46,6 +46,26 @@ The heading and browser tab use the saved Pi session name, then a compact previe
 of the first native user message, then `Untitled session`. The adjacent edit
 control renames the native session, without generating a model prompt.
 
+Open **Sessions** to see the current conversation and other saved Pi sessions
+for its exact project directory in the current session store. The picker is
+unavailable while Pi is replying or stopping. Selecting a row only previews
+it: the last saved exchange on the persisted branch, file recency, and recorded
+model and token usage where available. History is shown as bounded plain text,
+without running tools or historical UI. Pi does not persist the historical
+context window with its ordinary usage records, so the picker does not estimate it.
+
+To switch conversations, use the separate **Open session** button. First close
+the selected session in any terminal or other Pi. Web Chat rejects the calling
+Pi's session and uses advisory locks to prevent takeover from another Web Chat
+host that supports this picker, but cannot detect all terminal, older Web Chat,
+or other Pi processes.
+
+Opening a session switches native Pi in place and replaces the transcript with
+that session's active history. New messages are saved back to the same session,
+not a copy. Historical interactive content is inactive, and unsent drafts are
+kept separate in the current tab until it reloads. Sessions not yet saved to
+disk cannot be reopened through the picker.
+
 Browser auto-open uses the configured system browser; `--no-open-browser` disables
 it. Ctrl+C/SIGTERM closes the owned host/Pi process; closing chat stops pending
 agent work. Do not expose the loopback server remotely or share admission/connector

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import os
 import re
 import secrets
 import signal
@@ -14,6 +15,14 @@ from pathlib import Path
 from automata.tools.web.connector import BrowserConnector, ConnectorError
 from automata.tools.web.launch import prepare_launch
 from automata.tools.web.rpc import PiRpc, RpcError
+from automata.tools.web.sessions import (
+    PAGE_SIZE,
+    SessionClaim,
+    SessionRow,
+    list_rows,
+    read_preview,
+    recorded_project,
+)
 
 PACKAGE = Path(__file__).resolve().parent
 DIALOGS = {"select", "confirm", "input", "editor"}
@@ -88,6 +97,13 @@ class BrowserHost:
         self._tasks: set[asyncio.Task] = set()
         self._monitor: asyncio.Task | None = None
         self._control = asyncio.Lock()
+        self._project: Path | None = None
+        self._session_path: Path | None = None
+        self._claim: SessionClaim | None = None
+        self._caller_session = os.environ.get("PI_SESSION_FILE")
+        self._listing: tuple[str, dict[str, SessionRow]] | None = None
+        self._switching = False
+        self._switch_failed = False
         self._closed = False
         self._close_task: asyncio.Task | None = None
         self._slow_close_requested = False
@@ -120,7 +136,10 @@ class BrowserHost:
                 return Response(status_code=403)
             # Reviewed flat ESM graph only; never mount frontend/node_modules/repo.
             allowed = name in {
-                "index.js", "ui.js", "connection-bootstrap.js", "adaptive.css",
+                "index.js",
+                "ui.js",
+                "connection-bootstrap.js",
+                "adaptive.css",
                 "adapter-LICENSE.txt",
                 "third-party-LICENSES.txt",
             } or re.fullmatch(r"chunk-[A-Z0-9]{8}\.js", name)
@@ -243,6 +262,12 @@ class BrowserHost:
                 session_inactive=session_inactive,
                 extra_args=extra_args,
             )
+            self._project = launch.cwd
+            if session is not None:
+                selected = Path(launch.argv[launch.argv.index("--session") + 1])
+                # Explicit resume uses the recorded directory, not the launch directory.
+                self._project = recorded_project(selected)
+                self._claim = SessionClaim(selected)
             self._startup_messages = []
             await self.runtime.start()
             await self.rpc.start(
@@ -253,13 +278,16 @@ class BrowserHost:
                     "AUTOMATA_WEB_CONNECTOR_TOKEN": self.connector_token,
                 },
             )
-            state = await self.rpc.command("get_state", timeout=30)
-            self.state.update(
-                {
-                    key: state.get(key)
-                    for key in ("sessionId", "sessionName", "model", "thinkingLevel")
-                }
-            )
+            state = await self._read_native_state(timeout=30)
+            path = self._native_path(state)
+            if self._claim and self._claim.path != path:
+                raise RpcError("Pi opened an unexpected session")
+            if path is not None and self._claim is None:
+                self._claim = SessionClaim(path)
+                if path.is_file():
+                    self._project = recorded_project(path)
+            self._session_path = path
+            self._update_session(state)
             history = await self.rpc.command("get_messages", timeout=30)
             self._hydrate_messages(history)
             self._monitor = asyncio.create_task(self._monitor_browser())
@@ -267,6 +295,207 @@ class BrowserHost:
         except BaseException:
             await self.close()
             raise
+
+    @staticmethod
+    def _native_path(native: dict) -> Path | None:
+        path = native.get("sessionFile")
+        return Path(path).resolve() if isinstance(path, str) and path else None
+
+    def _update_session(self, native: dict):
+        self.state.update(
+            {key: native.get(key) for key in ("sessionId", "sessionName", "model", "thinkingLevel")}
+        )
+
+    def _snapshot(self):
+        return {
+            "type": "snapshot",
+            "messages": list(self.messages),
+            "state": dict(self.state),
+            "dialogs": list(self.dialogs.values()),
+        }
+
+    def _is_caller(self, path: Path) -> bool:
+        return bool(
+            self._caller_session and path == Path(self._caller_session).expanduser().resolve()
+        )
+
+    async def _list_sessions(self, offset):
+        if type(offset) is not int or offset < 0 or offset % PAGE_SIZE:
+            raise ValueError("Invalid Sessions page")
+        current_path, current_id = self._session_path, self.state.get("sessionId")
+        self._listing = None
+        current = {"id": current_id, "current": True} if current_id else None
+        if current_path is None or self._project is None:
+            return {"current": current, "sessions": [], "persistent": False}
+        try:
+            rows, counts = await asyncio.to_thread(list_rows, current_path.parent, self._project)
+        except OSError as error:
+            raise RpcError("Could not list the project session store") from error
+        if current_path != self._session_path or self._switching:
+            raise ValueError("Session changed; reopen Sessions")
+
+        def summary(row, reason=None):
+            return {
+                "id": row.id,
+                "label": row.label,
+                "snippet": row.snippet,
+                "modified": row.modified,
+                "unavailable": reason,
+            }
+
+        current_row = next((row for row in rows if row.path == current_path), None)
+        rows = [row for row in rows if row.path != current_path]
+        page = rows[offset : offset + PAGE_SIZE]
+        receipt = secrets.token_urlsafe(24)
+        choices, summaries = {}, []
+        if current_row and current_row.id == current_id:
+            current = {**summary(current_row), "current": True}
+            choices[current_row.id] = current_row
+        for row in page:
+            reason = None
+            if counts[row.id] != 1 or row.id == current_id:
+                reason = "Duplicate session ID"
+            elif self._is_caller(row.path):
+                reason = "Open in the calling Pi session"
+            if reason is None:
+                choices[row.id] = row
+            summaries.append(summary(row, reason))
+        self._listing = (receipt, choices)
+        return {
+            "current": current,
+            "sessions": summaries,
+            "receipt": receipt,
+            "persistent": True,
+            "nextOffset": offset + PAGE_SIZE if offset + PAGE_SIZE < len(rows) else None,
+            "previousOffset": offset - PAGE_SIZE if offset else None,
+        }
+
+    def _listed_row(self, record: dict, listing) -> SessionRow | None:
+        target = record.get("sessionId")
+        if isinstance(target, str) and listing and record.get("receipt") == listing[0]:
+            return listing[1].get(target)
+        return None
+
+    async def _preview_session(self, record: dict):
+        listing = self._listing
+        current = self.state.get("sessionId")
+        row = self._listed_row(record, listing)
+        if row is None or record.get("fromSessionId") != current:
+            raise ValueError("Session is not available in this listing. Reload Sessions.")
+        preview = await asyncio.to_thread(read_preview, row)
+        if listing is not self._listing or current != self.state.get("sessionId"):
+            raise ValueError("Session changed. Reload Sessions.")
+        return preview
+
+    def _ensure_switch_ready(self):
+        if (
+            self._closed
+            or (self._chat is not None and self._outbox is None)
+            or self.state["status"] != "idle"
+            or self.dialogs
+        ):
+            raise ValueError("Pi is busy or disconnected; no session was switched")
+
+    async def _read_native_state(self, *, timeout=15) -> dict:
+        state = await self.rpc.command("get_state", timeout=timeout)
+        if not isinstance(state, dict):
+            raise RpcError("Pi returned an invalid session state")
+        return state
+
+    async def _switch_session(self, record: dict):
+        if (
+            self._control.locked()
+            or self._switching
+            or self.state["status"] != "idle"
+            or self.dialogs
+        ):
+            raise ValueError("Pi is busy; wait for the reply or use Stop before switching")
+        async with self._control:
+            target = record.get("sessionId")
+            if not isinstance(target, str) or record.get("fromSessionId") != self.state.get(
+                "sessionId"
+            ):
+                raise ValueError("Session changed; reopen Sessions")
+            if target == self.state.get("sessionId"):
+                return {"unchanged": True}
+            listing, self._listing = self._listing, None
+            row = self._listed_row(record, listing)
+            if row is None:
+                raise ValueError("Session is not selectable in this listing; reopen Sessions")
+            self._switching = True
+            claim = None
+            dispatched = False
+            try:
+                native = await self._read_native_state()
+                self._ensure_switch_ready()
+                if (
+                    native.get("isStreaming") is not False
+                    or native.get("isCompacting") is not False
+                    or native.get("pendingMessageCount") != 0
+                ):
+                    raise ValueError("Pi is busy; no session was switched")
+                if (
+                    native.get("sessionId") != self.state.get("sessionId")
+                    or self._native_path(native) != self._session_path
+                ):
+                    raise ValueError("Native session changed outside the picker; restart Web Chat")
+                claim = SessionClaim(row.path)
+                if not row.unchanged() or self._is_caller(row.path):
+                    raise ValueError("Session changed or is unavailable; reopen Sessions")
+                # Pi owns rebind and persistence. Never use abort as part of switching.
+                self._status("switching")
+                dispatched = True
+                result = await self.rpc.command(
+                    "switch_session", sessionPath=str(row.path), timeout=30
+                )
+                if isinstance(result, dict) and result.get("cancelled") is True:
+                    dispatched = False
+                    self._status("idle")
+                    raise ValueError("Pi cancelled the session switch")
+                if not isinstance(result, dict) or result.get("cancelled") is not False:
+                    raise RpcError("Pi did not confirm the switch")
+                self._startup_messages = []
+                history = await self.rpc.command("get_messages")
+                native = await self._read_native_state()
+                if native.get("sessionId") != row.id or self._native_path(native) != row.path:
+                    raise RpcError("Pi opened an unexpected session")
+                if self._closed or self.state["status"] == "error":
+                    raise RpcError("Pi closed while restoring the selected session")
+                self._hydrate_messages(history)
+                self._update_session(native)
+                self._session_path = row.path
+                if self._claim:
+                    self._claim.close()
+                self._claim, claim = claim, None
+                self.connector.cancel_all("session_changed", "Chat switched to another Pi session")
+                self.state["status"] = (
+                    "running"
+                    if native.get("isStreaming")
+                    or native.get("isCompacting")
+                    or native.get("pendingMessageCount")
+                    else "idle"
+                )
+                self._publish(self._snapshot())
+                return {"sessionId": row.id}
+            except (RpcError, TimeoutError) as error:
+                if dispatched:
+                    # Mutation may have happened. Keep the prior labeled transcript,
+                    # but do not accept more prompts against an unverified binding.
+                    self._startup_messages = None
+                    self._switch_failed = True
+                    self._status("error")
+                    self.connector.cancel_all(
+                        "rpc_unavailable", "Session switch outcome unconfirmed"
+                    )
+                    await self.rpc.close()
+                    raise RpcError(
+                        "Session switch could not be verified. Pi stopped; restart Web Chat."
+                    ) from error
+                raise
+            finally:
+                if claim:
+                    claim.close()
+                self._switching = False
 
     def _hydrate_messages(self, history: dict):
         """Reconcile startup events with native history without stripping tool metadata."""
@@ -315,6 +544,14 @@ class BrowserHost:
 
     def on_event(self, event: dict):
         kind = event.get("type")
+        if (
+            self._switching
+            and self.state["status"] in {"switching", "error"}
+            and kind not in {"extension_ui_request", "host_rpc_exit"}
+        ):
+            if kind == "message_end" and self._startup_messages is not None:
+                self._startup_messages.append(event["message"])
+            return
         if kind == "message_end":
             target = self.messages if self._startup_messages is None else self._startup_messages
             target.append(event["message"])
@@ -341,6 +578,7 @@ class BrowserHost:
                 )
                 if (
                     self._chat is None
+                    or self._outbox is None
                     or self._closed
                     or self.state["status"] in {"stopping", "error"}
                 ):
@@ -401,6 +639,14 @@ class BrowserHost:
         return {"answered": True}
 
     async def stop(self, *, timeout: float = 10):
+        if self._switching:
+            # A transport disconnect must not race an accepted switch's rebind.
+            for key in list(self.dialogs):
+                await self._cancel_dialog(key)
+            async with self._control:
+                pass
+        if self._switch_failed:
+            raise RpcError("Session switch outcome unconfirmed; restart Web Chat")
         self._status("stopping")
         self.connector.cancel_all()
         try:
@@ -435,7 +681,21 @@ class BrowserHost:
                 raise ValueError("Command limit reached; start a new application")
             self._seen.add(key)
             kind = record.get("type")
-            if kind == "prompt":
+            if self._switching and kind != "extension_ui_response":
+                raise ValueError("A session switch is in progress")
+            if (
+                kind in {"prompt", "rename"}
+                and "sessionId" in record
+                and record["sessionId"] != self.state.get("sessionId")
+            ):
+                raise ValueError("Session changed; request was not sent")
+            if kind == "list_sessions":
+                data = await self._list_sessions(record.get("offset", 0))
+            elif kind == "preview_session":
+                data = await self._preview_session(record)
+            elif kind == "switch_session":
+                data = await self._switch_session(record)
+            elif kind == "prompt":
                 message = record.get("message")
                 if not isinstance(message, str) or not message.strip() or len(message) > 65536:
                     raise ValueError("Nonempty bounded message required")
@@ -459,6 +719,8 @@ class BrowserHost:
                 if not isinstance(name, str) or not name.strip():
                     raise ValueError("Session name cannot be empty")
                 async with self._control:
+                    if self._switch_failed:
+                        raise ValueError("Session switch outcome unconfirmed; restart Web Chat")
                     await self.rpc.command("set_session_name", name=name.strip())
                     native = await self.rpc.command("get_state")
                     self.state["sessionName"] = native.get("sessionName")
@@ -501,14 +763,7 @@ class BrowserHost:
         writer = None
         try:
             await socket.accept()
-            await socket.send_json(
-                {
-                    "type": "snapshot",
-                    "messages": list(self.messages),
-                    "state": dict(self.state),
-                    "dialogs": list(self.dialogs.values()),
-                }
-            )
+            await socket.send_json(self._snapshot())
 
             async def write():
                 while True:
@@ -541,6 +796,7 @@ class BrowserHost:
                     await self.stop()
             if command_tasks:
                 await asyncio.gather(*command_tasks, return_exceptions=True)
+            self._listing = None
             self._chat = None
 
     async def close(self):
@@ -567,6 +823,9 @@ class BrowserHost:
                 await self.rpc.close()
             finally:
                 try:
+                    if self._claim is not None:
+                        self._claim.close()
+                        self._claim = None
                     await self.runtime.close()
                 finally:
                     owned = set(self._tasks)

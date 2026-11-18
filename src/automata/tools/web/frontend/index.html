@@ -4,7 +4,7 @@
 <a class="skip-link" href="#conversation">Skip to conversation</a>
   <header class="app-header">
     <div class="session-identity"><span class="eyebrow">AUTOMATA</span><div class="session-title"><h1 id="session-name">Untitled session</h1><button id="rename" type="button" aria-label="Rename session" title="Rename session" disabled></button></div></div>
-    <div class="connection-controls"><span id="connection-status" role="status">Connecting…</span><button id="connect" type="button" disabled>Connect</button></div>
+    <div class="connection-controls"><button id="sessions" type="button" aria-haspopup="dialog" disabled>Sessions</button><span id="connection-status" role="status">Connecting…</span><button id="connect" type="button" disabled>Connect</button></div>
     <form id="rename-form" hidden>
       <label for="session-name-input">Session name</label>
       <input id="session-name-input" autocomplete="off" required aria-describedby="rename-error">
@@ -12,6 +12,55 @@
       <p id="rename-error" role="alert"></p>
     </form>
   </header>
+  <dialog id="sessions-picker" aria-labelledby="sessions-heading">
+    <header class="sessions-header">
+      <div><span class="eyebrow">WORKSPACE</span><h2 id="sessions-heading">Project sessions</h2></div>
+      <div class="sessions-actions">
+        <button id="sessions-reload" type="button" hidden>Reload list</button>
+        <button id="sessions-close" type="button" autofocus>Close</button>
+      </div>
+    </header>
+    <p id="sessions-status" role="status"></p>
+    <div class="sessions-layout">
+      <section class="sessions-directory" aria-label="Session list">
+        <ul id="sessions-list" aria-label="Saved project sessions"></ul>
+        <div class="sessions-actions">
+          <button id="sessions-prev" type="button" hidden>Previous</button>
+          <button id="sessions-next" type="button" hidden>Next</button>
+        </div>
+      </section>
+      <section class="sessions-preview" aria-labelledby="sessions-target">
+        <button id="sessions-back" type="button">‹ Back to sessions</button>
+        <div id="sessions-placeholder">
+          <span class="eyebrow">SESSION PREVIEW</span>
+          <h3>Choose a session</h3>
+          <p>See the last exchange and saved details before opening a conversation.</p>
+        </div>
+        <div id="sessions-detail" hidden>
+          <div id="sessions-preview-scroll">
+            <span class="eyebrow" id="sessions-preview-label">SESSION PREVIEW</span>
+            <h3 id="sessions-target" tabindex="-1"></h3>
+            <p id="sessions-preview-status" role="status"></p>
+            <div id="sessions-content" hidden>
+              <dl class="sessions-facts">
+                <div><dt>Updated</dt><dd id="sessions-modified"></dd></div>
+                <div><dt>Recorded model</dt><dd id="sessions-model"></dd></div>
+                <div><dt>Last recorded tokens</dt><dd id="sessions-tokens"></dd></div>
+                <div><dt>Saved context window</dt><dd>Unavailable</dd></div>
+              </dl>
+              <h4>Last exchange</h4>
+              <div class="sessions-turn"><strong>User</strong><p id="sessions-user"></p></div>
+              <div class="sessions-turn"><strong>Assistant</strong><p id="sessions-assistant"></p></div>
+            </div>
+          </div>
+          <div id="sessions-opening" hidden>
+            <p id="sessions-caution">Before opening, close this session in any terminal or other Pi. Web Chat can’t detect every active session.</p>
+            <button id="sessions-open" type="button" aria-describedby="sessions-caution" disabled>Open session</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </dialog>
   <main class="workspace">
     <section id="conversation" class="chat-panel" aria-label="Conversation" tabindex="-1">
       <div id="transcript" class="transcript" role="log" aria-label="Conversation messages" aria-live="polite" aria-relevant="additions text">
