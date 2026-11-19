@@ -142,7 +142,7 @@ async def main():
                 host.on_event({"type": "message_end", "message": owned})
                 host.on_event({"type": "message_end", "message": {"role": "toolResult", "toolCallId": "live-before-drop", "details": {"ui": {"blockId": "live-before-drop", "toolCallId": "live-before-drop"}}}})
                 host.on_event({"type": "agent_settled"})
-                await page.wait_for_function("document.querySelector('#transcript').textContent.includes('Owned UI fixture')")
+                await page.wait_for_function("document.querySelector('#messages').textContent.includes('Owned UI fixture')")
                 await page.evaluate("window.fixtureRoot=window.automataUI.context('live-before-drop').root; window.fixtureExecutions=0; const button=document.createElement('button');button.textContent='Owned fixture control';button.onclick=()=>window.fixtureExecutions++;fixtureRoot.append(button)")
                 # Controlled partial message, never a prompt. Hold abort to verify reservation.
                 rpc.abort_gate.clear()
@@ -166,7 +166,7 @@ async def main():
                 rpc.abort_gate.set()
                 await ready(page)
                 assert await page.locator(".reply-outcome").filter(has_text="interrupted").count() == 1
-                assert "Owned partial reply" in await page.locator("#transcript").text_content()
+                assert "Owned partial reply" in await page.locator("#messages").text_content()
                 assert await page.locator(".reply-activity").count() == 0
                 assert await page.locator(".inactive-ui").count() == 2
                 assert await page.locator(".generated-content").count() == 0
@@ -180,7 +180,7 @@ async def main():
                 await page.reload()
                 await ready(page)
                 assert await page.locator(".reply-outcome").filter(has_text="interrupted").count() == 2
-                assert "Partial interrupted by refresh" in await page.locator("#transcript").text_content()
+                assert "Partial interrupted by refresh" in await page.locator("#messages").text_content()
                 assert rpc.starts == 1
                 checks.append("refresh interrupts active reply and restores native partial/outcome without prompt replay")
                 # Drop upstream bridge itself: fresh actual class must reconnect both sockets.

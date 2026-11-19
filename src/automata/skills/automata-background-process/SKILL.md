@@ -9,6 +9,9 @@ Use ordinary Python subprocess and asyncio facilities; a persistent Python kerne
 can retain process handles and background tasks across calls. Prefer the simplest
 suitable existing execution method, not a new supervisor framework.
 
+Before starting a service, check whether an existing instance already serves the
+task. Reuse it when suitable; start another only when it needs to be separate.
+
 1. **Establish ownership.** Confirm the command, CWD, allowed effects and lifetime.
    Record enough identity to distinguish the owned process from a reused PID, along
    with output locations and who may stop it. Keep task state outside installed

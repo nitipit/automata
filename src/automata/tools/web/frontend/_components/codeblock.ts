@@ -10,6 +10,10 @@ import markdown from "highlight.js/lib/languages/markdown";
 import { Base } from "./base";
 import type { ResolvedTheme } from "../_theme/index";
 import { codeBlockStyle, codeBlockThemeStyle } from "./codeblock.style";
+import { registerSharedComponent } from "./create";
+import { rejectChildren, stringData } from "./descriptor-data";
+
+type CodeBlockData = { source?: string; language?: string };
 
 // Component-local registry: no automatic detection, page-wide highlighting or plugins.
 const highlighter = hljs.newInstance();
@@ -19,6 +23,7 @@ for (const [name, grammar] of Object.entries({ typescript, javascript, xml, css,
 
 /** Read-only source. Pass code by property, never by interpolating an HTML attribute. */
 export class CodeBlock extends Base {
+  static get create() { return createCodeBlock; }
   private originalSource = "";
   private requestedLanguage = "";
   private initialized = false;
@@ -111,3 +116,8 @@ export class CodeBlock extends Base {
 
 CodeBlock.css = codeBlockStyle;
 CodeBlock.define("ui-codeblock");
+const createCodeBlock = registerSharedComponent("ui-codeblock", CodeBlock,
+  (element, data: CodeBlockData | undefined, children) => {
+    rejectChildren("ui-codeblock", children);
+    element.setCode(stringData(data, "source") ?? "", stringData(data, "language"));
+  });

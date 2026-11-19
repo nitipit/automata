@@ -112,3 +112,73 @@ Maintainers: the pinned Web Runtime is single-browser. The shared-listener
 adapter embeds one unstarted child ASGI app per admitted pair by attaching it to
 the parent's origin and running state. Upgrade the runtime only after validating
 this compatibility seam with real bridge and browser tests.
+
+## Create shared components from descriptors
+
+Import `createComponent` or a named factory from the same local `/assets/ui.js`
+module used by the chat. Factories return detached elements. For example, this
+code can run inside an assistant's inline UI execution:
+
+```js
+const { Card, createComponent } = await import('/assets/ui.js');
+const card = Card.create({
+  _data: { label: 'Delivery details' },
+  _children: [
+    { _class: 'ui-markdown', _data: { source: '**Status:** Pending' } },
+  ],
+});
+const button = createComponent({ _class: 'ui-button', _data: { text: 'Mark ready' } });
+button.addEventListener('click', () => {
+  card.querySelector('ui-markdown').source = '**Status:** Ready';
+});
+card.append(button);
+ui.root.append(card);
+```
+
+`_class` is the registered custom element tag, not the JavaScript class name.
+A named factory can omit `_class`; if supplied, it must match. `_children` is an
+ordered array of descriptors that the owning component places in its DOM. The
+builder rejects unknown descriptor keys and unknown tags. `_data` goes to the
+component; it is not copied to attributes, properties or event handlers en masse.
+Use `addEventListener` for behavior rather than passing event handlers as data.
+
+| Registered tag | Named factory | Supported `_data` fields | Accepts `_children` |
+| --- | --- | --- | --- |
+| `ui-card` | `Card.create` | `label` (accessible name) | Yes |
+| `ui-button` | `Button.create` | `text`, `type` (`button`, `submit`, `reset`), `disabled` (boolean) | Yes, as button contents |
+| `ui-field` | `Field.create` | `label`, `help`, `error`, `type`, `name`, `placeholder`, `autocomplete`, `value`, `disabled` and `required` (booleans) | No |
+| `ui-select` | `Select.create` | `label`, `name`, `value`, `options` (ordered array of `{ value, label, disabled? }`), `disabled` and `required` (booleans) | No |
+| `ui-markdown` | `Markdown.create` | `source` | No |
+| `ui-codeblock` | `CodeBlock.create` | `source`, `language` | No |
+
+Fields are optional strings unless noted otherwise. The shared widgets ignore
+unrecognized data fields and values of the wrong type. The public registry does
+not resolve private chat components or arbitrary browser custom elements; plain
+DOM methods and the existing class APIs remain available.
+
+For example, build a native single-choice control from JSON and append it to a
+form. Give each select a descriptive `label`; `name` is its native form key.
+
+```json
+{
+  "_class": "ui-select",
+  "_data": {
+    "label": "Delivery speed",
+    "name": "speed",
+    "value": "standard",
+    "options": [
+      { "value": "standard", "label": "Standard" },
+      { "value": "overnight", "label": "Overnight (unavailable)", "disabled": true }
+    ]
+  }
+}
+```
+
+Option labels are plain text. Rows without string `value` and `label` are
+ignored; an optional row-level `disabled` flag is boolean. With no explicit
+`value`, the browser chooses the initial selection. An explicit value selects
+its first matching row (even a disabled row, useful for displaying an
+unavailable current setting); an unmatched value leaves no selection.
+`select.control` is the native `<select>`. Listen for its bubbling `change`
+event on the widget and read `select.value`. Setting `select.value` or calling
+`select.setOptions(options, value)` does not dispatch a change event.

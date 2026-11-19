@@ -1,12 +1,13 @@
-import sendIcon from "./_assets/gnomicon/paper-plane.svg";
-import stopIcon from "./_assets/gnomicon/media-playback-stop.svg";
-import editIcon from "./_assets/gnomicon/document-edit-symbolic.svg";
+import "./chat-composer";
+import type { ChatComposer } from "./chat-composer";
+import "./chat-session-controls";
+import type { ChatSessionControls } from "./chat-session-controls";
 import { Adapter } from "@devcapsule/adapter";
 import { applyBaseStyles } from "./_base.css";
 import { createBrowserTrustRenewal } from "./browser-trust-renewal";
 import { appStyle, appThemeStyle } from "./index.style";
 import { bindTheme } from "./_theme/index";
-import { Markdown } from "./_components/markdown";
+import { ChatMessage, type ChatMessageData } from "./chat-message";
 import "./_components/native-dialog";
 import type { NativeDialog, DialogRequest } from "./_components/native-dialog";
 import { bridgeNeedsReload, bridgeWindow, closeBridge, prepareBridge, wsOrigin } from "./paired-bridge";
@@ -25,24 +26,10 @@ const element = <T extends Element>(selector: string): T => {
 const appHost = element<AutomataApp>("automata-app");
 const unbindAppTheme = bindTheme(appHost, theme => { appHost.css = appThemeStyle(theme); });
 window.addEventListener("pagehide", unbindAppTheme, { once: true });
-const transcript = element<HTMLElement>("#transcript");
-const form = element<HTMLFormElement>("#composer");
-const prompt = element<HTMLTextAreaElement>("#prompt");
-const send = element<HTMLButtonElement>("#send");
-const modelSelect = element<HTMLSelectElement>("#model");
-const thinkingSelect = element<HTMLSelectElement>("#thinking-level");
-const controlsStatus = element<HTMLElement>("#runtime-controls-status");
+const messageList = element<HTMLElement>("#messages");
+const composer = element<ChatComposer>("chat-composer");
 
-const connection = element<HTMLElement>("#connection-status");
-const sessionTitle = element<HTMLElement>("#session-name");
-const titleRow = element<HTMLElement>(".session-title");
-const rename = element<HTMLButtonElement>("#rename");
-const renameForm = element<HTMLFormElement>("#rename-form");
-const nameInput = element<HTMLInputElement>("#session-name-input");
-const renameError = element<HTMLElement>("#rename-error");
-const sessions = element<HTMLButtonElement>("#sessions");
-const newChat = element<HTMLButtonElement>("#new-chat");
-const newChatForm = element<HTMLFormElement>("#new-chat-form");
+const sessionControls = element<ChatSessionControls>("chat-session-controls");
 const picker = element<HTMLDialogElement>("#sessions-picker");
 const pickerStatus = element<HTMLElement>("#sessions-status");
 const pickerList = element<HTMLUListElement>("#sessions-list");
@@ -63,7 +50,7 @@ const pickerClose = element<HTMLButtonElement>("#sessions-close");
 const pickerOpen = element<HTMLButtonElement>("#sessions-open");
 const drafts = takeDrafts();
 if (sessionId) {
-  prompt.value = drafts.get(sessionId) ?? "";
+  composer.draft = drafts.get(sessionId) ?? "";
   drafts.delete(sessionId);
 }
 const admission = readAdmission();
@@ -72,14 +59,6 @@ let sessionName = "";
 let firstUserPreview = "";
 let firstUserSeen = false;
 let renamePending = false;
-let renameInitial = "";
-let renameAttempt: string | undefined;
-const connectButton = element<HTMLButtonElement>("#connect");
-const connectionDetail = element<HTMLElement>("#connection-detail");
-// Bundled, reviewed Gnomicon SVG only; never server/user markup.
-rename.innerHTML = editIcon;
-rename.querySelector("svg")?.setAttribute("aria-hidden", "true");
-const status = element<HTMLElement>("#run-status");
 const dialog = element<NativeDialog>("native-rpc-dialog");
 
 type RecordValue = Record<string, any>;
@@ -96,7 +75,7 @@ let previewReady = false;
 let directoryScroll = 0;
 let connected = false;
 let promptPending = false;
-type MessageView = { node: HTMLElement; body: HTMLElement; ui: HTMLElement; anchor: Comment };
+type MessageView = { node: ChatMessage; anchor: Comment };
 let stream: { view: MessageView; blocks: Map<number, string>; message: RecordValue } | undefined;
 const owners = new Map<string, MessageView | null>();
 const liveOwners = new Set<string>();
@@ -113,16 +92,14 @@ type ControlsCommand = "set_model" | "set_thinking_level";
 type Command = "prompt" | "stop" | "rename" | "list_sessions" | "preview_session" | ControlsCommand;
 type ModelChoice = { provider: string; id: string; name: string };
 let models: ModelChoice[] = [];
-let selectedModel: ModelChoice | undefined;
 let levels: string[] = [];
-let selectedLevel: string | undefined;
 let controlsSignature: string | undefined;
 let controlsError = "";
 let controlsNotice = "";
 let controlsPending = false;
 const pending = new Map<string, Command>();
 let runView: MessageView | undefined;
-let activity: HTMLElement | undefined;
+let activityView: MessageView | undefined;
 let placeholder: MessageView | undefined;
 // The native user echo reconciles this turn in place, before its reply.
 let submittedUser: MessageView | undefined;
@@ -132,11 +109,13 @@ function discardSubmittedUser() {
 let runActive = false;
 let runFailure = false;
 
+function displayName() {
+  return sessionName.trim() ? sessionName : firstUserPreview || "Untitled session";
+}
 function updateName(name: unknown) {
   sessionName = typeof name === "string" ? name : "";
-  const title = sessionName.trim() ? sessionName : firstUserPreview || "Untitled session";
-  sessionTitle.textContent = title;
-  sessionTitle.title = title;
+  const title = displayName();
+  sessionControls.setName(title);
   document.title = title;
 }
 function observeUser(message: RecordValue) {
@@ -147,14 +126,12 @@ function observeUser(message: RecordValue) {
   updateName(sessionName);
 }
 function clearActivity() {
-  activity?.remove(); activity = undefined;
+  activityView?.node.setActivity(); activityView = undefined;
   if (placeholder) { placeholder.node.remove(); placeholder.anchor.remove(); placeholder = undefined; }
-  if (runView && !runView.body.textContent && !runView.ui.childNodes.length && !runView.node.querySelector(".reply-outcome")) runView.node.remove();
+  if (runView && !runView.node.hasContent && !runView.node.hasOutcome) runView.node.remove();
 }
 function replyOutcome(view: MessageView, text: string) {
-  let note = view.node.querySelector<HTMLElement>(".reply-outcome");
-  if (!note) { note = document.createElement("p"); note.className = "reply-outcome"; note.setAttribute("role", "status"); view.node.append(note); }
-  note.textContent = text; reveal(view);
+  view.node.setOutcome(text); reveal(view);
 }
 function messageOutcome(message: RecordValue, view: MessageView) {
   if (message.stopReason === "aborted" || message.stopReason === "error") {
@@ -167,15 +144,15 @@ function renderActivity() {
   if (!runActive || (state !== "running" && state !== "stopping")) return;
   if (!runView) placeholder ??= createMessage("assistant", "");
   const view = runView || placeholder!;
-  activity ??= document.createElement("p");
-  activity.className = "reply-activity"; activity.setAttribute("role", "status");
-  activity.textContent = state === "stopping" ? "Stopping…" : "Responding…";
-  view.node.append(activity); reveal(view);
+  if (activityView !== view) activityView?.node.setActivity();
+  activityView = view;
+  view.node.setActivity(state === "stopping" ? "Stopping…" : "Responding…");
+  reveal(view);
 }
 function finishRun(detail?: string) {
   if (runActive && detail && !runFailure) {
     if (runView) replyOutcome(runView, detail);
-    else status.textContent = detail;
+    else composer.runStatus = detail;
   }
   discardSubmittedUser();
   clearActivity(); runActive = false; runView = undefined;
@@ -193,16 +170,6 @@ function readModel(value: unknown): value is ModelChoice {
 const modelKey = (model: ModelChoice) => JSON.stringify([model.provider, model.id]);
 const modelLabel = (model: ModelChoice) => `${model.name || model.id} · ${model.provider}`;
 const levelLabel = (level: string) => level === "xhigh" ? "Extra high" : level.charAt(0).toUpperCase() + level.slice(1);
-function controlOptions(select: HTMLSelectElement, choices: [string, string][], selected: string | undefined, label: string) {
-  const options = choices.map(([value, text]) => new Option(text, value));
-  if (!selected || !choices.some(([value]) => value === selected)) {
-    const current = new Option(label, selected ?? "");
-    current.disabled = true;
-    options.unshift(current);
-  }
-  select.replaceChildren(...options);
-  select.value = selected ?? "";
-}
 function applyControls(value: RecordValue | null = {}) {
   value ??= {};
   const found = Array.isArray(value.modelChoices) && Array.isArray(value.thinkingLevels);
@@ -214,18 +181,16 @@ function applyControls(value: RecordValue | null = {}) {
   const signature = JSON.stringify([choices, current, allowed, level, error]);
   if (signature === controlsSignature) return;
   controlsSignature = signature;
-  models = choices; selectedModel = current; levels = allowed; selectedLevel = level; controlsError = error;
-  controlOptions(modelSelect, models.map(model => [modelKey(model), modelLabel(model)]),
-    current && modelKey(current), current ? `Current: ${modelLabel(current)}` : "Unavailable");
-  controlOptions(thinkingSelect, levels.map(item => [item, levelLabel(item)]),
-    level, level ? `Current: ${levelLabel(level)}` : "Unavailable");
+  models = choices; levels = allowed; controlsError = error;
+  composer.setOptions(
+    { choices: models.map(model => [modelKey(model), modelLabel(model)]), selected: current && modelKey(current), fallback: current ? `Current: ${modelLabel(current)}` : "Unavailable" },
+    { choices: levels.map(item => [item, levelLabel(item)]), selected: level, fallback: level ? `Current: ${levelLabel(level)}` : "Unavailable" },
+  );
 }
 function refreshControls() {
   const inactive = !canSend() || dialogActive;
-  modelSelect.disabled = inactive || !!controlsError || !models.length;
-  thinkingSelect.disabled = inactive || !!controlsError || !levels.length;
   const note = !connected ? "" : controlsNotice || controlsError || (!models.length ? "No pinned models configured." : !levels.length ? "Thinking levels unavailable." : "");
-  if (controlsStatus.textContent !== note) controlsStatus.textContent = note;
+  composer.setControls(inactive || !!controlsError || !models.length, inactive || !!controlsError || !levels.length, note);
 }
 function changeControls(type: ControlsCommand, data: RecordValue) {
   if (!canSend() || dialogActive || controlsError) return;
@@ -233,40 +198,25 @@ function changeControls(type: ControlsCommand, data: RecordValue) {
   controlsNotice = controlsPending ? "Applying message settings…" : "Connection unavailable. No change was confirmed.";
   refresh();
 }
-modelSelect.addEventListener("change", () => {
-  const candidate = models.find(model => modelKey(model) === modelSelect.value);
-  modelSelect.value = selectedModel ? modelKey(selectedModel) : "";
-  if (candidate && modelKey(candidate) !== modelSelect.value) {
-    changeControls("set_model", { provider: candidate.provider, modelId: candidate.id });
-  }
-});
-thinkingSelect.addEventListener("change", () => {
-  const level = thinkingSelect.value;
-  thinkingSelect.value = selectedLevel ?? "";
-  if (level !== selectedLevel && levels.includes(level)) changeControls("set_thinking_level", { level });
-});
+composer.onModel = key => {
+  const candidate = models.find(model => modelKey(model) === key);
+  if (candidate) changeControls("set_model", { provider: candidate.provider, modelId: candidate.id });
+};
+composer.onThinking = level => {
+  if (levels.includes(level)) changeControls("set_thinking_level", { level });
+};
 function canStop() { return connected && !switching && state !== "stopping" && (state === "running" || promptPending); }
-function renderComposerAction() {
-  const mode = state === "stopping" ? "stopping" : canStop() ? "stop" : "send";
-  if (send.dataset.action !== mode) {
-    send.dataset.action = mode;
-    send.innerHTML = mode === "send" ? sendIcon : stopIcon;
-    send.firstElementChild?.setAttribute("aria-hidden", "true");
-    send.title = mode === "send" ? "Send message" : mode === "stop" ? "Stop response" : "Stopping…";
-    send.setAttribute("aria-label", send.title);
-  }
-  send.disabled = mode === "stopping" || (mode === "send" && (!canSend() || !prompt.value.trim()));
-}
+function canSwitchSession() { return canSend() && !renamePending && !dialogActive; }
+function canCreateSession() { return connected && !!pairTicket && !switching && state !== "error"; }
+function canRename() { return connected && state !== "switching" && state !== "error" && !switching; }
 function refresh() {
-  renderComposerAction();
+  const mode = state === "stopping" ? "stopping" : canStop() ? "stop" : "send";
+  composer.setAction(mode, canSend(), !connected || switching || state === "switching");
   refreshControls();
-  prompt.disabled = !connected || switching || state === "switching";
-  sessions.disabled = !canSend() || renamePending || dialogActive;
-  newChat.disabled = !connected || !pairTicket || switching || state === "error";
-  rename.disabled = !connected || state === "switching" || state === "error" || switching;
-  nameInput.readOnly = renamePending;
+  const switchSession = canSwitchSession();
+  sessionControls.setAvailability({ switchSession, newSession: canCreateSession(), rename: canRename(), renamePending });
   pickerClose.disabled = pickerBack.disabled = switching;
-  pickerOpen.disabled = sessions.disabled || pickerBusy || !pickerReceipt || !previewReady || !selectedSession || !!selectedSession.row.current;
+  pickerOpen.disabled = !switchSession || pickerBusy || !pickerReceipt || !previewReady || !selectedSession || !!selectedSession.row.current;
   pickerPrev.disabled = pickerNext.disabled = pickerReload.disabled = pickerBusy || switching;
 }
 function setStatus(next: typeof state, detail?: string) {
@@ -275,37 +225,26 @@ function setStatus(next: typeof state, detail?: string) {
   state = next;
   if (next === "stopping" || next === "switching" || next === "error") notifyOwnerWaiters();
   if (next === "running" && !runActive) {
-    runActive = true; runView = undefined; runFailure = false; status.textContent = "";
+    runActive = true; runView = undefined; runFailure = false; composer.runStatus = "";
   }
   if (next === "idle" || next === "error") finishRun(next === "error" ? detail || "Reply unavailable. Check the connection." : previous === "stopping" ? "Reply interrupted." : undefined);
   else renderActivity();
-  if (detail && next === "error" && !hadReply) status.textContent = detail;
+  if (detail && next === "error" && !hadReply) composer.runStatus = detail;
   refresh();
 }
-function createMessage(role: string, text: string): MessageView {
-  const node = document.createElement("article");
-  node.className = `message ${role === "user" ? "user" : "assistant"}`;
-  const label = document.createElement("span");
-  label.className = "message-label";
-  label.textContent = role === "user" ? "You" : "Automata";
-  const body = role === "assistant" ? new Markdown() : document.createElement("div");
-  body.className = "message-body";
-  if (body instanceof Markdown) body.source = text;
-  else body.textContent = text;
-  const ui = document.createElement("div");
-  ui.className = "message-ui";
-  node.append(label, body, ui);
+function createMessage(role: ChatMessageData["role"], text: string): MessageView {
+  const node = ChatMessage.create({ _data: { role, text } });
   const anchor = document.createComment("message");
-  transcript.append(anchor);
-  return { node, body, ui, anchor };
+  messageList.append(anchor);
+  return { node, anchor };
 }
 function reveal(view: MessageView) {
   if (!view.node.isConnected) {
-    transcript.querySelector(".empty-state")?.remove();
+    messageList.querySelector(".empty-state")?.remove();
     if (view.anchor.isConnected) view.anchor.replaceWith(view.node);
-    else transcript.append(view.node);
+    else messageList.append(view.node);
   }
-  transcript.scrollTop = transcript.scrollHeight;
+  messageList.scrollTop = messageList.scrollHeight;
 }
 function notifyOwnerWaiters(id?: string) {
   if (id !== undefined) ownerWaiters.get(id)?.forEach(check => check());
@@ -385,10 +324,8 @@ function context(toolCallId: string) {
         block.inert = !connected || (window as Window & { awr?: { status: string } }).awr?.status !== "connected";
         liveBlocks.set(toolCallId, block);
       }
-      owner.ui.querySelectorAll<HTMLElement>(".inactive-ui").forEach(node => {
-        if (node.dataset.blockId === toolCallId) node.remove();
-      });
-      if (block.parentElement !== owner.ui) owner.ui.append(block);
+      owner.node.clearInactiveInteractive(toolCallId);
+      owner.node.mountInteractive(block);
       reveal(owner);
       return block;
     },
@@ -402,20 +339,12 @@ function inactiveBlock(toolCallId: string, blockId: string) {
     const notice = document.createElement("p");
     notice.className = "inactive-ui";
     notice.textContent = "Inactive interactive content has no available assistant owner in this history.";
-    transcript.append(notice);
+    messageList.append(notice);
     return;
   }
   const live = liveBlocks.get(toolCallId);
-  if (owner.ui.querySelectorAll<HTMLElement>(".inactive-ui").length &&
-      [...owner.ui.querySelectorAll<HTMLElement>(".inactive-ui")].some(node => node.dataset.blockId === blockId)) return;
-  if (live) owner.ui.append(live);
-  else {
-    const placeholder = document.createElement("div");
-    placeholder.className = "inactive-ui";
-    placeholder.dataset.blockId = blockId;
-    placeholder.textContent = "Interactive content from this reply is inactive after reload or a session switch.";
-    owner.ui.append(placeholder);
-  }
+  if (live) owner.node.mountInteractive(live);
+  else owner.node.showInactiveInteractive(blockId);
   reveal(owner);
 }
 function textOf(message: RecordValue): string {
@@ -520,7 +449,7 @@ function renderSessions(data: RecordValue) {
   pickerNext.hidden = nextOffset === undefined;
   pickerPrev.hidden = previousOffset === undefined;
   const rows = Array.isArray(data.sessions) ? [...data.sessions] : [];
-  if (data.current) rows.unshift({ label: sessionTitle.textContent, ...data.current });
+  if (data.current) rows.unshift({ label: displayName(), ...data.current });
   pickerStatus.textContent = !data.persistent ? "This chat has no persistent session store."
     : data.sessions?.length ? "" : "No other saved sessions on this page.";
   for (const row of rows) {
@@ -549,9 +478,9 @@ function renderSessions(data: RecordValue) {
 }
 function addDialog(request: RecordValue) {
   if (!request || typeof request.id !== "string") return;
-  if (request.method === "notify") { status.textContent = String(request.message ?? ""); return; }
-  if (request.method === "setStatus") { status.textContent = String(request.statusText ?? ""); return; }
-  if (request.method === "set_editor_text") { prompt.value = String(request.text ?? ""); renderComposerAction(); return; }
+  if (request.method === "notify") { composer.runStatus = String(request.message ?? ""); return; }
+  if (request.method === "setStatus") { composer.runStatus = String(request.statusText ?? ""); return; }
+  if (request.method === "set_editor_text") { composer.draft = String(request.text ?? ""); return; }
   if (!["confirm", "select", "input", "editor"].includes(request.method)) return;
   if (seenDialogs.has(request.id)) return;
   seenDialogs.add(request.id);
@@ -602,7 +531,7 @@ function handleEvent(event: RecordValue) {
       }
       else if (event.message?.role === "user" && submittedUser) {
         observeUser(event.message);
-        submittedUser.body.textContent = textOf(event.message);
+        submittedUser.node.setText(textOf(event.message));
         submittedUser = undefined;
       } else showMessage(event.message);
       break;
@@ -617,7 +546,7 @@ function handleEvent(event: RecordValue) {
       if (update.type === "text_delta") stream.blocks.set(index, (stream.blocks.get(index) ?? "") + String(update.delta ?? ""));
       if (update.type === "text_end") stream.blocks.set(index, String(update.content ?? ""));
       const text = [...stream.blocks.entries()].sort((a, b) => a[0] - b[0]).map(([, value]) => value).join("");
-      (stream.view.body as Markdown).source = text;
+      stream.view.node.setText(text);
       if (text) reveal(stream.view);
       break;
     }
@@ -626,8 +555,8 @@ function handleEvent(event: RecordValue) {
         const text = textOf(event.message);
         if (stream) {
           registerOwners(event.message, stream.view, true);
-          (stream.view.body as Markdown).source = text;
-          if (text || stream.view.ui.childNodes.length) reveal(stream.view);
+          stream.view.node.setText(text);
+          if (text || stream.view.node.hasContent) reveal(stream.view);
           runFailure = messageOutcome(event.message, stream.view) || runFailure;
         } else {
           const view = showMessage(event.message);
@@ -649,14 +578,14 @@ function handleFrame(frame: RecordValue) {
       // and ownership, retaining page-local blocks from this same connection.
       const focused = document.activeElement instanceof HTMLElement &&
         ([...liveBlocks.values()].some(block => block.contains(document.activeElement)) ||
-          !!stream?.view.body.contains(document.activeElement))
+          !!stream?.view.node.contains(document.activeElement))
         ? document.activeElement : null;
       clearActivity();
       firstUserPreview = ""; firstUserSeen = false;
       updateName(frame.state?.sessionName);
       if (!["running", "stopping"].includes(frame.state?.status)) stream = undefined;
       runView = undefined; runActive = false; runFailure = false;
-      transcript.replaceChildren();
+      messageList.replaceChildren();
       owners.clear();
       const messages = Array.isArray(frame.messages) ? frame.messages : [];
       for (const message of messages) {
@@ -667,9 +596,9 @@ function handleFrame(frame: RecordValue) {
       const snapshotView = stream?.view || runView;
       if (stream) {
         // Keep an unfinished live reply; snapshot history contains completed messages.
-        transcript.append(stream.view.anchor);
+        messageList.append(stream.view.anchor);
         registerOwners(stream.message, stream.view, true);
-        if (stream.view.body.textContent || stream.view.ui.childNodes.length) reveal(stream.view);
+        if (stream.view.node.hasContent) reveal(stream.view);
       }
       for (const message of messages) {
         const ui = message?.details?.ui;
@@ -681,18 +610,18 @@ function handleFrame(frame: RecordValue) {
       // Live nodes may precede their tool result in a snapshot.
       for (const [id, block] of liveBlocks) {
         const owner = owners.get(id);
-        if (owner) { owner.ui.append(block); reveal(owner); }
+        if (owner) { owner.node.mountInteractive(block); reveal(owner); }
       }
       if (focused?.isConnected) focused.focus({ preventScroll: true });
-      if (!transcript.children.length) {
+      if (!messageList.children.length) {
         const empty = document.createElement("p");
         empty.className = "empty-state";
         empty.textContent = "Start a conversation. Replies will appear here as they arrive.";
-        transcript.append(empty);
+        messageList.append(empty);
       }
       runActive = ["running", "stopping"].includes(frame.state?.status);
       runView = runActive ? snapshotView : undefined;
-      runFailure = !!runView?.node.querySelector(".reply-outcome");
+      runFailure = !!runView?.node.hasOutcome;
       setStatus(statuses.includes(frame.state?.status) ? frame.state.status : "error");
       for (const request of Array.isArray(frame.dialogs) ? frame.dialogs : []) addDialog(request);
       break;
@@ -745,12 +674,12 @@ function handleFrame(frame: RecordValue) {
         renamePending = false;
         if (frame.success) {
           updateName(frame.data?.sessionName);
-          closeRename(document.activeElement === nameInput);
-        } else renameError.textContent = `Could not rename: ${frame.error || "Try again."}`;
+          sessionControls.finishRename();
+        } else sessionControls.finishRename(`Could not rename: ${frame.error || "Try again."}`);
         refresh(); break;
       }
       if (!frame.success) {
-        status.textContent = String(frame.error ?? "Request failed");
+        composer.runStatus = String(frame.error ?? "Request failed");
         const recovery = state === "error" ? "error" : kind === "prompt" ? "idle" : kind === "stop" ? "running" : state;
         setStatus(recovery);
       }
@@ -759,11 +688,11 @@ function handleFrame(frame: RecordValue) {
     }
   }
 }
-sessions.addEventListener("click", () => {
-  if (sessions.disabled || picker.open || pickerBusy) return;
+sessionControls.onSwitch = () => {
+  if (!canSwitchSession() || picker.open || pickerBusy) return;
   picker.showModal();
   loadSessions();
-});
+};
 pickerClose.addEventListener("click", () => picker.close());
 picker.addEventListener("cancel", event => { if (switching) event.preventDefault(); });
 picker.addEventListener("close", () => {
@@ -771,7 +700,7 @@ picker.addEventListener("close", () => {
   resetPickerChoice();
   pickerList.replaceChildren();
   pickerReceipt = undefined;
-  if (!sessions.disabled) sessions.focus();
+  sessionControls.focusSwitch();
 });
 pickerBack.addEventListener("click", () => {
   const selectedButton = selectedSession?.button;
@@ -790,7 +719,7 @@ pickerNext.addEventListener("click", () => { if (nextOffset !== undefined) loadS
 pickerReload.addEventListener("click", () => loadSessions(0, true));
 function pickerOpenFailure(message: string) {
   pickerStatus.textContent = message;
-  if (state === "error") status.textContent = message;
+  if (state === "error") composer.runStatus = message;
   pickerReceipt = undefined;
   pickerPrev.hidden = pickerNext.hidden = true;
   pickerReload.hidden = state === "error";
@@ -822,7 +751,7 @@ async function openSelectedSession() {
       const url = savedSessionURL(result.url, target);
       if (url) {
         const outgoingDrafts = new Map(drafts);
-        if (prompt.value) outgoingDrafts.set(sessionId, prompt.value);
+        if (composer.draft) outgoingDrafts.set(sessionId, composer.draft);
         if (carryDrafts(target, outgoingDrafts)) {
           location.assign(url.href);
           return;
@@ -836,86 +765,34 @@ async function openSelectedSession() {
   pickerOpenFailure(error);
 }
 pickerOpen.addEventListener("click", () => { void openSelectedSession(); });
-newChatForm.addEventListener("submit", event => {
-  if (newChat.disabled || !sessionId || !admission || !pairTicket) event.preventDefault();
-});
-newChatForm.addEventListener("formdata", event => {
+sessionControls.onNewSubmit = () => canCreateSession() && !!sessionId && !!admission;
+sessionControls.onNewData = data => {
   if (!sessionId || !admission || !pairTicket) return;
   // Stay out of URL parameters and DOM inputs. The browser submits the form
   // directly from this trusted action; noopener prevents cloned storage.
-  event.formData.set("sourceSessionId", sessionId);
-  event.formData.set("admission", admission);
-  event.formData.set("ticket", pairTicket);
-  event.formData.set("nonce", crypto.randomUUID());
-});
-function clearRenameError() {
-  renameError.textContent = "";
-  nameInput.removeAttribute("aria-invalid");
-}
-function closeRename(restoreFocus: boolean) {
-  renameForm.hidden = true;
-  delete titleRow.dataset.editing;
-  clearRenameError();
-  if (restoreFocus && !rename.disabled) rename.focus({ preventScroll: true });
-}
-function editName() {
-  if (rename.disabled || !renameForm.hidden) return;
-  renameInitial = sessionTitle.textContent?.trim() ?? "";
-  renameAttempt = undefined;
-  nameInput.value = renameInitial;
-  renameForm.hidden = false;
-  titleRow.dataset.editing = "";
-  clearRenameError();
-  nameInput.focus({ preventScroll: true });
-  nameInput.select();
-}
-function saveName(fromBlur: boolean) {
-  if (renameForm.hidden || renamePending) return;
-  const name = nameInput.value.trim();
-  if (fromBlur && name === renameAttempt) return;
-  if (name === renameInitial) { closeRename(!fromBlur); return; }
-  if (!name) {
-    renameError.textContent = "Enter a session name.";
-    nameInput.setAttribute("aria-invalid", "true");
-    return;
-  }
-  renameAttempt = name;
-  if (!rename.disabled && command("rename", { name })) {
-    renamePending = true;
-    clearRenameError();
-    refresh();
-  } else renameError.textContent = "Connection unavailable. Reconnect before saving.";
-}
-rename.addEventListener("click", editName);
-sessionTitle.addEventListener("click", editName);
-nameInput.addEventListener("input", () => { renameAttempt = undefined; clearRenameError(); });
-nameInput.addEventListener("blur", () => saveName(true));
-nameInput.addEventListener("keydown", event => {
-  if (event.isComposing) return;
-  if (event.key === "Escape" && !renamePending) {
-    event.preventDefault();
-    closeRename(true);
-  }
-});
-renameForm.addEventListener("submit", event => { event.preventDefault(); saveName(false); });
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const message = prompt.value.trim();
+  data.set("sourceSessionId", sessionId);
+  data.set("admission", admission);
+  data.set("ticket", pairTicket);
+  data.set("nonce", crypto.randomUUID());
+};
+sessionControls.onRename = name => {
+  if (renamePending || !canRename() || !command("rename", { name })) return false;
+  renamePending = true;
+  refresh();
+  return true;
+};
+composer.onSend = message => {
   if (!message || !canSend()) return;
   if (command("prompt", { message })) {
     submittedUser = createMessage("user", message);
     reveal(submittedUser);
-    prompt.value = ""; promptPending = true; setStatus("running");
+    composer.draft = ""; promptPending = true; setStatus("running");
   }
-});
-prompt.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); form.requestSubmit(); }
-});
+};
 function requestStop() {
   if (canStop() && command("stop")) setStatus("stopping");
 }
-prompt.addEventListener("input", renderComposerAction);
-send.addEventListener("click", () => { if (canStop()) requestStop(); else if (canSend()) form.requestSubmit(); });
+composer.onStop = requestStop;
 dialog.addEventListener("stop-request", requestStop);
 
 updateName(sessionName);
@@ -936,16 +813,12 @@ let connectionEpoch = 0;
 let snapshotReceived = false;
 const delay = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
 function showConnection(label: string, detail = "") {
-  connection.textContent = label;
-  connectionDetail.textContent = detail;
-  connectButton.hidden = connected;
-  connectButton.disabled = connecting || terminal || bridgeNeedsReload();
-  connectButton.textContent = "Retry connection";
+  sessionControls.setConnection(label, detail, !connected, !connecting && !terminal && !bridgeNeedsReload());
 }
 function disconnectView() {
   const wasActive = runActive;
   const hadReply = !!runView;
-  const previousNotice = status.textContent;
+  const previousNotice = composer.runStatus;
   connected = false; snapshotReceived = false; pairTicket = undefined; generation++;
   browserTrust?.stop();
   dialogQueue = []; seenDialogs.clear(); dialog.cancel(); pending.clear(); promptPending = false;
@@ -959,12 +832,12 @@ function disconnectView() {
   stream = undefined;
   liveBlocks.clear(); liveOwners.clear(); finishedContexts.clear();
   renamePending = false;
-  if (!renameForm.hidden) renameError.textContent = "Connection lost. Confirm the saved name after reconnecting before retrying.";
+  sessionControls.finishRename("Connection lost. Confirm the saved name after reconnecting before retrying.");
   setStatus("error", "Connection lost; reply interrupted.");
-  // Connection notices belong to the header/detail, not stale input errors.
-  if (wasSwitching) status.textContent = "Connection lost while opening a session. No open request was resent.";
-  else if (!wasActive) status.textContent = previousNotice;
-  else if (!hadReply) status.textContent = "Reply interrupted before a response arrived.";
+  // Connection notices belong to the session row, not stale input errors.
+  if (wasSwitching) composer.runStatus = "Connection lost while opening a session. No open request was resent.";
+  else if (!wasActive) composer.runStatus = previousNotice;
+  else if (!hadReply) composer.runStatus = "Reply interrupted before a response arrived.";
 }
 function closeConnections() {
   pairTicket = undefined;
@@ -1062,7 +935,7 @@ async function reconnect() {
   closeConnections(); connecting = false; connected = false;
   refresh(); showConnection("Disconnected", detail);
 }
-connectButton.addEventListener("click", () => { void reconnect(); });
+sessionControls.onRetry = () => { void reconnect(); };
 if (terminal) {
   showConnection("Disconnected", "Missing access credential. Open the admission URL from the existing host; connecting never starts a new agent.");
   setStatus("error");
