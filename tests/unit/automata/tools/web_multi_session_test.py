@@ -14,7 +14,7 @@ ws = pytest.importorskip("websockets.asyncio.client")
 
 from websockets.exceptions import ConnectionClosed, InvalidStatus  # noqa: E402
 
-from automata.tools.web.host import BrowserHost  # noqa: E402
+from automata.tools.web.host import BrowserHost, SessionAdmissionError  # noqa: E402
 from automata.tools.web.sessions import SessionClaim  # noqa: E402
 
 
@@ -169,7 +169,10 @@ async def eventually(check):
 def test_listener_only_admission_observes_both_transports_for_exact_session(tmp_path):
     async def test():
         factory = Factory()
-        host = BrowserHost(rpc_factory=factory)
+        host = BrowserHost(rpc_factory=factory, max_sessions=2)
+        with pytest.raises(SessionAdmissionError) as closed:
+            await host.admit_session()
+        assert closed.value.code == "host_closed"
         await host.start(cwd=tmp_path, provider="default-provider", create_initial=False)
         try:
             assert host.initial_session is None and not factory.clients
@@ -196,6 +199,9 @@ def test_listener_only_admission_observes_both_transports_for_exact_session(tmp_
                     assert argv[argv.index(flag) + 1] == expected
                 other = await host.admit_session(provider="other-provider")
                 assert other.session_id != id
+                with pytest.raises(SessionAdmissionError) as full:
+                    await host.admit_session()
+                assert full.value.code == "capacity"
                 other_argv = factory.clients[1].argv
                 assert other_argv[other_argv.index("--provider") + 1] == "other-provider"
                 assert "--model" not in other_argv and "--thinking" not in other_argv

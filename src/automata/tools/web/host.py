@@ -107,6 +107,14 @@ class _Entry:
         return f"{_SESSIONS}/{self.chat.id}/#admission={self.chat.admission}"
 
 
+class SessionAdmissionError(RpcError):
+    """Local session creation refused with a stable machine-readable code."""
+
+    def __init__(self, code: str):
+        self.code = code
+        super().__init__(code)
+
+
 class _Refusal(Exception):
     def __init__(self, status, code, message):
         super().__init__(message)
@@ -834,7 +842,7 @@ class BrowserHost:
     async def admit_session(self, *, provider=None, model=None, thinking=None) -> AdmittedSession:
         """Create a fresh native session, inheriting any unspecified host launch options."""
         if not self._started or self._closed:
-            raise RuntimeError("Web Chat host is not running")
+            raise SessionAdmissionError("host_closed")
         options = self._launch_options | {
             name: value
             for name, value in (("provider", provider), ("model", model), ("thinking", thinking))
@@ -844,7 +852,7 @@ class BrowserHost:
         try:
             entry = await self._await_start(self._start_worker(launch=launch))
         except _Refusal as error:
-            raise RpcError(str(error)) from None
+            raise SessionAdmissionError(error.code) from None
         return AdmittedSession(entry.chat.id, self.runtime.origin + entry.url)
 
     async def wait_for_pair(self, session_id: str, *, timeout: float) -> bool:
