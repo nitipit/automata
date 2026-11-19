@@ -1,16 +1,16 @@
 ---
-name: automata-browser-use
-description: Use for selecting browser profiles, controlling a real browser, connecting or recovering browser interaction. Not for building browser interfaces.
+name: automata-browser-control
+description: Use a real browser to open pages, navigate, read, click or type. Use for selecting profiles, verifying control and recovering browser interaction. Not for building browser interfaces.
 ---
 
-# Automata Browser Use
+# Automata Browser Control
 
 Control the intended browser and verify actual results. This skill owns browser
 interaction, not UI creation.
 
 1. **Choose the browser.** Follow explicit task instructions, then project and
-   global browser preferences in `.agents/var/skills/automata-browser-use/preferences.md`
-   and `~/.agents/var/skills/automata-browser-use/preferences.md`. Clarify only
+   global browser preferences in `.agents/var/skills/automata-browser-control/preferences.md`
+   and `~/.agents/var/skills/automata-browser-control/preferences.md`. Clarify only
    unresolved choices; a saved preference needs no routine reconfirmation. Confirm
    the target, profile and ownership; registration is not permission. Do not
    silently switch browsers/profiles or reuse another task's resources. Use isolated
@@ -18,7 +18,12 @@ interaction, not UI creation.
    resolve personal versus isolated use from approved preferences or clarification.
    Use visible control when the user needs to watch or participate.
 
-2. **Reuse and verify control.** Reuse working setup from context or `setup.md` in
+2. **Reuse and verify control.** When a control method is already selected, use it
+   from the start: verify the browser and profile before opening the page, then
+   confirm the intended tab is reachable through that method. A successful URL
+   launch or app connection does not prove browser control. If recovery requires
+   restarting an in-use browser, ask before interrupting it.
+   Reuse working setup from context or `setup.md` in
    the relevant preference directory; preserve useful existing recipes. Record
    verified profile identity/location and launch/connect methods there when
    authorized, separately from preferences; never store credentials or browsing

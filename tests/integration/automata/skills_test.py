@@ -33,7 +33,7 @@ REQUIRED_SKILLS = {
     "automata-agents-md",
     "automata-agent-design",
     "automata-model-selection",
-    "automata-browser-use",
+    "automata-browser-control",
     "automata-line-use",
     "automata-pi-imagegen",
     "automata-question",
@@ -69,6 +69,7 @@ REQUIRED_SKILLS = {
     "automata-work-pause",
 }
 RETIRED_SKILLS = {
+    "automata-browser-use",
     "automata-adaptive-ui",
     "automata-pi-delegation",
     "automata-nodalwire",
