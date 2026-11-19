@@ -33,13 +33,16 @@ def test_connection_pairs_are_scoped_host_origin_and_peer_checked(tmp_path):
             "Authorization": f"Bearer {admission}",
             "User-Agent": "Automata/1.0",
         }
-        path = "/sessions/native/chat/connection"
+        path = "/chat/sessions/native/chat/connection"
         try:
             transport = httpx.ASGITransport(app=host.runtime.app, client=("127.0.0.1", 1234))
             async with httpx.AsyncClient(
                 transport=transport, base_url=host.runtime.origin
             ) as client:
-                shell = await client.get("/sessions/native/")
+                legacy = await client.get(f"/sessions/native/#admission={admission}")
+                assert legacy.status_code == 307
+                assert legacy.headers["Location"] == "/chat/sessions/native/"
+                shell = await client.get("/chat/sessions/native/")
                 assert shell.status_code == 200 and admission not in shell.text
                 assert shell.headers["Referrer-Policy"] == "same-origin"
                 assert shell.headers["Cache-Control"] == "no-store"
@@ -59,14 +62,14 @@ def test_connection_pairs_are_scoped_host_origin_and_peer_checked(tmp_path):
                     assert (
                         await client.post(path, headers={**headers, **override})
                     ).status_code == 403
-                response = await client.post(path, headers=headers)
+                response = await client.post("/sessions/native/chat/connection", headers=headers)
                 assert response.status_code == 200 and response.json()["ticket"] != admission
                 assert response.headers["Cache-Control"] == "no-store"
                 competing = await client.post(path, headers=headers)
                 assert competing.status_code == 409 and competing.json()["code"] == "pair_reserved"
                 assert host.initial_session.connector.session is None
                 # The empty canonical shell, not the route alone, proves no new worker.
-                assert (await client.get("/sessions/unknown/")).status_code == 200
+                assert (await client.get("/chat/sessions/unknown/")).status_code == 200
                 assert len(host._owned) == 1
             remote = httpx.ASGITransport(app=host.runtime.app, client=("203.0.113.10", 1234))
             async with httpx.AsyncClient(transport=remote, base_url=host.runtime.origin) as client:

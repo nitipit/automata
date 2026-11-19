@@ -2,7 +2,7 @@ import { browserTrustProof } from "./browser-trust-proof";
 
 const action = document.querySelector<HTMLButtonElement>("#trust-create");
 const status = document.querySelector<HTMLElement>("#trust-status");
-const URL_PATH = /^\/sessions\/[A-Za-z0-9_-]{1,256}\/#admission=[A-Za-z0-9_-]{1,256}$/;
+const URL_PATH = /^\/chat\/sessions\/[A-Za-z0-9_-]{1,256}\/#admission=[A-Za-z0-9_-]{1,256}$/;
 
 if (action && status) {
   const button = action;
@@ -38,7 +38,7 @@ if (action && status) {
         return;
       }
       message.textContent = "Starting a new chat…";
-      const response = await fetch("/sessions/trust/create", {
+      const response = await fetch("/chat/sessions/trust/create", {
         method: "POST", credentials: "same-origin", cache: "no-store", redirect: "error",
         headers: {"Content-Type": "application/json"}, body: JSON.stringify({proof, intent}),
         signal: AbortSignal.timeout(50_000),

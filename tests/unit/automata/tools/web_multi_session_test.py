@@ -14,7 +14,7 @@ ws = pytest.importorskip("websockets.asyncio.client")
 
 from websockets.exceptions import ConnectionClosed, InvalidStatus  # noqa: E402
 
-from automata.tools.web.host import BrowserHost  # noqa: E402
+from automata.tools.web.host import BrowserHost, SessionAdmissionError  # noqa: E402
 from automata.tools.web.sessions import SessionClaim  # noqa: E402
 
 
@@ -26,6 +26,7 @@ class FixturePi:
         self.busy = {}
 
     async def start(self, argv, *, cwd, env):
+        self.argv = argv
         self.env = env
         if "--session" in argv:
             self.path = Path(argv[argv.index("--session") + 1])
@@ -114,7 +115,7 @@ async def rejected(host, path, ticket):
 
 
 async def probe(host, client, id, admission):
-    return await client.post(f"/sessions/{id}/chat/connection", headers=auth(host, admission))
+    return await client.post(f"/chat/sessions/{id}/chat/connection", headers=auth(host, admission))
 
 
 @asynccontextmanager
@@ -123,7 +124,7 @@ async def paired(host, client, id, admission):
     assert response.status_code == 200, response.text
     ticket = response.json()["ticket"]
     async with open_socket(host, "/ws", ticket) as bridge:
-        async with open_socket(host, f"/sessions/{id}/chat", ticket) as chat:
+        async with open_socket(host, f"/chat/sessions/{id}/chat", ticket) as chat:
             snapshot = json.loads(await asyncio.wait_for(chat.recv(), 2))
             assert snapshot["type"] == "snapshot" and snapshot["state"]["sessionId"] == id
             yield ticket, bridge, chat, snapshot
@@ -138,9 +139,9 @@ async def ack(socket, kind, id, **data):
                 return frame
 
 
-async def fresh(host, client, source, ticket, nonce):
+async def fresh(host, client, source, ticket, nonce, *, path="/chat/sessions/"):
     return await client.post(
-        "/sessions",
+        path,
         headers={"Origin": host.runtime.origin},
         data={
             "sourceSessionId": source.id,
@@ -154,13 +155,93 @@ async def fresh(host, client, source, ticket, nonce):
 def identity(url):
     parts = urlsplit(url)
     assert not parts.netloc and not parts.query
-    return parts.path.split("/")[2], parse_qs(parts.fragment)["admission"][0]
+    empty, chat, sessions, native_id, trailing = parts.path.split("/")
+    assert (empty, chat, sessions, trailing) == ("", "chat", "sessions", "")
+    return native_id, parse_qs(parts.fragment)["admission"][0]
 
 
 async def eventually(check):
     async with asyncio.timeout(2):
         while not check():
             await asyncio.sleep(0.01)
+
+
+def test_listener_only_admission_observes_both_transports_for_exact_session(tmp_path):
+    async def test():
+        factory = Factory()
+        host = BrowserHost(rpc_factory=factory, max_sessions=2)
+        with pytest.raises(SessionAdmissionError) as closed:
+            await host.admit_session()
+        assert closed.value.code == "host_closed"
+        await host.start(cwd=tmp_path, provider="default-provider", create_initial=False)
+        try:
+            assert host.initial_session is None and not factory.clients
+            assert host.sessions_url == host.runtime.origin + "/chat/sessions/"
+            async with httpx.AsyncClient(
+                base_url=host.runtime.origin, headers={"User-Agent": "Automata/1.0"}
+            ) as client:
+                root = await client.get("/")
+                assert root.status_code == 200 and 'href="/chat/sessions/"' in root.text
+                assert "connection-bootstrap.js" not in root.text
+                assert (await client.get(host.sessions_url)).status_code == 200
+                assert (await client.get("/assets/ui.js")).status_code == 200
+                assert not factory.clients
+
+                admitted = await host.admit_session(model="new-model", thinking="low")
+                assert "#" not in admitted.url
+                redirects = await asyncio.gather(*(client.get(admitted.url) for _ in range(2)))
+                assert sorted(response.status_code for response in redirects) == [303, 410]
+                redirect = next(response for response in redirects if response.status_code == 303)
+                assert redirect.headers["cache-control"] == "no-store"
+                id, admission = identity(redirect.headers["location"])
+                assert admitted.session_id == id and admission not in repr(admitted)
+                argv = factory.clients[0].argv
+                for flag, expected in (
+                    ("--provider", "default-provider"),
+                    ("--model", "new-model"),
+                    ("--thinking", "low"),
+                ):
+                    assert argv[argv.index(flag) + 1] == expected
+                other = await host.admit_session(provider="other-provider")
+                assert other.session_id != id
+                assert (
+                    await client.get(admitted.url.replace(id, other.session_id))
+                ).status_code == 410
+                other_entry = host._entries[other.session_id]
+                token, _ = other_entry.launch_ticket
+                other_entry.launch_ticket = (token, 0)
+                assert (await client.get(other.url)).status_code == 410
+                with pytest.raises(SessionAdmissionError) as full:
+                    await host.admit_session()
+                assert full.value.code == "capacity"
+                other_argv = factory.clients[1].argv
+                assert other_argv[other_argv.index("--provider") + 1] == "other-provider"
+                assert "--model" not in other_argv and "--thinking" not in other_argv
+
+                response = await client.post(
+                    f"/chat/sessions/{id}/chat/connection", headers=auth(host, admission)
+                )
+                assert response.status_code == 200
+                ticket = response.json()["ticket"]
+                assert not await host.wait_for_pair(id, timeout=0.01)
+                async with open_socket(host, "/ws", ticket):
+                    assert not await host.wait_for_pair(id, timeout=0.01)
+                    waiting = asyncio.create_task(host.wait_for_pair(id, timeout=2))
+                    async with open_socket(host, f"/chat/sessions/{id}/chat", ticket) as socket:
+                        snapshot = json.loads(await asyncio.wait_for(socket.recv(), 2))
+                        assert snapshot["state"]["sessionId"] == id
+                        assert await waiting
+                        assert await host.wait_for_pair(id, timeout=0)
+                        assert not await host.wait_for_pair(other.session_id, timeout=0)
+                        assert len(factory.clients) == 2
+                    await eventually(lambda: host._entries[id].pair is None)
+                    assert not await host.wait_for_pair(id, timeout=0.01)
+        finally:
+            await host.close()
+        assert all(rpc.closed for rpc in factory.clients)
+        assert not await host.wait_for_pair(admitted.session_id, timeout=0)
+
+    asyncio.run(test())
 
 
 def test_one_port_two_writers_bridge_routing_stop_reconnect_and_shutdown(tmp_path):
@@ -187,7 +268,7 @@ def test_one_port_two_writers_bridge_routing_stop_reconnect_and_shutdown(tmp_pat
                             "code"
                         ] == "writer_active"
                         await rejected(host, "/ws", tb)
-                        await rejected(host, f"/sessions/{a.id}/chat", tb)
+                        await rejected(host, f"/chat/sessions/{a.id}/chat", tb)
                         await rejected(host, f"/sessions/{bid}/chat", tb)
                         results = await asyncio.gather(
                             ack(ca, "prompt", "same-id", sessionId=a.id, message="A request"),
@@ -284,7 +365,7 @@ def test_saved_open_receipt_resume_conflicts_and_failed_start_preserve_source(tm
 
                     async def opened(target, receipt, nonce):
                         return await client.post(
-                            f"/sessions/{a.id}/open",
+                            f"/chat/sessions/{a.id}/open",
                             headers=auth(host, a.admission),
                             json={
                                 "sessionId": target,

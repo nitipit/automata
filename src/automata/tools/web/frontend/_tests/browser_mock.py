@@ -28,7 +28,7 @@ TEST = "<script type='module'>" + (TESTS / "browser-test.js").read_text() + "</s
 
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/sessions/browser-fixture/":
+        if self.path == "/chat/sessions/browser-fixture/":
             self.path = "/index.html"
         super().do_GET()
 
@@ -90,7 +90,7 @@ def main():
             threading.Thread(target=server.serve_forever, daemon=True).start()
             try:
                 for size in ("1280,900", "390,844"):
-                    url = f"http://127.0.0.1:{server.server_address[1]}/sessions/browser-fixture/#admission=synthetic"
+                    url = f"http://127.0.0.1:{server.server_address[1]}/chat/sessions/browser-fixture/#admission=synthetic"
                     result = subprocess.run(
                         [
                             chrome,

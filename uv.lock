@@ -80,7 +80,9 @@ anatomy = [
 ]
 web = [
     { name = "automata-web-runtime" },
+    { name = "dictify" },
     { name = "jinja2" },
+    { name = "shelfdb" },
 ]
 
 [package.dev-dependencies]
@@ -114,12 +116,14 @@ requires-dist = [
     { name = "automata-web-runtime", marker = "extra == 'web'", git = "https://github.com/keenlycode/automata-web-runtime.git?rev=cba648e627082bfa39696bfdd5af6f79c2f0b281" },
     { name = "cyclopts", specifier = ">=4.11.1" },
     { name = "dictify", marker = "extra == 'anatomy'", specifier = ">=5.0.2,<6" },
+    { name = "dictify", marker = "extra == 'web'", specifier = ">=5.0.2,<6" },
     { name = "fastapi", marker = "extra == 'anatomy'", specifier = ">=0.115,<1" },
     { name = "jinja2", marker = "extra == 'anatomy'", specifier = ">=3.1,<4" },
     { name = "jinja2", marker = "extra == 'web'", specifier = ">=3.1,<4" },
     { name = "mistune", marker = "extra == 'anatomy'", specifier = ">=3.1,<4" },
     { name = "pyyaml", marker = "extra == 'anatomy'", specifier = ">=6.0.3" },
     { name = "shelfdb", marker = "extra == 'anatomy'", specifier = ">=3.0.2,<4" },
+    { name = "shelfdb", marker = "extra == 'web'", specifier = ">=3.0.2,<4" },
     { name = "uvicorn", marker = "extra == 'anatomy'", specifier = ">=0.30.0" },
     { name = "watchfiles", marker = "extra == 'anatomy'", specifier = ">=1,<2" },
 ]

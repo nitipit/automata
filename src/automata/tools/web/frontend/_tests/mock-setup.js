@@ -9,7 +9,7 @@ class FakeSocket extends EventTarget {
     super();
     const target = new URL(url);
     this.ticket = target.searchParams.get("token");
-    const chat = target.pathname === "/sessions/browser-fixture/chat";
+    const chat = target.pathname === "/chat/sessions/browser-fixture/chat";
     if (chat) window.sock = this; else window.bridgeSock = this;
     setTimeout(() => {
       this.dispatchEvent(new Event("open"));
@@ -26,7 +26,7 @@ class FakeSocket extends EventTarget {
 window.WebSocket = FakeSocket;
 const originalFetch = window.fetch.bind(window);
 window.fetch = (url, options) => {
-  if (String(url) !== '/sessions/browser-fixture/chat/connection') return originalFetch(url, options);
+  if (String(url) !== '/chat/sessions/browser-fixture/chat/connection') return originalFetch(url, options);
   window.fixtureAdmissionProbe = options.headers.Authorization === 'Bearer synthetic' &&
     !window.awr && !location.hash;
   return Promise.resolve(new Response('{"ticket":"fixture-ticket"}', {status:200}));

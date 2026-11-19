@@ -8,6 +8,38 @@ historical JavaScript is never automatically replayed. See the
 [Web UI skill](../../skills/automata-web-ui/SKILL.md) for shared-component authoring
 and a practical example; the Pi extension's tool definitions own exact contracts.
 
+## Create a chat on a reusable Web UI server (Linux)
+
+```sh
+automata web-ui chat new
+automata web-ui --config ./demo.shelfdb chat new --thinking medium --json
+```
+
+The CLI selects the current Git worktree root (or the launch directory outside Git),
+starts or reuses its managed server, creates one native session, and opens its
+`/chat/sessions/{id}/` tab in the configured Firefox profile. `--cwd` selects a
+checkout explicitly. Legacy `automata web` remains a separate foreground launcher:
+the CLI does not discover, replace or stop legacy servers. Plan a cutover if one is
+already running. Host control uses a user-private Unix socket; configuration is not
+used to discover a port or prove a writer's identity.
+
+The default preferences directory is `${XDG_CONFIG_HOME:-~/.config}/automata/web-ui/config.shelfdb`.
+A missing default store uses built-ins without writing anything. `--config PATH`
+selects an existing ShelfDB store **instead of** the default. Its `web_ui` shelf,
+`config` record accepts version 1 and optional `browser_profile`, `provider`,
+`model` and `thinking` preferences (validated by `WebConfig`; `save_config` is an
+explicit write). Flags override preferences only for this invocation. The default
+Firefox profile must already exist at
+`${XDG_CONFIG_HOME:-~/.config}/automata/browser-profiles/firefox/automata/`.
+There is no personal-profile fallback, automatic migration, or dependency on a Python kernel.
+
+Firefox receives a single-use launch link valid for 30 seconds, not the reusable
+admission credential. Treat the link as private until redeemed or expired. Its
+redirect enters the normal admission flow. `--json` reports `session_id` and
+`browser_connected`, never the link. A nonzero result after creation retains the ID:
+a failed or unconfirmed browser dispatch **does not** automatically create another
+session. Connection means both transports paired; it does not track Firefox's lifetime.
+
 ## Build and run
 
 Pi must already be installed/configured. Source builds need Python >=3.12 and
@@ -33,12 +65,14 @@ uv run automata web --session /path/to/session.jsonl --session-inactive
 ```
 
 One `automata web` invocation serves the project's chats on one loopback HTTP
-port. Each chat has its own native Pi process and URL at `/sessions/{native-id}/`.
+port. `/` is a minimal Web UI entry linking to the chat landing page at
+`/chat/sessions/`. Each chat has its own native Pi process and canonical URL
+at `/chat/sessions/{native-id}/`.
 **New chat** opens a separate tab on the same port with a fresh native session;
 it does not interrupt or move the original chat. Both can answer at once, and
 **Stop** affects only the current session.
 
-You can also enter `http://127.0.0.1:<host-port>/sessions/` in a fresh tab of the
+You can also enter `http://127.0.0.1:<host-port>/chat/sessions/` in a fresh tab of the
 same browser profile after a chat has connected. A supported direct address-bar
 navigation starts one new chat without an extra click; if the browser cannot
 identify that navigation, choose **Create a new chat** on the landing page.
@@ -55,6 +89,8 @@ sessions, access a transcript, authenticate a writer, or renew itself.
 
 The private admission URL is not printed. Its scoped credential is stored by
 native session ID in that tab's `sessionStorage` and removed from the address.
+Older `/sessions/{native-id}/` admission links forward to the canonical route
+with their private fragment intact. The old new-chat form remains supported.
 A clean existing-session URL alone is not admission. A second writer is
 refused; it does not evict the original tab. Refresh reconnects to the same host
 and Pi while that session is retained. Retry connection is available after

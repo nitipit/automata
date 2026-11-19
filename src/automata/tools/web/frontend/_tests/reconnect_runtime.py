@@ -91,7 +91,8 @@ async def main():
         await server.start(cwd=project)
         host = rpc.host = server.initial_session
         entry = server._entries[host.id]
-        route = server.runtime.origin + f"/sessions/{host.id}/"
+        route = server.runtime.origin + f"/chat/sessions/{host.id}/"
+        legacy_admission = server.admission_url.replace("/chat/sessions/", "/sessions/", 1)
         async with async_playwright() as playwright:
             browser = await playwright.chromium.launch(executable_path="/usr/bin/google-chrome", headless=True)
             try:
@@ -107,9 +108,11 @@ async def main():
                 await page.wait_for_function("document.querySelector('#connection-detail')?.textContent.includes('Missing access')")
                 assert await page.evaluate("fixtureSockets.length===0 && document.querySelector('#connect').disabled && document.title==='Untitled session'")
                 checks.append("no-token initial load is explicit and inert")
-                await page.goto(server.admission_url)
+                await page.goto(legacy_admission)
                 await ready(page)
+                assert page.url == route
                 assert await page.evaluate("location.hash==='' && !!sessionStorage.getItem('automata.chat.admission.owned-fixture-session')")
+                checks.append("legacy fragment admission redirects to canonical shell without losing tab proof")
                 expected = await page.locator("#session-name").text_content()
                 assert expected.startswith("<b>Native first message</b> ภาษาไทย 🐈") and expected.endswith("…")
                 assert await page.title() == expected
@@ -123,7 +126,7 @@ async def main():
                 await page.reload()
                 await ready(page)
                 assert await page.title() == expected and rpc.starts == 1
-                assert await page.evaluate("fixtureSockets.some(x=>new URL(x.url).pathname==='/ws'&&x.readyState===1) && fixtureSockets.some(x=>new URL(x.url).pathname==='/sessions/owned-fixture-session/chat'&&x.readyState===1)")
+                assert await page.evaluate("fixtureSockets.some(x=>new URL(x.url).pathname==='/ws'&&x.readyState===1) && fixtureSockets.some(x=>new URL(x.url).pathname==='/chat/sessions/owned-fixture-session/chat'&&x.readyState===1)")
                 checks.append("refresh restores credential before actual bridge and chat; same agent")
                 # Test real keyboard naming, then native name event priority and fallback.
                 await page.get_by_role("button", name="Rename session").click()
