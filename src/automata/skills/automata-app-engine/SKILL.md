@@ -1,9 +1,9 @@
 ---
-name: automata-app
+name: automata-app-engine
 description: Use for creating, rejoining, inspecting and stopping a task-owned Python-kernel app across turns, with or without a user interface or subprocesses.
 ---
 
-# Automata App
+# Automata App Engine
 
 Use a persistent Python kernel as the app engine. The app's purpose is generic; its engine is not a per-task choice. Keep app state and references to owned workers in the kernel. A browser view is optional. If a suitable kernel is unavailable, report the prerequisite rather than silently switching engines or installing dependencies.
 
