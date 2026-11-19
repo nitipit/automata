@@ -1,11 +1,11 @@
-const route = /^\/sessions\/([A-Za-z0-9_-]{1,256})\/$/;
+const route = /^\/chat\/sessions\/([A-Za-z0-9_-]{1,256})\/$/;
 const credential = /^[A-Za-z0-9_-]{1,256}$/;
 const handoff = window as Window & { __automataChatAdmission?: string };
 const supplied = handoff.__automataChatAdmission;
 delete handoff.__automataChatAdmission;
 
 export const sessionId = route.exec(location.pathname)?.[1];
-export const sessionPath = sessionId ? `/sessions/${sessionId}` : undefined;
+export const sessionPath = sessionId ? `/chat/sessions/${sessionId}` : undefined;
 const credentialKey = sessionId ? `automata.chat.admission.${sessionId}` : undefined;
 const draftKey = "automata.chat.draft-transfer";
 
@@ -33,7 +33,7 @@ export function savedSessionURL(value: unknown, target: string): URL | undefined
     const fragment = new URLSearchParams(url.hash.slice(1));
     const proof = fragment.get("admission");
     if (url.origin === location.origin && !url.username && !url.password && !url.search &&
-        route.exec(url.pathname)?.[1] === target && url.pathname === `/sessions/${target}/` &&
+        route.exec(url.pathname)?.[1] === target && url.pathname === `/chat/sessions/${target}/` &&
         [...fragment].length === 1 && proof && credential.test(proof)) return url;
   } catch { /* invalid response */ }
   return undefined;

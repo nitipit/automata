@@ -71,16 +71,24 @@ async def open_selected(picker):
 
 
 async def check_page(host_a, host_b, browser):
-    page = await browser.new_page(viewport={"width": 390, "height": 844})
+    context = await browser.new_context(viewport={"width": 390, "height": 844})
+    page = await context.new_page()
     errors = []
     page.on("pageerror", lambda _error: errors.append(True))
     a, b = host_a.initial_session, host_b.initial_session
     a_id, b_id = a.id, b.id
+    await page.goto(host_a.runtime.origin)
+    await page.get_by_role("link", name="Web Chat sessions").click()
+    await expect(page).to_have_url(host_a.sessions_url)
+    await expect(page.get_by_role("button", name="Create a new chat")).to_be_enabled()
+    assert await page.locator("#trust-status").get_attribute("data-auto") == "0"
+    assert set(host_a._entries) == {a_id}
     await page.goto(host_a.admission_url)
 
     async def current_is(expected):
-        assert await page.evaluate("location.pathname") == f"/sessions/{expected}/"
+        assert await page.evaluate("location.pathname") == f"/chat/sessions/{expected}/"
         assert len(page.context.pages) == 1 and a.id == a_id and b.id == b_id
+
     sessions = page.get_by_role("button", name="Switch session", exact=True)
     title = page.locator("#session-name")
     transcript = page.locator("#messages")
@@ -157,12 +165,42 @@ async def check_page(host_a, host_b, browser):
     await expect(transcript).not_to_contain_text("A continues")
     await expect(prompt).to_have_value("")
     await current_is(b_id)
-    await page.reload()
+    async with page.expect_response(
+        lambda response: (
+            response.url.endswith(f"/chat/sessions/{b_id}/browser-trust") and response.status == 204
+        )
+    ):
+        await page.reload()
     await expect(sessions).to_be_enabled()
     await expect(title).to_have_text("Conversation B")
     await expect(transcript).to_contain_text("Offline history: B first | B continues")
+
+    async def new_chat_id(tab):
+        await expect(tab.locator("#connection-status")).to_have_text("Connected")
+        route = await tab.evaluate("location.pathname + location.hash + location.search")
+        prefix = "/chat/sessions/"
+        assert route.startswith(prefix) and route.endswith("/")
+        id = route[len(prefix) : -1]
+        assert id not in {a_id, b_id} and await host_a.wait_for_pair(id, timeout=1)
+        return id
+
+    async with page.expect_popup() as popup:
+        await page.get_by_role("button", name="New session", exact=True).click()
+    fresh = await popup.value
+    fresh_id = await new_chat_id(fresh)
+    assert await fresh.evaluate("window.opener === null")
+    await fresh.close()
+
+    trusted = await context.new_page()
+    await trusted.goto(host_a.sessions_url + "?fixture=manual")
+    await trusted.get_by_role("button", name="Create a new chat").click()
+    trusted_id = await new_chat_id(trusted)
+    assert fresh_id != trusted_id
+    await trusted.close()
+    await current_is(b_id)
+    await expect(transcript).to_contain_text("Offline history: B first | B continues")
     assert not errors, "Unexpected browser JavaScript error"
-    await page.close()
+    await context.close()
 
 
 async def main():
@@ -198,9 +236,7 @@ async def main():
                     await host_a.close()
             finally:
                 await host_b.close()
-    print(
-        "Native Pi A/B history, offline model context, busy/active guards, browser and reload: pass"
-    )
+    print("Canonical entry, picker, fresh form, trusted creation, and reload with offline Pi: pass")
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ import contextlib
 import hashlib
 import hmac
 import json
+import math
 import os
 import re
 import secrets
@@ -28,7 +29,10 @@ PACKAGE = Path(__file__).resolve().parent
 _ROUTE_ID = re.compile(r"[A-Za-z0-9_-]{1,256}")
 _PRIVATE = {"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"}
 _TRUST_COOKIE = "__Secure-automata-web-chat-create"
-_TRUST_PATH = "/sessions/trust/"
+_SESSIONS = "/chat/sessions"
+_LEGACY_SESSIONS = "/sessions"
+_TRUST_PATH = f"{_SESSIONS}/trust/"
+_LEGACY_TRUST_PATH = f"{_LEGACY_SESSIONS}/trust/"
 _PROOF = re.compile(r"[a-f0-9]{64}")
 _LANDING_HEADERS = {
     **_PRIVATE,
@@ -49,6 +53,10 @@ sys.exit(0 if opened else 1)
 
 def _safe_id(value):
     return isinstance(value, str) and _ROUTE_ID.fullmatch(value) is not None
+
+
+def _exact_path(request, path):
+    return request.scope.get("raw_path", request.scope["path"].encode()) == path.encode()
 
 
 def _match(value, expected):
@@ -76,6 +84,14 @@ class _Pair:
         return self.bridge.token
 
 
+@dataclass(frozen=True)
+class AdmittedSession:
+    """Native identity and a private URL for opening its first browser writer."""
+
+    session_id: str
+    url: str = field(repr=False)
+
+
 @dataclass(eq=False)
 class _Entry:
     chat: ChatSession
@@ -84,10 +100,11 @@ class _Entry:
     pair: _Pair | None = None
     idle_timer: asyncio.TimerHandle | None = None
     retiring: asyncio.Task | None = None
+    pair_ready: asyncio.Event = field(default_factory=asyncio.Event)
 
     @property
     def url(self):
-        return f"/sessions/{self.chat.id}/#admission={self.chat.admission}"
+        return f"{_SESSIONS}/{self.chat.id}/#admission={self.chat.admission}"
 
 
 class _Refusal(Exception):
@@ -232,6 +249,7 @@ class BrowserHost:
         self._launch_options: dict = {}
         inherited = os.environ.get("PI_SESSION_FILE")
         self._caller_session = Path(inherited).expanduser().resolve() if inherited else None
+        self._started = False
         self._closed = False
         self._close_task: asyncio.Task | None = None
         self._cleanup_failed = False
@@ -242,6 +260,10 @@ class BrowserHost:
         if self._initial is None or self._closed or self._initial.retiring:
             raise RuntimeError("Initial Web Chat admission is unavailable")
         return self.runtime.origin + self._initial.url
+
+    @property
+    def sessions_url(self) -> str:
+        return f"{self.runtime.origin}{_SESSIONS}/"
 
     @property
     def initial_session(self):
@@ -255,16 +277,18 @@ class BrowserHost:
         )
 
     @staticmethod
-    def _canonical(request, id, suffix):
+    def _session_path_allowed(request, id, suffix):
         if not _safe_id(id):
             return False
-        raw = request.scope.get("raw_path")
-        return raw is None or raw == f"/sessions/{id}{suffix}".encode()
+        return any(
+            _exact_path(request, f"{prefix}/{id}{suffix}")
+            for prefix in (_SESSIONS, _LEGACY_SESSIONS)
+        )
 
     def _authenticate(self, request, id, suffix, proof):
         entry = self._entries.get(id)
         if (
-            not self._canonical(request, id, suffix)
+            not self._session_path_allowed(request, id, suffix)
             or not self._origin_ok(request)
             or entry is None
             or not _match(proof, entry.chat.admission)
@@ -379,18 +403,29 @@ class BrowserHost:
                 headers=_PRIVATE,
             )
 
-        async def index(request: Request, id: str | None = None):
+        async def root(request: Request):
             if not self._runtime.local_request(request):
-                return Response(status_code=403)
-            if id is not None and not self._canonical(request, id, "/"):
-                return Response(status_code=404)
+                return Response(status_code=403, headers=_PRIVATE)
+            return HTMLResponse(
+                templates.get_template("entry.html").render(sessions_url=f"{_SESSIONS}/"),
+                headers=_PRIVATE,
+            )
+
+        async def index(id: str, request: Request):
+            if not self._runtime.local_request(request):
+                return Response(status_code=403, headers=_PRIVATE)
+            if not self._session_path_allowed(request, id, "/"):
+                return Response(status_code=404, headers=_PRIVATE)
+            if _exact_path(request, f"{_LEGACY_SESSIONS}/{id}/"):
+                # The redirect has no fragment: browsers inherit the original
+                # fragment without exposing it to the host or copying query data.
+                return Response(
+                    status_code=307, headers={**_PRIVATE, "Location": f"{_SESSIONS}/{id}/"}
+                )
             return HTMLResponse(
                 templates.get_template("index.html").render(),
                 headers={**_PRIVATE, "Referrer-Policy": "same-origin"},
             )
-
-        def exact_path(request, path):
-            return request.scope.get("raw_path", path.encode()) == path.encode()
 
         async def trust_json(request, fields):
             if (
@@ -404,7 +439,9 @@ class BrowserHost:
             return body
 
         async def landing(request: Request):
-            if not self._runtime.local_request(request) or not exact_path(request, "/sessions/"):
+            if not self._runtime.local_request(request) or not any(
+                _exact_path(request, f"{prefix}/") for prefix in (_SESSIONS, _LEGACY_SESSIONS)
+            ):
                 return Response(status_code=403, headers=_PRIVATE)
             if self._closed:
                 return Response(status_code=410, headers=_PRIVATE)
@@ -452,15 +489,18 @@ class BrowserHost:
                     raise _Refusal(403, "forbidden", "This request is not from the current writer")
                 token = self._browser_trust.renew(body["proof"])
                 response = Response(status_code=204, headers=_PRIVATE)
-                response.set_cookie(
-                    _TRUST_COOKIE,
-                    token,
-                    max_age=self._browser_trust.duration,
-                    path=_TRUST_PATH,
-                    secure=True,
-                    httponly=True,
-                    samesite="strict",
-                )
+                # The same grant works at either exact creation path; neither
+                # cookie is sent to chat, asset, connector or root routes.
+                for path in (_TRUST_PATH, _LEGACY_TRUST_PATH):
+                    response.set_cookie(
+                        _TRUST_COOKIE,
+                        token,
+                        max_age=self._browser_trust.duration,
+                        path=path,
+                        secure=True,
+                        httponly=True,
+                        samesite="strict",
+                    )
                 return response
             except _Refusal as error:
                 return refusal(error)
@@ -469,7 +509,10 @@ class BrowserHost:
 
         async def create_trusted(request: Request):
             try:
-                if not self._origin_ok(request) or not exact_path(request, _TRUST_PATH + "create"):
+                if not self._origin_ok(request) or not any(
+                    _exact_path(request, path + "create")
+                    for path in (_TRUST_PATH, _LEGACY_TRUST_PATH)
+                ):
                     raise _Refusal(403, "forbidden", "Browser trust origin was rejected")
                 if self._closed:
                     raise _Refusal(410, "host_closed", "Web Chat is shutting down")
@@ -525,7 +568,7 @@ class BrowserHost:
             matched = self._lookup_pair(socket)
             if (
                 matched is None
-                or not self._canonical(socket, id, "/chat")
+                or not self._session_path_allowed(socket, id, "/chat")
                 or matched[0].chat.id != id
                 or matched[1].bridge_task is None
                 or matched[1].chat_task is not None
@@ -555,6 +598,7 @@ class BrowserHost:
                         raise RuntimeError("Pair expired before chat became active")
                     entry.chat.connector.bind(browser)
                     pair.ready = entry.joined = True
+                    entry.pair_ready.set()
                     if pair.expiry:
                         pair.expiry.cancel()
                     self._cancel_idle(entry)
@@ -655,7 +699,9 @@ class BrowserHost:
             from html import escape
 
             try:
-                if not self._origin_ok(request):
+                if not self._origin_ok(request) or not any(
+                    _exact_path(request, path) for path in (f"{_SESSIONS}/", _LEGACY_SESSIONS)
+                ):
                     raise _Refusal(403, "forbidden", "Web Chat admission was rejected")
                 if (
                     request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
@@ -700,6 +746,7 @@ class BrowserHost:
 
         # Annotations in these local route closures are postponed at import time.
         for endpoint in (
+            root,
             index,
             asset,
             connection,
@@ -713,18 +760,20 @@ class BrowserHost:
             endpoint.__annotations__["request"] = Request
         for endpoint in (bridge, chat):
             endpoint.__annotations__["socket"] = WebSocket
-        app.add_api_route("/", index, methods=["GET"])
-        app.add_api_route("/sessions/", landing, methods=["GET"])
-        app.add_api_route("/sessions/{id}/", index, methods=["GET"])
+        app.add_api_route("/", root, methods=["GET"])
         app.add_api_route("/assets/{name}", asset, methods=["GET"])
-        app.add_api_route("/sessions/{id}/browser-trust", renew_trust, methods=["POST"])
-        app.add_api_route(_TRUST_PATH + "create", create_trusted, methods=["POST"])
-        app.add_api_route("/sessions/{id}/chat/connection", connection, methods=["POST"])
-        app.add_api_route("/sessions/{id}/open", opened, methods=["POST"])
-        app.add_api_route("/sessions", new_session, methods=["POST"])
         app.add_api_route("/connector/{operation}", connector, methods=["POST"])
         app.add_api_websocket_route("/ws", bridge)
-        app.add_api_websocket_route("/sessions/{id}/chat", chat)
+        app.add_api_route(f"{_SESSIONS}/", new_session, methods=["POST"])
+        app.add_api_route(_LEGACY_SESSIONS, new_session, methods=["POST"])
+        for prefix in (_SESSIONS, _LEGACY_SESSIONS):
+            app.add_api_route(f"{prefix}/", landing, methods=["GET"])
+            app.add_api_route(f"{prefix}/{{id}}/", index, methods=["GET"])
+            app.add_api_route(f"{prefix}/{{id}}/browser-trust", renew_trust, methods=["POST"])
+            app.add_api_route(f"{prefix}/trust/create", create_trusted, methods=["POST"])
+            app.add_api_route(f"{prefix}/{{id}}/chat/connection", connection, methods=["POST"])
+            app.add_api_route(f"{prefix}/{{id}}/open", opened, methods=["POST"])
+            app.add_api_websocket_route(f"{prefix}/{{id}}/chat", chat)
 
     async def start(
         self,
@@ -737,7 +786,10 @@ class BrowserHost:
         session=None,
         session_inactive=False,
         extra_args=(),
+        create_initial=True,
     ):
+        if not create_initial and session is not None:
+            raise ValueError("Resuming a session requires an initial Web Chat worker")
         extension = PACKAGE.parents[1] / "runtimes" / "pi" / "extensions" / "web-ui" / "index.ts"
         if any(
             arg.split("=", 1)[0] in {"--session", "--continue", "--no-session", "-c"}
@@ -769,13 +821,63 @@ class BrowserHost:
             else:
                 self._launch_options["cwd"] = launch.cwd
             await self.runtime.start()
-            self._initial = await asyncio.shield(
-                self._start_worker(target=target, initial=True, launch=launch)
-            )
+            if create_initial:
+                self._initial = await asyncio.shield(
+                    self._start_worker(target=target, initial=True, launch=launch)
+                )
+            self._started = True
             return self
         except BaseException:
             await self.close()
             raise
+
+    async def admit_session(self, *, provider=None, model=None, thinking=None) -> AdmittedSession:
+        """Create a fresh native session, inheriting any unspecified host launch options."""
+        if not self._started or self._closed:
+            raise RuntimeError("Web Chat host is not running")
+        options = self._launch_options | {
+            name: value
+            for name, value in (("provider", provider), ("model", model), ("thinking", thinking))
+            if value is not None
+        }
+        launch = prepare_launch(**options)
+        try:
+            entry = await self._await_start(self._start_worker(launch=launch))
+        except _Refusal as error:
+            raise RpcError(str(error)) from None
+        return AdmittedSession(entry.chat.id, self.runtime.origin + entry.url)
+
+    async def wait_for_pair(self, session_id: str, *, timeout: float) -> bool:
+        """Observe both transports for this live session without acquiring a writer."""
+        from starlette.websockets import WebSocketState
+
+        if not math.isfinite(timeout) or timeout < 0:
+            raise ValueError("Pair timeout must be finite and nonnegative")
+        entry = self._entries.get(session_id)
+        if entry is None:
+            return False
+        try:
+            async with asyncio.timeout(timeout):
+                while not (self._closed or entry.retiring or entry.chat._dead):
+                    pair = entry.pair
+                    browser = entry.chat.connector.session
+                    if (
+                        pair
+                        and pair.ready
+                        and not pair.cleanup
+                        and browser
+                        and browser.is_connected
+                        and pair.chat_socket.client_state is WebSocketState.CONNECTED
+                        and pair.chat_socket.application_state is WebSocketState.CONNECTED
+                    ):
+                        return True
+                    # A transport may have closed before its handler starts pair
+                    # cleanup. Wait for a subsequent ready pair or retirement.
+                    entry.pair_ready.clear()
+                    await entry.pair_ready.wait()
+        except TimeoutError:
+            pass
+        return False
 
     def _start_worker(self, target=None, *, initial=False, launch=None):
         if self._closed:
@@ -1000,6 +1102,7 @@ class BrowserHost:
         if pair.expiry:
             pair.expiry.cancel()
         entry.chat.detach()
+        entry.pair_ready.clear()
         pair.cleanup = asyncio.create_task(self._finish_pair(entry, pair))
 
     async def _finish_pair(self, entry, pair):
@@ -1045,6 +1148,7 @@ class BrowserHost:
             self._cancel_idle(entry)
             self._connectors.pop(entry.chat.connector_token, None)
             entry.retiring = asyncio.create_task(self._finish_retire(entry))
+            entry.pair_ready.set()
         return entry.retiring
 
     async def _finish_retire(self, entry):

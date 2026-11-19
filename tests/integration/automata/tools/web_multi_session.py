@@ -259,9 +259,9 @@ async def prompt(browser, tab, value):
 
 async def route(browser, tab, origin):
     path = await browser.evaluate(tab, "location.origin + location.pathname")
-    assert path.startswith(origin + "/sessions/") and path.endswith("/")
+    assert path.startswith(origin + "/chat/sessions/") and path.endswith("/")
     assert await browser.evaluate(tab, "!location.hash && !location.search")
-    return urlsplit(path).path.split("/")[2]
+    return urlsplit(path).path.split("/")[3]
 
 
 async def picker_open(browser, tab, native_id):
@@ -284,7 +284,7 @@ async def picker_open(browser, tab, native_id):
     await browser.click(tab, "#sessions-open")
     await browser.wait(
         tab,
-        f"location.pathname === '/sessions/{native_id}/' && {READY}",
+        f"location.pathname === '/chat/sessions/{native_id}/' && {READY}",
         "same-tab saved navigation",
     )
 

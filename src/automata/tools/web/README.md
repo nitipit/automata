@@ -33,12 +33,14 @@ uv run automata web --session /path/to/session.jsonl --session-inactive
 ```
 
 One `automata web` invocation serves the project's chats on one loopback HTTP
-port. Each chat has its own native Pi process and URL at `/sessions/{native-id}/`.
+port. `/` is a minimal Web UI entry linking to the chat landing page at
+`/chat/sessions/`. Each chat has its own native Pi process and canonical URL
+at `/chat/sessions/{native-id}/`.
 **New chat** opens a separate tab on the same port with a fresh native session;
 it does not interrupt or move the original chat. Both can answer at once, and
 **Stop** affects only the current session.
 
-You can also enter `http://127.0.0.1:<host-port>/sessions/` in a fresh tab of the
+You can also enter `http://127.0.0.1:<host-port>/chat/sessions/` in a fresh tab of the
 same browser profile after a chat has connected. A supported direct address-bar
 navigation starts one new chat without an extra click; if the browser cannot
 identify that navigation, choose **Create a new chat** on the landing page.
@@ -55,6 +57,8 @@ sessions, access a transcript, authenticate a writer, or renew itself.
 
 The private admission URL is not printed. Its scoped credential is stored by
 native session ID in that tab's `sessionStorage` and removed from the address.
+Older `/sessions/{native-id}/` admission links forward to the canonical route
+with their private fragment intact. The old new-chat form remains supported.
 A clean existing-session URL alone is not admission. A second writer is
 refused; it does not evict the original tab. Refresh reconnects to the same host
 and Pi while that session is retained. Retry connection is available after

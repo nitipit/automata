@@ -44,7 +44,7 @@ export class ChatSessionControls extends Base {
       </div>
       <div class="session-actions">
         <button id="sessions" type="button" aria-haspopup="dialog" aria-controls="sessions-picker" disabled>Switch session</button>
-        <form id="new-chat-form" method="post" action="/sessions" target="_blank" rel="noopener">
+        <form id="new-chat-form" method="post" action="/chat/sessions/" target="_blank" rel="noopener">
           <button id="new-chat" type="submit" title="Open a new session in a new tab" disabled>New session</button>
         </form>
       </div>
