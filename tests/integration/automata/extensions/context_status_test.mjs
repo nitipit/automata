@@ -28,8 +28,8 @@ function fixture(id = "gpt-6.1-sol", provider = "openai") {
 }
 function plan(f) { return f.request().find(m => m.customType === COMPACTION_PLAN_TYPE); }
 
-for (const [model, threshold] of [["gpt-6.2-astra", 200_000], ["gpt-6.2-sol", 400_000],
-  ["gpt-6-astra", 200_000], ["gpt-6.1-sol", 400_000],
+for (const [model, threshold] of [["gpt-6.2-astra", 230_000], ["gpt-6.2-sol", 400_000],
+  ["gpt-6-astra", 230_000], ["gpt-6.1-sol", 400_000],
   ["gpt-6.1-terra", 400_000], ["gpt-6-luna", 800_000]]) {
   test(`${model}: below, equal, above, and repeated threshold requests`, async () => {
     const f = fixture(model);

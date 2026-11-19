@@ -6,9 +6,9 @@ const REQUEST_OWNER = "automata-context-status:request-local";
 
 /** Used-context thresholds, before the separately configured native Pi guardrails. */
 export const COMPACTION_PLANNING_TOKENS: Readonly<Record<string, number>> = {
-  "openai/gpt-6-astra": 200_000,
+  "openai/gpt-6-astra": 230_000,
   "openai/gpt-6.1-sol": 400_000,
-  "openai/gpt-6.2-astra": 200_000,
+  "openai/gpt-6.2-astra": 230_000,
   "openai/gpt-6.2-sol": 400_000,
   "openai/gpt-6.1-terra": 400_000,
   "openai/gpt-6-luna": 800_000,
