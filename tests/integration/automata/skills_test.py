@@ -59,6 +59,7 @@ REQUIRED_SKILLS = {
     "automata-documentation",
     "automata-runtime-environment",
     "automata-python-kernel",
+    "automata-app",
     "automata-background-process",
     "automata-pi-extension-dev",
     "automata-pi-agent-team",
