@@ -8,6 +8,17 @@ historical JavaScript is never automatically replayed. See the
 [Web UI skill](../../skills/automata-web-ui/SKILL.md) for shared-component authoring
 and a practical example; the Pi extension's tool definitions own exact contracts.
 
+## Inspect before opening (Linux)
+
+`automata web-ui chat status [--cwd PATH] [--json]` checks this checkout’s managed
+server without starting it. Add `--engine PATH` to also check an explicitly trusted
+local kernel connection file (owner-only; pass the path, never its contents).
+This optional check requires `jupyter_client` in the CLI environment and a retained
+`BrowserHost` named `host` in the kernel with this checkout’s status code available.
+The two hosts are reported separately. A known empty host has `sessions: []`;
+a failed inspection reports `unknown` and exits nonzero. An omitted engine is
+`not_checked`. Client pairing is observed on the server; no Firefox tab is accessed.
+
 ## Create a chat on a reusable Web UI server (Linux)
 
 ```sh
@@ -39,6 +50,43 @@ redirect enters the normal admission flow. `--json` reports `session_id` and
 `browser_connected`, never the link. A nonzero result after creation retains the ID:
 a failed or unconfirmed browser dispatch **does not** automatically create another
 session. Connection means both transports paired; it does not track Firefox's lifetime.
+
+## Create a chat on a selected app engine (Linux)
+
+```sh
+automata web-ui --config ./demo.shelfdb chat new --engine /private/kernel.json --json
+```
+
+Use this when an explicitly trusted local **IPython** kernel already retains a
+running `BrowserHost` named `host`, started for the selected checkout root
+(`--cwd` works as above). The retained host must have been started with this checkout's current Web UI
+code, Web Runtime dependencies and Pi environment. The CLI additionally needs
+`jupyter_client` and `websocket-client` in its own Python environment. Pass only
+an owner-only, authenticated TCP connection file for `127.0.0.1`; don't copy or
+paste its contents. Prefer `chat status --engine PATH --json` to inspect the
+host first. The command checks the checkout and the exact host instance; it
+never starts a kernel or managed host, nor falls back to a different one.
+An explicitly supplied provider/model/thinking flag overrides the corresponding
+preference. If neither is set, the retained host's launch options are inherited.
+
+Set `browser_profile` to a dedicated, existing Firefox profile (or use the
+same dedicated default described above). An in-use profile must already expose
+Firefox's loopback WebDriver BiDi endpoint, started with an explicit absolute
+`--profile` and `--remote-debugging-port=0`. Linux `ss` (iproute2) and `/proc`
+are required to verify the listener's owner before connecting. The CLI can
+cold-start an unlocked dedicated profile. It won't restart Firefox, take over
+someone else's BiDi session, resize its window, or use a personal profile.
+If BiDi is unavailable, resolve that prerequisite before creating a chat.
+
+The CLI opens a new tab via verified BiDi, at the clean canonical session URL.
+It passes admission and pairing credentials in memory rather than in navigation
+URLs, browser history, or terminal output. Success confirms both the exact tab and the host's
+paired transports, then releases BiDi without closing the tab. JSON includes
+`creation`: `not_created` for a preflight failure or host refusal, `created`
+with a `session_id` even if browser control or pairing fails afterward, and
+`unknown` if a dispatched creation could not be confirmed. For `unknown`,
+inspect the same engine with `chat status --engine PATH` before deciding what
+to do. The CLI never retries creation automatically.
 
 ## Build and run
 
@@ -147,8 +195,10 @@ local plaintext HTTP connection.
 
 Maintainers: the pinned Web Runtime is single-browser. The shared-listener
 adapter embeds one unstarted child ASGI app per admitted pair by attaching it to
-the parent's origin and running state. Upgrade the runtime only after validating
-this compatibility seam with real bridge and browser tests.
+the parent's origin and running state. Its Web Chat bridge endpoint also adapts
+the pinned classic script to read its bootstrap ticket from memory, not a URL
+fragment. Upgrade the runtime only after validating these compatibility seams
+with real bridge and browser tests.
 
 ## Create shared components from descriptors
 

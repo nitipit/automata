@@ -20,6 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path("src").resolve()))
 from automata.tools.web.connector import inline_execution
+from automata.tools.web.runtime_adapter import _memory_bridge_source
 
 TESTS = Path("src/automata/tools/web/frontend/_tests")
 SETUP = "<script>" + (TESTS / "mock-setup.js").read_text() + "</script>"
@@ -76,12 +77,13 @@ def main():
         )
         bridge = os.environ.get("AUTOMATA_WEB_BRIDGE_JS")
         if bridge:
-            shutil.copyfile(bridge, root / "bridge.js")
+            (root / "bridge.js").write_bytes(_memory_bridge_source(Path(bridge).read_bytes()))
         else:
             (root / "bridge.js").write_text(
                 "class FixtureBridge {status='idle'; async connect(){this.status='connected';}"
                 "close(){this.status='closed';}}; "
-                "if (new URLSearchParams(location.hash.slice(1)).get('token') === 'fixture-ticket') "
+                "const ticket=window.__automataBridgeTicket; delete window.__automataBridgeTicket;"
+                "if (ticket === 'fixture-ticket') "
                 "Object.defineProperty(window,'awr',{value:new FixtureBridge(),configurable:true});"
             )
         with socketserver.TCPServer(

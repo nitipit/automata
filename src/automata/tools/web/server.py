@@ -52,6 +52,16 @@ class ServerEndpoint:
     _key: str = field(repr=False)
     port: int | None = None
 
+    def inspect(self):
+        """Read status without creating the namespace, lock or listener."""
+        for directory in (self.socket_path.parent.parent, self.socket_path.parent):
+            try:
+                directory.lstat()
+            except FileNotFoundError:
+                raise ServerError("not_running") from None
+            _private_dir(directory)
+        return exchange(self.socket_path, self._key, "status", timeout=_PING_SECONDS)
+
     def new_session(
         self,
         *,

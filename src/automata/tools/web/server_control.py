@@ -285,6 +285,10 @@ class Control:
             writer.close()
 
     async def _dispatch(self, op, body):
+        if op == "status" and not body:
+            from .status import host_snapshot
+
+            return host_snapshot(self._host)
         if op == "ping" and not body:
             return {"port": origin_port(self._host.runtime.origin)}
         if op == "connected" and set(body) == {"session_id"} and valid_id(body["session_id"]):
