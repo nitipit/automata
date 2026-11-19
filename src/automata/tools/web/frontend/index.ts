@@ -31,6 +31,8 @@ const composer = element<ChatComposer>("chat-composer");
 
 const sessionControls = element<ChatSessionControls>("chat-session-controls");
 const picker = element<HTMLDialogElement>("#sessions-picker");
+const newForm = element<HTMLFormElement>("#new-chat-form");
+const newButton = element<HTMLButtonElement>("#new-chat");
 const pickerStatus = element<HTMLElement>("#sessions-status");
 const pickerList = element<HTMLUListElement>("#sessions-list");
 const pickerDirectory = element<HTMLElement>(".sessions-directory");
@@ -65,6 +67,7 @@ type RecordValue = Record<string, any>;
 const statuses = ["idle", "running", "stopping", "switching", "error"] as const;
 let state: typeof statuses[number] = "error";
 let pickerBusy = false;
+let listDeferred = false;
 let switching = false;
 let previousOffset: number | undefined;
 let nextOffset: number | undefined;
@@ -214,7 +217,12 @@ function refresh() {
   composer.setAction(mode, canSend(), !connected || switching || state === "switching");
   refreshControls();
   const switchSession = canSwitchSession();
-  sessionControls.setAvailability({ switchSession, newSession: canCreateSession(), rename: canRename(), renamePending });
+  newButton.disabled = !canCreateSession();
+  sessionControls.setAvailability({ sessions: switchSession || !newButton.disabled, rename: canRename(), renamePending });
+  if (listDeferred && picker.open && switchSession) {
+    listDeferred = false;
+    loadSessions();
+  }
   pickerClose.disabled = pickerBack.disabled = switching;
   pickerOpen.disabled = !switchSession || pickerBusy || !pickerReceipt || !previewReady || !selectedSession || !!selectedSession.row.current;
   pickerPrev.disabled = pickerNext.disabled = pickerReload.disabled = pickerBusy || switching;
@@ -689,14 +697,22 @@ function handleFrame(frame: RecordValue) {
   }
 }
 sessionControls.onSwitch = () => {
-  if (!canSwitchSession() || picker.open || pickerBusy) return;
+  if ((!canCreateSession() && !canSwitchSession()) || picker.open) return;
   picker.showModal();
-  loadSessions();
+  (newButton.disabled ? pickerClose : newButton).focus({ preventScroll: true });
+  if (pickerBusy) return;
+  if (canSwitchSession()) loadSessions();
+  else {
+    listDeferred = true;
+    pickerStatus.textContent = "Saved sessions will be available when this chat is idle.";
+  }
 };
 pickerClose.addEventListener("click", () => picker.close());
 picker.addEventListener("cancel", event => { if (switching) event.preventDefault(); });
 picker.addEventListener("close", () => {
   if (picker.open) return;
+  listDeferred = false;
+  pickerPrev.hidden = pickerNext.hidden = pickerReload.hidden = true;
   resetPickerChoice();
   pickerList.replaceChildren();
   pickerReceipt = undefined;
@@ -765,8 +781,11 @@ async function openSelectedSession() {
   pickerOpenFailure(error);
 }
 pickerOpen.addEventListener("click", () => { void openSelectedSession(); });
-sessionControls.onNewSubmit = () => canCreateSession() && !!sessionId && !!admission;
-sessionControls.onNewData = data => {
+newForm.addEventListener("submit", event => {
+  if (!picker.open || !canCreateSession() || !sessionId || !admission) event.preventDefault();
+  else picker.close();
+});
+newForm.addEventListener("formdata", ({ formData: data }) => {
   if (!sessionId || !admission || !pairTicket) return;
   // Stay out of URL parameters and DOM inputs. The browser submits the form
   // directly from this trusted action; noopener prevents cloned storage.
@@ -774,7 +793,7 @@ sessionControls.onNewData = data => {
   data.set("admission", admission);
   data.set("ticket", pairTicket);
   data.set("nonce", crypto.randomUUID());
-};
+});
 sessionControls.onRename = name => {
   if (renamePending || !canRename() || !command("rename", { name })) return false;
   renamePending = true;

@@ -52,7 +52,7 @@ async def seed(host, label, message):
 
 
 async def choose(page, label):
-    await page.get_by_role("button", name="Switch session", exact=True).click()
+    await page.get_by_role("button", name="Sessions", exact=True).click()
     picker = page.get_by_role("dialog", name="Project sessions")
     await expect(picker).to_be_visible()
     await picker.get_by_role("button", name=label, exact=False).click()
@@ -89,7 +89,7 @@ async def check_page(host_a, host_b, browser):
         assert await page.evaluate("location.pathname") == f"/chat/sessions/{expected}/"
         assert len(page.context.pages) == 1 and a.id == a_id and b.id == b_id
 
-    sessions = page.get_by_role("button", name="Switch session", exact=True)
+    sessions = page.get_by_role("button", name="Sessions", exact=True)
     title = page.locator("#session-name")
     transcript = page.locator("#messages")
     prompt = page.locator("#prompt")
@@ -98,10 +98,10 @@ async def check_page(host_a, host_b, browser):
     await expect(sessions).to_be_enabled()
     await expect(transcript).to_contain_text("Offline history: A first")
 
-    # Busy disables the picker. Previewing another row does not switch.
+    # Creation stays available while replying. Previewing another row does not switch.
     await prompt.fill("A continues")
     await send.click()
-    await expect(sessions).to_be_disabled()
+    await expect(sessions).to_be_enabled()
     await expect(transcript).to_contain_text("Offline history: A first | A continues")
     await expect(sessions).to_be_enabled()
     await prompt.fill("Unsent draft for A")
@@ -184,8 +184,12 @@ async def check_page(host_a, host_b, browser):
         assert id not in {a_id, b_id} and await host_a.wait_for_pair(id, timeout=1)
         return id
 
+    fresh_action = page.get_by_role("button", name="New session", exact=True)
+    await expect(fresh_action).not_to_be_visible()
+    await sessions.press("Enter")
+    await expect(fresh_action).to_be_focused()
     async with page.expect_popup() as popup:
-        await page.get_by_role("button", name="New session", exact=True).click()
+        await fresh_action.press("Enter")
     fresh = await popup.value
     fresh_id = await new_chat_id(fresh)
     assert await fresh.evaluate("window.opener === null")

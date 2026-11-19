@@ -3,7 +3,7 @@ import { Base } from "./_components/base";
 import type { ResolvedTheme } from "./_theme/index";
 import { sessionControlsStyle, sessionControlsTheme } from "./chat-session-controls.style";
 
-type Availability = { switchSession: boolean; newSession: boolean; rename: boolean; renamePending: boolean };
+type Availability = { sessions: boolean; rename: boolean; renamePending: boolean };
 
 /** Session chrome only: the page owns confirmation, navigation, and connection. */
 export class ChatSessionControls extends Base {
@@ -15,7 +15,6 @@ export class ChatSessionControls extends Base {
   private readonly nameInput: HTMLInputElement;
   private readonly renameError: HTMLElement;
   private readonly switchButton: HTMLButtonElement;
-  private readonly newButton: HTMLButtonElement;
   private readonly connectionStatus: HTMLElement;
   private readonly connectionDetail: HTMLElement;
   private readonly retryButton: HTMLButtonElement;
@@ -24,8 +23,6 @@ export class ChatSessionControls extends Base {
 
   onRename?: (name: string) => boolean;
   onSwitch?: () => void;
-  onNewSubmit?: () => boolean;
-  onNewData?: (data: FormData) => void;
   onRetry?: () => void;
 
   constructor() {
@@ -43,10 +40,7 @@ export class ChatSessionControls extends Base {
         <p id="rename-error" role="alert"></p>
       </div>
       <div class="session-actions">
-        <button id="sessions" type="button" aria-haspopup="dialog" aria-controls="sessions-picker" disabled>Switch session</button>
-        <form id="new-chat-form" method="post" action="/chat/sessions/" target="_blank" rel="noopener">
-          <button id="new-chat" type="submit" title="Open a new session in a new tab" disabled>New session</button>
-        </form>
+        <button id="sessions" type="button" aria-haspopup="dialog" aria-controls="sessions-picker" disabled>Sessions</button>
       </div>
       <div class="session-connection">
         <span id="connection-status" role="status">Connecting…</span>
@@ -61,7 +55,6 @@ export class ChatSessionControls extends Base {
     this.nameInput = find("#session-name-input");
     this.renameError = find("#rename-error");
     this.switchButton = find("#sessions");
-    this.newButton = find("#new-chat");
     this.connectionStatus = find("#connection-status");
     this.connectionDetail = find("#connection-detail");
     this.retryButton = find("#connect");
@@ -81,11 +74,6 @@ export class ChatSessionControls extends Base {
     this.renameForm.addEventListener("submit", event => { event.preventDefault(); this.saveName(false); });
     this.switchButton.addEventListener("click", () => this.onSwitch?.());
     this.retryButton.addEventListener("click", () => this.onRetry?.());
-    const newForm = find<HTMLFormElement>("#new-chat-form");
-    newForm.addEventListener("submit", event => {
-      if (this.newButton.disabled || !this.onNewSubmit?.()) event.preventDefault();
-    });
-    newForm.addEventListener("formdata", event => this.onNewData?.(event.formData));
   }
   override connectedCallback() {
     if (this.row.parentNode !== this) this.append(this.row);
@@ -95,9 +83,8 @@ export class ChatSessionControls extends Base {
     if (this.heading.textContent !== title) this.heading.textContent = title;
     this.heading.title = title;
   }
-  setAvailability({ switchSession, newSession, rename, renamePending }: Availability) {
-    this.switchButton.disabled = !switchSession;
-    this.newButton.disabled = !newSession;
+  setAvailability({ sessions, rename, renamePending }: Availability) {
+    this.switchButton.disabled = !sessions;
     this.renameButton.disabled = !rename;
     this.nameInput.readOnly = renamePending;
   }

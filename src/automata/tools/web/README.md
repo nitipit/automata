@@ -106,9 +106,10 @@ The heading and browser tab use the saved Pi session name, then a compact previe
 of the first native user message, then `Untitled session`. The adjacent edit
 control renames the native session, without generating a model prompt.
 
-Open **Sessions** to see the current conversation and other saved Pi sessions
-for its exact project directory in the current session store. The picker is
-unavailable while Pi is replying or stopping. Selecting a row only previews
+Open **Sessions** and choose **New session** to start an independent chat in a
+new tab. Below it are the current conversation and other saved Pi sessions for
+this project directory in the current session store. A new chat can be created
+while Pi is replying or stopping; switching to a saved session requires an idle chat. Selecting a row only previews
 it: the last saved exchange on the persisted branch, file recency, and recorded
 model and token usage where available. History is shown as bounded plain text,
 without running tools or historical UI. Pi does not persist the historical

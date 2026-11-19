@@ -527,18 +527,19 @@ async def exercise(host, browser, project):
         const controls = document.querySelector('chat-session-controls');
         const composer = document.querySelector('chat-composer');
         const rename = controls.querySelector('#rename-form');
-        const fresh = controls.querySelector('#new-chat-form');
+        const fresh = document.querySelector('#sessions-picker #new-chat-form');
         const switcher = controls.querySelector('#sessions');
         return controls.previousElementSibling === null && controls.nextElementSibling === composer &&
           controls.parentElement.previousElementSibling.id === 'messages' &&
           document.querySelectorAll('h1').length === 1 && document.querySelector('h1').textContent === document.title &&
           !document.querySelector('.app-header') &&
-          switcher.textContent === 'Switch session' && fresh.querySelector('button').textContent === 'New session' &&
+          switcher.textContent === 'Sessions' && !controls.querySelector('#new-chat') && fresh.querySelector('button').textContent === 'New session' &&
           fresh.method === 'post' && fresh.target === '_blank' && fresh.rel === 'noopener' &&
           !rename.contains(fresh) && !fresh.contains(rename) && !composer.contains(controls.querySelector('#connection-detail'));
     })()""")
     await browser.evaluate(a, "const p = document.querySelector('#prompt'); p.value = 'A untouched new-session draft'; p.dispatchEvent(new Event('input'))")
     before = await browser.tabs()
+    await browser.click(a, "#sessions")
     await browser.click(a, "#new-chat")
     b = await browser.child(before)
     await browser.wait(b, READY, "fresh child admitted")
@@ -744,9 +745,9 @@ async def exercise(host, browser, project):
     )
 
     await browser.click(a, "#sessions")
-    await browser.wait(a, "document.querySelector('#sessions-picker').open && document.activeElement.id === 'sessions-close'", "picker opens with focused Close")
+    await browser.wait(a, "document.querySelector('#sessions-picker').open && document.activeElement.id === 'new-chat'", "picker opens with focused New session")
     await browser.key(a, "\ue00c")
-    await browser.wait(a, "!document.querySelector('#sessions-picker').open && document.activeElement.id === 'sessions'", "Escape restores Switch session focus")
+    await browser.wait(a, "!document.querySelector('#sessions-picker').open && document.activeElement.id === 'sessions'", "Escape restores Sessions focus")
     await browser.evaluate(a, "document.querySelector('#prompt').value = 'Draft belongs to A'")
     before = await browser.tabs()
     await picker_open(browser, a, b_id)

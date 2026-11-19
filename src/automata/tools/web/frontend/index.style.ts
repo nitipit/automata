@@ -21,6 +21,7 @@ export const appStyle = `
   & .sessions-directory, & #sessions-preview-scroll { min-width: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
   & .sessions-directory { padding: .85rem; border-inline-end: 1px solid; }
   & #sessions-list { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: .35rem; margin: 0; padding: 0; }
+  & #new-chat { width: 100%; min-height: 44px; margin-bottom: .6rem; font-weight: 650; }
   & #sessions-list li { min-width: 0; }
   & #sessions-list button { width: 100%; max-width: 100%; text-align: start; line-height: 1.3; padding: .65rem .75rem; }
   & .sessions-row-title { display: flex; justify-content: space-between; align-items: baseline; gap: .65rem; }

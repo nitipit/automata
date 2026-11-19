@@ -8,12 +8,15 @@
       <div><span class="eyebrow">WORKSPACE</span><h2 id="sessions-heading">Project sessions</h2></div>
       <div class="sessions-actions">
         <button id="sessions-reload" type="button" hidden>Reload list</button>
-        <button id="sessions-close" type="button" autofocus>Close</button>
+        <button id="sessions-close" type="button">Close</button>
       </div>
     </header>
     <p id="sessions-status" role="status"></p>
     <div class="sessions-layout">
       <section class="sessions-directory" aria-label="Session list">
+        <form id="new-chat-form" method="post" action="/chat/sessions/" target="_blank" rel="noopener">
+          <button id="new-chat" type="submit" title="Open a new session in a new tab" autofocus disabled>New session</button>
+        </form>
         <ul id="sessions-list" aria-label="Saved project sessions"></ul>
         <div class="sessions-actions">
           <button id="sessions-prev" type="button" hidden>Previous</button>
