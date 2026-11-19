@@ -49,6 +49,58 @@ def checkout_root(cwd: Path) -> Path:
     raise ValueError("Unable to identify this Git checkout")
 
 
+@chat.command(name="status")
+def status(
+    *,
+    cwd: Path | None = None,
+    engine: Annotated[
+        Path | None, Parameter(help="Private connection file for a selected local kernel.")
+    ] = None,
+    as_json: Annotated[bool, Parameter(name="--json")] = False,
+) -> None:
+    """Inspect checkout hosts without launching Web Chat or accessing a browser."""
+    import asyncio
+
+    from .status import engine_status, managed_status
+
+    try:
+        root = checkout_root(cwd or Path.cwd())
+    except (ValueError, OSError, subprocess.TimeoutExpired):
+        print(json.dumps({"error": "invalid_checkout"}) if as_json else "Invalid checkout.")
+        raise SystemExit(1) from None
+    managed = managed_status(root)
+    kernel = (
+        asyncio.run(engine_status(engine, root)) if engine is not None else {"state": "not_checked"}
+    )
+    report = {
+        "project": str(root),
+        "managed_host": managed,
+        "engine": kernel,
+        "browser_control": "not_checked",
+    }
+    if as_json:
+        print(json.dumps(report, sort_keys=True))
+    else:
+        print(f"Checkout: {root}")
+        for label, item in [
+            ("Managed host", managed),
+            ("App engine", kernel),
+            ("Engine host", kernel.get("host")),
+        ]:
+            if item is None:
+                continue
+            reason = f" ({item['reason']})" if "reason" in item else ""
+            print(f"{label}: {item['state'].replace('_', ' ')}{reason}")
+            if "sessions" in item:
+                print(f"  Live sessions: {len(item['sessions'])}")
+                for session in item["sessions"]:
+                    state = "connected" if session["client_connected"] else "disconnected"
+                    print(f"  {session['id']}: client {state}")
+        print("Firefox tab control: not checked")
+    if any(s.get("state") == "unknown" for s in (managed, kernel, kernel.get("host", {}))):
+        raise SystemExit(1)
+
+
 @chat.command(name="new")
 def new(
     *,

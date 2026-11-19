@@ -467,7 +467,11 @@ def test_real_managed_host_pairs_a_writer_and_never_evicts_it(project, monkeypat
     try:
         endpoint = find_or_start(project)
         assert not (project / "rpc-workers.jsonl").exists()  # Listener-only startup.
+        assert endpoint.inspect() == {"state": "running", "sessions": []}
         first = endpoint.new_session()
+        assert endpoint.inspect()["sessions"] == [
+            {"id": first.session_id, "client_connected": False}
+        ]
         assert not endpoint.wait_connected(first.session_id, timeout=0.12)
 
         async def pair():
@@ -495,6 +499,11 @@ def test_real_managed_host_pairs_a_writer_and_never_evicts_it(project, monkeypat
                     others = await asyncio.gather(
                         *(asyncio.to_thread(endpoint.new_session) for _ in range(3))
                     )
+                    sessions = (await asyncio.to_thread(endpoint.inspect))["sessions"]
+                    assert {s["id"]: s["client_connected"] for s in sessions} == {
+                        first.session_id: True,
+                        **{item.session_id: False for item in others},
+                    }
                     assert len({first.session_id, *(item.session_id for item in others)}) == 4
                     with _reason("capacity"):
                         await asyncio.to_thread(endpoint.new_session)

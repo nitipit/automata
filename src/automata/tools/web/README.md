@@ -8,6 +8,17 @@ historical JavaScript is never automatically replayed. See the
 [Web UI skill](../../skills/automata-web-ui/SKILL.md) for shared-component authoring
 and a practical example; the Pi extension's tool definitions own exact contracts.
 
+## Inspect before opening (Linux)
+
+`automata web-ui chat status [--cwd PATH] [--json]` checks this checkout’s managed
+server without starting it. Add `--engine PATH` to also check an explicitly trusted
+local kernel connection file (owner-only; pass the path, never its contents).
+This optional check requires `jupyter_client` in the CLI environment and a retained
+`BrowserHost` named `host` in the kernel with this checkout’s status code available.
+The two hosts are reported separately. A known empty host has `sessions: []`;
+a failed inspection reports `unknown` and exits nonzero. An omitted engine is
+`not_checked`. Client pairing is observed on the server; no Firefox tab is accessed.
+
 ## Create a chat on a reusable Web UI server (Linux)
 
 ```sh

@@ -889,7 +889,7 @@ class BrowserHost:
 
     async def wait_for_pair(self, session_id: str, *, timeout: float) -> bool:
         """Observe both transports for this live session without acquiring a writer."""
-        from starlette.websockets import WebSocketState
+        from .status import client_connected
 
         if not math.isfinite(timeout) or timeout < 0:
             raise ValueError("Pair timeout must be finite and nonnegative")
@@ -899,17 +899,7 @@ class BrowserHost:
         try:
             async with asyncio.timeout(timeout):
                 while not (self._closed or entry.retiring or entry.chat._dead):
-                    pair = entry.pair
-                    browser = entry.chat.connector.session
-                    if (
-                        pair
-                        and pair.ready
-                        and not pair.cleanup
-                        and browser
-                        and browser.is_connected
-                        and pair.chat_socket.client_state is WebSocketState.CONNECTED
-                        and pair.chat_socket.application_state is WebSocketState.CONNECTED
-                    ):
+                    if client_connected(entry):
                         return True
                     # A transport may have closed before its handler starts pair
                     # cleanup. Wait for a subsequent ready pair or retirement.
