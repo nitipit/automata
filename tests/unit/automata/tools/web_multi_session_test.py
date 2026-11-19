@@ -188,7 +188,12 @@ def test_listener_only_admission_observes_both_transports_for_exact_session(tmp_
                 assert not factory.clients
 
                 admitted = await host.admit_session(model="new-model", thinking="low")
-                id, admission = identity(admitted.url.removeprefix(host.runtime.origin))
+                assert "#" not in admitted.url
+                redirects = await asyncio.gather(*(client.get(admitted.url) for _ in range(2)))
+                assert sorted(response.status_code for response in redirects) == [303, 410]
+                redirect = next(response for response in redirects if response.status_code == 303)
+                assert redirect.headers["cache-control"] == "no-store"
+                id, admission = identity(redirect.headers["location"])
                 assert admitted.session_id == id and admission not in repr(admitted)
                 argv = factory.clients[0].argv
                 for flag, expected in (
@@ -199,6 +204,13 @@ def test_listener_only_admission_observes_both_transports_for_exact_session(tmp_
                     assert argv[argv.index(flag) + 1] == expected
                 other = await host.admit_session(provider="other-provider")
                 assert other.session_id != id
+                assert (
+                    await client.get(admitted.url.replace(id, other.session_id))
+                ).status_code == 410
+                other_entry = host._entries[other.session_id]
+                token, _ = other_entry.launch_ticket
+                other_entry.launch_ticket = (token, 0)
+                assert (await client.get(other.url)).status_code == 410
                 with pytest.raises(SessionAdmissionError) as full:
                     await host.admit_session()
                 assert full.value.code == "capacity"

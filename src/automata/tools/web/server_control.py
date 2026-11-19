@@ -23,7 +23,7 @@ _OPTIONS = ("provider", "model", "thinking")
 _ID = re.compile(r"[A-Za-z0-9_-]{1,256}")
 _ORIGIN = re.compile(r"http://127\.0\.0\.1:([1-9][0-9]{0,4})")
 _URL = re.compile(
-    r"(http://127\.0\.0\.1:[0-9]{1,5})/chat/sessions/([^/]+)/#admission=[A-Za-z0-9_-]{1,512}"
+    r"(http://127\.0\.0\.1:[0-9]{1,5})/chat/sessions/([^/]+)/launch/[A-Za-z0-9_-]{1,128}"
 )
 _ERRORS = {
     "runtime_unavailable": "A private local Web UI runtime directory is unavailable.",

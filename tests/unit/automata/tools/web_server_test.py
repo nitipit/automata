@@ -62,7 +62,7 @@ class FixtureHost:
         self.event("create", ident, provider, model, thinking)
         return SimpleNamespace(
             session_id=ident,
-            url=f"{self.runtime.origin}/chat/sessions/{ident}/#admission={_SECRET}",
+            url=f"{self.runtime.origin}/chat/sessions/{ident}/launch/{_SECRET}",
         )
 
     async def wait_for_pair(self, session_id, *, timeout):
@@ -472,15 +472,19 @@ def test_real_managed_host_pairs_a_writer_and_never_evicts_it(project, monkeypat
 
         async def pair():
             parts = urlsplit(first.url)
-            connection = parts.path.rstrip("/") + "/chat/connection"
             origin = f"{parts.scheme}://{parts.netloc}"
-            private = {"Authorization": "Bearer " + parts.fragment.removeprefix("admission=")}
             async with httpx.AsyncClient(
                 base_url=origin, headers={"Origin": origin, "User-Agent": "Automata/1.0"}, timeout=2
             ) as client:
+                launch = await client.get(first.url)
+                assert launch.status_code == 303
+                parts = urlsplit(launch.headers["location"])
+                connection = parts.path.rstrip("/") + "/chat/connection"
+                private = {"Authorization": "Bearer " + parts.fragment.removeprefix("admission=")}
+                assert (await client.get(first.url)).status_code == 410
                 assert (await client.post(connection)).status_code == 403
                 ticket = (await client.post(connection, headers=private)).json()["ticket"]
-                base = "ws://" + parts.netloc
+                base = "ws://" + urlsplit(origin).netloc
                 options = {"origin": origin, "open_timeout": 2, "user_agent_header": "Automata/1.0"}
                 async with (
                     ws.connect(f"{base}/ws?token={ticket}", **options),

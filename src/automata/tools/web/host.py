@@ -101,6 +101,7 @@ class _Entry:
     idle_timer: asyncio.TimerHandle | None = None
     retiring: asyncio.Task | None = None
     pair_ready: asyncio.Event = field(default_factory=asyncio.Event)
+    launch_ticket: tuple[str, float] | None = field(default=None, repr=False)
 
     @property
     def url(self):
@@ -418,6 +419,31 @@ class BrowserHost:
                 templates.get_template("entry.html").render(sessions_url=f"{_SESSIONS}/"),
                 headers=_PRIVATE,
             )
+
+        async def redeem_launch(id: str, token: str, request: Request):
+            """Consume one local-launch ticket without creating or reclaiming a session."""
+            if not self._runtime.local_request(request):
+                return Response(status_code=403, headers=_PRIVATE)
+            entry = self._entries.get(id)
+            if (
+                not entry
+                or not entry.launch_ticket
+                or entry.retiring
+                or entry.pair
+                or self._closed
+                or request.url.query
+                or not _exact_path(request, f"{_SESSIONS}/{id}/launch/{token}")
+            ):
+                return Response(status_code=410, headers=_PRIVATE)
+            expected, deadline = entry.launch_ticket
+            if time.monotonic() >= deadline:
+                entry.launch_ticket = None
+                return Response(status_code=410, headers=_PRIVATE)
+            if not _match(token, expected):
+                return Response(status_code=410, headers=_PRIVATE)
+            # No await between checking and consuming; concurrent requests cannot both win.
+            entry.launch_ticket = None
+            return Response(status_code=303, headers={**_PRIVATE, "Location": entry.url})
 
         async def index(id: str, request: Request):
             if not self._runtime.local_request(request):
@@ -755,6 +781,7 @@ class BrowserHost:
         # Annotations in these local route closures are postponed at import time.
         for endpoint in (
             root,
+            redeem_launch,
             index,
             asset,
             connection,
@@ -772,6 +799,7 @@ class BrowserHost:
         app.add_api_route("/assets/{name}", asset, methods=["GET"])
         app.add_api_route("/connector/{operation}", connector, methods=["POST"])
         app.add_api_websocket_route("/ws", bridge)
+        app.add_api_route(f"{_SESSIONS}/{{id}}/launch/{{token}}", redeem_launch, methods=["GET"])
         app.add_api_route(f"{_SESSIONS}/", new_session, methods=["POST"])
         app.add_api_route(_LEGACY_SESSIONS, new_session, methods=["POST"])
         for prefix in (_SESSIONS, _LEGACY_SESSIONS):
@@ -853,7 +881,11 @@ class BrowserHost:
             entry = await self._await_start(self._start_worker(launch=launch))
         except _Refusal as error:
             raise SessionAdmissionError(error.code) from None
-        return AdmittedSession(entry.chat.id, self.runtime.origin + entry.url)
+        token = secrets.token_urlsafe(32)
+        entry.launch_ticket = (token, time.monotonic() + 30)
+        return AdmittedSession(
+            entry.chat.id, f"{self.runtime.origin}{_SESSIONS}/{entry.chat.id}/launch/{token}"
+        )
 
     async def wait_for_pair(self, session_id: str, *, timeout: float) -> bool:
         """Observe both transports for this live session without acquiring a writer."""
