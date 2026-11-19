@@ -7,6 +7,8 @@ description: Use for creating, rejoining, inspecting and stopping a task-owned P
 
 Use a persistent Python kernel as the app engine. The app's purpose is generic; its engine is not a per-task choice. Keep app state and references to owned workers in the kernel. A browser view is optional. If a suitable kernel is unavailable, report the prerequisite rather than silently switching engines or installing dependencies.
 
+Prefer an existing CLI or service interface when it meets the task’s requirements. The kernel can call it asynchronously and keep the state needed to reconnect. Host a component directly in the kernel when the task requires kernel ownership or access to its live Python objects. Invoking a CLI that reuses a service does not transfer ownership of that service to the app.
+
 Prefer `AsyncKernelClient` for controllers that stay connected across interactions. Keep blocking I/O off the controller’s event loop so browser events and stop requests can be handled while waiting for a kernel reply. A short, sequential command may use `BlockingKernelClient` when it has nothing else to service.
 
 1. **Identify the instance.** Agree on purpose, inputs, allowed effects, owner and lifetime. Before starting, check for the task's existing instance. Record the app identity, kernel identity, working directory, private reconnect location and cleanup owner outside installed assets. Use the Python kernel guidance for authenticated setup and reconnection; never publish connection credentials.
