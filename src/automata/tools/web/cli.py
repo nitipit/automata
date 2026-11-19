@@ -105,31 +105,29 @@ def status(
 def new(
     *,
     cwd: Path | None = None,
+    engine: Annotated[
+        Path | None,
+        Parameter(help="Use an existing local kernel's host via its private connection file."),
+    ] = None,
     provider: str | None = None,
     model: str | None = None,
     thinking: str | None = None,
     as_json: Annotated[bool, Parameter(name="--json")] = False,
 ) -> None:
-    """Create a native session on this checkout's server and open the configured Firefox."""
+    """Create a native session on the managed server or selected engine and open Firefox."""
+    result = {"session_id": None, "browser_connected": False}
+    if engine is not None:
+        result["creation"] = "not_created"
     try:
         from .browser import BrowserError, open_browser, preflight_browser
         from .config import ConfigError, WebConfig, load_config
         from .server import ServerError, find_or_start
     except ModuleNotFoundError:
         if as_json:
-            print(
-                json.dumps(
-                    {
-                        "error": "web_dependencies_missing",
-                        "session_id": None,
-                        "browser_connected": False,
-                    }
-                )
-            )
+            print(json.dumps({"error": "web_dependencies_missing", **result}))
             raise SystemExit(1) from None
         raise SystemExit("Web UI requires the automata[web] dependencies.") from None
 
-    result = {"session_id": None, "browser_connected": False}
     try:
         config = load_config(_config.get())
         prefs = dict(config)
@@ -152,13 +150,20 @@ def new(
             Path(effective.browser_profile) if effective.browser_profile else None
         )
         options = {k: getattr(effective, k) for k in ("provider", "model", "thinking")}
-        endpoint = find_or_start(root)
-        admission = endpoint.new_session(**options)
-        result["session_id"] = admission.session_id
-        open_browser(target, admission.url)
-        result["browser_connected"] = endpoint.wait_connected(admission.session_id, timeout=12)
-        if not result["browser_connected"]:
-            result["error"] = "browser_connection_unconfirmed"
+        if engine is not None:
+            import asyncio
+
+            from .engine import create_chat
+
+            result = asyncio.run(create_chat(engine, root, target, options))
+        else:
+            endpoint = find_or_start(root)
+            admission = endpoint.new_session(**options)
+            result["session_id"] = admission.session_id
+            open_browser(target, admission.url)
+            result["browser_connected"] = endpoint.wait_connected(admission.session_id, timeout=12)
+            if not result["browser_connected"]:
+                result["error"] = "browser_connection_unconfirmed"
     except BrowserError:
         result["error"] = "browser_open_failed" if result["session_id"] else "browser_unavailable"
     except ConfigError:
@@ -171,5 +176,7 @@ def new(
         if result["session_id"]:
             print(f"Session: {result['session_id']}")
         print("Browser connected." if result["browser_connected"] else f"Web UI: {result['error']}")
+        if result.get("creation") == "unknown":
+            print("Creation outcome unknown. Inspect the selected engine with chat status first.")
     if not result["browser_connected"]:
         raise SystemExit(1)

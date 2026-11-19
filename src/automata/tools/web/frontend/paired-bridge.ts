@@ -1,15 +1,15 @@
 type Bridge = { status: string; connect(): Promise<void>; close(): void };
 type BridgeClass = new (options: { url: string; token: string }) => Bridge;
-export const bridgeWindow = window as Window & { awr?: Bridge };
+export const bridgeWindow = window as Window & { awr?: Bridge; __automataBridgeTicket?: string };
 export const wsOrigin = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}`;
 
 let BridgeClass: BridgeClass | undefined;
 let cancelBootstrap: (() => void) | undefined;
 let bootstrapUncertain = false;
 
-// The pinned classic artifact exposes its constructor only after consuming a
-// fragment token and opening /ws. Load it once, after the server reserves our
-// pair. All subsequent attempts construct a new handle without touching the URL.
+// The Web Chat adapter supplies the pinned classic artifact with a one-shot
+// in-memory ticket, never a URL fragment. After bootstrap, reconnects use its
+// constructor directly.
 export async function prepareBridge(ticket: string): Promise<Bridge> {
   if (BridgeClass) {
     const bridge = new BridgeClass({ url: `${wsOrigin}/ws`, token: ticket });
@@ -20,14 +20,11 @@ export async function prepareBridge(ticket: string): Promise<Bridge> {
   return new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.src = "/bridge.js";
-    const originalHash = location.hash;
-    const fragment = `#${new URLSearchParams({ token: ticket })}`;
-    const path = location.pathname + location.search;
     const finish = (error?: Error) => {
       clearTimeout(deadline);
       cancelBootstrap = undefined;
       script.onload = script.onerror = null;
-      if (location.hash === fragment) history.replaceState(history.state, "", path + originalHash);
+      delete bridgeWindow.__automataBridgeTicket;
       script.remove();
       const bridge = bridgeWindow.awr;
       if (error || !bridge) {
@@ -39,14 +36,14 @@ export async function prepareBridge(ticket: string): Promise<Bridge> {
     };
     const deadline = window.setTimeout(() => {
       // An aborted loader may still evaluate later. Don't stage a later pair's
-      // fragment in this document when execution of this script is uncertain.
+      // ticket in this document when execution of this script is uncertain.
       bootstrapUncertain = true;
       finish(new Error("UI bridge load timed out"));
     }, 5000);
     cancelBootstrap = () => { bootstrapUncertain = true; finish(new Error("UI bridge load cancelled")); };
     script.onload = () => finish();
     script.onerror = () => finish(new Error("UI bridge could not load"));
-    history.replaceState(history.state, "", path + fragment);
+    bridgeWindow.__automataBridgeTicket = ticket;
     document.head.append(script);
   });
 }
